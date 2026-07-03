@@ -28,7 +28,8 @@ Test-first, каждую подзадачу — ветка+PR. **Начать с
 
 - [ ] e2_t1 — планирование Фазы 1 (superpowers), сверка с инвариантами DESIGN.md
 - [ ] e2_t2 — контракт `pkg/mtt`: домен-типы (`Task` c `history[]`+`refs[]`, `Comment` c `refs[]`,
-      `Ref` {kind,id,label}, `Type`, `Flow`, `Status` c `kind`, `Transition`, `Config`); базовый
+      `Ref` {kind,id,label}, `Type`, `Flow`, `Status` c `kind`, `Transition`, `Config`;
+      history-запись резервирует `role` — шов ролей); базовый
       `TaskStore` + опциональные capability-интерфейсы (`HistoryStore`, `DependencyStore`,
       `CommentStore`, `SearchStore`), `Capabilities()`, `ErrUnsupported` + `pkg/mtt/CLAUDE.md`
       (порядок полей = порядок сериализации)
@@ -68,8 +69,8 @@ Test-first, каждую подзадачу — ветка+PR. **Начать с
       cwd=корень); фейк для тестов
 - [ ] e4_t3 — исполнение `commands` перехода по порядку, гейтинг по exit-кодам (переход
       блокируется на первом ненулевом); флаг `--no-run`
-- [ ] e4_t4 — запись перехода в `history` задачи (from→to, at, by, результаты `checks`), append-only
-      (capability `HistoryStore`; при отсутствии — мягкая деградация)
+- [ ] e4_t4 — запись перехода в `history` задачи (from→to, at, by, `role` из `--role`/`MTT_ROLE`,
+      результаты `checks`), append-only (capability `HistoryStore`; при отсутствии — мягкая деградация)
 - [ ] e4_t5 — `mtt advance <id> --to <status>` — мета-обход до цели (прогрессирующие рёбра,
       стоп на развилке, защита от циклов, не в чужой терминал); режимы `--stop`(деф)/`--atomic`/
       `--force`; `mtt start`/`mtt done` — алиасы; `mtt status <id> <new>` — одиночный переход
@@ -91,4 +92,7 @@ Test-first, каждую подзадачу — ветка+PR. **Начать с
 - e9 — Фаза 8: hook внешнего индексатора
 - later — реконструкция наблюдаемого графа статусов из `history` задач (read-only агрегация);
   явное версионирование/миграции flow (пока хватает git-истории конфига)
+- later — role-зависимая семантика команд: секция `roles` в конфиге, role-тег на переходах,
+  role-параметризация `advance`/verb→target (шов уже заложен: `role` в history + `--role`;
+  роли — семантический роутинг, не RBAC)
 - release — goreleaser, кросс-бинарники по тегам
