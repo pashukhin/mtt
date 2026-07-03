@@ -12,8 +12,10 @@ import (
 )
 
 // Load reads .mtt/config.yaml under root, merges the optional gitignored
-// .mtt/config.local.yaml overlay (later layer wins, per field/section), maps to
-// the domain Config, and runs the YAML provider's checks (exactly one default;
+// .mtt/config.local.yaml overlay (later layer wins at top-level-field
+// granularity: a scalar like project.name overrides, but a list such as types
+// replaces wholesale — yaml.v3 does not element-merge sequences), maps to the
+// domain Config, and runs the YAML provider's checks (exactly one default;
 // prefixes present+unique). Domain invariants (Config.Validate) are the caller's.
 func Load(root string) (mtt.Config, map[string]string, error) {
 	var yc ymlConfig

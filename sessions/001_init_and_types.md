@@ -1,6 +1,6 @@
 # 001 — Init & inspect
 
-Status: planned   ·   Branch: `feat/s001-init-and-types`
+Status: done   ·   Branch: `feat/s001-init-and-types`
 Design (authoritative): [../docs/superpowers/specs/2026-07-03-session-001-init-and-types-design.md](../docs/superpowers/specs/2026-07-03-session-001-init-and-types-design.md)
 
 ## Target
@@ -36,13 +36,13 @@ contract, the YAML adapter's config layer, and the CLI — the foundation everyt
 
 ## Plan (refine at session start — test-first)
 
-- [ ] `pkg/mtt`: pure `Config`/`Type`/`Flow`/`Status`(`StatusKind`)/`Transition` + `Validate()` + helpers
+- [x] `pkg/mtt`: pure `Config`/`Type`/`Flow`/`Status`(`StatusKind`)/`Transition` + `Validate()` + helpers
       (`DefaultType`/`ChildrenIn`) + `pkg/mtt/CLAUDE.md`
-- [ ] `internal/adapter/yaml`: root discovery, embedded `default`/`coding` templates (text/template,
+- [x] `internal/adapter/yaml`: root discovery, embedded `default`/`coding` templates (text/template,
       `{{.Name}}`), atomic write, DTO→domain load + overlay merge, adapter checks (prefix, one default)
       + `internal/adapter/yaml/CLAUDE.md`
-- [ ] `internal/cli`: `init`, `types` (composition root; calls `Validate()`, formats output)
-- [ ] golden config test (`default`/`coding`) + `testscript` `init` scenario
+- [x] `internal/cli`: `init`, `types` (composition root; calls `Validate()`, formats output)
+- [x] golden config test (`default`/`coding`) + `testscript` `init` scenario
 - `internal/core` is **deferred to session 002** (see spec §9) — no task usecases yet in 001
 
 ## Done (fill during/after the session)
