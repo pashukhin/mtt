@@ -28,15 +28,17 @@ Test-first, каждую подзадачу — ветка+PR. **Начать с
 
 - [ ] e2_t1 — планирование Фазы 1 (superpowers), сверка с инвариантами DESIGN.md
 - [ ] e2_t2 — контракт `pkg/mtt`: домен-типы (`Task` c `history[]`, `Comment`, `Type`, `Flow`,
-      `Status` c `kind`, `Transition`, `Config`) + порт `TaskStore` + `pkg/mtt/CLAUDE.md`
-      (порядок полей = порядок сериализации)
+      `Status` c `kind`, `Transition`, `Config`); базовый `TaskStore` + опциональные capability-
+      интерфейсы (`HistoryStore`, `DependencyStore`, `CommentStore`, `SearchStore`),
+      `Capabilities()`, `ErrUnsupported` + `pkg/mtt/CLAUDE.md` (порядок полей = порядок сериализации)
 - [ ] e2_t3 — конфиг: тип (`name/parent/statuses(c kind)/transitions`; `prefix` — поле YAML),
       валидация инвариантов (дефолт `task`; статусы-якоря `tbd`/`in_progress`/`done` с категориями;
       ровно один `initial`, ≥1 `terminal`, в дефолте ещё `cancelled`); дефолтный шаблон
 - [ ] e2_t4 — `mtt init`: запись дефолтного `.mtt/config.yaml`
-- [ ] e2_t5 — `internal/adapter/yaml`: реализация `TaskStore` — **минтинг ID** (`<prefix><N>`
-      по цепочке родителей, `max+1`, `O_EXCL`), детерминированная сериализация, атомарная запись
-      (temp+rename), поиск корня `.mtt/`, загрузка конфига + `.../yaml/CLAUDE.md`
+- [ ] e2_t5 — `internal/adapter/yaml`: реализация `TaskStore` **и всех capability-интерфейсов**
+      (референс) — **минтинг ID** (`<prefix><N>` по цепочке родителей, `max+1`, `O_EXCL`),
+      детерминированная сериализация, атомарная запись (temp+rename), поиск корня `.mtt/`,
+      загрузка конфига + `.../yaml/CLAUDE.md`
 - [ ] e2_t6 — `internal/core`: usecase-слой (add/list/show/edit/close); валидация parent-типа;
       создаёт логическую задачу, ID запрашивает у `TaskStore` + `internal/core/CLAUDE.md`
 - [ ] e2_t7 — golden-тесты сериализации задачи и конфига (флаг `-update`)
@@ -46,6 +48,8 @@ Test-first, каждую подзадачу — ветка+PR. **Начать с
 - [ ] e2_t11 — первый `testscript`-сценарий e2e: init → add → list → show
 
 ## e3 — Фаза 2: иерархия, зависимости, ready  `[ ]`
+
+(Зависимости — capability `DependencyStore`; при отсутствии у адаптера — `ErrUnsupported`.)
 
 - [ ] e3_t1 — `internal/core`: индекс задач в память, обход иерархии
 - [ ] e3_t2 — `depends_on`: добавление/снятие, валидация существования
@@ -63,8 +67,9 @@ Test-first, каждую подзадачу — ветка+PR. **Начать с
 - [ ] e4_t3 — исполнение `commands` перехода по порядку, гейтинг по exit-кодам (переход
       блокируется на первом ненулевом); флаг `--no-run`
 - [ ] e4_t4 — запись перехода в `history` задачи (from→to, at, by, результаты `checks`), append-only
+      (capability `HistoryStore`; при отсутствии — мягкая деградация)
 - [ ] e4_t5 — команды `mtt status <id> <new>`, `mtt start`, `mtt done` (в терминах задач)
-- [ ] e4_t6 — `mtt types` (просмотр типов/flow из конфига)
+- [ ] e4_t6 — `mtt types` (типы/flow из конфига) + `mtt caps` (возможности текущего бэкенда)
 - [ ] e4_t7 — `ready`/`list`/завершённость — **по категории** статуса (не по литералу `done`)
 
 ## e5 — Фаза 4: комментарии (дерево)  `[ ]`
