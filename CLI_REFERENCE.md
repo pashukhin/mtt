@@ -180,8 +180,10 @@ Makes `<id>` depend on `<depends-on-id>`. Rejected if it would create a cycle.
 ## References  *(field: phase 1; commands: phase 2; `note` targets need a KB, phase 5)*
 
 References are informational, verifiable links (`kind` ∈ `note`/`task`/`comment`/`url`) — not blocking
-dependencies. A reference is identified by its natural key **`<kind>:<target>`** (there is no separate
-reference ID); `--label` is only an annotation, and a task holds at most one reference per key.
+dependencies. A reference is identified by its natural key — the **pair `(kind, target)`** (no separate
+reference ID). The target is part of the key, so an entity can hold many references of the same `kind` to
+different targets (`note:auth-design` + `note:login-spec` are two distinct references); only an exact
+`kind`+`target` duplicate is collapsed (its `--label` updated). `--label` is an annotation, not part of identity.
 
 ### `mtt ref add <id> <kind>:<target> [--label <text>]` — add a reference
 Adds a reference from task `<id>` to `<kind>:<target>` (e.g. `note:auth-design`, `task:e1_t2`). Idempotent:
