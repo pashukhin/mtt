@@ -4,8 +4,8 @@ A living handoff doc. Update it at the end of each session (what's done / what's
 
 ## Where we are
 
-- **Phase 0 (scaffold) is complete**, the `make check` gate is green, commit(s) on `main` (local).
-- **No GitHub push yet** (waiting for an explicit "go" from the user).
+- **Design phase complete**; scaffold + quality gate + CI in place, `make check` green. Implementation not started.
+- Work is organized in **compact sessions** (see [sessions/README.md](sessions/README.md)); next up is **session 001**.
 - Stack: Go 1.23, cobra; storage — YAML file-per-task (see DESIGN.md).
 
 ## The session starts with planning (mandatory)
@@ -63,25 +63,24 @@ The plugin is declared in the personal `.claude/settings.local.json` (per-user, 
    (alternative — the official marketplace: `/plugin install superpowers@claude-plugins-official`)
 3. Verify the TDD/brainstorming/debugging skills are available, and **use them**.
 
-## Next task — Phase 1 (after planning)
+## Next task — session 001 (after refining its plan)
 
-- Branch: `feat/phase-1-core` (implementation — after the plan).
-- Task guide: **e2** in [TASKS.md](TASKS.md) (planning refines the breakdown/order).
-- **Test-first** (TDD: red → green → refactor). `make check` green before every commit.
-- Architecture — **hexagonal**: `cli → core → port ← adapter`, the contract (domain types + ports) in the
-  public `pkg/mtt`. `core` doesn't import `adapter/*`.
-- Order in substance: the `pkg/mtt` contract (types + `TaskStore` port) → config+types + `mtt init` (the ID
-  depends on types) → `internal/adapter/yaml` → `internal/core` (ID minting, usecases) → the
-  `add/list/show` commands.
+- Work in **compact sessions** (see [sessions/README.md](sessions/README.md)) — each ends with a
+  runnable command + e2e. Start with **[sessions/001_init_and_types.md](sessions/001_init_and_types.md)**.
+- Branch: `feat/s001-init-and-types`.
+- Refine 001's plan (superpowers), then work **test-first**; the session's acceptance e2e + `make check`
+  must pass before the PR.
+- Architecture — **hexagonal**: `cli → core → port ← adapter`, contract (domain types + ports) in the
+  public `pkg/mtt`; `core` doesn't import `adapter/*`.
 - Create a `CLAUDE.md` for each new package (`pkg/mtt`, `internal/core`, `internal/adapter/yaml`, …).
 
 ## Ready-to-paste kickoff prompt (for a new session)
 
-> We're continuing mtt. Read CLAUDE.md, AGENTS.md, DESIGN.md, TASKS.md and NEXT_SESSION.md.
-> Make sure the superpowers skills are active (otherwise activate them per NEXT_SESSION.md).
-> Start by PLANNING phase 1. Hexagonal architecture: the contract (domain types + ports
-> `TaskStore`/`KnowledgeStore`) in the public `pkg/mtt`, logic in `internal/core`, YAML — the default
-> adapter in `internal/adapter/yaml`; types/hierarchy/ID come from config (no literals in code),
-> `mtt init` writes the epic/task/subtask defaults with flow. Then implement on the branch
-> `feat/phase-1-core`, strictly test-first.
-> Follow the principles (SOLID/DRY/KISS/TDD/clean architecture) and the self-check from AGENTS.md.
+> We're continuing mtt. Read CLAUDE.md, AGENTS.md, DESIGN.md, TASKS.md, NEXT_SESSION.md and
+> sessions/README.md. Make sure the superpowers skills are active (otherwise activate them per
+> NEXT_SESSION.md). We work in compact sessions; do **session 001**
+> (sessions/001_init_and_types.md): refine its plan (superpowers), then implement strictly test-first on
+> branch `feat/s001-init-and-types` until its acceptance e2e + `make check` are green.
+> Hexagonal architecture: contract (domain types + ports) in the public `pkg/mtt`, logic in
+> `internal/core`, YAML default adapter in `internal/adapter/yaml`; types/hierarchy/ID from config (no
+> literals in code). Follow SOLID/DRY/KISS/TDD/clean-architecture and the self-check from AGENTS.md.

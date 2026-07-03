@@ -103,7 +103,12 @@ Requires: Go 1.23+, `golangci-lint` v2, `goimports`.
 - Commit trailer:
   `Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>`
 
-## Next task
+## Sessions
 
-Taken from the phase plan in [DESIGN.md](DESIGN.md) (top-down). After phase 4, mtt's development moves onto
-mtt itself (dogfooding).
+Work in **compact sessions** — each small and ending with something practical and **immediately
+verifiable** (a user-runnable command with an e2e test). One file per session in
+[sessions/](sessions/) (`NNN_<slug>.md`): write the target up front, fill in what was actually done.
+Start a session by refining its plan (superpowers), then work test-first; branch `feat/sNNN-<slug>` →
+PR → squash. The roadmap and current target live in [sessions/README.md](sessions/README.md); the design
+backlog stays in [DESIGN.md](DESIGN.md) / [TASKS.md](TASKS.md). After phase 4 the backlog itself moves
+onto mtt (dogfooding).
