@@ -25,6 +25,6 @@
 
 ## Skills / guards
 
-Подключён плагин **superpowers** (skills: TDD, brainstorming, debugging, planning) —
-см. [.claude/settings.json](.claude/settings.json). Если в новой сессии skills не видны —
-инструкция активации в [NEXT_SESSION.md](NEXT_SESSION.md).
+Плагин **superpowers** (skills: TDD, brainstorming, debugging, planning) — это **личное**
+требование к процессу разработки, а не проектное: включается в `.claude/settings.local.json`
+(per-user, gitignored). Инструкция активации — в [NEXT_SESSION.md](NEXT_SESSION.md).

@@ -10,3 +10,6 @@ coverage.*
 # editor / OS
 .DS_Store
 *.swp
+
+# personal Claude Code settings (per-user, not shared)
+.claude/settings.local.json

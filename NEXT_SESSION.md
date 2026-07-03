@@ -30,7 +30,7 @@
 
 ## Активация guards (superpowers)
 
-Плагин объявлен в [.claude/settings.json](.claude/settings.json)
+Плагин объявлен в личном `.claude/settings.local.json` (per-user, gitignored)
 (`superpowers@superpowers-marketplace`). Плагины подхватываются **при старте сессии**:
 
 1. При открытии проекта Claude Code может показать запрос доверия marketplace
