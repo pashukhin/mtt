@@ -221,15 +221,25 @@ Appends a comment to the task; `--reply <cid>` nests it under an existing commen
 ## Knowledge base  *(phase 5; capability `KnowledgeStore`)*
 
 Absent a KB backend, these return `ErrUnsupported` and knowledge lives in tasks/comments instead.
+**Notes are versioned** — writes never destroy prior content; `edit` saves a new version linked to the
+previous (see DESIGN → Knowledge base). External backends use their native versioning.
 
 ### `mtt note add <slug> [flags]` — create a knowledge note
+Creates a note at `<slug>` (its first version). Rejects an existing slug — use `edit` to add a version.
 - `<slug>` — stable identifier / filename.
 - `--title <text>` — human title.
 - `--body <text>` — content (`-` for stdin).
 
-### `mtt note show <slug>` — print a note (with backlinks)
+### `mtt note edit <slug> [flags]` — save a new version
+Saves a new version of the note's title/body, **linked to the previous version**; old versions are kept.
+
+### `mtt note show <slug> [--version <n>]` — print a note (with backlinks)
+Shows the current version, or version `<n>` with `--version`.
+
+### `mtt note history <slug>` — list a note's versions
+Lists versions (newest first) with author/time; each links to its predecessor.
+
 ### `mtt note list` — list notes
-### `mtt note edit <slug> [flags]` — edit a note's title/body
 
 ### `mtt search <query> [flags]` — text search  *(phase 5)*
 Simple substring/token search over tasks and notes (no RAG).

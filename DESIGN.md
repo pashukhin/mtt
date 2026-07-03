@@ -404,6 +404,12 @@ A `bug` type (`prefix: b`, `parent: epic`, a flow with `review`) is added the sa
 **The KB is an optional capability** (`KnowledgeStore`, like Confluence atop Jira). Without it, knowledge
 lives right in tasks and comments; the "knowledge base" is them and the links between them.
 
+**Notes are versioned.** A `KnowledgeStore` never destroys note content: saving a note (`note edit`)
+creates a **new version linked to its predecessor**, so history is preserved — same principle as task
+transition `history`. This is a KB capability: the YAML reference adapter implements it (git also tracks
+the files); external backends (Confluence, …) rely on their **native** versioning — that's their concern.
+The domain seam is that a `Note` carries a version identity + a predecessor link. Deferred to phase 5 with the KB.
+
 Tasks and comments carry **`refs`** — a structured list of verifiable references:
 
 ```yaml

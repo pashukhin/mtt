@@ -85,8 +85,9 @@ code); the **adapter** mints the ID/slug; the type set has a default `task`; eve
 
 ## Later (coarse)
 
-- e6 — Phase 5: KB (`KnowledgeStore`) + text search; resolve `refs` of kind `note`; `mtt check`
-  (dangling references) + backlinks  _(KB is low priority; beads has an analog)_
+- e6 — Phase 5: KB (`KnowledgeStore`) + text search; **versioned notes** (non-destructive; each save
+  links to its predecessor — YAML implements, external backends use native versioning); resolve `refs`
+  of kind `note`; `mtt check` (dangling references) + backlinks  _(KB is low priority; beads has an analog)_
 - e7 — Phase 6: text/ASCII Gantt, richer list/query
 - e8 — Phase 7: `mtt-ui` (optional, separate binary: web UI, Gantt SVG, KB browser)
 - e9 — Phase 8: external indexer hook
