@@ -16,4 +16,6 @@ e2e via `testscript` (txtar) in temp dirs; one script per command.
 
 ## Current state
 
-`root` + `version`. Next (phase 1): `add / list / show / edit / close`.
+`root` + `version` + `init` + `types`. `init`/`types` bootstrap config directly via the YAML adapter
+(the composition root wiring adapters from config); `types` calls `Config.Validate()` and formats output.
+Next (phase 1): `add / show / list / edit / close`.
