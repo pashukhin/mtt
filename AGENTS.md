@@ -13,9 +13,16 @@ Architecture and decisions live in [DESIGN.md](DESIGN.md). This file is about ho
 
 ## Principles (non-negotiable)
 
-We fanatically follow **SOLID, DRY, KISS, TDD, clean architecture** (hexagonal). Dependencies point inward:
-`cli → core → port ← adapter`. Domain types and ports live in the public `pkg/mtt`; they know nothing
+We fanatically follow **SOLID, DRY, KISS, TDD, DDD, clean architecture** (hexagonal). Dependencies point
+inward: `cli → core → port ← adapter`. Domain types and ports live in the public `pkg/mtt`; they know nothing
 about the CLI, files, or YAML. `core` never imports `adapter/*`; adapters carry no business rules.
+
+**DDD in practice here:** model the domain explicitly — closed vocabularies are **value objects** (e.g.
+`StatusKind`), not bare strings/primitives; keep the domain **free of serialization/infrastructure** (no
+yaml/json tags, no adapter-specific fields like `prefix` in `pkg/mtt` — adapters map via DTOs); **reference
+across aggregates by identity** (names/IDs), never by pointer; **back-references are computed**, not stored.
+The domain requires a **mandatory minimum** of fields and treats the rest as optional, so an external
+provider can satisfy it (**provider-agnostic**).
 
 Before you consider a task done — an explicit self-check (answer honestly):
 
@@ -23,6 +30,8 @@ Before you consider a task done — an explicit self-check (answer honestly):
 - "Any duplication (**DRY**)? Any needless complexity (**KISS**)?"
 - "Was the test written **before** the code (**TDD**)?"
 - "Does each exported type/function have one responsibility (**SRP**)? Are the abstractions right?"
+- "Is the **domain (DDD)** modeled explicitly — value objects over primitives, free of serialization/infra,
+  references by identity, right mandatory-minimum vs optional?"
 
 Any "not sure" → refactor before committing, not after.
 
