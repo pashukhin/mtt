@@ -13,6 +13,10 @@ const dirName = ".mtt"
 // configName is the filename of the mtt project config inside dirName.
 const configName = "config.yaml"
 
+// localConfigName is the filename of the optional, gitignored config overlay
+// inside dirName; when present, it is merged onto configName (later wins).
+const localConfigName = "config.local.yaml"
+
 // ErrNotInitialized is returned when no .mtt directory is found.
 var ErrNotInitialized = errors.New("mtt: not initialized (no .mtt directory found)")
 
