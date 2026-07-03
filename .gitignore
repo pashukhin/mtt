@@ -1,0 +1,12 @@
+# build output
+/bin/
+/dist/
+/mtt
+
+# test / coverage artifacts
+*.out
+coverage.*
+
+# editor / OS
+.DS_Store
+*.swp
