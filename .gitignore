@@ -13,3 +13,6 @@ coverage.*
 
 # personal Claude Code settings (per-user, not shared)
 .claude/settings.local.json
+
+# personal per-project mtt config: connection params, local prefs (overrides .mtt/config.yaml)
+.mtt/config.local.yaml

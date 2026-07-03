@@ -34,7 +34,8 @@ code); the **adapter** mints the ID/slug; the type set has a default `task`; eve
       `ErrUnsupported` + `pkg/mtt/CLAUDE.md` (field order = serialization order)
 - [ ] e2_t3 — config: type (`name/parent/statuses(with kind)/transitions`; `prefix` is a YAML field),
       invariant validation (default `task`; anchor statuses `tbd`/`in_progress`/`done` with categories;
-      exactly one `initial`, ≥1 `terminal`, plus `cancelled` in the default); the default template
+      exactly one `initial`, ≥1 `terminal`, plus `cancelled` in the default); the default template; config
+      load merges an optional gitignored `.mtt/config.local.yaml` overlay (personal params override committed config)
 - [ ] e2_t4 — `mtt init`: write the default `.mtt/config.yaml`
 - [ ] e2_t5 — `internal/adapter/yaml`: implement `TaskStore` **and all capability interfaces** (the
       reference) — **ID minting** (`<prefix><N>` along the parent chain, `max+1`, `O_EXCL`),
@@ -94,4 +95,6 @@ code); the **adapter** mints the ID/slug; the type set has a default `task`; eve
 - later — role-aware command semantics: a `roles` section in config, a role tag on transitions,
   role-parameterization of `advance`/verb→target (the seam is already laid: `role` in history + `--role`;
   roles are semantic routing, not RBAC)
+- later — rollback/compensation commands on transitions (`rollback`/`on_failure`) run when an `--atomic`
+  or multi-step `advance` aborts after side effects (undo a created branch, etc.)
 - release — goreleaser, cross-platform binaries by tag

@@ -130,7 +130,8 @@ the Gantt chart, and dependencies are computed in memory. SQLite isn't needed fo
 
 ```
 .mtt/
-  config.yaml            # project, task types, and flow
+  config.yaml            # project, task types, and flow (shared, committed)
+  config.local.yaml      # personal overlay: connection params, local prefs (gitignored)
   tasks/
     e1.yaml              # epic 1
     e1_t3.yaml           # task 3 of epic 1
@@ -141,6 +142,23 @@ the Gantt chart, and dependencies are computed in memory. SQLite isn't needed fo
 
 `.mtt/` is **committed** (it's project data). This is the YAML adapter's layout; edits go **only** through
 a port (`TaskStore`/`KnowledgeStore`) — don't hand-edit files, or determinism and validation are lost.
+
+## Configuration (layering & local overrides)
+
+Config is resolved by merging layers (later overrides earlier), keeping shared project settings and
+personal per-user settings apart:
+
+1. built-in defaults (the `mtt init` template);
+2. an optional global user config (`$XDG_CONFIG_HOME/mtt/config.yaml`) — personal cross-project defaults;
+3. **`.mtt/config.yaml`** — the shared, committed project config (**types & flow live here**);
+4. **`.mtt/config.local.yaml`** — a **gitignored** personal overlay for this project;
+5. environment variables / CLI flags — highest.
+
+The local overlay is for **per-user connection parameters to external backends** (e.g. different Jira
+users/credentials on the same project) and local preferences. **Credentials never go in the committed
+`config.yaml`** — only in the gitignored local overlay or env vars. Overriding shared **types/flow** in the
+local overlay is discouraged (it desyncs the team). Deep-merge, per key/section. Seam laid now (loader +
+gitignore); richer per-adapter connection schemas come with the external adapters.
 
 ## Types and hierarchy (domain) vs ID/slug (adapter)
 
@@ -247,6 +265,11 @@ Commands come from config (trusted, like a Makefile/git hooks), not from the net
 > Caveat (for planning): commands with side effects (creating a branch) go **after** the checks; if one
 > fails after a side effect, we don't commit the transition, but the side effect already happened — that's
 > on the ordering of commands. A two-phase model (checks → actions) is introduced only if needed.
+
+> **Seam (deferred): rollback / compensation.** A transition may optionally declare compensating commands
+> (e.g. `rollback:` / `on_failure:`) run when an `--atomic` or multi-step `advance` aborts after side
+> effects — to undo what a partially-applied transition did (delete the created branch, …). Not built now;
+> the executor's abort path is the hook. Additive in config, so deferrable.
 
 ### Advancing through the flow: `advance` / `start` / `done`
 

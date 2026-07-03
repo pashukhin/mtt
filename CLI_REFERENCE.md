@@ -44,10 +44,18 @@ Run `mtt help [command]` or `mtt <command> -h` for built-in help.
 |---|---|
 | `--no-run` | Do not execute the transition's `commands` (bypass gates/actions). Emergency/debug. |
 | `--stop` | **(default, advance-family)** Advance until the first failed gate or ambiguous fork; report where and why it stopped. |
-| `--atomic` | All-or-nothing **by status**: if any gate fails, don't change status and don't write transitions. Note: side effects of already-run commands are not rolled back. |
+| `--atomic` | All-or-nothing **by status**: if any gate fails, don't change status and don't write transitions. Note: side effects of already-run commands are not rolled back (a rollback/compensation seam is planned — see DESIGN). |
 | `--force` | Advance/transition unconditionally, ignoring gates (generalizes `--no-run` and also overrides a single-edge gate on `status`). |
 
 `--stop`, `--atomic`, and `--force` are mutually exclusive.
+
+## Configuration
+
+mtt merges config layers, later overriding earlier: built-in defaults → optional global user config
+(`$XDG_CONFIG_HOME/mtt/config.yaml`) → committed `.mtt/config.yaml` (shared **types & flow**) → gitignored
+`.mtt/config.local.yaml` (personal connection params & local prefs) → env / CLI flags. Put credentials for
+external backends in the local overlay or env vars, **never** in the committed config. See
+[DESIGN.md](DESIGN.md) → Configuration.
 
 ---
 
@@ -55,7 +63,9 @@ Run `mtt help [command]` or `mtt <command> -h` for built-in help.
 
 ### `mtt init` — initialize a project  *(phase 1)*
 Creates `.mtt/` with a default `config.yaml` (types `epic`/`task`/`subtask`, flow `tbd → in_progress →
-done` plus the terminal `cancelled`, no commands) and the `tasks/` (and later `knowledge/`) directories.
+done` plus the terminal `cancelled`, no commands) and the `tasks/` (and later `knowledge/`) directories. A
+personal, gitignored `.mtt/config.local.yaml` may override it (connection params, local prefs — see
+Configuration).
 
 - `--force` — overwrite an existing `config.yaml`.
 - `--name <name>` — project name written into the config (default: directory name).
@@ -170,11 +180,21 @@ Makes `<id>` depend on `<depends-on-id>`. Rejected if it would create a cycle.
 ## References  *(field: phase 1; commands: phase 2; `note` targets need a KB, phase 5)*
 
 References are informational, verifiable links (`kind` ∈ `note`/`task`/`comment`/`url`) — not blocking
-dependencies.
+dependencies. A reference is identified by its natural key **`<kind>:<target>`** (there is no separate
+reference ID); `--label` is only an annotation, and a task holds at most one reference per key.
 
 ### `mtt ref add <id> <kind>:<target> [--label <text>]` — add a reference
+Adds a reference from task `<id>` to `<kind>:<target>` (e.g. `note:auth-design`, `task:e1_t2`). Idempotent:
+re-adding the same key updates its `--label`. On success prints the stored reference; if the target can't
+be resolved (a `note` with no KB, a missing task) it is still stored but flagged **unverified/dangling**
+with a warning (not a hard error). With `--json`, echoes the reference object `{kind, id, label, status}`.
+
 ### `mtt ref rm <id> <kind>:<target>` — remove a reference
-### `mtt ref list <id>` — list a task's references and incoming backlinks
+Removes the reference with that key from task `<id>`. Exits `4` if no such reference exists.
+
+### `mtt ref list <id>` — list references and backlinks
+Prints the task's outgoing references (each: `kind:target`, label, and resolution status
+`ok`/`unverified`/`dangling`) and its incoming **backlinks** — the tasks/comments that reference this one.
 
 ### `mtt check [flags]` — verify references  *(phase 5)*
 Sweeps the repository for dangling references (targets that don't exist / can't be resolved). Capability-
