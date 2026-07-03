@@ -27,10 +27,11 @@ Test-first, каждую подзадачу — ветка+PR. **Начать с
 `tbd→in_progress→done`; хранилище — за портом, `core` не импортирует `adapter/*`.
 
 - [ ] e2_t1 — планирование Фазы 1 (superpowers), сверка с инвариантами DESIGN.md
-- [ ] e2_t2 — контракт `pkg/mtt`: домен-типы (`Task` c `history[]`, `Comment`, `Type`, `Flow`,
-      `Status` c `kind`, `Transition`, `Config`); базовый `TaskStore` + опциональные capability-
-      интерфейсы (`HistoryStore`, `DependencyStore`, `CommentStore`, `SearchStore`),
-      `Capabilities()`, `ErrUnsupported` + `pkg/mtt/CLAUDE.md` (порядок полей = порядок сериализации)
+- [ ] e2_t2 — контракт `pkg/mtt`: домен-типы (`Task` c `history[]`+`refs[]`, `Comment` c `refs[]`,
+      `Ref` {kind,id,label}, `Type`, `Flow`, `Status` c `kind`, `Transition`, `Config`); базовый
+      `TaskStore` + опциональные capability-интерфейсы (`HistoryStore`, `DependencyStore`,
+      `CommentStore`, `SearchStore`), `Capabilities()`, `ErrUnsupported` + `pkg/mtt/CLAUDE.md`
+      (порядок полей = порядок сериализации)
 - [ ] e2_t3 — конфиг: тип (`name/parent/statuses(c kind)/transitions`; `prefix` — поле YAML),
       валидация инвариантов (дефолт `task`; статусы-якоря `tbd`/`in_progress`/`done` с категориями;
       ровно один `initial`, ≥1 `terminal`, в дефолте ещё `cancelled`); дефолтный шаблон
@@ -56,6 +57,7 @@ Test-first, каждую подзадачу — ветка+PR. **Начать с
 - [ ] e3_t3 — детект циклов зависимостей
 - [ ] e3_t4 — вычисление `ready` + команда `mtt ready`
 - [ ] e3_t5 — `mtt tree` (иерархический вывод)
+- [ ] e3_t6 — резолв `refs` вида `task`/`comment` (верификация существования) + backlinks в `show`
 
 ## e4 — Фаза 3: flow-enforcement + исполняемые переходы (killer-фича)  `[ ]`
 
@@ -80,7 +82,8 @@ Test-first, каждую подзадачу — ветка+PR. **Начать с
 
 ## Далее (крупно)
 
-- e6 — Фаза 5: база знаний + текстовый поиск  _(низкий приоритет: у beads уже есть аналог)_
+- e6 — Фаза 5: KB (`KnowledgeStore`) + текстовый поиск; резолв `refs` вида `note`; `mtt check`
+  (висячие ссылки) + backlinks  _(KB — низкий приоритет; у beads есть аналог)_
 - e7 — Фаза 6: текстовый/ASCII Гант, богатый list/query
 - e8 — Фаза 7: `mtt-ui` (опц., отдельный бинарь: web UI, Гант SVG, браузер БЗ)
 - e9 — Фаза 8: hook внешнего индексатора

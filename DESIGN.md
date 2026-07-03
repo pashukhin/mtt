@@ -30,6 +30,7 @@ CRUD/CQRS) есть дефолтная утилита `mtt-ui` (маленьки
 | Статусы | Категория `kind` (initial/active/terminal); терминалы `done` + `cancelled` |
 | История | append-only `history` переходов в задаче (аудит + реконструкция); flow — через git |
 | Capabilities | Возможности опциональны per-адаптер (`Capabilities()` / `ErrUnsupported`); YAML — референс |
+| КБ и ссылки | KB — опц. capability; `refs` (note/task/comment/url) — проверяемые ссылки, ≠ `depends_on` |
 | Хостинг | GitHub `github.com/pashukhin/mtt`, GitHub Actions |
 | Ветвление | Ветка+PR на задачу → CI зелёный → squash в `main` |
 | Гейт | `make check`: gofmt + vet + golangci-lint + `go test -race` |
@@ -185,6 +186,9 @@ status: in_progress
 parent: e1_t3
 depends_on:
   - e1_t2
+refs:
+  - {kind: note, id: auth-design, label: spec}
+  - {kind: task, id: e1_t2}
 created: 2026-07-03T09:20:00Z
 updated: 2026-07-03T10:00:00Z
 description: |
@@ -206,7 +210,9 @@ history:
 ```
 
 - `parent` — пусто для эпика.
-- `depends_on` — список ID (в т.ч. межэпиковых).
+- `depends_on` — список ID (в т.ч. межэпиковых); **блокирующее** ребро (влияет на `ready`).
+- `refs` — проверяемые ссылки на `note`/`task`/`comment`/`url` (см. «База знаний и ссылки»);
+  **информационные**, не блокирующие. Комментарии тоже могут нести `refs`.
 - `comments` — дерево через вложенные `replies`; `id` комментария последователен в пределах задачи.
 - `history` — **append-only** аудит переходов (`from→to`, `at`, `by`, результаты `checks`);
   задним числом не восстановить, поэтому пишем сразу — основа аудита и реконструкции графа.
@@ -319,6 +325,31 @@ types:
   не в центральный лог, чтобы сохранить чистые пофайловые мержи. История — **опциональная
   возможность** (`HistoryStore`): YAML-адаптер её пишет, внешний бэкенд может не поддерживать
   (тогда `ErrUnsupported`), и `core` деградирует мягко.
+
+## База знаний и ссылки (`refs`)
+
+**KB — опциональная capability** (`KnowledgeStore`, как Confluence поверх Jira). Если её нет,
+знания живут прямо в задачах и комментариях; «база знаний» — это они и ссылки между ними.
+
+Задачи и комментарии несут **`refs`** — структурный список проверяемых ссылок:
+
+```yaml
+refs:
+  - {kind: note, id: auth-design, label: "spec"}
+  - {kind: task, id: e1_t2}
+  - {kind: url,  id: "https://…"}
+```
+
+- `kind` ∈ `note` | `task` | `comment` | `url`. Это **не** `depends_on` (то — блокирующее ребро);
+  `refs` — информационная, проверяемая на целостность связь.
+- **Верификация capability-aware:** `task`/`comment` резолвятся через `TaskStore` (всегда);
+  `note` — только при `KnowledgeStore` (иначе «не могу проверить: нет KB»); `url` — внешняя,
+  не резолвим (опц. HEAD-проверка позже).
+- **Семантика:** на запись — предупреждаем о битой ссылке (не хард-блок); `mtt check` — обход на
+  висячие ссылки; `mtt show` — ссылки и **backlinks** («что ссылается сюда»); при удалении цели —
+  предупреждаем о входящих ссылках.
+- **Фазы:** поле `refs` — в модель уже в Фазе 1; резолв `task`/`comment` — Фаза 2; `note` +
+  `mtt check`/backlinks — Фаза 5 (с KB).
 
 ## Поиск (фаза 5)
 
