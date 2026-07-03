@@ -41,7 +41,9 @@ func newTypesCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			cmd.Print(out)
+			if _, err := fmt.Fprint(cmd.OutOrStdout(), out); err != nil {
+				return err
+			}
 			return nil
 		},
 	}

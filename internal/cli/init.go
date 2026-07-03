@@ -33,7 +33,9 @@ func newInitCmd() *cobra.Command {
 			if err := yaml.Init(cwd, tmpl, projectName, force); err != nil {
 				return err
 			}
-			cmd.Printf("initialized .mtt/config.yaml (template %q)\n", tmpl)
+			if _, err := fmt.Fprintf(cmd.OutOrStdout(), "initialized .mtt/config.yaml (template %q)\n", tmpl); err != nil {
+				return err
+			}
 			return nil
 		},
 	}
