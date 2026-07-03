@@ -10,12 +10,6 @@ import (
 // dirName is the mtt data directory created inside a project root.
 const dirName = ".mtt"
 
-// configName is the committed config file within dirName.
-const configName = "config.yaml"
-
-// localConfigName is the optional gitignored overlay within dirName.
-const localConfigName = "config.local.yaml"
-
 // ErrNotInitialized is returned when no .mtt directory is found.
 var ErrNotInitialized = errors.New("mtt: not initialized (no .mtt directory found)")
 
