@@ -47,4 +47,41 @@ contract, the YAML adapter's config layer, and the CLI — the foundation everyt
 
 ## Done (fill during/after the session)
 
-—
+Shipped `mtt init [--template default|coding] [--force] [--name <name>]` and `mtt types [<type>]`,
+composed in `internal/cli` as a thin composition root (parses flags, wires the YAML adapter, calls
+`Config.Validate()`, formats blocks to `cmd.OutOrStdout()`).
+
+Packages created:
+- `pkg/mtt` — the pure, provider-agnostic contract: `Config`/`Type`/`Flow`/`Status`/`Transition`,
+  the `StatusKind` value object (`initial`/`active`/`terminal`), structural `Config.Validate()`
+  (kind↔topology, ≥1 of each kind, per-flow status identity, at-most-one `default`), and
+  `DefaultType`/`ChildrenIn` helpers.
+- `internal/adapter/yaml` — `FindRoot` (walk-up discovery like git), embedded `default`/`coding`
+  `text/template` starters, atomic `Init` (temp+rename, refuses overwrite without `--force`), and
+  `Load` (DTO→domain mapping, gitignored `config.local.yaml` overlay merge, provider-only checks:
+  prefix present+unique, exactly-one `default`).
+- `internal/cli` — `init`/`types` commands plus a private block formatter (`formatTypes`).
+
+Key decisions:
+- **Config-as-data**: no literal type/status names anywhere outside the two embedded templates; the
+  domain and CLI are name-agnostic and driven entirely by what's in `config.yaml`.
+- **DTO↔domain mapping** lives only in the adapter (`toDomain`); `pkg/mtt` never imports YAML. The
+  adapter is also the sole owner of `prefix` (an ID-encoding concern, not a domain concept).
+- Command output goes to stdout via `cmd.OutOrStdout()` (not `fmt.Println`), keeping commands
+  testable and error reporting centralized in `Execute()` (stderr only, on failure).
+- `internal/core` stayed deferred to session 002 as planned — 001 has no task usecases, only the
+  config/inspect vertical slice.
+
+Test coverage: unit tests per package (`pkg/mtt`, `internal/adapter/yaml`, `internal/cli`), a golden
+test for the generated `default`/`coding` configs (`internal/adapter/yaml/testdata/golden/`), and a
+`testscript` e2e (`internal/cli/testdata/scripts/init.txt`) driving the real `mtt` binary through
+init → types → filter → re-init-without-force error → `--force --template coding` → types-outside-a-
+project error. `make check` is green (fmt, vet, lint, `go test -race -cover ./...`, build).
+
+Deviations from plan: none functional. `go get github.com/rogpeppe/go-internal/testscript@latest`
+initially pulled a version requiring `go >= 1.25`, which this environment's toolchain (go1.23.1, no
+`covdata` in its auto-downloaded 1.25 module toolchain) can't run cleanly through `-race -cover`;
+pinned `go-internal@v1.14.1` instead (same `testscript.Main`/`Run` API, requires only `go 1.23`) to
+keep `go.mod`'s `go 1.23.1` directive unchanged. `script_test.go`'s `TestMain` uses `testscript.Main`
+(not the deprecated `RunMain` from the task brief's snippet) to keep `golangci-lint`'s `staticcheck`
+check clean.
