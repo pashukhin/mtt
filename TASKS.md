@@ -1,98 +1,97 @@
 # TASKS
 
-Bootstrap-трекер до самохостинга. Как только появятся задачи+иерархия+зависимости
-(конец фазы 4) — разработка mtt переезжает на сам mtt, и этот файл замораживается.
+Bootstrap tracker until self-hosting. Once tasks + hierarchy + dependencies exist (end of phase 4),
+mtt's development moves onto mtt itself, and this file is frozen.
 
-Идентификаторы имитируют будущую схему mtt (`e{N}_t{M}`) для наглядности.
-Порядок и архитектура — в [DESIGN.md](DESIGN.md); правила — в [AGENTS.md](AGENTS.md).
+The identifiers mimic mtt's future scheme (`e{N}_t{M}`) for illustration.
+Order and architecture — in [DESIGN.md](DESIGN.md); rules — in [AGENTS.md](AGENTS.md).
 
-Легенда: `[ ]` todo · `[~]` in progress · `[x]` done.
+Legend: `[ ]` todo · `[~]` in progress · `[x]` done.
 
 ---
 
-## e1 — Фаза 0: каркас проекта  `[x]`
+## e1 — Phase 0: project scaffold  `[x]`
 
-- [x] e1_t1 — git init, go-модуль `github.com/pashukhin/mtt`, ветка `main`
-- [x] e1_t2 — скелет CLI: `cmd/mtt` + `internal/cli` (root + `version`) + тест
-- [x] e1_t3 — гейт: Makefile `make check`, `.golangci.yml` (v2), `.gitignore`
-- [x] e1_t4 — CI: `.github/workflows/ci.yml` (тот же гейт)
+- [x] e1_t1 — git init, Go module `github.com/pashukhin/mtt`, `main` branch
+- [x] e1_t2 — CLI skeleton: `cmd/mtt` + `internal/cli` (root + `version`) + a test
+- [x] e1_t3 — gate: Makefile `make check`, `.golangci.yml` (v2), `.gitignore`
+- [x] e1_t4 — CI: `.github/workflows/ci.yml` (the same gate)
 - [x] e1_t5 — DESIGN.md, AGENTS.md, README.md
-- [x] e1_t6 — guards: принципы (SOLID/DRY/KISS/TDD), иерархические CLAUDE.md, superpowers
+- [x] e1_t6 — guards: principles (SOLID/DRY/KISS/TDD), hierarchical CLAUDE.md, superpowers
 
-## e2 — Фаза 1: контракт `pkg/mtt`, конфиг, `mtt init`, YAML-адаптер, core, команды  `[ ]`
+## e2 — Phase 1: `pkg/mtt` contract, config, `mtt init`, YAML adapter, core, commands  `[ ]`
 
-Test-first, каждую подзадачу — ветка+PR. **Начать с планирования** (см. NEXT_SESSION.md);
-разбивка ниже — ориентир, план её уточнит. Инварианты: типы/иерархия — из конфига (без
-литералов в коде); ID/slug минтит **адаптер**; в наборе типов есть дефолтный `task`; в flow —
-`tbd→in_progress→done`; хранилище — за портом, `core` не импортирует `adapter/*`.
+Test-first, one subtask per branch+PR. **Start with planning** (see NEXT_SESSION.md); the breakdown
+below is a guide — planning refines it. Invariants: types/hierarchy come from config (no literals in
+code); the **adapter** mints the ID/slug; the type set has a default `task`; every flow has
+`tbd→in_progress→done`; storage is behind a port; `core` doesn't import `adapter/*`.
 
-- [ ] e2_t1 — планирование Фазы 1 (superpowers), сверка с инвариантами DESIGN.md
-- [ ] e2_t2 — контракт `pkg/mtt`: домен-типы (`Task` c `history[]`+`refs[]`, `Comment` c `refs[]`,
-      `Ref` {kind,id,label}, `Type`, `Flow`, `Status` c `kind`, `Transition`, `Config`;
-      history-запись резервирует `role` — шов ролей); базовый
-      `TaskStore` + опциональные capability-интерфейсы (`HistoryStore`, `DependencyStore`,
-      `CommentStore`, `SearchStore`), `Capabilities()`, `ErrUnsupported` + `pkg/mtt/CLAUDE.md`
-      (порядок полей = порядок сериализации)
-- [ ] e2_t3 — конфиг: тип (`name/parent/statuses(c kind)/transitions`; `prefix` — поле YAML),
-      валидация инвариантов (дефолт `task`; статусы-якоря `tbd`/`in_progress`/`done` с категориями;
-      ровно один `initial`, ≥1 `terminal`, в дефолте ещё `cancelled`); дефолтный шаблон
-- [ ] e2_t4 — `mtt init`: запись дефолтного `.mtt/config.yaml`
-- [ ] e2_t5 — `internal/adapter/yaml`: реализация `TaskStore` **и всех capability-интерфейсов**
-      (референс) — **минтинг ID** (`<prefix><N>` по цепочке родителей, `max+1`, `O_EXCL`),
-      детерминированная сериализация, атомарная запись (temp+rename), поиск корня `.mtt/`,
-      загрузка конфига + `.../yaml/CLAUDE.md`
-- [ ] e2_t6 — `internal/core`: usecase-слой (add/list/show/edit/close); валидация parent-типа;
-      создаёт логическую задачу, ID запрашивает у `TaskStore` + `internal/core/CLAUDE.md`
-- [ ] e2_t7 — golden-тесты сериализации задачи и конфига (флаг `-update`)
-- [ ] e2_t8 — `mtt add` (тип из конфига, `--parent`, `--title`)
-- [ ] e2_t9 — `mtt list` (фильтры: статус/тип/родитель; стабильный порядок) + `mtt show <id>`
-- [ ] e2_t10 — `mtt edit` / `mtt close` (смена полей/статуса)
-- [ ] e2_t11 — первый `testscript`-сценарий e2e: init → add → list → show
+- [ ] e2_t1 — plan phase 1 (superpowers), reconcile with the DESIGN.md invariants
+- [ ] e2_t2 — `pkg/mtt` contract: domain types (`Task` with `history[]`+`refs[]`, `Comment` with
+      `refs[]`, `Ref` {kind,id,label}, `Type`, `Flow`, `Status` with `kind`, `Transition`, `Config`;
+      the history entry reserves `role` — the roles seam); the base `TaskStore` + optional capability
+      interfaces (`HistoryStore`, `DependencyStore`, `CommentStore`, `SearchStore`), `Capabilities()`,
+      `ErrUnsupported` + `pkg/mtt/CLAUDE.md` (field order = serialization order)
+- [ ] e2_t3 — config: type (`name/parent/statuses(with kind)/transitions`; `prefix` is a YAML field),
+      invariant validation (default `task`; anchor statuses `tbd`/`in_progress`/`done` with categories;
+      exactly one `initial`, ≥1 `terminal`, plus `cancelled` in the default); the default template
+- [ ] e2_t4 — `mtt init`: write the default `.mtt/config.yaml`
+- [ ] e2_t5 — `internal/adapter/yaml`: implement `TaskStore` **and all capability interfaces** (the
+      reference) — **ID minting** (`<prefix><N>` along the parent chain, `max+1`, `O_EXCL`),
+      deterministic serialization, atomic write (temp+rename), find the `.mtt/` root, load config
+      + `.../yaml/CLAUDE.md`
+- [ ] e2_t6 — `internal/core`: the usecase layer (add/list/show/edit/close); parent-type validation;
+      creates a logical task and asks `TaskStore` for the ID + `internal/core/CLAUDE.md`
+- [ ] e2_t7 — golden tests for task and config serialization (`-update` flag)
+- [ ] e2_t8 — `mtt add` (type from config, `--parent`, `--title`)
+- [ ] e2_t9 — `mtt list` (filters: status/type/parent; stable order) + `mtt show <id>`
+- [ ] e2_t10 — `mtt edit` / `mtt close` (change fields/status)
+- [ ] e2_t11 — first `testscript` e2e scenario: init → add → list → show
 
-## e3 — Фаза 2: иерархия, зависимости, ready  `[ ]`
+## e3 — Phase 2: hierarchy, dependencies, ready  `[ ]`
 
-(Зависимости — capability `DependencyStore`; при отсутствии у адаптера — `ErrUnsupported`.)
+(Dependencies — capability `DependencyStore`; if the adapter lacks it — `ErrUnsupported`.)
 
-- [ ] e3_t1 — `internal/core`: индекс задач в память, обход иерархии
-- [ ] e3_t2 — `depends_on`: добавление/снятие, валидация существования
-- [ ] e3_t3 — детект циклов зависимостей
-- [ ] e3_t4 — вычисление `ready` + команда `mtt ready`
-- [ ] e3_t5 — `mtt tree` (иерархический вывод)
-- [ ] e3_t6 — резолв `refs` вида `task`/`comment` (верификация существования) + backlinks в `show`
+- [ ] e3_t1 — `internal/core`: in-memory task index, hierarchy traversal
+- [ ] e3_t2 — `depends_on`: add/remove, existence validation
+- [ ] e3_t3 — dependency cycle detection
+- [ ] e3_t4 — compute `ready` + the `mtt ready` command
+- [ ] e3_t5 — `mtt tree` (hierarchical output)
+- [ ] e3_t6 — resolve `refs` of kind `task`/`comment` (existence verification) + backlinks in `show`
 
-## e4 — Фаза 3: flow-enforcement + исполняемые переходы (killer-фича)  `[ ]`
+## e4 — Phase 3: flow enforcement + executable transitions (the killer feature)  `[ ]`
 
-(Модель типов/flow уже введена в Фазе 1; здесь — применение переходов и исполнение команд.)
+(The type/flow model is introduced in phase 1; here — applying transitions and running commands.)
 
-- [ ] e4_t1 — валидация перехода статуса по `transitions` типа (+ показ `description`)
-- [ ] e4_t2 — порт `Runner` (в `core`) + `internal/adapter/exec` (запуск команд; таймаут,
-      cwd=корень); фейк для тестов
-- [ ] e4_t3 — исполнение `commands` перехода по порядку, гейтинг по exit-кодам (переход
-      блокируется на первом ненулевом); флаг `--no-run`
-- [ ] e4_t4 — запись перехода в `history` задачи (from→to, at, by, `role` из `--role`/`MTT_ROLE`,
-      результаты `checks`), append-only (capability `HistoryStore`; при отсутствии — мягкая деградация)
-- [ ] e4_t5 — `mtt advance <id> --to <status>` — мета-обход до цели (прогрессирующие рёбра,
-      стоп на развилке, защита от циклов, не в чужой терминал); режимы `--stop`(деф)/`--atomic`/
-      `--force`; `mtt start`/`mtt done` — алиасы; `mtt status <id> <new>` — одиночный переход
-- [ ] e4_t6 — `mtt types` (типы/flow из конфига) + `mtt caps` (возможности текущего бэкенда)
-- [ ] e4_t7 — `ready`/`list`/завершённость — **по категории** статуса (не по литералу `done`)
+- [ ] e4_t1 — validate a status transition against the type's `transitions` (+ show `description`)
+- [ ] e4_t2 — the `Runner` port (in `core`) + `internal/adapter/exec` (run commands; timeout,
+      cwd=root); a fake for tests
+- [ ] e4_t3 — run a transition's `commands` in order, gating on exit codes (the transition is blocked on
+      the first non-zero); the `--no-run` flag
+- [ ] e4_t4 — record the transition in the task's `history` (from→to, at, by, `role` from
+      `--role`/`MTT_ROLE`, `checks` results), append-only (capability `HistoryStore`; if absent — graceful degradation)
+- [ ] e4_t5 — `mtt advance <id> --to <status>` — the meta-walk to a target (progressing edges, stop at a
+      fork, cycle guard, never into a different terminal); modes `--stop`(default)/`--atomic`/`--force`;
+      `mtt start`/`mtt done` — aliases; `mtt status <id> <new>` — a single transition
+- [ ] e4_t6 — `mtt types` (types/flow from config) + `mtt caps` (the current backend's capabilities)
+- [ ] e4_t7 — `ready`/`list`/completeness — **by status category** (not by the literal `done`)
 
-## e5 — Фаза 4: комментарии (дерево)  `[ ]`
+## e5 — Phase 4: comments (tree)  `[ ]`
 
 - [ ] e5_t1 — `mtt comment add <id> [--reply <cid>]`
-- [ ] e5_t2 — вывод дерева комментариев в `show`
-- [ ] e5_t3 — **догфудинг**: перевести этот трекер на сам mtt
+- [ ] e5_t2 — render the comment tree in `show`
+- [ ] e5_t3 — **dogfooding**: move this tracker onto mtt itself
 
-## Далее (крупно)
+## Later (coarse)
 
-- e6 — Фаза 5: KB (`KnowledgeStore`) + текстовый поиск; резолв `refs` вида `note`; `mtt check`
-  (висячие ссылки) + backlinks  _(KB — низкий приоритет; у beads есть аналог)_
-- e7 — Фаза 6: текстовый/ASCII Гант, богатый list/query
-- e8 — Фаза 7: `mtt-ui` (опц., отдельный бинарь: web UI, Гант SVG, браузер БЗ)
-- e9 — Фаза 8: hook внешнего индексатора
-- later — реконструкция наблюдаемого графа статусов из `history` задач (read-only агрегация);
-  явное версионирование/миграции flow (пока хватает git-истории конфига)
-- later — role-зависимая семантика команд: секция `roles` в конфиге, role-тег на переходах,
-  role-параметризация `advance`/verb→target (шов уже заложен: `role` в history + `--role`;
-  роли — семантический роутинг, не RBAC)
-- release — goreleaser, кросс-бинарники по тегам
+- e6 — Phase 5: KB (`KnowledgeStore`) + text search; resolve `refs` of kind `note`; `mtt check`
+  (dangling references) + backlinks  _(KB is low priority; beads has an analog)_
+- e7 — Phase 6: text/ASCII Gantt, richer list/query
+- e8 — Phase 7: `mtt-ui` (optional, separate binary: web UI, Gantt SVG, KB browser)
+- e9 — Phase 8: external indexer hook
+- later — reconstruct the observed status graph from tasks' `history` (read-only aggregation);
+  explicit flow versioning/migrations (the git history of config is enough for now)
+- later — role-aware command semantics: a `roles` section in config, a role tag on transitions,
+  role-parameterization of `advance`/verb→target (the seam is already laid: `role` in history + `--role`;
+  roles are semantic routing, not RBAC)
+- release — goreleaser, cross-platform binaries by tag

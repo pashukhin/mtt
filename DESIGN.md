@@ -1,184 +1,187 @@
 # MY_TT — Design
 
-Источник правды по архитектуре. Меняется только вместе с изменением поведения.
-Верхнеуровневое «зачем» — в [project.md](project.md).
+> Русская версия: [DESIGN.ru.md](DESIGN.ru.md). English is the source of truth; keep versions in sync.
 
-**Видение:** mtt — агент-дружелюбная, лёгкая связка «задачи + знания» (как Jira+Confluence,
-но без монструозности). Конкретное хранилище **абстрагировано за портами**: дефолт — YAML-файлы,
-но через адаптер подключается пользовательская связка «таск-трекер + база знаний»
-(Jira+Confluence, GitHub Issues+Wiki, beads, …). Домен о хранилище не знает.
+Source of truth for the architecture. Changes only together with a behavior change.
+High-level "why" — in [README.md](README.md).
 
-**Human UI — тоже опция.** Агентам он не нужен: их интерфейс — CLI. Для людей (view-диаграммы,
-CRUD/CQRS) есть дефолтная утилита `mtt-ui` (маленький локальный веб-сервер); а если бэкенд —
-готовая связка (Jira+Confluence), человек пользуется её родным UI, и `mtt-ui` не нужен. Итог:
-проект удобен и одиночкам (zero-footprint дефолт), и корпоративным монстрам (тонкий агентский
-слой поверх существующего стека).
+**Vision:** mtt is an agent-friendly, lightweight "tasks + knowledge" pairing (like Jira+Confluence,
+without the bulk). The concrete storage is **abstracted behind ports**: the default is YAML files, but
+an adapter can plug in a user's own "tracker + knowledge base" pairing (Jira+Confluence,
+GitHub Issues+Wiki, beads, …). The domain knows nothing about storage.
 
-## Принятые решения
+**The human UI is optional too.** Agents don't need it — their interface is the CLI. For humans
+(view diagrams, CRUD/CQRS) there's a default utility `mtt-ui` (a small local web server); and if the
+backend is a ready-made pairing (Jira+Confluence), the human uses its native UI and `mtt-ui` isn't
+needed. Result: the project fits both solo devs (zero-footprint default) and corporate monsters (a thin
+agent layer over the existing stack).
 
-| Тема | Решение |
+## Decisions
+
+| Topic | Decision |
 |---|---|
-| Язык / форма | Go CLI `mtt` (`mtt add`, `mtt list`, …) |
-| Архитектура | Hexagonal: `домен+usecase` ← порты; хранилище — сменный адаптер |
-| Порты | `TaskStore` + `KnowledgeStore` (2 независимых); «связка» = пара адаптеров |
-| Контракт | Публичный `pkg/mtt` (домен-типы + порты) — для внешних Go-адаптеров |
-| Хранение (дефолт) | YAML-адаптер: **один файл на задачу**, каталог `.mtt/` |
-| Источник правды | Файлы (в YAML-адаптере); БД/индекс — производный, gitignored |
-| Human UI | Опционален: дефолт `mtt-ui` (локальный веб); при внешнем бэкенде — его родной UI |
-| ID/slug | Минтит **адаптер** (YAML: стабильный `e1_t3_s2`); домен знает лишь логическую задачу |
-| Flow | Исполняемые переходы: `description` + `commands` (все → 0, иначе переход блокируется) |
-| Продвижение | `advance --to` (мета: обход до цели); режимы `--stop`(деф)/`--atomic`/`--force`; без config-DSL |
-| Роли | Семантика `start`/`done` зависит от роли — шов заложен (`role` в history, `--role`, config `roles`); реализация отложена |
-| Статусы | Категория `kind` (initial/active/terminal); терминалы `done` + `cancelled` |
-| История | append-only `history` переходов в задаче (аудит + реконструкция); flow — через git |
-| Capabilities | Возможности опциональны per-адаптер (`Capabilities()` / `ErrUnsupported`); YAML — референс |
-| КБ и ссылки | KB — опц. capability; `refs` (note/task/comment/url) — проверяемые ссылки, ≠ `depends_on` |
-| Хостинг | GitHub `github.com/pashukhin/mtt`, GitHub Actions |
-| Ветвление | Ветка+PR на задачу → CI зелёный → squash в `main` |
-| Гейт | `make check`: gofmt + vet + golangci-lint + `go test -race` |
+| Language / form | Go CLI `mtt` (`mtt add`, `mtt list`, …) |
+| Architecture | Hexagonal: `domain+usecase` ← ports; storage is a swappable adapter |
+| Ports | `TaskStore` + `KnowledgeStore` (2 independent); a "pairing" = a pair of adapters |
+| Contract | Public `pkg/mtt` (domain types + ports) — for external Go adapters |
+| Storage (default) | YAML adapter: **one file per task**, `.mtt/` directory |
+| Source of truth | Files (in the YAML adapter); a DB/index would be derived, gitignored |
+| Human UI | Optional: default `mtt-ui` (local web); with an external backend — its native UI |
+| ID/slug | Minted by the **adapter** (YAML: stable `e1_t3_s2`); the domain knows only the logical task |
+| Flow | Executable transitions: `description` + `commands` (all → 0, else the transition is blocked) |
+| Advance | `advance --to` (meta: walk to a target); modes `--stop`(default)/`--atomic`/`--force`; no config DSL |
+| Roles | `start`/`done` semantics depend on the role — seam laid (`role` in history, `--role`, config `roles`); implementation deferred |
+| Statuses | Category `kind` (initial/active/terminal); terminals `done` + `cancelled` |
+| History | Append-only `history` of transitions in the task (audit + reconstruction); flow — via git |
+| Capabilities | Features are optional per adapter (`Capabilities()` / `ErrUnsupported`); YAML is the reference |
+| KB & refs | KB is an optional capability; `refs` (note/task/comment/url) — verifiable references, ≠ `depends_on` |
+| Hosting | GitHub `github.com/pashukhin/mtt`, GitHub Actions |
+| Branching | Per-task branch → PR → CI green → squash into `main` |
+| Gate | `make check`: gofmt + vet + golangci-lint + `go test -race` |
 
-## Позиционирование (честно, vs beads)
+## Positioning (honestly, vs beads)
 
-[beads](https://github.com/gastownhall/beads) (Steve Yegge, ~25k★) — мощный, но тяжёлый:
-хранилище **Dolt** (бинарь 44–48 МБ, cgo), опц. server-процессы с портами, git-хуки, двойная
-история git+Dolt, огромная экосистема. Его сильные стороны — **зависимости** (типизированные +
-gates + ready-кэш), **collision-free хэш-ID** и **cell-level merge** одной задачи — мы туда
-**не лезем**.
+[beads](https://github.com/gastownhall/beads) (Steve Yegge, ~25k★) is powerful but heavy: **Dolt**
+storage (a 44–48 MB binary, cgo), optional server processes with ports, git hooks, a dual git+Dolt
+history, a huge ecosystem. Its strengths — **dependencies** (typed + gates + a ready cache),
+**collision-free hash IDs**, and **cell-level merge** of a single task — we **don't chase**.
 
-Наш клин — там, где beads слаб или тяжёл:
+Our wedge is where beads is weak or heavy:
 
-- **Реальный flow по типу с исполняемыми переходами** — на переход вешаются `commands`
-  (гейты/действия, все обязаны вернуть 0). У beads только плоский enum. **Наш killer-фича.**
-- **Zero-footprint** — только файлы, без демона/портов/хуков/cgo; крошечный бинарь.
-- **Адаптивность** — тонкий агентский слой поверх *твоего* бэкенда (YAML или Jira+Confluence):
-  агентам чистый CLI, людям — их родные UI.
-- **Опциональный человеческий UI** (`mtt-ui`) — маленький локальный веб; в core beads его нет.
-- Читаемые sequential-ID и явная config-иерархия.
+- **Real per-type flow with executable transitions** — `commands` hang on a transition (gates/actions,
+  all must return 0). beads has only a flat enum. **This is our killer feature.**
+- **Zero-footprint** — files only, no daemon/ports/hooks/cgo; a tiny binary.
+- **Adaptivity** — a thin agent layer over *your* backend (YAML or Jira+Confluence): a clean CLI for
+  agents, native UIs for humans.
+- **Optional human UI** (`mtt-ui`) — a small local web; beads has none in core.
+- Readable sequential IDs and an explicit config-driven hierarchy.
 
-Явно **не конкурируем**: распределённость/federation, богатство зависимостей, экосистема.
-Зависимости у нас — **простые и «достаточные»**. База знаний — **низкий приоритет** (у beads
-уже есть `remember`/`prime`), делаем только если дёшево.
+Explicitly **not competing on**: distribution/federation, dependency richness, ecosystem. Our
+dependencies stay **simple and "sufficient"**. The knowledge base is **low priority** (beads already
+has `remember`/`prime`), done only if cheap.
 
-> **Честная оговорка:** две претензии из project.md устарели — у текущего beads **есть**
-> иерархия epic/task/subtask и **опциональный** sequential-режим ID. Живые основания для
-> отдельного проекта — именно **лёгкость** и **per-type flow**, а не «у beads этого нет».
+> **Honest caveat:** two complaints from the original motivation are outdated — current beads **has** an
+> epic/task/subtask hierarchy and an **optional** sequential-ID mode. The live reasons for a separate
+> project are precisely **lightness** and **per-type flow**, not "beads lacks this".
 
-## Архитектура: домен, порты, адаптеры
+## Architecture: domain, ports, adapters
 
-Гексагональная (ports & adapters). Внутри — домен и usecase; снаружи — адаптеры двух родов:
-**driving** (входные: CLI, опц. `mtt-ui`) вызывают `core`; **driven** (выходные: хранилище)
-вызываются из `core` через порты.
+Hexagonal (ports & adapters). Inside — domain and usecases; outside — adapters of two kinds: **driving**
+(inbound: CLI, optional `mtt-ui`) call `core`; **driven** (outbound: storage) are called from `core`
+through ports.
 
-- **`pkg/mtt`** — публичный контракт: домен-типы (`Task`, `Type`, `Flow`, `Status`, `Comment`,
-  `Note`, `Config`), базовый порт **`TaskStore`** и **`KnowledgeStore`**, плюс опциональные
-  capability-интерфейсы (см. ниже). Публичный — чтобы внешние Go-адаптеры его реализовали.
-- **`internal/core`** — usecase-логика (add/list/ready/переход-flow/поиск): работает **только
-  через порты**, о конкретном хранилище не знает.
-- **`internal/adapter/yaml`** — дефолтный *driven*-адаптер: реализует оба порта поверх `.mtt/`;
-  **минтит ID/slug** (`e1_t3_s2`).
-- **`internal/adapter/exec`** — реализация порта **`Runner`** (запуск команд перехода); в тестах
-  подменяется фейком. `Runner` определён в `core` (нужен только ему, не третьим сторонам).
-- **`cmd/mtt` + `internal/cli`** — тонкий CLI (*driving*): разбор → usecase → форматирование;
-  на старте собирает адаптеры по конфигу и внедряет в core.
-- **`cmd/mtt-ui`** — *опциональный driving-адаптер*: маленький локальный веб-сервер (view/CRUD,
-  Гант) поверх того же `core`. Не нужен агентам и не нужен при внешнем бэкенде с собственным UI.
+- **`pkg/mtt`** — the public contract: domain types (`Task`, `Type`, `Flow`, `Status`, `Comment`,
+  `Note`, `Config`), the base ports **`TaskStore`** and **`KnowledgeStore`**, plus optional capability
+  interfaces (see below). Public so external Go adapters can implement it.
+- **`internal/core`** — usecase logic (add/list/ready/flow-transition/search): works **only through
+  ports**, unaware of the concrete storage.
+- **`internal/adapter/yaml`** — the default *driven* adapter: implements both ports over `.mtt/`;
+  **mints the ID/slug** (`e1_t3_s2`).
+- **`internal/adapter/exec`** — implements the **`Runner`** port (running transition commands); replaced
+  by a fake in tests. `Runner` is defined in `core` (only it needs it, not third parties).
+- **`cmd/mtt` + `internal/cli`** — the thin CLI (*driving*): parse → usecase → format; on startup it
+  assembles adapters from config and injects them into core.
+- **`cmd/mtt-ui`** — an *optional driving adapter*: a small local web server (view/CRUD, Gantt) over the
+  same `core`. Not needed by agents, and not needed with an external backend that has its own UI.
 
-Два порта независимы: **«связка» = сконфигурированная пара адаптеров**, при этом можно
-миксовать (напр. задачи из Jira, а КБ — локальный YAML). Дефолт — YAML для обоих.
+The two ports are independent: **a "pairing" = a configured pair of adapters**, and they can be mixed
+(e.g. tasks from Jira, KB from local YAML). The default is YAML for both.
 
-**Внешние бэкенды** подключаются двумя путями: (1) in-process Go-адаптер, реализующий
-`pkg/mtt`-порты (для этого контракт и публичный); (2) — позже — субпроцесс-адаптер по
-документированному wire-протоколу (JSON stdin/stdout), не требующий импорта нашего Go.
-Сейчас проектируем **шов** и отдаём YAML-адаптер; рантайм внешних адаптеров — когда понадобится.
+**External backends** plug in two ways: (1) an in-process Go adapter implementing the `pkg/mtt` ports
+(that's why the contract is public); (2) — later — a subprocess adapter over a documented wire protocol
+(JSON stdin/stdout) that doesn't import our Go. For now we design the **seam** and ship the YAML adapter;
+the external-adapter runtime comes when needed.
 
-### Возможности адаптера (capabilities)
+> **Open question (external adapters):** which flow is authoritative — our config or the backend's native
+> workflow (e.g. Jira) — and how our `commands` relate to its transitions. Moot for the YAML default;
+> decided when designing a concrete external adapter.
 
-Не каждый бэкенд умеет всё: внешний трекер может не давать историю переходов, дерево
-комментариев, зависимости или поиск. Поэтому возможности **опциональны на уровне адаптера**:
+### Adapter capabilities
 
-- **Обязательный минимум** — базовый `TaskStore` (CRUD + list/get + минтинг ID): реализует любой адаптер.
-- **Опциональные возможности** — отдельные интерфейсы поверх базового: `HistoryStore`,
-  `DependencyStore`, `CommentStore` (дерево), `SearchStore` (и сам `KnowledgeStore`). Адаптер
-  реализует что умеет; `core` проверяет наличие через type-assertion (идиоматичный Go).
-- **Дискаверабилити** — метод `Capabilities()` у бэкенда: CLI/агент знает, что доступно
-  (`mtt caps`). Отсутствующая возможность даёт типизированный `ErrUnsupported` с внятным
-  сообщением, а не молчаливый сбой.
-- **YAML-адаптер — референс**: реализует **все** возможности (пишет историю и т.д.). Внешние
-  адаптеры частичные; `core` написан на минимум и «зажигает» доступное поверх.
+Not every backend can do everything: an external tracker may not provide transition history, a comment
+tree, dependencies, or search. So capabilities are **optional at the adapter level**:
 
-> **Инвариант слоёв:** `core` не импортирует `adapter/*`; адаптеры не содержат бизнес-правил
-> (только CRUD/запросы за портом). Правила (flow, ready, циклы) — в `core`; **минтинг ID/slug —
-> в адаптере** (кодировка ID backend-специфична).
+- **Mandatory minimum** — the base `TaskStore` (CRUD + list/get + ID minting): every adapter implements it.
+- **Optional capabilities** — separate interfaces atop the base: `HistoryStore`, `DependencyStore`,
+  `CommentStore` (tree), `SearchStore` (and `KnowledgeStore` itself). An adapter implements what it can;
+  `core` probes via type assertion (idiomatic Go).
+- **Discoverability** — a `Capabilities()` method on the backend: the CLI/agent knows what's available
+  (`mtt caps`). A missing capability yields a typed `ErrUnsupported` with a clear message, not a silent failure.
+- **The YAML adapter is the reference**: it implements **all** capabilities (writes history, etc.).
+  External adapters are partial; `core` is written to the minimum and "lights up" what's available.
 
-## Почему дефолт — файлы (YAML-адаптер)
+> **Layer invariant:** `core` never imports `adapter/*`; adapters contain no business rules (only
+> CRUD/queries behind a port). The rules (flow, ready, cycles) live in `core`; **ID/slug minting is in
+> the adapter** (ID encoding is backend-specific).
 
-Главная боль beads — демон/локи/бинарная БД: конфликты с плагинами и болезненные
-merge-конфликты в ветках агентов. Файл-на-задачу это чинит:
+## Why the default is files (the YAML adapter)
 
-- нет демона и фонового состояния — `mtt` это stateless CLI (прочитал → изменил → записал);
-- чистые git-мержи: два агента в разных ветках добавляют разные задачи без конфликта;
-- задачи ревьюабельны в PR как обычный diff.
+beads' main pain is the daemon/locks/binary DB: conflicts with plugins and painful merge conflicts in
+agents' branches. File-per-task fixes this:
 
-Масштаб трекера (сотни–тысячи задач) позволяет грузить всё в память на каждый вызов;
-поиск, диаграмма Ганта и зависимости считаются in-memory. SQLite для этого не нужен.
+- no daemon and no background state — `mtt` is a stateless CLI (read → change → write);
+- clean git merges: two agents on different branches add different tasks with no conflict;
+- tasks are reviewable in a PR as a normal diff.
 
-## Раскладка данных (YAML-адаптер)
+At tracker scale (hundreds–thousands of tasks) we can load everything into memory on each call; search,
+the Gantt chart, and dependencies are computed in memory. SQLite isn't needed for that.
+
+## Data layout (the YAML adapter)
 
 ```
 .mtt/
-  config.yaml            # проект, типы задач и flow
+  config.yaml            # project, task types, and flow
   tasks/
-    e1.yaml              # эпик 1
-    e1_t3.yaml           # задача 3 эпика 1
-    e1_t3_s2.yaml        # подзадача 2 задачи e1_t3
+    e1.yaml              # epic 1
+    e1_t3.yaml           # task 3 of epic 1
+    e1_t3_s2.yaml        # subtask 2 of task e1_t3
   knowledge/
-    <slug>.md            # заметки БЗ (markdown + YAML frontmatter)   [фаза 5]
+    <slug>.md            # KB notes (markdown + YAML frontmatter)   [phase 5]
 ```
 
-`.mtt/` **коммитится** (это данные проекта). Это раскладка **YAML-адаптера**; правки — только
-через порт (`TaskStore`/`KnowledgeStore`), руками файлы не редактируем, иначе теряется
-детерминизм и валидация.
+`.mtt/` is **committed** (it's project data). This is the YAML adapter's layout; edits go **only** through
+a port (`TaskStore`/`KnowledgeStore`) — don't hand-edit files, or determinism and validation are lost.
 
-## Типы и иерархия (домен) vs ID/slug (адаптер)
+## Types and hierarchy (domain) vs ID/slug (adapter)
 
-**Домен** знает про *логическую* задачу: её **тип**, **родителя** и **flow**. Тип задаёт:
+The **domain** knows the *logical* task: its **type**, **parent**, and **flow**. A type defines:
 
-- `name` — имя типа (напр. `epic`, `task`, `subtask`);
-- `parent` — имя родительского типа (пусто = корневой уровень) — **этим задаётся иерархия**;
-- `statuses` (каждый с категорией `kind`: initial/active/terminal) / `transitions` — flow (ниже).
+- `name` — the type name (e.g. `epic`, `task`, `subtask`);
+- `parent` — the parent type's name (empty = root level) — **this defines the hierarchy**;
+- `statuses` (each with a category `kind`: initial/active/terminal) / `transitions` — the flow (below).
 
-Иерархия эпик → задача → подзадача — **не хардкод**, а следствие дефолтного конфига:
+The epic → task → subtask hierarchy is **not hardcoded** — it follows from the default config:
 `epic` (root) ← `task` (parent: epic) ← `subtask` (parent: task).
 
-**Именование (ID/slug) — дело адаптера, не домена.** `core` создаёт логическую задачу
-(«task типа X под родителем Y»), а конкретный ID минтит `TaskStore`: у YAML это `e1_t3_s2`,
-у Jira — `PROJ-123`, у GitHub — `#42`. Поэтому `prefix` — поле **YAML-адаптера** (в его
-`config.yaml`), и ID-генерация живёт **в адаптере**, за портом.
+**Naming (ID/slug) is the adapter's job, not the domain's.** `core` creates a logical task ("a task of
+type X under parent Y"), and `TaskStore` mints the concrete ID: for YAML it's `e1_t3_s2`, for Jira
+`PROJ-123`, for GitHub `#42`. So `prefix` is a **YAML-adapter** field (in its `config.yaml`), and ID
+generation lives **in the adapter**, behind the port.
 
-В YAML-адаптере ID собирается обходом родителей: на каждом уровне `<prefix><N>`, склейка через
-`_` (`epic` #1 → `e1`; `task` #3 → `e1_t3`; `subtask` #2 → `e1_t3_s2`). Номер `N` —
-последовательный по префиксу в области родителя (`max+1`), создание файла атомарно (`O_EXCL`).
-ID **стабилен** и не зависит от текста; имя — в поле `title`. Имя файла = `<id>.yaml`.
+In the YAML adapter the ID is built by walking the parent chain: `<prefix><N>` at each level, joined with
+`_` (`epic` #1 → `e1`; `task` #3 → `e1_t3`; `subtask` #2 → `e1_t3_s2`). The number `N` is sequential per
+prefix within the parent (`max+1`), and the file is created atomically (`O_EXCL`). The ID is **stable**
+and independent of text; the name lives in `title`. The file name = `<id>.yaml`.
 
-### Инварианты модели (проверяются загрузкой конфига)
+### Model invariants (checked on config load)
 
-- В любом наборе типов есть **дефолтный `task`** (используется при `mtt add` без `--type`).
-- У каждого статуса есть **категория** `kind`: `initial` / `active` / `terminal`. Логика
-  `ready`/завершённости/`list` работает **по категории**, не по литералу `done`.
-- В любом flow есть канонические якоря **`tbd` (initial) → `in_progress` (active) → `done`
-  (terminal)** в этом порядке (промежуточные допустимы). Терминалов может быть несколько
-  (в дефолте ещё `cancelled`); `initial` — ровно один.
-- В коде **нет** литералов имён типов/статусов и структуры ID: типы/иерархия/категории — из
-  конфига (домен), кодировка ID — из адаптера. Дефолты — в шаблоне `mtt init`, не в логике.
+- Any set of types has a **default `task`** (used by `mtt add` without `--type`).
+- Every status has a **category** `kind`: `initial` / `active` / `terminal`. `ready`/completeness/`list`
+  logic works **by category**, not by the literal `done`.
+- Every flow contains the canonical anchors **`tbd` (initial) → `in_progress` (active) → `done`
+  (terminal)** in that order (intermediate ones allowed). There may be several terminals (the default also
+  has `cancelled`); exactly one `initial`.
+- The code has **no** literals for type/status names or ID structure: types/hierarchy/categories come from
+  config (domain), ID encoding from the adapter. Defaults live in the `mtt init` template, not in logic.
 
-> **Известное ограничение YAML-адаптера (осознанный размен):** sequential-ID коллизируют при
-> параллельном создании в разных ветках — `e2` в двух ветках даёт видимый git add/add конфликт.
-> Приемлемо для low-concurrency; при росте параллелизма — namespace-префикс по branch/agent.
-> У других адаптеров (напр. Jira) своя схема без этой проблемы.
+> **Known limitation of the YAML adapter (a conscious trade-off):** sequential IDs collide on concurrent
+> creation across branches — `e2` on two branches gives a visible git add/add conflict. Acceptable for low
+> concurrency; with more parallelism — a namespace prefix per branch/agent. Other adapters (e.g. Jira) have
+> their own scheme without this issue.
 
-## Модель задачи
+## Task model
 
-Поля сериализуются в фиксированном порядке (порядок полей структуры) → детерминированный diff.
+Fields serialize in a fixed order (struct field order) → a deterministic diff.
 
 ```yaml
 id: e1_t3_s2
@@ -194,105 +197,105 @@ refs:
 created: 2026-07-03T09:20:00Z
 updated: 2026-07-03T10:00:00Z
 description: |
-  Многострочное описание.
+  Multi-line description.
 comments:
   - id: 1
     author: agent
     created: 2026-07-03T09:25:00Z
-    body: первый коммент
+    body: first comment
     replies:
       - id: 2
         author: human
         created: 2026-07-03T09:40:00Z
-        body: ответ (дерево через вложенные replies)
+        body: reply (tree via nested replies)
 history:
   - {at: 2026-07-03T09:25:00Z, by: agent, role: implementer, from: tbd, to: in_progress}
   - {at: 2026-07-03T10:00:00Z, by: agent, role: implementer, from: in_progress, to: done,
      checks: [{cmd: "make lint", exit: 0}, {cmd: "make test", exit: 0}]}
 ```
 
-- `parent` — пусто для эпика.
-- `depends_on` — список ID (в т.ч. межэпиковых); **блокирующее** ребро (влияет на `ready`).
-- `refs` — проверяемые ссылки на `note`/`task`/`comment`/`url` (см. «База знаний и ссылки»);
-  **информационные**, не блокирующие. Комментарии тоже могут нести `refs`.
-- `comments` — дерево через вложенные `replies`; `id` комментария последователен в пределах задачи.
-- `history` — **append-only** аудит переходов (`from→to`, `at`, `by`, результаты `checks`);
-  задним числом не восстановить, поэтому пишем сразу — основа аудита и реконструкции графа.
+- `parent` — empty for an epic.
+- `depends_on` — a list of IDs (including cross-epic); a **blocking** edge (affects `ready`).
+- `refs` — verifiable references to `note`/`task`/`comment`/`url` (see "Knowledge base and references");
+  **informational**, non-blocking. Comments can carry `refs` too.
+- `comments` — a tree via nested `replies`; a comment's `id` is sequential within the task.
+- `history` — an **append-only** audit of transitions (`from→to`, `at`, `by`, `checks` results); it can't
+  be reconstructed after the fact, so we write it from the start — the basis for audit and graph reconstruction.
 
-## Flow: исполняемые переходы (killer-фича) и `mtt init`
+## Flow: executable transitions (the killer feature) and `mtt init`
 
-Тип задаёт **flow** — граф статусов с переходами. На каждый переход можно повесить:
+A type defines a **flow** — a status graph with transitions. On each transition you can hang:
 
-- `description` — текст «что именно делаем» (понимание для агента/человека);
-- `commands` — последовательность консольных команд; **все обязаны вернуть 0**, иначе переход
-  **блокируется** (задача остаётся в исходном статусе).
+- `description` — text about "what exactly we're doing" (understanding for agent/human);
+- `commands` — a sequence of shell commands; **all must return 0**, otherwise the transition is
+  **blocked** (the task stays in the source status).
 
-Это превращает flow из совета в **исполняемый гейт + действие**. Примеры:
+This turns the flow from advice into an **executable gate + action**. Examples:
 
-- `in_progress → done`: `["make lint", "make test"]` — не пускаем в `done`, пока не зелено.
-- `tbd → in_progress`: ревью спеки + создание ветки под задачу.
+- `in_progress → done`: `["make lint", "make test"]` — don't let it into `done` until it's green.
+- `tbd → in_progress`: review the spec + create a branch for the task.
 
-Смысл: **агент работает в терминах задач** (`mtt start e1_t3`, `mtt done e1_t3`), а механику
-статус-flow (проверки, ветка, …) прячет сам переход — меньше отвлечения на детали.
+The point: **the agent works in task terms** (`mtt start e1_t3`, `mtt done e1_t3`), while the transition
+hides the status-flow mechanics (checks, branch, …) — less distraction on details.
 
-Исполнение — за портом **`Runner`**: `core` оркеструет переход, вызывает `Runner`, гейтит по
-exit-кодам. `Runner` определён в `core`, реализован в `internal/adapter/exec`, в тестах — фейк.
-Команды идут по порядку, прерываемся на первом ненулевом; рабочая директория — корень проекта;
-таймаут на команду; escape-hatch `--no-run` (форсировать переход без команд, для аварий).
-Команды берутся из конфига (доверенный, как Makefile/git-хуки), не из сети.
+Execution is behind the **`Runner`** port: `core` orchestrates the transition, calls `Runner`, and gates on
+exit codes. `Runner` is defined in `core`, implemented in `internal/adapter/exec`, and faked in tests.
+Commands run in order, aborting on the first non-zero; the working directory is the project root; there's a
+per-command timeout; the escape hatch `--no-run` forces the transition without commands (for emergencies).
+Commands come from config (trusted, like a Makefile/git hooks), not from the network.
 
-> Оговорка (для планирования): команды с побочными эффектами (создание ветки) ставим **после**
-> проверок; при падении после сайд-эффекта переход не коммитим, но сайд-эффект уже случился —
-> это на совести порядка команд. Двухфазную модель (checks → actions) вводим лишь при нужде.
+> Caveat (for planning): commands with side effects (creating a branch) go **after** the checks; if one
+> fails after a side effect, we don't commit the transition, but the side effect already happened — that's
+> on the ordering of commands. A two-phase model (checks → actions) is introduced only if needed.
 
-### Продвижение по flow: `advance` / `start` / `done`
+### Advancing through the flow: `advance` / `start` / `done`
 
-`start`/`done` — не одиночный переход, а **мета-команда**: примитив `advance <task> --to <status>`
-проводит задачу по цепочке переходов до целевого статуса, исполняя гейты на рёбрах. `start` =
-`--to in_progress`, `done` = `--to done` (встроенные алиасы). **Config-DSL команд не делаем** —
-режимы это флаги.
+`start`/`done` are not a single transition but a **meta-command**: the primitive `advance <task> --to
+<status>` walks the task through a chain of transitions to a target status, running the edge gates along the
+way. `start` = `--to in_progress`, `done` = `--to done` (built-in aliases). **We do not build a config
+command DSL** — modes are flags.
 
-Семантика обхода (предсказуемость важнее «умности»):
+Traversal semantics (predictability over cleverness):
 
-- идём только по рёбрам, **ведущим к цели**; **никогда не заходим в чужой терминал** (не
-  авто-`cancel`); защита от циклов; цель недостижима → ошибка;
-- на настоящей развилке (≥2 прогрессирующих ребра) — **стоп, а не догадка**;
-- каждое пройденное ребро исполняет свои `commands` и пишет запись в `history`;
-- не-`ready` задачу (незакрытые `depends_on`) в терминал по умолчанию не гоним — предупреждаем.
+- follow only edges that **progress toward the target**; **never enter a different terminal** (no
+  auto-`cancel`); cycle guard; unreachable target → error;
+- at a real fork (≥2 progressing edges) — **stop, don't guess**;
+- each traversed edge runs its `commands` and appends a `history` entry;
+- a non-`ready` task (open `depends_on`) is not pushed into a terminal by default — we warn.
 
-Благодаря линейным канонам `tbd → in_progress → done` дефолтный случай однозначен; развилки —
-только если пользователь сам добавил ветвление.
+Thanks to the linear canonical `tbd → in_progress → done`, the default case is unambiguous; forks arise only
+if the user adds branching.
 
-Режимы (флаги):
+Modes (flags):
 
-- `--stop` (**дефолт**) — двигать до первого упавшего гейта или развилки, сообщить где/почему;
-- `--atomic` — всё-или-ничего **по статусу** (упал гейт → не двигаем и не пишем переходы);
-  **оговорка:** сайд-эффекты уже выполненных команд не откатываются;
-- `--force` — двигать безусловно, игнорируя гейты (аварийный; обобщает `--no-run`).
+- `--stop` (**default**) — advance until the first failed gate or fork, and report where/why;
+- `--atomic` — all-or-nothing **by status** (a failed gate → don't move and don't write transitions);
+  **caveat:** side effects of already-run commands are not rolled back;
+- `--force` — advance unconditionally, ignoring gates (emergency; generalizes `--no-run`).
 
-### Роли — шов (реализацию откладываем)
+### Roles — a seam (implementation deferred)
 
-Семантика `start`/`done` (и переходов вообще) зависит от **роли** вызывающего: у агента-ревьюера
-`done` значит иное, чем у имплементера (напр. имплементер `done` уводит в `review`, ревьюер
-`done` — из `review` в терминал). Полноценно это — роли в конфиге + `--role`/`MTT_ROLE` +
-опциональный тег роли на переходах; резолвер `advance` тогда параметризуется ролью.
+The semantics of `start`/`done` (and transitions in general) depend on the caller's **role**: for a reviewer
+agent, `done` means something different than for an implementer (e.g. the implementer's `done` moves to
+`review`, the reviewer's `done` moves from `review` to a terminal). Fully, this is roles in config +
+`--role`/`MTT_ROLE` + an optional role tag on transitions; the `advance` resolver is then parameterized by role.
 
-**Сейчас не реализуем**, но закладываем швы:
+**We don't build it now**, but we lay the seams:
 
-- **Единственный не-откладываемый шов — писать `role` в `history`** (рядом с `by`): задним
-  числом не восстановить (как и саму историю). Поле резервируем в модели сразу.
-- `advance` и verb→target — резолвер **параметризуем ролью** (сигнатура принимает role); сейчас
-  role-agnostic (одна неявная роль).
-- CLI резервирует `--role=` / `MTT_ROLE`; конфиг может дорасти до секции `roles` и role-тега на
-  переходах — аддитивно, loader forward-compatible.
+- **The only non-deferrable seam is writing `role` into `history`** (next to `by`): it can't be
+  reconstructed after the fact (like history itself). Reserve the field in the model right away.
+- `advance` and verb→target — the resolver is **parameterized by role** (the signature takes a role); today
+  it's role-agnostic (one implicit role).
+- The CLI reserves `--role=` / `MTT_ROLE`; config may grow a `roles` section and a role tag on transitions —
+  additively, with a forward-compatible loader.
 
-Ограничения (чтобы не разрослось): роли — **семантический роутинг** (что значит глагол для роли),
-**не** RBAC/энфорсмент (агенты кооперативны — роутим, не полицейские). Имена ролей — из конфига,
-в коде не хардкодятся (как типы/статусы).
+Guardrails (to keep it from ballooning): roles are **semantic routing** (what a verb means for a role),
+**not** RBAC/enforcement (agents are cooperative — we route, we don't police). Role names come from config,
+never hardcoded (like types/statuses).
 
-`mtt init` пишет `.mtt/config.yaml` с типами `epic`/`task`/`subtask` и flow
-`tbd → in_progress → done` (+ терминал `cancelled`). **Команд по умолчанию нет** — их навешивает
-пользователь под свой проект.
+`mtt init` writes `.mtt/config.yaml` with the types `epic`/`task`/`subtask` and the flow
+`tbd → in_progress → done` (+ the terminal `cancelled`). **There are no commands by default** — the user
+hangs them for their own project.
 
 ```yaml
 version: 1
@@ -300,8 +303,8 @@ project:
   name: my_tt
 types:
   - name: epic
-    prefix: e                    # prefix — поле YAML-адаптера (кодировка ID), не домена
-    parent: ""                   # корневой уровень
+    prefix: e                    # prefix is a YAML-adapter field (ID encoding), not domain
+    parent: ""                   # root level
     statuses:
       - {name: tbd,         kind: initial}
       - {name: in_progress, kind: active}
@@ -310,10 +313,10 @@ types:
     transitions:
       - {from: tbd,         to: in_progress}
       - {from: tbd,         to: cancelled}
-      - {from: in_progress, to: done, description: "все задачи эпика закрыты"}
+      - {from: in_progress, to: done, description: "all epic tasks closed"}
       - {from: in_progress, to: cancelled}
       - {from: in_progress, to: tbd}
-  - name: task                   # ДЕФОЛТНЫЙ тип (add без --type)
+  - name: task                   # DEFAULT type (add without --type)
     prefix: t
     parent: epic
     statuses:
@@ -322,9 +325,9 @@ types:
       - {name: done,        kind: terminal}
       - {name: cancelled,   kind: terminal}
     transitions:
-      - {from: tbd,         to: in_progress, description: "ревью спеки, создать ветку"}
+      - {from: tbd,         to: in_progress, description: "review the spec, create a branch"}
       - {from: tbd,         to: cancelled}
-      - {from: in_progress, to: done, description: "гейт качества"}
+      - {from: in_progress, to: done, description: "quality gate"}
       - {from: in_progress, to: cancelled}
       - {from: in_progress, to: tbd}
   - name: subtask
@@ -343,42 +346,42 @@ types:
       - {from: in_progress, to: tbd}
 ```
 
-Навесить команды — правкой перехода (без изменений в коде):
+Hanging commands — by editing a transition (no code changes):
 
 ```yaml
       - from: in_progress
         to: done
-        description: "гейт качества"
-        commands: ["make lint", "make test"]   # все → 0, иначе done заблокирован
+        description: "quality gate"
+        commands: ["make lint", "make test"]   # all → 0, else done is blocked
 ```
 
-Так же добавляется тип `bug` (`prefix: b`, `parent: epic`, flow с `review`) — только конфигом.
+A `bug` type (`prefix: b`, `parent: epic`, a flow with `review`) is added the same way — config only.
 
-## Зависимости
+## Dependencies
 
-- `depends_on: [id, …]`; при добавлении проверяем отсутствие циклов.
-- Задача **ready** ⇔ её статус не `terminal` И все `depends_on` в `terminal`-статусе (по
-  категории `kind`: `done` или `cancelled`, а не по литералу). Отменённый блокер тоже разблокирует.
-- `mtt ready` — «что можно брать в работу».
+- `depends_on: [id, …]`; on adding, we check for the absence of cycles.
+- A task is **ready** ⇔ its status is not `terminal` AND all `depends_on` are in a `terminal` status (by
+  category `kind`: `done` or `cancelled`, not by the literal). A cancelled blocker also unblocks.
+- `mtt ready` — "what can be picked up for work".
 
-## Версионирование flow и история задач
+## Flow versioning and task history
 
-- **Определение flow версионируется git'ом** (в YAML-адаптере): `git log .mtt/config.yaml` — вся
-  эволюция графа. Явные `flow-version`/миграции существующих задач при переименовании статуса —
-  откладываемо. Домен трактует `status` как **данные** и валидирует по текущему flow **лениво**
-  (не падает, а флагует расхождение), чтобы дрейф конфига не ломал старые задачи.
-- **История переходов** пишется в саму задачу (`history`, append-only) — это даёт аудит и, позже,
-  **реконструкцию наблюдаемого графа** (read-only агрегация историй всех задач). Пишем в задаче,
-  не в центральный лог, чтобы сохранить чистые пофайловые мержи. История — **опциональная
-  возможность** (`HistoryStore`): YAML-адаптер её пишет, внешний бэкенд может не поддерживать
-  (тогда `ErrUnsupported`), и `core` деградирует мягко.
+- **The flow definition is versioned by git** (in the YAML adapter): `git log .mtt/config.yaml` is the
+  whole evolution of the graph. Explicit `flow-version`/migrations of existing tasks on a status rename are
+  deferrable. The domain treats `status` as **data** and validates it against the current flow **lazily**
+  (it flags a mismatch rather than crashing), so config drift doesn't break old tasks.
+- **Transition history** is written into the task itself (`history`, append-only) — this gives audit and,
+  later, **reconstruction of the observed graph** (a read-only aggregation of all tasks' histories). We
+  write it in the task, not in a central log, to preserve clean per-file merges. History is an **optional
+  capability** (`HistoryStore`): the YAML adapter writes it, an external backend may not support it (then
+  `ErrUnsupported`), and `core` degrades gracefully.
 
-## База знаний и ссылки (`refs`)
+## Knowledge base and references (`refs`)
 
-**KB — опциональная capability** (`KnowledgeStore`, как Confluence поверх Jira). Если её нет,
-знания живут прямо в задачах и комментариях; «база знаний» — это они и ссылки между ними.
+**The KB is an optional capability** (`KnowledgeStore`, like Confluence atop Jira). Without it, knowledge
+lives right in tasks and comments; the "knowledge base" is them and the links between them.
 
-Задачи и комментарии несут **`refs`** — структурный список проверяемых ссылок:
+Tasks and comments carry **`refs`** — a structured list of verifiable references:
 
 ```yaml
 refs:
@@ -387,60 +390,58 @@ refs:
   - {kind: url,  id: "https://…"}
 ```
 
-- `kind` ∈ `note` | `task` | `comment` | `url`. Это **не** `depends_on` (то — блокирующее ребро);
-  `refs` — информационная, проверяемая на целостность связь.
-- **Верификация capability-aware:** `task`/`comment` резолвятся через `TaskStore` (всегда);
-  `note` — только при `KnowledgeStore` (иначе «не могу проверить: нет KB»); `url` — внешняя,
-  не резолвим (опц. HEAD-проверка позже).
-- **Семантика:** на запись — предупреждаем о битой ссылке (не хард-блок); `mtt check` — обход на
-  висячие ссылки; `mtt show` — ссылки и **backlinks** («что ссылается сюда»); при удалении цели —
-  предупреждаем о входящих ссылках.
-- **Фазы:** поле `refs` — в модель уже в Фазе 1; резолв `task`/`comment` — Фаза 2; `note` +
-  `mtt check`/backlinks — Фаза 5 (с KB).
+- `kind` ∈ `note` | `task` | `comment` | `url`. This is **not** `depends_on` (that's a blocking edge);
+  `refs` is an informational, integrity-checked link.
+- **Verification is capability-aware:** `task`/`comment` resolve via `TaskStore` (always); `note` only with
+  `KnowledgeStore` (otherwise "cannot verify: no KB"); `url` is external, not resolved (optional HEAD check later).
+- **Semantics:** on write — warn about a dangling reference (not a hard block); `mtt check` — a repo-wide
+  sweep for dangling references; `mtt show` — the references and **backlinks** ("what references this"); on
+  deleting a target — warn about incoming references.
+- **Phases:** the `refs` field — in the model already at phase 1; resolving `task`/`comment` — phase 2;
+  `note` + `mtt check`/backlinks — phase 5 (with the KB).
 
-## Поиск (фаза 5)
+## Search (phase 5)
 
-Встроенный текстовый поиск (подстрока/токены) по задачам и БЗ. Без RAG.
-«Внешний индексатор» — опциональный hook (внешняя команда) через конфиг.
+Built-in text search (substring/tokens) over tasks and the KB. No RAG. An "external indexer" — an optional
+hook (external command) via config.
 
-## Human UI — опционально (`mtt-ui`, фаза 7)
+## Human UI — optional (`mtt-ui`, phase 7)
 
-`mtt-ui` — **отдельная опциональная утилита** (driving-адаптер), а не часть агентского бинаря:
-`net/http` + `embed.FS`, минимальный web UI, Гант через SVG, поверх того же `core`/портов.
-Нужен на YAML-дефолте; при внешнем бэкенде (Jira+Confluence) человек использует его родной UI.
-Агентам UI не нужен. В CLI при этом есть текстовый/ASCII Гант. Самая поздняя фаза.
+`mtt-ui` is a **separate optional utility** (a driving adapter), not part of the agent binary: `net/http` +
+`embed.FS`, a minimal web UI, a Gantt via SVG, over the same `core`/ports. Needed on the YAML default; with
+an external backend (Jira+Confluence) the human uses its native UI. Agents don't need the UI. The CLI still
+has a text/ASCII Gantt. The latest phase.
 
-## Порядок реализации
+## Implementation order
 
-| Фаза | Содержание | Статус |
+| Phase | Content | Status |
 |---|---|---|
-| 0 | Каркас: репо, модуль, AGENTS/DESIGN, скелет CLI, гейт, CI | ✅ done |
-| 1 | Контракт `pkg/mtt` (домен-типы + порт `TaskStore`); конфиг+типы (инварианты: дефолт `task`, `tbd→in_progress→done`), `mtt init`; YAML-адаптер **минтит ID** `e1_t3_s2`; core-usecase + `add/list/show/edit/close` | |
-| 2 | Иерархия (по `parent` из конфига); зависимости; `ready`; детект циклов | |
-| 3 | Flow-enforcement: валидация переходов + исполнение `commands` (порт `Runner`), гейтинг по exit-кодам; `mtt start/done/status` | |
-| 4 | Комментарии (дерево) | |
-| — | **⬆ agent-facing MVP — полностью юзабельно** | |
-| 5 | Порт `KnowledgeStore` + YAML-адаптер КБ; текстовый поиск | |
-| 6 | Текстовый/ASCII Гант в CLI; богатый list/query | |
-| 7 | `mtt-ui` (опц., отд. бинарь): web UI, Гант (SVG), браузер БЗ | |
-| 8 | Внешние адаптеры (субпроцесс-протокол) + hook индексатора | |
+| 0 | Scaffold: repo, module, AGENTS/DESIGN, CLI skeleton, gate, CI | ✅ done |
+| 1 | `pkg/mtt` contract (domain types + `TaskStore` port); config+types (invariants: default `task`, `tbd→in_progress→done`), `mtt init`; the YAML adapter **mints IDs** `e1_t3_s2`; core usecases + `add/list/show/edit/close` | |
+| 2 | Hierarchy (by `parent` from config); dependencies; `ready`; cycle detection | |
+| 3 | Flow enforcement: transition validation + running `commands` (the `Runner` port), gating on exit codes; `mtt start/done/status` | |
+| 4 | Comments (tree) | |
+| — | **⬆ agent-facing MVP — fully usable** | |
+| 5 | `KnowledgeStore` port + YAML KB adapter; text search | |
+| 6 | Text/ASCII Gantt in the CLI; richer list/query | |
+| 7 | `mtt-ui` (optional, separate binary): web UI, Gantt (SVG), KB browser | |
+| 8 | External adapters (subprocess protocol) + an indexer hook | |
 
-Приоритеты по позиционированию: фаза 3 (flow) и **адаптивность** (внешние бэкенды, фаза 8) —
-**наш клин**. `mtt-ui` (фаза 7) — приятный опциональный дефолт, не главный аргумент.
-Зависимости (фаза 2) держим **простыми**; база знаний (фаза 5) — низкий приоритет (у beads
-уже есть аналог), делаем только если дёшево.
+Positioning priorities: phase 3 (flow) and **adaptivity** (external backends, phase 8) are **our wedge**.
+`mtt-ui` (phase 7) is a nice optional default, not the main argument. Dependencies (phase 2) stay
+**simple**; the knowledge base (phase 5) is low priority (beads already has an analog), done only if cheap.
 
-Догфудинг: до фазы 4 план ведём здесь; далее переводим разработку mtt на сам mtt.
+Dogfooding: until phase 4 the plan is kept here; after that we move mtt's development onto mtt itself.
 
-## Раскладка кода
+## Code layout
 
 ```
-cmd/mtt/main.go            # entrypoint агентского CLI (driving)
-cmd/mtt-ui/main.go         # ОПЦИОНАЛЬНЫЙ веб-UI (driving-адаптер) поверх core — отдельный бинарь
-pkg/mtt/                   # ПУБЛИЧНЫЙ контракт: домен-типы + порты (TaskStore, KnowledgeStore)
+cmd/mtt/main.go            # entry point of the agent CLI (driving)
+cmd/mtt-ui/main.go         # OPTIONAL web UI (driving adapter) over core — a separate binary
+pkg/mtt/                   # PUBLIC contract: domain types + ports (TaskStore, KnowledgeStore)
 internal/
-  cli/                     # cobra-команды (тонкие) + wiring адаптеров по конфигу
-  core/                    # usecase-логика: иерархия, зависимости, циклы, flow — только через порты
+  cli/                     # cobra commands (thin) + wiring adapters from config
+  core/                    # usecase logic: hierarchy, dependencies, cycles, flow — only through ports
   adapter/
-    yaml/                  # дефолтный driven-адаптер: порты поверх .mtt/ файлов
+    yaml/                  # the default driven adapter: ports over .mtt/ files
 ```

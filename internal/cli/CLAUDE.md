@@ -1,19 +1,19 @@
 # internal/cli
 
-Слой CLI на cobra. **Только** разбор флагов/аргументов, wiring адаптеров по конфигу,
-вызов `core` (usecase) и форматирование вывода. Тонкий по определению.
+The CLI layer on cobra. **Only** flag/argument parsing, wiring adapters from config, calling `core`
+(usecases), and formatting output. Thin by definition.
 
-## Границы
+## Boundaries
 
-- НЕТ бизнес-логики и НЕТ прямого доступа к хранилищу — логика в `core`, данные за портом.
-- Одна команда — один файл `<cmd>.go` с конструктором `new<Cmd>Cmd() *cobra.Command`.
-- Команды возвращают ошибку через `RunE` (не печатают её сами и не зовут `os.Exit`).
-- Вывод — только через `cmd.OutOrStdout()` / `cmd.ErrOrStderr()` (тестируемость).
+- NO business logic and NO direct storage access — logic in `core`, data behind a port.
+- One command = one file `<cmd>.go` with a constructor `new<Cmd>Cmd() *cobra.Command`.
+- Commands return errors via `RunE` (they don't print errors themselves or call `os.Exit`).
+- Output only through `cmd.OutOrStdout()` / `cmd.ErrOrStderr()` (testability).
 
-## Тесты
+## Tests
 
-e2e через `testscript` (txtar) во временных каталогах; на каждую команду — сценарий.
+e2e via `testscript` (txtar) in temp dirs; one script per command.
 
-## Текущее состояние
+## Current state
 
-`root` + `version`. Дальше (фаза 1): `add / list / show / edit / close`.
+`root` + `version`. Next (phase 1): `add / list / show / edit / close`.

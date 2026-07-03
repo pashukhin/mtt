@@ -1,31 +1,36 @@
 # CLAUDE.md — mtt
 
-Тонкая точка входа для агентов. Полные правила — в [AGENTS.md](AGENTS.md),
-архитектура — в [DESIGN.md](DESIGN.md), план задач — в [TASKS.md](TASKS.md).
+Thin entry point for agents. Full rules — in [AGENTS.md](AGENTS.md), architecture — in
+[DESIGN.md](DESIGN.md), task plan — in [TASKS.md](TASKS.md).
 
-**В начале сессии прочитать:** AGENTS.md → DESIGN.md → TASKS.md.
+**Read at the start of a session:** AGENTS.md → DESIGN.md → TASKS.md.
 
-## Что это
+## What it is
 
-`mtt` — агент-дружелюбная лёгкая связка «задачи + знания» (Go CLI), как Jira+Confluence
-без монструозности. Хранилище абстрагировано за портами; дефолт — YAML, один файл на задачу
-в `.mtt/`, но подключается и внешняя связка (Jira+Confluence и пр.) через адаптер.
+`mtt` is an agent-friendly, lightweight "tasks + knowledge" pairing (Go CLI), like Jira+Confluence without
+the bulk. Storage is abstracted behind ports; the default is YAML, one file per task in `.mtt/`, but an
+external pairing (Jira+Confluence, etc.) can be plugged in via an adapter.
 
-## Правила без компромиссов (детали — AGENTS.md)
+## Non-negotiable rules (details in AGENTS.md)
 
-- **Тест — до кода** (TDD: red → green → refactor). `make check` зелёный до коммита.
-- Фанатично: **SOLID, DRY, KISS, чистая архитектура** (hexagonal). Зависимости внутрь:
-  `cli → core → порт ← adapter`; контракт (домен-типы + порты) — в публичном `pkg/mtt`.
-- Ветка+PR на задачу → CI зелёный → squash в `main`.
-- Хранилище — **только через порт** (`TaskStore`/`KnowledgeStore`); YAML-адаптер по умолчанию.
-- Каждый пакет в `internal/` держит свой тонкий `CLAUDE.md` в актуальном состоянии.
+- **Test before code** (TDD: red → green → refactor). `make check` green before commit.
+- Fanatically: **SOLID, DRY, KISS, clean architecture** (hexagonal). Dependencies point inward:
+  `cli → core → port ← adapter`; the contract (domain types + ports) lives in the public `pkg/mtt`.
+- Per-task branch → PR → CI green → squash into `main`.
+- Storage **only through a port** (`TaskStore`/`KnowledgeStore`); YAML adapter by default.
+- Every package under `internal/` keeps its own thin `CLAUDE.md` current.
 
-## Гейт
+## Gate
 
 `make check` = gofmt + go vet + golangci-lint(v2) + `go test -race -cover` + build.
 
+## Docs language
+
+Agent-facing docs (this file, AGENTS.md, TASKS.md, NEXT_SESSION.md) are English. Human-facing docs are
+bilingual: `README.md` ↔ `README.ru.md`, `DESIGN.md` ↔ `DESIGN.ru.md` (English primary, keep in sync).
+
 ## Skills / guards
 
-Плагин **superpowers** (skills: TDD, brainstorming, debugging, planning) — это **личное**
-требование к процессу разработки, а не проектное: включается в `.claude/settings.local.json`
-(per-user, gitignored). Инструкция активации — в [NEXT_SESSION.md](NEXT_SESSION.md).
+The **superpowers** plugin (skills: TDD, brainstorming, debugging, planning) is a **personal**
+development-process preference, not a project one: enabled in `.claude/settings.local.json` (per-user,
+gitignored). Activation instructions — in [NEXT_SESSION.md](NEXT_SESSION.md).

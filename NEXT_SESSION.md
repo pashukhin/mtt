@@ -1,87 +1,87 @@
-# NEXT_SESSION — затравка
+# NEXT_SESSION — primer
 
-Живой handoff-документ. Обновляй в конце каждой сессии (что сделано / что дальше).
+A living handoff doc. Update it at the end of each session (what's done / what's next).
 
-## Где мы
+## Where we are
 
-- **Фаза 0 (каркас) завершена**, гейт `make check` зелёный, коммит(ы) в `main` (локально).
-- Пуша на GitHub ещё **не было** (ждём явного «go» от пользователя).
-- Стек: Go 1.23, cobra; хранение — YAML файл-на-задачу (см. DESIGN.md).
+- **Phase 0 (scaffold) is complete**, the `make check` gate is green, commit(s) on `main` (local).
+- **No GitHub push yet** (waiting for an explicit "go" from the user).
+- Stack: Go 1.23, cobra; storage — YAML file-per-task (see DESIGN.md).
 
-## Сессия начинается с планирования (обязательно)
+## The session starts with planning (mandatory)
 
-Перед любым кодом — фаза планирования (используй skills superpowers: brainstorming/planning).
-План обязан учесть ключевые инварианты из DESIGN.md:
+Before any code — a planning phase (use the superpowers skills: brainstorming/planning). The plan must
+account for the key invariants from DESIGN.md:
 
-- **Типы и иерархия — домен (из конфига); ID/slug — дело адаптера.** В коде НЕТ литералов имён
-  типов и структуры ID. Иерархия — из поля `parent` типа. ID минтит `TaskStore` (YAML:
-  `<prefix><N>` по цепочке, `e1` → `e1_t3` → `e1_t3_s2`; `prefix` — поле YAML-адаптера).
-- **Инварианты (валидирует загрузка конфига):** в наборе типов есть дефолтный `task`; у статуса
-  есть категория `kind` (initial/active/terminal), терминалов ≥1 (в дефолте `done`+`cancelled`),
-  ready/list — по категории; в любом flow есть якоря `tbd → in_progress → done` в этом порядке.
-- **Capabilities:** возможности (история, зависимости, дерево-комментарии, поиск, **KB**) —
-  опциональны per-адаптер (`Capabilities()` / `ErrUnsupported`); YAML — референс (умеет всё),
-  `core` пишет на минимум и «зажигает» доступное. Задача несёт append-only `history` (в YAML всегда).
-- **Ссылки:** задачи/комментарии несут структурные проверяемые `refs` (`note`/`task`/`comment`/`url`)
-  — информационные, **≠ `depends_on`**. Верификация capability-aware (note — только при KB). Без KB
-  знания живут в задачах/комментариях и связях между ними.
-- **Роли — шов (не реализуем):** семантика `start`/`done` зависит от роли (ревьюер vs имплементер).
-  Сейчас только резервируем `role` в `history` (не откладываемо) и `--role`/`MTT_ROLE`; routing и
-  config `roles` — позже. Роли — семантический роутинг, не RBAC; имена ролей — из конфига.
-- **Killer-фича — исполняемые переходы:** на переход вешаются `description` + `commands`
-  (все → 0, иначе переход блокируется). Исполнение — за портом `Runner` (`core` определяет,
-  `internal/adapter/exec` реализует, тест — фейк). `start`/`done` — мета-команды `advance --to`
-  (обход до цели; режимы `--stop`(деф)/`--atomic`/`--force`; без config-DSL). Фаза 3.
-- **`mtt init`** пишет дефолтный `.mtt/config.yaml` (типы + flow, без команд). Дефолты — в
-  шаблоне init, не в логике.
-- Следствие для порядка: контракт+типы+адаптер (с минтингом ID) — Фаза 1; flow-enforcement
-  с исполнением команд — Фаза 3.
-- **Позиционирование (см. DESIGN.md → «Позиционирование vs beads»):** наш клин — per-type
-  flow + zero-footprint + человеческий UI. Зависимости держим простыми, КБ — низкий
-  приоритет. ID-коллизии приняты осознанно (не усложнять до появления реального параллелизма).
+- **Types and hierarchy are domain (from config); ID/slug is the adapter's job.** The code has NO literals
+  for type names or ID structure. Hierarchy comes from a type's `parent` field. The ID is minted by
+  `TaskStore` (YAML: `<prefix><N>` along the chain, `e1` → `e1_t3` → `e1_t3_s2`; `prefix` is a YAML-adapter field).
+- **Invariants (validated on config load):** the type set has a default `task`; each status has a category
+  `kind` (initial/active/terminal), with ≥1 `terminal` (the default has `done`+`cancelled`), and
+  ready/list work by category; every flow has the anchors `tbd → in_progress → done` in that order.
+- **Capabilities:** features (history, dependencies, comment tree, search, **KB**) are optional per adapter
+  (`Capabilities()` / `ErrUnsupported`); YAML is the reference (does everything), `core` writes to the
+  minimum and "lights up" what's available. A task carries append-only `history` (always, in YAML).
+- **References:** tasks/comments carry structured verifiable `refs` (`note`/`task`/`comment`/`url`) —
+  informational, **≠ `depends_on`**. Verification is capability-aware (note only with a KB). Without a KB,
+  knowledge lives in tasks/comments and the links between them.
+- **Roles — a seam (not built now):** the semantics of `start`/`done` depend on the role (reviewer vs
+  implementer). For now we only reserve `role` in `history` (non-deferrable) and `--role`/`MTT_ROLE`;
+  routing and a config `roles` section come later. Roles are semantic routing, not RBAC; role names come from config.
+- **Killer feature — executable transitions:** a transition carries `description` + `commands` (all → 0,
+  else the transition is blocked). Execution is behind the `Runner` port (`core` defines it,
+  `internal/adapter/exec` implements it, tests use a fake). `start`/`done` are the meta-command
+  `advance --to` (walk to a target; modes `--stop`(default)/`--atomic`/`--force`; no config DSL). Phase 3.
+- **`mtt init`** writes the default `.mtt/config.yaml` (types + flow, no commands). Defaults live in the
+  init template, not in logic.
+- Consequence for ordering: contract + types + adapter (with ID minting) — phase 1; flow enforcement with
+  command execution — phase 3.
+- **Positioning (see DESIGN.md → "Positioning vs beads"):** our wedge is per-type flow + zero-footprint +
+  adaptivity (a thin agent layer over the existing backend). Dependencies stay simple, the KB is low
+  priority; `mtt-ui` is a nice optional default, not the main argument. ID collisions are accepted
+  consciously (don't complicate until real parallelism appears).
 
-## Что прочитать в начале (по порядку)
+## What to read first (in order)
 
-1. [CLAUDE.md](CLAUDE.md) — точка входа
-2. [AGENTS.md](AGENTS.md) — правила, гейт, принципы, DoD
-3. [DESIGN.md](DESIGN.md) — архитектура и решения
-4. [TASKS.md](TASKS.md) — план; следующая — секция **e2 (Фаза 1)**
+1. [CLAUDE.md](CLAUDE.md) — the entry point
+2. [AGENTS.md](AGENTS.md) — rules, gate, principles, DoD
+3. [DESIGN.md](DESIGN.md) — architecture and decisions
+4. [TASKS.md](TASKS.md) — the plan; next up — section **e2 (Phase 1)**
 
-## Активация guards (superpowers)
+## Activating guards (superpowers)
 
-Плагин объявлен в личном `.claude/settings.local.json` (per-user, gitignored)
-(`superpowers@superpowers-marketplace`). Плагины подхватываются **при старте сессии**:
+The plugin is declared in the personal `.claude/settings.local.json` (per-user, gitignored)
+(`superpowers@superpowers-marketplace`). Plugins load **at session start**:
 
-1. При открытии проекта Claude Code может показать запрос доверия marketplace
-   `obra/superpowers-marketplace` — подтвердить (один раз).
-2. Если skills не появились автоматически, выполнить один раз:
+1. On opening the project, Claude Code may show a trust prompt for the marketplace
+   `obra/superpowers-marketplace` — confirm it (once).
+2. If the skills don't appear automatically, run once:
    ```
    /plugin marketplace add obra/superpowers-marketplace
    /plugin install superpowers@superpowers-marketplace
    ```
-   (альтернатива — официальный marketplace: `/plugin install superpowers@claude-plugins-official`)
-3. Проверить, что доступны skills TDD/brainstorming/debugging, и **пользоваться ими**.
+   (alternative — the official marketplace: `/plugin install superpowers@claude-plugins-official`)
+3. Verify the TDD/brainstorming/debugging skills are available, and **use them**.
 
-## Следующая задача — Фаза 1 (после планирования)
+## Next task — Phase 1 (after planning)
 
-- Ветка: `feat/phase-1-core` (реализация — уже после плана).
-- Ориентир задач: **e2** из [TASKS.md](TASKS.md) (планирование уточнит разбивку/порядок).
-- **Test-first** (TDD: red → green → refactor). `make check` зелёный до каждого коммита.
-- Архитектура — **hexagonal**: `cli → core → порт ← adapter`, контракт (домен-типы + порты)
-  в публичном `pkg/mtt`. `core` не импортирует `adapter/*`.
-- Порядок по существу: контракт `pkg/mtt` (типы + порт `TaskStore`) → конфиг+типы + `mtt init`
-  (от типов зависит ID) → `internal/adapter/yaml` → `internal/core` (ID из конфига, usecase) →
-  команды `add/list/show`.
-- Создавать `CLAUDE.md` для каждого нового пакета (`pkg/mtt`, `internal/core`,
-  `internal/adapter/yaml`, …).
+- Branch: `feat/phase-1-core` (implementation — after the plan).
+- Task guide: **e2** in [TASKS.md](TASKS.md) (planning refines the breakdown/order).
+- **Test-first** (TDD: red → green → refactor). `make check` green before every commit.
+- Architecture — **hexagonal**: `cli → core → port ← adapter`, the contract (domain types + ports) in the
+  public `pkg/mtt`. `core` doesn't import `adapter/*`.
+- Order in substance: the `pkg/mtt` contract (types + `TaskStore` port) → config+types + `mtt init` (the ID
+  depends on types) → `internal/adapter/yaml` → `internal/core` (ID minting, usecases) → the
+  `add/list/show` commands.
+- Create a `CLAUDE.md` for each new package (`pkg/mtt`, `internal/core`, `internal/adapter/yaml`, …).
 
-## Готовый kickoff-промпт (можно вставить в новой сессии)
+## Ready-to-paste kickoff prompt (for a new session)
 
-> Продолжаем mtt. Прочитай CLAUDE.md, AGENTS.md, DESIGN.md, TASKS.md и NEXT_SESSION.md.
-> Убедись, что активны skills superpowers (иначе активируй по NEXT_SESSION.md).
-> Начни с ПЛАНИРОВАНИЯ Фазы 1. Архитектура hexagonal: контракт (домен-типы + порты
-> `TaskStore`/`KnowledgeStore`) в публичном `pkg/mtt`, логика в `internal/core`, YAML —
-> дефолтный адаптер в `internal/adapter/yaml`; типы/иерархия/ID — из конфига (в коде нет
-> литералов), `mtt init` пишет дефолты epic/task/subtask с flow. Затем реализуй в ветке
-> `feat/phase-1-core` строго test-first.
-> Соблюдай принципы (SOLID/DRY/KISS/TDD/чистая архитектура) и самопроверку из AGENTS.md.
+> We're continuing mtt. Read CLAUDE.md, AGENTS.md, DESIGN.md, TASKS.md and NEXT_SESSION.md.
+> Make sure the superpowers skills are active (otherwise activate them per NEXT_SESSION.md).
+> Start by PLANNING phase 1. Hexagonal architecture: the contract (domain types + ports
+> `TaskStore`/`KnowledgeStore`) in the public `pkg/mtt`, logic in `internal/core`, YAML — the default
+> adapter in `internal/adapter/yaml`; types/hierarchy/ID come from config (no literals in code),
+> `mtt init` writes the epic/task/subtask defaults with flow. Then implement on the branch
+> `feat/phase-1-core`, strictly test-first.
+> Follow the principles (SOLID/DRY/KISS/TDD/clean architecture) and the self-check from AGENTS.md.

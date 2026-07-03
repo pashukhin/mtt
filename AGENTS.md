@@ -1,102 +1,109 @@
 # AGENTS.md
 
-Правила для агентов и людей, работающих в этом репозитории.
-Архитектура и решения — в [DESIGN.md](DESIGN.md). Здесь — как вести работу.
+Rules for agents and humans working in this repository.
+Architecture and decisions live in [DESIGN.md](DESIGN.md). This file is about how to work.
 
 ## TL;DR
 
-1. Работай в ветке на задачу, не в `main`.
-2. **Тест — до кода** (TDD: red → green → refactor). Перед коммитом `make check` **зелёный**.
-3. Фанатично: **SOLID, DRY, KISS, чистая архитектура** (см. «Принципы»).
-4. Тонкий CLI-слой; логика — в `core`; хранилище — за портом (адаптер), напрямую `.mtt/` не трогаем.
-5. Меняешь поведение — обнови `DESIGN.md` и затронутые `CLAUDE.md`.
+1. Work on a per-task branch, not on `main`.
+2. **Test before code** (TDD: red → green → refactor). `make check` must be **green** before you commit.
+3. Fanatically: **SOLID, DRY, KISS, clean architecture** (see "Principles").
+4. Thin CLI layer; logic lives in `core`; storage sits behind a port (adapter) — never touch `.mtt/` directly.
+5. Changing behavior? Update `DESIGN.md` and the affected `CLAUDE.md` files.
 
-## Принципы (без компромиссов)
+## Principles (non-negotiable)
 
-Фанатично соблюдаем **SOLID, DRY, KISS, TDD, чистую архитектуру** (hexagonal). Зависимости
-направлены внутрь: `cli → core → порт ← adapter`. Домен-типы и порты — в публичном `pkg/mtt`;
-они не знают про CLI, файлы и YAML. `core` не импортирует `adapter/*`; адаптеры — без бизнес-правил.
+We fanatically follow **SOLID, DRY, KISS, TDD, clean architecture** (hexagonal). Dependencies point inward:
+`cli → core → port ← adapter`. Domain types and ports live in the public `pkg/mtt`; they know nothing
+about the CLI, files, or YAML. `core` never imports `adapter/*`; adapters carry no business rules.
 
-Перед тем как считать задачу готовой — явная самопроверка (ответь себе честно):
+Before you consider a task done — an explicit self-check (answer honestly):
 
-- «Это **правда** чистая архитектура — или я могу чище? Где протекают слои?»
-- «Нет ли дублирования (**DRY**)? Нет ли лишней сложности (**KISS**)?»
-- «Тест был написан **до** кода (**TDD**)?»
-- «Каждый публичный тип/функция — одна ответственность (**SRP**)? Абстракции на месте?»
+- "Is this *really* clean architecture — or can I do cleaner? Where do the layers leak?"
+- "Any duplication (**DRY**)? Any needless complexity (**KISS**)?"
+- "Was the test written **before** the code (**TDD**)?"
+- "Does each exported type/function have one responsibility (**SRP**)? Are the abstractions right?"
 
-Любой ответ «не уверен» → рефактори до коммита, а не после.
+Any "not sure" → refactor before committing, not after.
 
-## Команды
+## Commands
 
 ```bash
-make check     # ГЕЙТ: fmt-check + vet + lint + test -race + build  (обязателен до коммита)
+make check     # THE GATE: fmt-check + vet + lint + test -race + build  (required before commit)
 make test      # go test -race -cover ./...
-make build     # сборка в ./bin/mtt
-make fmt       # gofmt + goimports (форматирование на месте)
+make build     # build to ./bin/mtt
+make fmt       # gofmt + goimports (format in place)
 make lint      # golangci-lint run
 ```
 
-Требуется: Go 1.23+, `golangci-lint` v2, `goimports`.
+Requires: Go 1.23+, `golangci-lint` v2, `goimports`.
 
-## Definition of Done (на задачу)
+## Definition of Done (per task)
 
-- [ ] Тест написан **до** кода (TDD: red → green → refactor).
-- [ ] Пройдена самопроверка по «Принципам» (чистота слоёв, DRY, KISS, SRP).
-- [ ] `make check` зелёный локально.
-- [ ] `DESIGN.md` и затронутые `CLAUDE.md` обновлены, если поменялось поведение/модель данных.
-- [ ] Ветка → PR → CI зелёный → squash-merge в `main`.
+- [ ] Test written **before** the code (TDD: red → green → refactor).
+- [ ] Self-check from "Principles" passed (layer cleanliness, DRY, KISS, SRP).
+- [ ] `make check` green locally.
+- [ ] `DESIGN.md` and the affected `CLAUDE.md` updated if behavior/data model changed.
+- [ ] Branch → PR → CI green → squash-merge into `main`.
 
-## Гейт качества
+## Quality gate
 
-`make check` = то же, что гоняет CI. Не коммить, если он красный. Компоненты:
+`make check` is exactly what CI runs. Don't commit if it's red. Components:
 
-- `gofmt -l` — падаем на неотформатированном;
+- `gofmt -l` — fail on unformatted code;
 - `go vet ./...`;
-- `golangci-lint run` (конфиг в `.golangci.yml`, формат v2);
+- `golangci-lint run` (config in `.golangci.yml`, v2 format);
 - `go test -race -cover ./...`;
 - `go build ./...`.
 
-## Конвенции Go
+## Go conventions
 
-- Ошибки оборачиваем через `fmt.Errorf("...: %w", err)`; не игнорируем `err`.
-- Без `panic` в библиотечном коде (`core`/`adapter`/`pkg`); паника — только программерская ошибка.
-- CLI-команды тонкие: парсинг флагов и вывод; вся логика — в `core`.
-- Маленькие пакеты, экспортируем минимум. Экспортируемое — с doc-комментарием.
-- Детерминированная сериализация: порядок полей = порядок в структуре; не менять произвольно.
-- Не тащить тяжёлые зависимости без причины — в PR коротко обосновать новую зависимость.
+- Wrap errors with `fmt.Errorf("...: %w", err)`; never ignore `err`.
+- No `panic` in library code (`core`/`adapter`/`pkg`); a panic means a programmer error only.
+- CLI commands stay thin: flag parsing and output; all logic in `core`.
+- Small packages, export the minimum. Everything exported gets a doc comment.
+- Deterministic serialization: field order = struct order; don't reorder arbitrarily.
+- Don't pull in heavy dependencies without reason — justify any new dependency briefly in the PR.
 
-## Инварианты хранилища
+## Storage invariants
 
-- Запись/чтение хранилища — **только через порт** (`TaskStore`/`KnowledgeStore`), не напрямую.
-- В YAML-адаптере `.mtt/` коммитится и является источником правды; руками файлы не редактируем.
-- ID стабильны (`e1_t3_s2`) и не зависят от `title`.
-- Запись файлов атомарна (temp + rename); создание нового ID — через `O_EXCL`.
+- Read/write storage **only through a port** (`TaskStore`/`KnowledgeStore`), never directly.
+- In the YAML adapter, `.mtt/` is committed and is the source of truth; don't hand-edit files.
+- IDs are stable (`e1_t3_s2`) and independent of `title`.
+- File writes are atomic (temp + rename); a new ID is created via `O_EXCL`.
 
-## Тесты
+## Tests
 
 - Unit, table-driven: `core` (usecase) / `adapter/yaml`.
-- Golden-тесты сериализации YAML (флаг `-update` для перегенерации эталонов).
-- CLI e2e через `testscript` (txtar-сценарии) во временных каталогах.
-- Никакой сети в тестах.
+- Golden tests for YAML serialization (`-update` flag to regenerate goldens).
+- CLI e2e via `testscript` (txtar scripts) in temp dirs.
+- No network in tests.
 
-## CLAUDE.md (иерархия документации в коде)
+## In-code doc hierarchy (CLAUDE.md)
 
-- Корневой [CLAUDE.md](CLAUDE.md) — тонкая точка входа: что читать и главные правила.
-- Каждый пакет в `internal/` имеет свой тонкий `CLAUDE.md`: ответственность пакета,
-  инварианты, границы (что он делает и чего НЕ делает).
-- Создаёшь пакет — создаёшь его `CLAUDE.md`; меняешь поведение пакета — обновляешь.
-- CLAUDE.md **полные по сути, но тонкие**: без воды и без дублирования DESIGN.md
-  (там — архитектура; в CLAUDE.md — локальная ориентировка).
+- Root [CLAUDE.md](CLAUDE.md) — a thin entry point: what to read and the key rules.
+- Every package under `internal/` has its own thin `CLAUDE.md`: the package's responsibility, invariants,
+  boundaries (what it does and what it does NOT do).
+- Create a package → create its `CLAUDE.md`; change a package's behavior → update it.
+- CLAUDE.md files are **complete in substance but thin**: no filler, no duplication of DESIGN.md
+  (architecture lives there; CLAUDE.md is local orientation).
+
+## Documentation language
+
+- **Agent-facing docs are English only:** `AGENTS.md`, the `CLAUDE.md` files, `TASKS.md`, `NEXT_SESSION.md`.
+- **Bilingual docs (English primary + Russian mirror):** `README.md` ↔ `README.ru.md`,
+  `DESIGN.md` ↔ `DESIGN.ru.md`. English is the source of truth; when either changes, update both and keep
+  them consistent.
 
 ## Git
 
-- Ветки: `feat/…`, `fix/…`, `chore/…`. Коммиты маленькие, в императиве.
-- Не пушить и не создавать remote без явной просьбы пользователя.
-- Коммить под настроенной git-identity пользователя (не переопределять её).
-- Трейлер коммита:
+- Branches: `feat/…`, `fix/…`, `chore/…`. Small commits, imperative mood.
+- Don't push or create a remote without an explicit request from the user.
+- Commit under the user's configured git identity (don't override it).
+- Commit trailer:
   `Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>`
 
-## Следующая задача
+## Next task
 
-Берётся по плану фаз в [DESIGN.md](DESIGN.md) (сверху вниз). После фазы 4 разработка
-mtt переезжает на сам mtt (догфудинг).
+Taken from the phase plan in [DESIGN.md](DESIGN.md) (top-down). After phase 4, mtt's development moves onto
+mtt itself (dogfooding).
