@@ -64,6 +64,31 @@ has `remember`/`prime`), done only if cheap.
 > epic/task/subtask hierarchy and an **optional** sequential-ID mode. The live reasons for a separate
 > project are precisely **lightness** and **per-type flow**, not "beads lacks this".
 
+### Competitive landscape (2026 scan)
+
+A scan of ~20 tools (beads, Task Master, Backlog.md, git-bug, dstask, Taskwarrior, Fossil, tracker MCP
+servers, unified ticketing APIs, osmove/backlog, AgentWrapper AO) confirms and sharpens the above:
+
+- **Un-copied core (our two bets).** (1) A config-driven **per-type flow with executable command gates** —
+  no tool does it: beads/Task Master have flat status enums; Backlog.md's `onStatusChange` is a
+  non-blocking callback; Taskwarrior has vetoing hooks but global, not per-type/per-transition; Fossil's
+  TH1 can't shell out. (2) A thin agent CLI over a **swappable existing tracker+KB as the store of
+  record** — unoccupied: beads/git-bug *sync* to Jira/GitHub while keeping their own store (the inverse);
+  tracker MCP servers are single-backend; unified ticketing APIs (Merge.dev, unified.to) are cloud B2B
+  middleware with no CLI/agents/local backend/gates.
+- **Not a differentiator (be honest).** The tasks+knowledge *bundle* is old (Fossil ships tickets+wiki+
+  forum for a decade; Backlog.md bundles tasks+docs). Typed deps, ready/blocked, hierarchical IDs,
+  history, and agent memory are matched by beads. A plain "file-native task CLI for agents" is a crowded,
+  consolidating slot (git-bug, Backlog.md, Task Master, beads) — not a defensible position on its own.
+- **Adjacent threats to watch.** `osmove/backlog` and AgentWrapper "AO" combine a swappable tracker with a
+  lifecycle/gate layer for agents, but are heavier orchestrators with one-way write-back, a fixed kanban
+  (not config-driven per-type gates), and no KB pairing. `Backlog.md` is the fastest-growing ideological
+  neighbor. `beads` (~25k★) has the richest tracker sync; if it flips adapters to primary storage it
+  contests bet 1.
+- **Takeaway.** The niche is real but narrow and closing. Position as *a uniform, gated control plane over
+  any tracker*, not another storage format; double down on the two bets and zero-footprint; keep the KB a
+  supporting feature, not the headline.
+
 ## Architecture: domain, ports, adapters
 
 Hexagonal (ports & adapters). Inside — domain and usecases; outside — adapters of two kinds: **driving**
