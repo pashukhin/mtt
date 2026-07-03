@@ -69,6 +69,8 @@ Configuration).
 
 - `--force` — overwrite an existing `config.yaml`.
 - `--name <name>` — project name written into the config (default: directory name).
+- `--template <name>` — starter config: `default` (epic/task/subtask, no commands) or `coding`
+  (feature/bugfix/refactor, each with a gated per-type Definition of Done). Default: `default`.
 
 ### `mtt version` — print the version  *(phase 0, implemented)*
 Prints the build version. No arguments.

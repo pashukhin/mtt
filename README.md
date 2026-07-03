@@ -1,17 +1,25 @@
 # mtt
 
-**A minimalist, file-native task tracker + knowledge base for coding agents and humans.**
-Like Jira + Confluence, without the bulk.
+**An executable task state machine for coding agents — a fuse between an agent and the word "done".**
 
 > 🇷🇺 Читать по-русски: [README.ru.md](README.ru.md)
 
 > **Status:** early — design phase. The architecture is settled (see [DESIGN.md](DESIGN.md));
 > implementation starts at phase 1. Phase 0 (scaffold + quality gate + CI) is done.
 
+> **Pitch.** Coding agents write code well but respect a task's lifecycle poorly — "done" is often just a
+> text label. mtt turns a task into an executable state machine: a status transition passes through gates
+> — create the branch, run lint/test, check artifacts — and if a gate is red, `mtt done` doesn't pass.
+> The Definition of Done is **per task type** (bugfix, refactor, feature each differ). It's not a commit
+> hook or CI — it's a gate on the *task lifecycle*, in the agent's own vocabulary, over your storage:
+> zero-footprint YAML for solo, or a thin enforcement layer over Jira/GitHub for a team.
+
 ## What it is
 
-`mtt` is a small Go CLI (`mtt add`, `mtt list`, …) that gives coding agents a clean, task-centric
-interface, and humans an optional light UI. Its defining idea: **storage is abstracted behind ports**.
+`mtt` is a small Go CLI (`mtt add`, `mtt start`, `mtt done`, …). Its defining idea: a **config-driven
+per-type status flow whose transitions run gates** (shell commands that must pass) — so an agent can't mark
+a task `done` without meeting its Definition of Done. Its second idea, the adoption ladder: **storage is
+abstracted behind ports**, so the same CLI runs over local files or your existing tracker.
 
 - **Solo / zero-footprint:** the default backend is local YAML files (one file per task, in `.mtt/`) —
   no daemon, no database, no ports; clean git merges and PR-reviewable diffs.
@@ -27,12 +35,12 @@ backend you already have. (An honest comparison lives in
 
 ## Key ideas
 
+- **Executable, per-type transitions (the killer feature).** A status transition carries shell commands
+  that must all pass — `["make lint", "make test"]` gating `→ done` — or perform actions (create a branch).
+  The Definition of Done differs per task type (bugfix/refactor/feature). Agents work in task terms
+  (`mtt start`, `mtt done`) while the tool enforces the discipline.
 - **Config-driven types & hierarchy.** Epic → task → subtask is just the default config; no type names or
   ID structure are hardcoded. IDs are readable and hierarchical (`e1_t3_s2`).
-- **Executable transitions (the killer feature).** A status transition can carry a description and a
-  sequence of shell commands that must all pass (e.g. `["make lint", "make test"]` gating `→ done`), or
-  perform actions (create a branch). Agents work in task terms (`mtt start`, `mtt done`) while the flow
-  hides the mechanics.
 - **Hexagonal, pluggable backends.** A public contract (`pkg/mtt`) with `TaskStore` and `KnowledgeStore`
   ports; the YAML adapter is the reference. Optional features (history, dependencies, comment trees,
   search) are per-adapter capabilities.

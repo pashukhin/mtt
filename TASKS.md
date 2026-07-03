@@ -36,7 +36,8 @@ code); the **adapter** mints the ID/slug; the type set has a default `task`; eve
       invariant validation (default `task`; anchor statuses `tbd`/`in_progress`/`done` with categories;
       exactly one `initial`, ≥1 `terminal`, plus `cancelled` in the default); the default template; config
       load merges an optional gitignored `.mtt/config.local.yaml` overlay (personal params override committed config)
-- [ ] e2_t4 — `mtt init`: write the default `.mtt/config.yaml`
+- [ ] e2_t4 — `mtt init [--template default|coding]`: write the starter `.mtt/config.yaml` (`coding` =
+      feature/bugfix/refactor with a gated per-type DoD — a demo of the enforcement value)
 - [ ] e2_t5 — `internal/adapter/yaml`: implement `TaskStore` **and all capability interfaces** (the
       reference) — **ID minting** (`<prefix><N>` along the parent chain, `max+1`, `O_EXCL`),
       deterministic serialization, atomic write (temp+rename), find the `.mtt/` root, load config

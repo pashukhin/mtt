@@ -41,6 +41,12 @@ agent layer over the existing stack).
 
 ## Positioning (honestly, vs beads)
 
+**Framing.** mtt is not "another task tracker for agents" (a crowded slot) — it's a **deterministic
+workflow-enforcement layer**: an *executable task state machine* whose transitions gate on your checks.
+The enemy isn't Jira; it's `TODO.md`, the prompt line "run tests before done", and an agent that typed
+"done" without running anything. The pitch leads with that; storage/backends and the KB are the adoption
+ladder, not the headline.
+
 [beads](https://github.com/gastownhall/beads) (Steve Yegge, ~25k★) is powerful but heavy: **Dolt**
 storage (a 44–48 MB binary, cgo), optional server processes with ports, git hooks, a dual git+Dolt
 history, a huge ecosystem. Its strengths — **dependencies** (typed + gates + a ready cache),
@@ -67,7 +73,11 @@ has `remember`/`prime`), done only if cheap.
 ### Competitive landscape (2026 scan)
 
 A scan of ~20 tools (beads, Task Master, Backlog.md, git-bug, dstask, Taskwarrior, Fossil, tracker MCP
-servers, unified ticketing APIs, osmove/backlog, AgentWrapper AO) confirms and sharpens the above:
+servers, unified ticketing APIs, osmove/backlog, AgentWrapper AO) confirms and sharpens the above. Others
+**orchestrate** agents (GitHub Agentic Workflows, Operator, AgentWrapper AO), **integrate** them with a
+tracker (Jira+Copilot, Linear automations, tracker MCP servers), or **automate** PR/issue flow — mtt does
+something narrower: it **gates the task's status transition** with per-type local checks, so an agent can't
+declare `done` without passing them.
 
 - **Un-copied core (our two bets).** (1) A config-driven **per-type flow with executable command gates** —
   no tool does it: beads/Task Master have flat status enums; Backlog.md's `onStatusChange` is a
@@ -88,6 +98,18 @@ servers, unified ticketing APIs, osmove/backlog, AgentWrapper AO) confirms and s
 - **Takeaway.** The niche is real but narrow and closing. Position as *a uniform, gated control plane over
   any tracker*, not another storage format; double down on the two bets and zero-footprint; keep the KB a
   supporting feature, not the headline.
+
+### Why not just pre-commit hooks or CI?
+
+The nearest objection — mtt sits a layer **above** them:
+
+- **pre-commit** fires on a *commit*, not a task lifecycle; it isn't per-task-type; an agent bypasses it
+  with `--no-verify`; and it has no notion of "this task can't be `done`".
+- **CI required checks** fire after the fact, on a *PR*, remotely; they don't gate the agent's *local*
+  claim of done, they need a PR/host, and they don't encode a per-type Definition of Done.
+- **mtt** gates the **task-lifecycle transition** with a **per-type DoD**, in the agent's own vocabulary
+  (`mtt done`), locally, over any backend. It doesn't replace CI — it can *invoke* the same checks as gates
+  and add task-level ones (acceptance criteria met, docs updated, branch created, PR linked to the issue).
 
 ## Architecture: domain, ports, adapters
 
@@ -404,6 +426,10 @@ Hanging commands — by editing a transition (no code changes):
 ```
 
 A `bug` type (`prefix: b`, `parent: epic`, a flow with `review`) is added the same way — config only.
+
+`mtt init --template coding` ships example coding types — `feature`/`bugfix`/`refactor` — each with its own
+gated Definition of Done (branch + lint/test; `bugfix` also requires a failing test first; `refactor`
+requires no public-API diff), as a ready-made demo of the enforcement value.
 
 ## Dependencies
 
