@@ -61,5 +61,6 @@ make check      # the gate: fmt + vet + lint + test -race + build
 ## Docs
 
 - [DESIGN.md](DESIGN.md) — architecture and decisions (the source of truth)
+- [CLI_REFERENCE.md](CLI_REFERENCE.md) — the full CLI command surface (target design)
 - [AGENTS.md](AGENTS.md) — how to work in this repo (rules, gate, principles)
 - [TASKS.md](TASKS.md) — the phased plan

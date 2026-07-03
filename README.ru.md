@@ -60,5 +60,6 @@ make check      # гейт: fmt + vet + lint + test -race + build
 ## Документация
 
 - [DESIGN.ru.md](DESIGN.ru.md) — архитектура и решения (источник правды)
+- [CLI_REFERENCE.ru.md](CLI_REFERENCE.ru.md) — полная поверхность команд CLI (целевой дизайн)
 - [AGENTS.md](AGENTS.md) — как вести работу в репо (правила, гейт, принципы) — на английском
 - [TASKS.md](TASKS.md) — план по фазам — на английском
