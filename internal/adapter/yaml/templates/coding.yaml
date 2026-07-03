@@ -1,0 +1,47 @@
+version: 1
+project:
+  name: {{.Name}}
+types:
+  - name: feature
+    description: A new capability. DoD — a branch and a green gate.
+    prefix: f
+    parents: []
+    default: true
+    statuses:
+      - {name: tbd,         kind: initial}
+      - {name: in_progress, kind: active}
+      - {name: done,        kind: terminal}
+      - {name: cancelled,   kind: terminal}
+    transitions:
+      - {from: tbd,         to: in_progress, description: "create a feature branch"}
+      - {from: tbd,         to: cancelled}
+      - {from: in_progress, to: done, description: "quality gate", commands: ["make lint", "make test"]}
+      - {from: in_progress, to: cancelled}
+  - name: bugfix
+    description: A fix. DoD — a failing test first, then green.
+    prefix: b
+    parents: []
+    statuses:
+      - {name: tbd,         kind: initial}
+      - {name: in_progress, kind: active}
+      - {name: done,        kind: terminal}
+      - {name: cancelled,   kind: terminal}
+    transitions:
+      - {from: tbd,         to: in_progress, description: "write a failing test that reproduces the bug", commands: ["! make test"]}
+      - {from: tbd,         to: cancelled}
+      - {from: in_progress, to: done, description: "quality gate", commands: ["make lint", "make test"]}
+      - {from: in_progress, to: cancelled}
+  - name: refactor
+    description: A behavior-preserving change. DoD — no public-API diff, then green.
+    prefix: r
+    parents: []
+    statuses:
+      - {name: tbd,         kind: initial}
+      - {name: in_progress, kind: active}
+      - {name: done,        kind: terminal}
+      - {name: cancelled,   kind: terminal}
+    transitions:
+      - {from: tbd,         to: in_progress, description: "create a branch"}
+      - {from: tbd,         to: cancelled}
+      - {from: in_progress, to: done, description: "no public-API change + quality gate", commands: ["git diff --exit-code -- pkg/", "make lint", "make test"]}
+      - {from: in_progress, to: cancelled}

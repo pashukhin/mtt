@@ -10,6 +10,9 @@ import (
 // dirName is the mtt data directory created inside a project root.
 const dirName = ".mtt"
 
+// configName is the filename of the mtt project config inside dirName.
+const configName = "config.yaml"
+
 // ErrNotInitialized is returned when no .mtt directory is found.
 var ErrNotInitialized = errors.New("mtt: not initialized (no .mtt directory found)")
 
