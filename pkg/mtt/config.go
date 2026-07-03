@@ -47,3 +47,32 @@ type Transition struct {
 	Description string
 	Commands    []string
 }
+
+// DefaultType returns the type marked default, or the first type when none is
+// marked. The bool is false only when there are no types.
+func (c Config) DefaultType() (Type, bool) {
+	if len(c.Types) == 0 {
+		return Type{}, false
+	}
+	for _, t := range c.Types {
+		if t.Default {
+			return t, true
+		}
+	}
+	return c.Types[0], true
+}
+
+// ChildrenIn returns the types that declare t as a parent — the computed inverse
+// of Parents — in config order.
+func (t Type) ChildrenIn(c Config) []Type {
+	var kids []Type
+	for _, other := range c.Types {
+		for _, p := range other.Parents {
+			if p == t.Name {
+				kids = append(kids, other)
+				break
+			}
+		}
+	}
+	return kids
+}
