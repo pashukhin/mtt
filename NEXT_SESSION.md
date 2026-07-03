@@ -6,6 +6,7 @@ A living handoff doc. Update it at the end of each session (what's done / what's
 
 - **Design phase complete**; scaffold + quality gate + CI in place, `make check` green. Implementation not started.
 - Work is organized in **compact sessions** (see [sessions/README.md](sessions/README.md)); next up is **session 001**.
+- Repo: <https://github.com/pashukhin/mtt> (public). Branch per session → PR → squash into `main`.
 - Stack: Go 1.23, cobra; storage — YAML file-per-task (see DESIGN.md).
 
 ## The session starts with planning (mandatory)
