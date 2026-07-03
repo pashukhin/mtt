@@ -19,31 +19,32 @@ Bootstrap-трекер до самохостинга. Как только поя
 - [x] e1_t5 — DESIGN.md, AGENTS.md, README.md
 - [x] e1_t6 — guards: принципы (SOLID/DRY/KISS/TDD), иерархические CLAUDE.md, superpowers
 
-## e2 — Фаза 1: конфиг+типы, `mtt init`, модель+хранилище, базовые команды  `[ ]`
+## e2 — Фаза 1: контракт `pkg/mtt`, конфиг, `mtt init`, YAML-адаптер, core, команды  `[ ]`
 
 Test-first, каждую подзадачу — ветка+PR. **Начать с планирования** (см. NEXT_SESSION.md);
-разбивка ниже — ориентир, план её уточнит. Инвариант: типы/иерархия/ID — из конфига,
-в коде нет литералов имён типов и структуры ID.
+разбивка ниже — ориентир, план её уточнит. Инварианты: типы/иерархия/ID — из конфига (без
+литералов в коде); хранилище — за портом, `core` не импортирует `adapter/*`.
 
 - [ ] e2_t1 — планирование Фазы 1 (superpowers), сверка с инвариантами DESIGN.md
-- [ ] e2_t2 — модель конфига: тип (`name/prefix/parent/initial/statuses/transitions`),
-      загрузка/валидация `.mtt/config.yaml`  + `internal/config/CLAUDE.md`
-- [ ] e2_t3 — `mtt init`: запись дефолтного конфига (epic/task/subtask + flow)
-- [ ] e2_t4 — `internal/model`: `Task`, `Comment` (порядок полей = порядок сериализации)
-      + `internal/model/CLAUDE.md`
-- [ ] e2_t5 — `internal/store`: чтение/запись YAML, детерминированная сериализация,
-      атомарная запись (temp+rename), поиск корня `.mtt/`  + `internal/store/CLAUDE.md`
-- [ ] e2_t6 — генерация ID из конфига: `<prefix><N>` по цепочке родителей (`max+1`,
-      `O_EXCL`) + тесты на коллизии; **без хардкод-префиксов**
+- [ ] e2_t2 — контракт `pkg/mtt`: домен-типы (`Task`, `Comment`, `Type`, `Flow`, `Status`,
+      `Config`) + порт `TaskStore` + `pkg/mtt/CLAUDE.md`  (порядок полей = порядок сериализации)
+- [ ] e2_t3 — конфиг: тип (`name/prefix/parent/initial/statuses/transitions`), валидация;
+      дефолтный шаблон (epic/task/subtask + flow)
+- [ ] e2_t4 — `mtt init`: запись дефолтного `.mtt/config.yaml`
+- [ ] e2_t5 — `internal/adapter/yaml`: реализация `TaskStore` — детерминированная сериализация,
+      атомарная запись (temp+rename), поиск корня `.mtt/`, загрузка конфига + `.../yaml/CLAUDE.md`
+- [ ] e2_t6 — `internal/core`: usecase-слой; генерация ID из конфига (`<prefix><N>` по цепочке
+      родителей, `max+1`, `O_EXCL` через порт), валидация parent-типа; тесты на коллизии;
+      **без хардкод-префиксов** + `internal/core/CLAUDE.md`
 - [ ] e2_t7 — golden-тесты сериализации задачи и конфига (флаг `-update`)
-- [ ] e2_t8 — `mtt add` (тип из конфига, `--parent`, `--title`; валидация parent-типа)
+- [ ] e2_t8 — `mtt add` (тип из конфига, `--parent`, `--title`)
 - [ ] e2_t9 — `mtt list` (фильтры: статус/тип/родитель; стабильный порядок) + `mtt show <id>`
 - [ ] e2_t10 — `mtt edit` / `mtt close` (смена полей/статуса)
 - [ ] e2_t11 — первый `testscript`-сценарий e2e: init → add → list → show
 
 ## e3 — Фаза 2: иерархия, зависимости, ready  `[ ]`
 
-- [ ] e3_t1 — `internal/engine`: индекс задач в память, обход иерархии
+- [ ] e3_t1 — `internal/core`: индекс задач в память, обход иерархии
 - [ ] e3_t2 — `depends_on`: добавление/снятие, валидация существования
 - [ ] e3_t3 — детект циклов зависимостей
 - [ ] e3_t4 — вычисление `ready` + команда `mtt ready`

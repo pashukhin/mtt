@@ -48,20 +48,24 @@
 
 ## Следующая задача — Фаза 1 (после планирования)
 
-- Ветка: `feat/phase-1-store` (реализация — уже после плана).
+- Ветка: `feat/phase-1-core` (реализация — уже после плана).
 - Ориентир задач: **e2** из [TASKS.md](TASKS.md) (планирование уточнит разбивку/порядок).
 - **Test-first** (TDD: red → green → refactor). `make check` зелёный до каждого коммита.
-- Порядок по существу: сначала **конфиг+типы** и `mtt init` (от типов зависит ID),
-  затем `internal/store` (сериализация, атомарная запись, генерация ID из конфига),
-  затем команды `add/list/show`.
-- Создавать `CLAUDE.md` для каждого нового пакета (`internal/config`, `internal/model`,
-  `internal/store`, …).
+- Архитектура — **hexagonal**: `cli → core → порт ← adapter`, контракт (домен-типы + порты)
+  в публичном `pkg/mtt`. `core` не импортирует `adapter/*`.
+- Порядок по существу: контракт `pkg/mtt` (типы + порт `TaskStore`) → конфиг+типы + `mtt init`
+  (от типов зависит ID) → `internal/adapter/yaml` → `internal/core` (ID из конфига, usecase) →
+  команды `add/list/show`.
+- Создавать `CLAUDE.md` для каждого нового пакета (`pkg/mtt`, `internal/core`,
+  `internal/adapter/yaml`, …).
 
 ## Готовый kickoff-промпт (можно вставить в новой сессии)
 
 > Продолжаем mtt. Прочитай CLAUDE.md, AGENTS.md, DESIGN.md, TASKS.md и NEXT_SESSION.md.
 > Убедись, что активны skills superpowers (иначе активируй по NEXT_SESSION.md).
-> Начни с ПЛАНИРОВАНИЯ Фазы 1: типы/иерархия/ID — из конфига (в коде нет литералов имён
-> типов и структуры ID), `mtt init` пишет дефолты epic/task/subtask с flow. Затем реализуй
-> в ветке `feat/phase-1-store` строго test-first.
+> Начни с ПЛАНИРОВАНИЯ Фазы 1. Архитектура hexagonal: контракт (домен-типы + порты
+> `TaskStore`/`KnowledgeStore`) в публичном `pkg/mtt`, логика в `internal/core`, YAML —
+> дефолтный адаптер в `internal/adapter/yaml`; типы/иерархия/ID — из конфига (в коде нет
+> литералов), `mtt init` пишет дефолты epic/task/subtask с flow. Затем реализуй в ветке
+> `feat/phase-1-core` строго test-first.
 > Соблюдай принципы (SOLID/DRY/KISS/TDD/чистая архитектура) и самопроверку из AGENTS.md.
