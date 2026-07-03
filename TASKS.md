@@ -27,10 +27,12 @@ Test-first, каждую подзадачу — ветка+PR. **Начать с
 `tbd→in_progress→done`; хранилище — за портом, `core` не импортирует `adapter/*`.
 
 - [ ] e2_t1 — планирование Фазы 1 (superpowers), сверка с инвариантами DESIGN.md
-- [ ] e2_t2 — контракт `pkg/mtt`: домен-типы (`Task`, `Comment`, `Type`, `Flow`, `Status`,
-      `Config`) + порт `TaskStore` + `pkg/mtt/CLAUDE.md`  (порядок полей = порядок сериализации)
-- [ ] e2_t3 — конфиг: тип (`name/parent/statuses/transitions`; `prefix` — поле YAML-адаптера),
-      валидация инвариантов (дефолт `task`, `tbd→in_progress→done`); дефолтный шаблон
+- [ ] e2_t2 — контракт `pkg/mtt`: домен-типы (`Task` c `history[]`, `Comment`, `Type`, `Flow`,
+      `Status` c `kind`, `Transition`, `Config`) + порт `TaskStore` + `pkg/mtt/CLAUDE.md`
+      (порядок полей = порядок сериализации)
+- [ ] e2_t3 — конфиг: тип (`name/parent/statuses(c kind)/transitions`; `prefix` — поле YAML),
+      валидация инвариантов (дефолт `task`; статусы-якоря `tbd`/`in_progress`/`done` с категориями;
+      ровно один `initial`, ≥1 `terminal`, в дефолте ещё `cancelled`); дефолтный шаблон
 - [ ] e2_t4 — `mtt init`: запись дефолтного `.mtt/config.yaml`
 - [ ] e2_t5 — `internal/adapter/yaml`: реализация `TaskStore` — **минтинг ID** (`<prefix><N>`
       по цепочке родителей, `max+1`, `O_EXCL`), детерминированная сериализация, атомарная запись
@@ -60,8 +62,10 @@ Test-first, каждую подзадачу — ветка+PR. **Начать с
       cwd=корень); фейк для тестов
 - [ ] e4_t3 — исполнение `commands` перехода по порядку, гейтинг по exit-кодам (переход
       блокируется на первом ненулевом); флаг `--no-run`
-- [ ] e4_t4 — команды `mtt status <id> <new>`, `mtt start`, `mtt done` (в терминах задач)
-- [ ] e4_t5 — `mtt types` (просмотр типов/flow из конфига)
+- [ ] e4_t4 — запись перехода в `history` задачи (from→to, at, by, результаты `checks`), append-only
+- [ ] e4_t5 — команды `mtt status <id> <new>`, `mtt start`, `mtt done` (в терминах задач)
+- [ ] e4_t6 — `mtt types` (просмотр типов/flow из конфига)
+- [ ] e4_t7 — `ready`/`list`/завершённость — **по категории** статуса (не по литералу `done`)
 
 ## e5 — Фаза 4: комментарии (дерево)  `[ ]`
 
@@ -75,4 +79,6 @@ Test-first, каждую подзадачу — ветка+PR. **Начать с
 - e7 — Фаза 6: текстовый/ASCII Гант, богатый list/query
 - e8 — Фаза 7: `mtt-ui` (опц., отдельный бинарь: web UI, Гант SVG, браузер БЗ)
 - e9 — Фаза 8: hook внешнего индексатора
+- later — реконструкция наблюдаемого графа статусов из `history` задач (read-only агрегация);
+  явное версионирование/миграции flow (пока хватает git-истории конфига)
 - release — goreleaser, кросс-бинарники по тегам
