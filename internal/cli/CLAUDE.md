@@ -17,6 +17,9 @@ e2e via `testscript` (txtar) in temp dirs; one script per command.
 
 ## Current state
 
-`root` + `version` + `init` + `types` + `add` + `show`. `add` wires the YAML `TaskStore` into `core`'s add
-usecase (composition root); `show` reads the task directly through the `TaskStore` port (a pure read needs no
-`core` usecase) and formats it via `formatTask`. Next (session 003): `list`/`edit`.
+`root` + `version` + `init` + `types` + `add` + `show` + `list` + `edit`, plus the root persistent flags
+`--dir`/`MTT_DIR`, `--version`, and `--json`. `projectRoot(cmd)` resolves the root (--dir/MTT_DIR else
+FindRoot) and DRYs the former `Getwd → FindRoot`; `baseDir` does the same for `init` (no .mtt required).
+`list` composes `TaskStore.List` → `core.Select` (pure read: filter/order in core, no usecase) and renders
+human text or, with `--json`, a `taskJSON` array; `edit` goes through `core.Editor` (a mutation) and prints
+`updated <id>` or the JSON object. `show`/`list`/`edit` honor `--json` via the `taskJSON` view.

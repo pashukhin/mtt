@@ -9,7 +9,7 @@ The **public domain contract**: pure types + (later) ports. No CLI, no files, no
 - **References by identity**: transitions reference statuses by name; cross-aggregate links are names/IDs, never pointers. Back-references (e.g. `ChildrenIn`) are **computed**, not stored.
 - **Provider-agnostic**: mandatory minimum (a Type needs a name + a flow with statuses(name+kind) and transitions(from/to)); the rest is optional.
 - **Task model**: `Task` (id/type/title/status/parent + reserved `tags`/`depends_on`/`refs`/`comments`/`history`), value objects `RefKind` and (existing) `StatusKind`. `Status.Default` marks the entry status when a flow has >1 initial (mirrors `Type.Default`; resolved by `Type.InitialStatus`).
-- **Port**: `TaskStore` (Create mints the ID in the adapter; Get returns `ErrNotFound`). Pure — no prefix/YAML leaks through it.
+- **Port**: `TaskStore` — `Create` (mints the ID in the adapter), `Get` (`ErrNotFound`), `List` (all tasks; order unspecified — callers order), `Update` (overwrite existing by ID; `ErrNotFound` if absent). Pure — no prefix/YAML leaks through it.
 
 ## Invariants (Config.Validate — structural, name-agnostic)
 

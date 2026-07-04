@@ -2,7 +2,6 @@ package cli
 
 import (
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -18,11 +17,7 @@ func newTypesCmd() *cobra.Command {
 		Short: "Show configured task types and their flow",
 		Args:  cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			cwd, err := os.Getwd()
-			if err != nil {
-				return fmt.Errorf("getwd: %w", err)
-			}
-			root, err := yaml.FindRoot(cwd)
+			root, err := projectRoot(cmd)
 			if err != nil {
 				return err
 			}

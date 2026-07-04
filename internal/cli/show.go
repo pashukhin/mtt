@@ -3,7 +3,6 @@ package cli
 import (
 	"errors"
 	"fmt"
-	"os"
 	"strings"
 	"time"
 
@@ -25,11 +24,7 @@ func newShowCmd() *cobra.Command {
 			return nil
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			cwd, err := os.Getwd()
-			if err != nil {
-				return fmt.Errorf("getwd: %w", err)
-			}
-			root, err := yaml.FindRoot(cwd)
+			root, err := projectRoot(cmd)
 			if err != nil {
 				return err
 			}
@@ -39,6 +34,9 @@ func newShowCmd() *cobra.Command {
 					return fmt.Errorf("task %q not found", args[0])
 				}
 				return err
+			}
+			if jsonFlag(cmd) {
+				return writeJSON(cmd.OutOrStdout(), toTaskJSON(task))
 			}
 			_, err = fmt.Fprint(cmd.OutOrStdout(), formatTask(task))
 			return err

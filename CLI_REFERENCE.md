@@ -30,13 +30,13 @@ Run `mtt help [command]` or `mtt <command> -h` for built-in help.
 
 | Flag | Env | Meaning |
 |---|---|---|
-| `--json` | — | Emit machine-readable JSON instead of human text. On a mutation, prints the resulting object; on a query, prints the result set. Off by default. Intended for agents. |
-| `--dir <path>` | `MTT_DIR` | Project root that holds `.mtt/`. Default: the nearest ancestor of the current directory that contains `.mtt/`. |
-| `--role <role>` | `MTT_ROLE` | The acting role (e.g. `implementer`, `reviewer`). Recorded into a task's transition `history`. A reserved seam — it does not change routing yet (see DESIGN → Roles). |
-| `-q, --quiet` | — | Suppress non-essential output (still prints errors and requested data). |
-| `--no-color` | `NO_COLOR` | Disable ANSI color in human output. |
+| `--json` | — | Emit machine-readable JSON instead of human text. On a mutation, prints the resulting object; on a query, prints the result set. Off by default. Intended for agents. **Implemented (session 003)** on `show`/`list`/`edit`. |
+| `--dir <path>` | `MTT_DIR` | Project root that holds `.mtt/`. Default: the nearest ancestor of the current directory that contains `.mtt/`. **Implemented (session 003)**: `--dir`/`MTT_DIR` is an explicit root (must itself contain `.mtt/`, no upward walk); omitted, falls back to ancestor discovery. |
+| `--role <role>` | `MTT_ROLE` | The acting role (e.g. `implementer`, `reviewer`). Recorded into a task's transition `history`. A reserved seam — it does not change routing yet (see DESIGN → Roles). *(pending — lands with flow enforcement, phase 3)* |
+| `-q, --quiet` | — | Suppress non-essential output (still prints errors and requested data). *(pending)* |
+| `--no-color` | `NO_COLOR` | Disable ANSI color in human output. *(pending)* |
 | `-h, --help` | — | Help for the command. |
-| `--version` | — | Print the version and exit (same as `mtt version`). |
+| `--version` | — | Print the version and exit (same as `mtt version`). **Implemented (session 003)**. Unlike the other flags in this table, this is root-only (cobra's `root.Version`): `mtt --version` works, `mtt <subcommand> --version` does not. |
 
 ## Transition flags (shared by status-changing commands: `status`, `advance`, `start`, `done`)
 
@@ -113,22 +113,24 @@ later phases.
 - `--no-history` — *(later)* omit the history/audit trail.
 - `--no-comments` — *(later)* omit comments.
 
-### `mtt list [flags]` — list tasks  *(phase 1)*
+### `mtt list [flags]` — list tasks  *(phase 1, `--status`/`--type`/`--sort`/`--json` shipped in session 003)*
 Prints tasks in a stable order. Filters combine with AND.
 
-- `--status <status>…` — filter by status name.
-- `--kind <initial|active|terminal>` — filter by status category.
-- `--type <type>…` — filter by task type.
-- `--parent <id>` — only direct children of this task.
-- `--ready` — only tasks that are ready (no open blockers) — shorthand for `mtt ready`.
+- `--status <status>…` — filter by status name. *(implemented)*
+- `--kind <initial|active|terminal>` — filter by status category. *(later)*
+- `--type <type>…` — filter by task type. *(implemented)*
+- `--parent <id>` — only direct children of this task. *(later, session 004 — hierarchy)*
+- `--ready` — only tasks that are ready (no open blockers) — shorthand for `mtt ready`. *(later)*
+- `--sort <created|updated>` — ordering key; default `created`, both descending, tie-broken by ID.
+  *(implemented)*
 
-### `mtt edit <id> [flags]` — edit non-flow fields  *(phase 1)*
+### `mtt edit <id> [flags]` — edit non-flow fields  *(phase 1, implemented in session 003)*
 Changes title and/or description. **Status is not editable here** — status changes go through `status` /
 `advance` so the flow is enforced. Re-parenting/re-typing are not simple edits (they would re-mint the ID
 in the YAML adapter — see Notes).
 
 - `--title <text>` — new title.
-- `--description <text>` — new description (`-` for stdin).
+- `--description <text>` — new description (`-` for stdin still later).
 
 ### `mtt tree [<id>] [flags]` — show the hierarchy  *(phase 2)*
 Prints the epic → task → subtask tree. With `<id>`, roots the tree at that task.
@@ -288,6 +290,10 @@ Distinct codes let agents branch on the outcome without parsing text.
 | `4` | Not found (task/note/target does not exist) |
 | `5` | Unsupported — the active adapter lacks the required capability (`ErrUnsupported`) |
 | `6` | Invalid transition — not allowed by the type's flow |
+
+This richer taxonomy is still **proposed**: session 003 keeps a single generic failure code (`1`) for every
+error path; codes `2`–`6` land alongside the behaviors they distinguish (usage validation, flow, capability
+gates, …).
 
 ---
 

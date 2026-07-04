@@ -19,6 +19,11 @@ func (f *fakeStore) Create(t mtt.Task) (mtt.Task, error) {
 	return t, nil
 }
 func (f *fakeStore) Get(string) (mtt.Task, error) { return mtt.Task{}, mtt.ErrNotFound }
+func (f *fakeStore) List() ([]mtt.Task, error)    { return nil, nil }
+func (f *fakeStore) Update(t mtt.Task) (mtt.Task, error) {
+	f.got = t
+	return t, nil
+}
 
 func flow() mtt.Flow {
 	return mtt.Flow{

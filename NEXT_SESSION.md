@@ -4,20 +4,26 @@ A living handoff doc. Update it at the end of each session (what's done / what's
 
 ## Where we are
 
-- **Phase 0 (scaffold) + session 001 (init & inspect) + session 002 (create & view) are DONE and merged to
-  `main`.** Session 001 shipped `mtt init [--template default|coding] [--force] [--name]` and
-  `mtt types [<type>]`. Session 002 shipped `mtt add [title] [--type] [--no-parent] [--description]` and
-  `mtt show <id>`; `make check` green. CI runs on Node 24 action majors.
+- **Phase 0 (scaffold) + session 001 (init & inspect) + session 002 (create & view) + session 003 (list &
+  edit) are DONE** (003 done on branch `feat/s003-list-edit`, `make check` green, PR not yet opened,
+  e2e `list_edit.txt` passing). Session 001 shipped `mtt init [--template default|coding] [--force]
+  [--name]` and `mtt types [<type>]`. Session 002 shipped `mtt add [title] [--type] [--no-parent]
+  [--description]` and `mtt show <id>`. Session 003 shipped `mtt list` (`--status`/`--type`/`--sort
+  created|updated`/`--json`), `mtt edit <id> [--title] [--description]`, and the global flags
+  `--dir`/`MTT_DIR`, `--version`, `--json`. CI runs on Node 24 action majors.
 - **In place now:** the pure `pkg/mtt` contract (`Config/Type/Flow/Status/Transition`, the `StatusKind`
   value object, structural `Config.Validate()`, `DefaultType`/`ChildrenIn`), the YAML adapter's **config
-  layer** (`FindRoot`, embedded `default`/`coding` templates, atomic `Init`, `Load` + `config.local.yaml`
-  overlay, DTO↔domain mapping, prefix/one-default checks), **and, from 002:** the `Task` model + `TaskStore`
-  port (`pkg/mtt`), `internal/core`'s `add` usecase (default/explicit type, `--no-parent`, entry-status
-  resolution, injected clock), and the YAML adapter's **flat per-prefix ID minting** (`O_EXCL`) +
-  deterministic serialization. **Not yet:** `list`/`edit`, hierarchy (`--parent`/`tree`), dependencies, flow
-  enforcement, comments.
+  layer** (`FindRoot`, `HasProject`, embedded `default`/`coding` templates, atomic `Init`, `Load` +
+  `config.local.yaml` overlay, DTO↔domain mapping, prefix/one-default checks), the `Task` model + full
+  `TaskStore` port (`Create`/`Get`/`List`/`Update`, `pkg/mtt`), `internal/core`'s `Adder`/`Select`/`Editor`
+  (add is a mutation usecase; list-select is a pure filter/order function; edit is a mutation usecase, all
+  clocked via an injected `now`), the YAML adapter's **flat per-prefix ID minting** (`O_EXCL`) + deterministic
+  serialization, and the CLI's `projectRoot`/`baseDir` (DRY root resolution) + `taskJSON` (shared `--json`
+  view for `show`/`list`/`edit`). **Not yet:** hierarchy (`--parent`/`tree`), dependencies, flow enforcement,
+  comments; also deferred out of 003 — a durable edit-audit trail and the subject-identity (`By`) source
+  (see "Open design slice" below).
 - Work is organized in **compact sessions** (see [sessions/README.md](sessions/README.md)); next up is
-  **session 003** (list & edit tasks).
+  **session 004** (hierarchy: `mtt add --parent`, `mtt tree`).
 - Repo: <https://github.com/pashukhin/mtt> (public). Branch per session → PR → CI green → merge into `main`.
 - Stack: Go 1.23, cobra, `gopkg.in/yaml.v3`, `go-internal/testscript` (e2e); storage — YAML file-per-task.
 
@@ -83,41 +89,34 @@ The plugin is declared in the personal `.claude/settings.local.json` (per-user, 
    (alternative — the official marketplace: `/plugin install superpowers@claude-plugins-official`)
 3. Verify the TDD/brainstorming/debugging skills are available, and **use them**.
 
-## Next task — session 003 (list & edit)
+## Next task — session 004 (hierarchy)
 
-- Start with **[sessions/003_list_and_edit.md](sessions/003_list_and_edit.md)**; branch
-  `feat/s003-list-edit`. Refine its plan (superpowers brainstorming/planning), then work **test-first**;
-  the acceptance e2e + `make check` must pass before the PR.
-- Session 003 rounds out flat task CRUD before hierarchy: **`mtt list`** (filters `--status`/`--type`,
-  stable order) and **`mtt edit <id> [--title] [--description]`** (non-flow fields only — status changes
-  go through flow enforcement in session 006). Both build on what 002 shipped: the `Task` model, the
-  `TaskStore` port, `internal/core`, and flat per-prefix ID minting.
-- **Global flags (cross-cutting — land now to avoid per-command retrofit; see CLI_REFERENCE.md → "Global
-  flags"):** wire on the root command as **persistent flags** so later commands inherit them —
-  `--dir`/`MTT_DIR` (project-root override; also DRYs the repeated `Getwd → FindRoot` in init/types/add/show),
-  the `--version` flag (`--help` is already cobra-provided), and `--json` (machine-readable output — `mtt list`
-  is its first real consumer). Defer `--role`/`MTT_ROLE` to 006 (with `history`) and `--quiet`/`--no-color` to
-  later. If 003 gets heavy, `--json` may split into a small follow-up slice — the session brainstorm decides.
-- Architecture stays the full **`cli → core → port ← adapter`**: `list`/`edit` usecases live in
-  `internal/core` behind the `TaskStore` interface (public `pkg/mtt`); `core` must NOT import `adapter/*`.
-- **Reference (authoritative model):** session 002's spec/plan under
-  `docs/superpowers/{specs,plans}/2026-07-04-session-002-*`, and DESIGN.md/AGENTS.md (now updated with the
-  flat-ID and `--no-parent`/`Status.Default` decisions taken in 002).
+- No `sessions/004_*.md` file yet — **create it from `sessions/000_template.md`** as the first step
+  (mirrors how 003 started: a design-spec + plan commit before implementation), named per the roadmap
+  (`sessions/README.md`): `004 — hierarchy`. Branch `feat/s004-hierarchy`. Refine the plan (superpowers
+  brainstorming/planning) before writing code; work **test-first**; the acceptance e2e + `make check` must
+  pass before the PR.
+- Scope per the roadmap: **`mtt add --parent <id>`** (place a task under a parent; validate the parent's
+  type against the child type's `parents`, per the "Hierarchy sanity" invariant in DESIGN.md) and **`mtt
+  tree [<id>] [--status …] [--kind …] [--depth <n>]`** (render the epic → task → subtask hierarchy;
+  optionally rooted at `<id>`). `mtt list --parent <id>` (direct children only) is the natural companion —
+  see CLI_REFERENCE.md → `mtt list`.
+- Architecture stays the full **`cli → core → port ← adapter`**: hierarchy traversal is a pure read (in
+  `internal/core`, alongside `Select`) built from `TaskStore.List` — apply the "pure read needs no usecase
+  struct" lesson only where there's truly no mutation; `add --parent` still goes through `core.Adder` (a
+  mutation) since it already validates placement.
+- **Reference (authoritative model):** DESIGN.md → "Types and hierarchy" / "Model invariants" (hierarchy
+  sanity, type immutability) and → "Listing (`list`) and editing (`edit`) — session 003" (the shipped
+  `Select`/`Editor` this session builds on).
 
-### Open questions to resolve in 003's brainstorm (do NOT skip)
-1. **Enumerating tasks — the port grows.** `TaskStore` is only `Create`/`Get`. `list` needs to enumerate
-   tasks: add `List()`/`All()` to the port (enumeration is the adapter's job), then filter/sort where? Apply
-   the 002 correction ("a pure read needs no `core` usecase") — is `list` a direct port read, or does
-   filter/sort count as logic that belongs in `core`? Draw the "query → adapter" vs "logic → core" line.
-2. **Editing — a mutating store method.** `edit` needs a store `Update`/`Save` (atomic write; currently only
-   `Create`). Decide which fields are editable (title/description) vs explicitly rejected with a clear error
-   (id/type/status/parent — status is flow-only in 006, type is immutable, parent is re-parenting/later);
-   bump `updated` via the injected clock.
-3. **`--json` shape + global-flags scope.** The machine-readable output shape, and how many global flags land
-   in 003 (all of `--dir`/`--version`/`--json`, or split `--json` into a small follow-up if 003 gets heavy).
-4. **Deterministic `list` order** (by id? by created?) for stable golden/e2e output.
+### Open design slice to schedule (not session 004's scope, but don't lose it)
+- **Durable, git-independent audit of edits** + **the subject-identity (`By`) source.** `edit` today only
+  bumps `updated`; git is the de facto audit trail. A change-log or field versioning (additive) would make
+  edit history queryable without git, and needs an identity source for "who" (likely
+  `.mtt/config.local.yaml`, distinct from `--role`, which is "what hat"). See DESIGN.md → "Listing and
+  editing" / TASKS.md → "Later (coarse)". Schedule a design pass before it's needed for real auditing.
 
-### Carry-over lessons (001 & 002 — save review loops)
+### Carry-over lessons (001, 002 & 003 — save review loops)
 - **CLI output → stdout**: use `fmt.Fprint(cmd.OutOrStdout(), …)`, NOT `cmd.Print/Printf` (those route to
   stderr when no writer is set — breaks pipes and e2e `stdout` asserts). Errors surface via `Execute` (stderr).
 - **golangci-lint `unused`** (standard set) fails on unused unexported package-level consts/funcs — declare
@@ -128,34 +127,40 @@ The plugin is declared in the personal `.claude/settings.local.json` (per-user, 
 - **testscript assertions must anchor, not substring-match** (a 002 review catch): assert e.g.
   `'t1  task  \[tbd\]'`, not a bare `'task'` — a loose substring can match vacuously against unrelated output.
 - **A pure read needs no `core` usecase** (a 002 correction): `show` reads a task directly through the
-  `TaskStore` port; only mutations (`add`) go through `core`. Don't over-layer a query — apply the same
-  question to `list` in 003.
-- **New package → its own thin `CLAUDE.md`** (per AGENTS): `internal/core` got one in 002; keep it current
-  as `list`/`edit` land in 003.
+  `TaskStore` port; only mutations (`add`) go through `core`. 003 applied the same split to `list`:
+  `core.Select` is a pure function (no store injected, no usecase struct) the CLI composes with
+  `TaskStore.List`, while `edit` (a mutation) got a real usecase (`core.Editor`).
+- **New package → its own thin `CLAUDE.md`** (per AGENTS): `internal/core` got one in 002, kept current in
+  003 (`Select`/`Editor`); keep doing this for hierarchy in 004.
+- **List order is provider-agnostic** (003): the default order is a **domain timestamp** (`Created` desc, or
+  `Updated` desc with `--sort updated`), never ID structure — an external adapter's IDs may not sort
+  meaningfully. Ties break on the ID as an **opaque string** compare. Order determinism is **unit-tested**
+  (`core.Select`); the e2e (`list_edit.txt`) deliberately asserts row **presence**, not sequence, since it
+  drives the real binary against wall-clock timestamps that can tie at second resolution.
+- **Zero-match `--json` must be `[]`, not `null`**: build the slice with `make([]T, 0, …)` before appending,
+  so `encoding/json` marshals an empty result set as `[]` — a `nil` slice marshals to `null`, which most
+  JSON consumers don't treat the same as an empty array.
 
 ## Ready-to-paste kickoff prompt (for a new session)
 
-> We're continuing mtt. Sessions 001 (init & types) and 002 (create & view) are merged to `main`. Read, in
-> order: CLAUDE.md, AGENTS.md, DESIGN.md, TASKS.md, NEXT_SESSION.md, sessions/README.md,
-> sessions/003_list_and_edit.md, CLI_REFERENCE.md ("Global flags"), and the session-002 spec/plan under
-> docs/superpowers/{specs,plans}/2026-07-04-session-002-*. Make sure the superpowers skills are active
-> (otherwise activate them per NEXT_SESSION.md). We work in compact sessions; do **session 003 (list &
-> edit)** on branch `feat/s003-list-edit`: first brainstorm/refine the plan (superpowers brainstorming →
-> writing-plans), then implement strictly test-first until the acceptance e2e + `make check` are green;
-> branch → PR → CI green → merge to `main`.
+> We're continuing mtt. Sessions 001 (init & types), 002 (create & view), and 003 (list & edit) are done
+> (003 done on branch `feat/s003-list-edit`, `make check` green, PR not yet opened). Read, in order: CLAUDE.md, AGENTS.md, DESIGN.md, TASKS.md,
+> NEXT_SESSION.md, sessions/README.md, sessions/003_list_and_edit.md (for the shipped `Select`/`Editor`
+> shape), and CLI_REFERENCE.md. Make sure the superpowers skills are active (otherwise activate them per
+> NEXT_SESSION.md). We work in compact sessions; do **session 004 (hierarchy)** on branch
+> `feat/s004-hierarchy`: first create `sessions/004_hierarchy.md` from `sessions/000_template.md` and
+> brainstorm/refine the plan (superpowers brainstorming → writing-plans), then implement strictly
+> test-first until the acceptance e2e + `make check` are green; branch → PR → CI green → merge to `main`.
 >
-> Scope: `mtt list` (filters `--status`/`--type`, stable order; human output + `--json`) and
-> `mtt edit <id> [--title] [--description]` (non-flow fields only — a status change is flow enforcement in
-> 006; type is immutable; parent/re-parenting is later; bump `updated`). Session 003 also **owns the
-> global-flags surface** (CLI_REFERENCE → "Global flags"): wire `--dir`/`MTT_DIR`, the `--version` flag, and
-> `--json` as root **persistent flags** so later commands inherit them (`--dir` also DRYs the repeated
-> `Getwd → FindRoot`); defer `--role`/`MTT_ROLE` to 006 and `--quiet`/`--no-color` to later.
+> Scope: `mtt add --parent <id>` (hierarchy placement, validated against the type's `parents`) and `mtt tree
+> [<id>] [--status …] [--kind …] [--depth <n>]` (render epic → task → subtask; optionally rooted at `<id>`);
+> `mtt list --parent <id>` is the natural companion. Architecture stays `cli → core → port ← adapter`;
+> `core` must NOT import `adapter/*`; hierarchy traversal is a pure read (like 003's `core.Select`) built
+> from `TaskStore.List`, while `add --parent` stays a `core.Adder` mutation.
 >
-> Architecture stays the full `cli → core → port ← adapter`; `core` must NOT import `adapter/*`. Apply the
-> 002 correction — a pure read needs no `core` usecase (`show` reads directly via `TaskStore.Get`) — to
-> `list`. Resolve the **Open questions** in NEXT_SESSION (chiefly the `TaskStore` port evolution —
-> `List`/`Update` beside `Create`/`Get` — and whether `list` reads directly or filters/sorts in `core`; plus
-> `edit`'s editable-vs-rejected fields, the `--json` shape, and `list` ordering). Heed the "Carry-over
-> lessons" (CLI stdout via `fmt.Fprint(cmd.OutOrStdout(), …)`; anchor testscript assertions; `golangci
-> unused`; new package → its own thin CLAUDE.md). Follow SOLID/DRY/KISS/TDD/DDD/clean-architecture and the
-> self-check from AGENTS.md.
+> Heed the "Carry-over lessons" in NEXT_SESSION.md (CLI stdout via `fmt.Fprint(cmd.OutOrStdout(), …)`;
+> anchor testscript assertions; `golangci unused`; new package → its own thin CLAUDE.md; list order is a
+> provider-agnostic domain timestamp, unit-test the order, e2e asserts presence; zero-match `--json` must
+> serialize `[]` not `null`). Note the **open design slice** parked in NEXT_SESSION.md (durable edit-audit +
+> subject-identity `By` source) — not in scope for 004, just don't lose it. Follow
+> SOLID/DRY/KISS/TDD/DDD/clean-architecture and the self-check from AGENTS.md.

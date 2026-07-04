@@ -332,6 +332,16 @@ history:
 - `history` — an **append-only** audit of transitions (`from→to`, `at`, `by`, `checks` results); it can't
   be reconstructed after the fact, so we write it from the start — the basis for audit and graph reconstruction.
 
+## Listing (`list`) and editing (`edit`) — session 003
+
+- **`list` default order is provider-agnostic.** The primary key is a **domain timestamp** — `Created` desc
+  (freshest first), or `Updated` desc with `--sort updated` — never ID structure (an external adapter's IDs
+  may not sort meaningfully). Ties are broken by comparing the ID as an **opaque string**, so equal
+  timestamps still produce a stable, deterministic order across runs.
+- **`edit` touches only title/description.** Status moves through the flow (`status`/`advance`/…) so gates
+  stay enforced; re-parenting (changing `parent`) and re-typing are **separate operations**, not `edit` —
+  already called out above and in the backlog.
+
 ## Flow: executable transitions (the killer feature) and `mtt init`
 
 A type defines a **flow** — a status graph with transitions. On each transition you can hang:
@@ -562,6 +572,20 @@ Dogfooding: until phase 4 the plan is kept here; after that we move mtt's develo
 - later — **re-parenting** (`mtt reparent`/`move`): change a task's `parent`; enabled by flat, position-free IDs.
 - later — **tags**: a cross-cutting `[]string` label on tasks (reserved in the model now); filtering lands with `list`.
 - later — **boards / views**: a query/view over tags/status/type (relates to `list` and `mtt-ui`); the backlog is such a view.
+- later — **durable, git-independent audit of edits**: `edit` today only bumps `updated`, with git as the
+  de facto history; a change-log or field versioning (additive, non-breaking) would make edit history
+  queryable without git. Pairs with the **subject-identity (`By`) source** — who is "acting" for
+  attribution, likely a `.mtt/config.local.yaml` field, distinct from `--role` (`--role` is *what hat* they
+  wear, `By` is *who*). Both deferred; the `history` field stays **transition-only** (phase 3) — it does not
+  grow to cover plain `edit`s.
+- later — **`list` filter-value validation**: today `list --status X`/`--type Y` filters against tasks
+  only, so an unknown value yields an empty result — indistinguishable from "valid status, no tasks yet".
+  Validate the filter values against the config (a status must exist in *some* flow, a type must be a
+  configured type) and error on an unknown value, so "no tasks in this status" and "this status can't exist
+  in the flow" are distinct. Needs `list` to load config (it currently reads only the store).
+- later — **`mtt edit <id> --editor`**: open the task in `$EDITOR` (edit the fields interactively / via the
+  rendered file) instead of passing `--title`/`--description` on the command line — a human-friendly
+  alternative to the flag-driven edit.
 
 ## Code layout
 

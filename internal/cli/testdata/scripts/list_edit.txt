@@ -1,0 +1,76 @@
+# init a project, add tasks, then list/filter/edit
+mkdir proj
+cd proj
+exec mtt init
+stdout 'initialized'
+
+exec mtt add --type epic 'build auth'
+stdout 'created e1'
+exec mtt add --type epic 'build billing'
+stdout 'created e2'
+exec mtt add --no-parent 'fix login'
+stdout 'created t1'
+
+# list shows every task (presence asserts, not order)
+exec mtt list
+stdout 'e1  epic  \[tbd\]  build auth'
+stdout 'e2  epic  \[tbd\]  build billing'
+stdout 't1  task  \[tbd\]  fix login'
+
+# --type task narrows to t1 and drops the epics
+exec mtt list --type task
+stdout 't1  task  \[tbd\]'
+! stdout 'e1  epic'
+
+# --status filters; unknown status -> empty (still exit 0)
+exec mtt list --status tbd
+stdout 'e1  epic'
+exec mtt list --status ghost
+! stdout 'e1'
+
+# unknown status + --json -> an empty JSON array, never null
+exec mtt list --status ghost --json
+stdout '\[\]'
+
+# --sort updated is accepted
+exec mtt list --sort updated
+stdout 't1  task'
+
+# invalid --sort errors
+! exec mtt list --sort bogus
+stderr 'invalid --sort'
+
+# --json emits a valid array (anchored on a known id)
+exec mtt list --json
+stdout '"id": "e1"'
+stdout '"type": "epic"'
+
+# edit updates the title; show reflects it
+exec mtt edit e1 --title 'build auth v2'
+stdout 'updated e1'
+exec mtt show e1
+stdout 'build auth v2'
+
+# edit updates the description; show reflects it
+exec mtt edit e1 --description 'some desc'
+stdout 'updated e1'
+exec mtt show e1
+stdout 'some desc'
+
+# edit with no editable flag errors
+! exec mtt edit e1
+stderr 'nothing to edit'
+
+# edit a missing id errors
+! exec mtt edit nope --title 'x'
+stderr 'not found'
+
+# global --dir operates from outside the project
+cd $WORK
+exec mtt --dir $WORK/proj list
+stdout 'e1  epic'
+
+# MTT_DIR env is equivalent
+env MTT_DIR=$WORK/proj
+exec mtt list
+stdout 'e1  epic'

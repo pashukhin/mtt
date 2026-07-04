@@ -11,9 +11,10 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done.
 
 **Cross-cutting — global flags** (root persistent flags; see [CLI_REFERENCE.md](CLI_REFERENCE.md) → "Global
 flags"). Not a phase of their own — land early so new commands inherit them instead of retrofitting:
-`--dir`/`MTT_DIR` + the `--version` flag (verify `--help`) with `mtt list` (session 003; also DRYs the
-repeated `Getwd → FindRoot`); `--json` machine output from `mtt list` on (session 003); `--role`/`MTT_ROLE`
-in phase 3 with `history` (see e4_t4); `-q/--quiet`, `--no-color` later.
+`[x]` `--dir`/`MTT_DIR` + the `--version` flag (verify `--help`) with `mtt list` (**shipped session 003**,
+via `projectRoot`; also DRYs the repeated `Getwd → FindRoot`); `[x]` `--json` machine output, `show`/`list`/
+`edit` (**shipped session 003**, via `taskJSON`); `--role`/`MTT_ROLE` in phase 3 with `history` (see e4_t4);
+`-q/--quiet`, `--no-color` later.
 
 ---
 
@@ -114,4 +115,8 @@ flow has ≥1 status of each kind (initial/active/terminal), `kind` by topology;
 - later — **re-parenting** (`mtt reparent`/`move`): change a task's `parent`; enabled by flat, position-free IDs.
 - later — **tags**: a cross-cutting `[]string` label on tasks (reserved in the model now); filtering lands with `list`.
 - later — **boards / views**: a query/view over tags/status/type (relates to `list` and `mtt-ui`); the backlog is such a view.
+- later — **durable, git-independent audit of edits** (a change-log or field versioning for plain `edit`s,
+  additive; `history` stays transition-only) **+ the subject-identity (`By`) source** (likely
+  `.mtt/config.local.yaml`, distinct from `--role`) — deferred out of session 003 (see DESIGN.md → "Listing
+  and editing").
 - release — goreleaser, cross-platform binaries by tag

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	goyaml "gopkg.in/yaml.v3"
 
@@ -37,15 +38,69 @@ func (s *Store) Create(t mtt.Task) (mtt.Task, error) {
 		return mtt.Task{}, err
 	}
 	t.ID = id
+	return s.write(t)
+}
+
+// write serializes t and atomically persists it to .mtt/tasks/<id>.yaml. t.ID
+// must already be set. It is the single serialization+write path for the store.
+func (s *Store) write(t mtt.Task) (mtt.Task, error) {
 	data, err := goyaml.Marshal(fromDomainTask(t))
 	if err != nil {
-		return mtt.Task{}, fmt.Errorf("marshal task %s: %w", id, err)
+		return mtt.Task{}, fmt.Errorf("marshal task %s: %w", t.ID, err)
 	}
-	path := filepath.Join(s.root, dirName, tasksDirName, id+".yaml")
+	path := filepath.Join(s.root, dirName, tasksDirName, t.ID+".yaml")
 	if err := atomicWrite(path, data); err != nil {
 		return mtt.Task{}, err
 	}
 	return t, nil
+}
+
+// Update overwrites an existing task by t.ID; it never mints and never creates.
+// A task that does not exist yields mtt.ErrNotFound.
+func (s *Store) Update(t mtt.Task) (mtt.Task, error) {
+	path := filepath.Join(s.root, dirName, tasksDirName, t.ID+".yaml")
+	if _, err := os.Stat(path); err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return mtt.Task{}, mtt.ErrNotFound
+		}
+		return mtt.Task{}, fmt.Errorf("stat %s: %w", path, err)
+	}
+	return s.write(t)
+}
+
+// List returns all tasks under .mtt/tasks/, mapping each file to the domain. The
+// order is unspecified (os.ReadDir's lexical order); callers impose their own
+// deterministic order. A missing tasks/ directory yields an empty slice.
+func (s *Store) List() ([]mtt.Task, error) {
+	dir := filepath.Join(s.root, dirName, tasksDirName)
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("read %s: %w", dir, err)
+	}
+	var tasks []mtt.Task
+	for _, e := range entries {
+		if e.IsDir() || !strings.HasSuffix(e.Name(), ".yaml") {
+			continue
+		}
+		path := filepath.Join(dir, e.Name())
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return nil, fmt.Errorf("read %s: %w", path, err)
+		}
+		var yt ymlTask
+		if err := goyaml.Unmarshal(data, &yt); err != nil {
+			return nil, fmt.Errorf("parse %s: %w", path, err)
+		}
+		task, err := yt.toDomain()
+		if err != nil {
+			return nil, err
+		}
+		tasks = append(tasks, task)
+	}
+	return tasks, nil
 }
 
 // Get loads a task by ID, returning mtt.ErrNotFound when the file is absent.
