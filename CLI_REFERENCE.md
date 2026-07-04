@@ -9,9 +9,9 @@ two purposes: a reference for humans and agents, and a way to sanity-check the d
 **Status:** this is the design surface. Only `mtt version` exists today (phase 0). Each command is tagged
 with the phase that introduces it (see the plan in [DESIGN.md](DESIGN.md#implementation-order)).
 
-**Notation:** `<required>`, `[optional]`, `…` repeatable. `<id>` is a task ID such as `e1_t3_s2` (in the
-YAML adapter). `<status>` is a status name from the type's flow (e.g. `tbd`, `in_progress`, `done`,
-`cancelled`).
+**Notation:** `<required>`, `[optional]`, `…` repeatable. `<id>` is a task ID such as `t17` — flat,
+per-prefix (in the YAML adapter). `<status>` is a status name from the type's flow (e.g. `tbd`,
+`in_progress`, `done`, `cancelled`).
 
 ---
 
@@ -92,23 +92,26 @@ Generates a completion script for `bash`/`zsh`/`fish`/`powershell`.
 
 ## Tasks (CRUD)
 
-### `mtt add <title> [flags]` — create a task  *(phase 1)*
-Creates a task of the given type under a parent; the adapter mints the ID. Prints the new ID.
+### `mtt add [title] [flags]` — create a task  *(phase 1, `add`/`show` shipped in session 002)*
+Create a task. Provide a `title` (positional) and/or `--description`; at least one is required. The
+adapter mints the ID — a flat, per-prefix ID such as `e1` or `t17` — and prints `created <id>`.
 
-- `<title>` — the human-readable title (positional; or `--title`).
-- `--type <type>` — task type from config (default: the type marked `default`).
-- `--parent <id>` — parent task ID. Required when the type has a `parent`; must be empty for a root type.
-- `--description <text>` — long description (also accepts stdin with `--description -`).
-- `--depends-on <id>…` — add blocking dependencies (repeatable / comma-separated).
-- `--ref <kind>:<target>…` — add references (e.g. `note:auth-design`, `task:e1_t2`; repeatable).
+- `--type <name>` — task type from config (default: the type marked `default`).
+- `--no-parent` — create a parent-requiring type at top level (a conscious exception; `--parent`
+  (required when the type has a `parent`), `--depends-on <id>…`, and `--ref <kind>:<target>…` (e.g.
+  `note:auth-design`, `task:t2`) arrive in a later session).
+- `--description <text>` — the task description (stdin via `--description -` planned).
 
-### `mtt show <id> [flags]` — show a task  *(phase 1)*
-Prints the task: fields, description, dependencies, references and **backlinks**, the comment tree, and
-the transition `history` (audit trail).
+A non-root default type without `--no-parent` errors and tells you how to proceed.
+
+### `mtt show <id> [flags]` — show a task  *(phase 1, implemented)*
+Shows a task: id, type, status, title, timestamps, and description. Dependencies, references and
+**backlinks**, the comment tree, and the transition `history` (audit trail) print once those land in
+later phases.
 
 - `<id>` — the task to show.
-- `--no-history` — omit the history/audit trail.
-- `--no-comments` — omit comments.
+- `--no-history` — *(later)* omit the history/audit trail.
+- `--no-comments` — *(later)* omit comments.
 
 ### `mtt list [flags]` — list tasks  *(phase 1)*
 Prints tasks in a stable order. Filters combine with AND.
@@ -188,7 +191,7 @@ different targets (`note:auth-design` + `note:login-spec` are two distinct refer
 `kind`+`target` duplicate is collapsed (its `--label` updated). `--label` is an annotation, not part of identity.
 
 ### `mtt ref add <id> <kind>:<target> [--label <text>]` — add a reference
-Adds a reference from task `<id>` to `<kind>:<target>` (e.g. `note:auth-design`, `task:e1_t2`). Idempotent:
+Adds a reference from task `<id>` to `<kind>:<target>` (e.g. `note:auth-design`, `task:t2`). Idempotent:
 re-adding the same key updates its `--label`. On success prints the stored reference; if the target can't
 be resolved (a `note` with no KB, a missing task) it is still stored but flagged **unverified/dangling**
 with a warning (not a hard error). With `--json`, echoes the reference object `{kind, id, label, status}`.
@@ -307,9 +310,10 @@ These are things this reference surfaces that are worth keeping consistent with 
 - **`done` and `cancel` replace a generic `close`.** Closing a task = reaching a terminal: `done` (with
   its gate) or `cancel`. There is no separate `close` command. *(TASKS.md still mentions `close` in
   phase 1 — reconcile: fold it into `done`/`cancel`.)*
-- **Re-parenting / re-typing are not `edit`.** In the YAML adapter the ID encodes the parent chain and the
-  type prefix, so changing `parent` or `type` would re-mint the ID (breaking stability and inbound refs).
-  This needs a deliberate `move`/`retype` operation (ID re-mint + ref fix-up) — currently out of scope.
+- **Re-parenting changes only `parent`; re-typing is still not `edit`.** IDs are flat and per-prefix (not
+  parent-chain-encoded), so **re-parenting** (a planned `mtt reparent`/`move`) only changes the `parent`
+  field — the ID stays stable, no re-mint, no broken inbound refs. **Re-typing** is bigger (the prefix is
+  tied to the type): it stays out of scope for `edit` — see recategorization in DESIGN.md.
 - **Capability-gated commands.** `dep*`, `comment*`, `note*`, `search`, and history rely on optional
   adapter capabilities; against a backend that lacks them they exit `5` (`ErrUnsupported`), not silently.
 - **`--json` everywhere.** Every command supports JSON output so agents can drive mtt without parsing

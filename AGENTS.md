@@ -78,7 +78,8 @@ Requires: Go 1.23+, `golangci-lint` v2, `goimports`.
 
 - Read/write storage **only through a port** (`TaskStore`/`KnowledgeStore`), never directly.
 - In the YAML adapter, `.mtt/` is committed and is the source of truth; don't hand-edit files.
-- IDs are stable (`e1_t3_s2`) and independent of `title`.
+- IDs are **flat, per-prefix** (`e1`, `t17`) and independent of `title` **and of position** — re-parenting
+  changes only the `parent` field, never the ID. (Hierarchy is stored in `parent`, computed for display.)
 - File writes are atomic (temp + rename); a new ID is created via `O_EXCL`.
 
 ## Tests

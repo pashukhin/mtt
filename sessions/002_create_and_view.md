@@ -1,6 +1,6 @@
 # 002 — Create & view tasks
 
-Status: planned   ·   Branch: `feat/s002-create-view`
+Status: done   ·   Branch: `feat/s002-create-view`
 
 ## Target
 
@@ -32,12 +32,21 @@ the core `add` usecase, and `mtt add` / `mtt show`.
 
 ## Plan (refine at session start — test-first)
 
-- [ ] `pkg/mtt`: `Task` (with `history`/`refs`/`comments` field stubs)
-- [ ] `internal/adapter/yaml`: task save/load + ID minting + golden
-- [ ] `internal/core`: `add` usecase (default type, initial status)
-- [ ] `internal/cli`: `add`, `show`
-- [ ] `testscript` add → show
+- [x] `pkg/mtt`: `Task` (with `history`/`refs`/`comments` field stubs)
+- [x] `internal/adapter/yaml`: task save/load + ID minting + golden
+- [x] `internal/core`: `add` usecase (default type, initial status)
+- [x] `internal/cli`: `add`, `show`
+- [x] `testscript` add → show
 
-## Done (fill during/after the session)
+## Done
 
-—
+Shipped `mtt add [title] [--type] [--no-parent] [--description]` and `mtt show <id>` over the full hexagon:
+the `Task` model + `TaskStore` port (`pkg/mtt`), the `add` usecase (`internal/core`, injected clock), and the
+YAML task store with **flat per-prefix ID minting** + deterministic RFC3339 serialization.
+
+Decisions taken in the brainstorm (see the spec): flat, position-free IDs (re-parenting keeps IDs stable);
+`--no-parent` as a conscious top-level exception; `Status.Default` as the multi-initial entry marker; title
+**or** description required. Reserved (model only): `tags`/`refs`/`comments`/`history`.
+
+Acceptance: `add_show.txt` e2e + a golden task file + `make check` green. Deferred: `--parent`/hierarchy and
+the `show` lineage line → 004; `list`/`edit` → 003.
