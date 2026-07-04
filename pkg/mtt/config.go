@@ -33,10 +33,13 @@ type Flow struct {
 }
 
 // Status is one state in a flow. Kind is a value object; Description is optional.
+// Default marks THE entry status when a flow has more than one initial (mirrors
+// Type.Default); it is ignored unless the status is initial.
 type Status struct {
 	Name        string
 	Kind        StatusKind
 	Description string
+	Default     bool
 }
 
 // Transition is a directed edge between two statuses of the same flow. Description
@@ -75,4 +78,37 @@ func (t Type) ChildrenIn(c Config) []Type {
 		}
 	}
 	return kids
+}
+
+// IsRoot reports whether the type sits at the root level (declares no parents).
+func (t Type) IsRoot() bool { return len(t.Parents) == 0 }
+
+// InitialStatus returns the flow's entry status: the initial status marked
+// Default, else the first initial in config order. The bool is false when the
+// flow has no initial status.
+func (t Type) InitialStatus() (Status, bool) {
+	var first Status
+	found := false
+	for _, s := range t.Statuses {
+		if s.Kind != KindInitial {
+			continue
+		}
+		if s.Default {
+			return s, true
+		}
+		if !found {
+			first, found = s, true
+		}
+	}
+	return first, found
+}
+
+// TypeByName returns the type with the given name, or false when absent.
+func (c Config) TypeByName(name string) (Type, bool) {
+	for _, t := range c.Types {
+		if t.Name == name {
+			return t, true
+		}
+	}
+	return Type{}, false
 }

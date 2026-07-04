@@ -5,7 +5,8 @@ The CLI layer on cobra. **Only** flag/argument parsing, wiring adapters from con
 
 ## Boundaries
 
-- NO business logic and NO direct storage access — logic in `core`, data behind a port.
+- NO business logic; storage only through a port — logic in `core`; a pure read (e.g. `show`) may call a
+  `TaskStore` method directly, without a `core` usecase.
 - One command = one file `<cmd>.go` with a constructor `new<Cmd>Cmd() *cobra.Command`.
 - Commands return errors via `RunE` (they don't print errors themselves or call `os.Exit`).
 - Output only through `cmd.OutOrStdout()` / `cmd.ErrOrStderr()` (testability).
@@ -16,6 +17,6 @@ e2e via `testscript` (txtar) in temp dirs; one script per command.
 
 ## Current state
 
-`root` + `version` + `init` + `types`. `init`/`types` bootstrap config directly via the YAML adapter
-(the composition root wiring adapters from config); `types` calls `Config.Validate()` and formats output.
-Next (phase 1): `add / show / list / edit / close`.
+`root` + `version` + `init` + `types` + `add` + `show`. `add` wires the YAML `TaskStore` into `core`'s add
+usecase (composition root); `show` reads the task directly through the `TaskStore` port (a pure read needs no
+`core` usecase) and formats it via `formatTask`. Next (session 003): `list`/`edit`.

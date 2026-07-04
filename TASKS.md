@@ -3,7 +3,8 @@
 Bootstrap tracker until self-hosting. Once tasks + hierarchy + dependencies exist (end of phase 4),
 mtt's development moves onto mtt itself, and this file is frozen.
 
-The identifiers mimic mtt's future scheme (`e{N}_t{M}`) for illustration.
+The identifiers (`e{N}_t{M}`) are illustrative bootstrap numbering only, predating the flat-ID decision
+(mtt's actual scheme is flat per-prefix, e.g. `e1`/`t17` — see DESIGN.md); not re-derived here.
 Order and architecture — in [DESIGN.md](DESIGN.md); rules — in [AGENTS.md](AGENTS.md).
 
 Legend: `[ ]` todo · `[~]` in progress · `[x]` done.
@@ -44,9 +45,9 @@ flow has ≥1 status of each kind (initial/active/terminal), `kind` by topology;
 - [ ] e2_t4 — `mtt init [--template default|coding]`: write the starter `.mtt/config.yaml` (`coding` =
       feature/bugfix/refactor with a gated per-type DoD — a demo of the enforcement value)
 - [ ] e2_t5 — `internal/adapter/yaml`: implement `TaskStore` **and all capability interfaces** (the
-      reference) — **ID minting** (`<prefix><N>` along the parent chain, `max+1`, `O_EXCL`),
-      deterministic serialization, atomic write (temp+rename), find the `.mtt/` root, load config
-      + `.../yaml/CLAUDE.md`
+      reference) — **ID minting** (`<prefix><N>`, **flat per-prefix** — not walking the parent chain —
+      `max+1`, `O_EXCL`), deterministic serialization, atomic write (temp+rename), find the `.mtt/` root,
+      load config + `.../yaml/CLAUDE.md`
 - [ ] e2_t6 — `internal/core`: the usecase layer (add/list/show/edit/close); parent-type validation;
       creates a logical task and asks `TaskStore` for the ID + `internal/core/CLAUDE.md`
 - [ ] e2_t7 — golden tests for task and config serialization (`-update` flag)
@@ -104,4 +105,7 @@ flow has ≥1 status of each kind (initial/active/terminal), `kind` by topology;
   roles are semantic routing, not RBAC)
 - later — rollback/compensation commands on transitions (`rollback`/`on_failure`) run when an `--atomic`
   or multi-step `advance` aborts after side effects (undo a created branch, etc.)
+- later — **re-parenting** (`mtt reparent`/`move`): change a task's `parent`; enabled by flat, position-free IDs.
+- later — **tags**: a cross-cutting `[]string` label on tasks (reserved in the model now); filtering lands with `list`.
+- later — **boards / views**: a query/view over tags/status/type (relates to `list` and `mtt-ui`); the backlog is such a view.
 - release — goreleaser, cross-platform binaries by tag

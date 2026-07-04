@@ -27,7 +27,7 @@ agent layer over the existing stack).
 | Storage (default) | YAML adapter: **one file per task**, `.mtt/` directory |
 | Source of truth | Files (in the YAML adapter); a DB/index would be derived, gitignored |
 | Human UI | Optional: default `mtt-ui` (local web); with an external backend — its native UI |
-| ID/slug | Minted by the **adapter** (YAML: stable `e1_t3_s2`); the domain knows only the logical task |
+| ID/slug | Minted by the **adapter** (YAML: stable flat per-prefix `e1`/`t17`/`s3`); the domain knows only the logical task |
 | Flow | Executable transitions: `description` + `commands` (all → 0, else the transition is blocked) |
 | Advance | `advance --to` (meta: walk to a target); modes `--stop`(default)/`--atomic`/`--force`; no config DSL |
 | Roles | `start`/`done` semantics depend on the role — seam laid (`role` in history, `--role`, config `roles`); implementation deferred |
@@ -126,7 +126,7 @@ through ports.
 - **`internal/core`** — usecase logic (add/list/ready/flow-transition/search): works **only through
   ports**, unaware of the concrete storage.
 - **`internal/adapter/yaml`** — the default *driven* adapter: implements both ports over `.mtt/`;
-  **mints the ID/slug** (`e1_t3_s2`).
+  **mints the ID/slug** (flat, per-prefix — e.g. `e1`/`t17`).
 - **`internal/adapter/exec`** — implements the **`Runner`** port (running transition commands); replaced
   by a fake in tests. `Runner` is defined in `core` (only it needs it, not third parties).
 - **`cmd/mtt` + `internal/cli`** — the thin CLI (*driving*): parse → usecase → format; on startup it
@@ -184,8 +184,8 @@ the Gantt chart, and dependencies are computed in memory. SQLite isn't needed fo
   config.local.yaml      # personal overlay: connection params, local prefs (gitignored)
   tasks/
     e1.yaml              # epic 1
-    e1_t3.yaml           # task 3 of epic 1
-    e1_t3_s2.yaml        # subtask 2 of task e1_t3
+    t17.yaml             # task 17 (parent: e1)
+    s3.yaml              # subtask 3 (parent: t17)
   knowledge/
     <slug>.md            # KB notes (markdown + YAML frontmatter)   [phase 5]
 ```
@@ -227,14 +227,16 @@ The epic → task → subtask hierarchy is **not hardcoded** — it follows from
 `epic` (root) ← `task` (`parents: [epic]`) ← `subtask` (`parents: [task]`).
 
 **Naming (ID/slug) is the adapter's job, not the domain's.** `core` creates a logical task ("a task of
-type X under parent Y"), and `TaskStore` mints the concrete ID: for YAML it's `e1_t3_s2`, for Jira
+type X under parent Y"), and `TaskStore` mints the concrete ID: for YAML it's flat, e.g. `t17`, for Jira
 `PROJ-123`, for GitHub `#42`. So `prefix` is a **YAML-adapter** field (in its `config.yaml`), and ID
 generation lives **in the adapter**, behind the port.
 
-In the YAML adapter the ID is built by walking the parent chain: `<prefix><N>` at each level, joined with
-`_` (`epic` #1 → `e1`; `task` #3 → `e1_t3`; `subtask` #2 → `e1_t3_s2`). The number `N` is sequential per
-prefix within the parent (`max+1`), and the file is created atomically (`O_EXCL`). The ID is **stable**
-and independent of text; the name lives in `title`. The file name = `<id>.yaml`.
+In the YAML adapter the ID is **flat and per-prefix**: `<prefix><N>`, where `N` is sequential per prefix
+(`max+1`, `O_EXCL`). The ID does **not** encode the parent chain (`epic` #1 → `e1`; `task` #17 → `t17`;
+`subtask` #3 → `s3`), so identity is decoupled from position: **re-parenting** a task changes only its
+`parent` field — the ID stays stable and the file is not renamed. The ID is **stable** and independent of
+text; the name lives in `title`; hierarchy lives in `parent` and is **computed** for display (e.g. `mtt show`
+renders the lineage). The file name = `<id>.yaml`.
 
 ### Model invariants (checked on config load)
 
@@ -255,6 +257,13 @@ in the `mtt init` template, not in logic.
   a `terminal` (terminals are final) — this keeps task history linear and honest.
 - **Default type** is marked by `default: true` — at most one at the domain level (`DefaultType` falls back
   to the first type); the full YAML provider must mark **exactly one**. No literal `task`.
+- **Entry status.** A task starts at its type's **initial** status. When a flow has more than one `initial`,
+  the entry is the one marked `default: true` on the status (mirrors the default **type** marker), else the
+  first `initial` in config order (`Type.InitialStatus`). Validation: at most one `default` status per flow,
+  and a `default` status must be `initial`.
+- **`add` placement / `--no-parent`.** A type whose `parents` is non-empty requires a parent (`--parent`);
+  as a **conscious exception**, `--no-parent` creates it at top level (a flat root ID). Root types need
+  neither. (This keeps the user from ever being blocked from creating a top-level task.)
 - **Hierarchy sanity:** each entry in a type's `parents` names an existing type; a type is not its own parent.
 - **A task's type is immutable.** Changing type = **recategorization**: close the old task (→ a terminal),
   create a new one of the target type, and link them via `refs` (kind `task`, backlinks both ways).
@@ -285,16 +294,16 @@ in the `mtt init` template, not in logic.
 Fields serialize in a fixed order (struct field order) → a deterministic diff.
 
 ```yaml
-id: e1_t3_s2
+id: s3
 type: subtask
 title: fix login redirect loop
 status: in_progress
-parent: e1_t3
+parent: t17
 depends_on:
-  - e1_t2
+  - t2
 refs:
   - {kind: note, id: auth-design, label: spec}
-  - {kind: task, id: e1_t2}
+  - {kind: task, id: t2}
 created: 2026-07-03T09:20:00Z
 updated: 2026-07-03T10:00:00Z
 description: |
@@ -336,7 +345,7 @@ This turns the flow from advice into an **executable gate + action**. Examples:
 - `in_progress → done`: `["make lint", "make test"]` — don't let it into `done` until it's green.
 - `tbd → in_progress`: review the spec + create a branch for the task.
 
-The point: **the agent works in task terms** (`mtt start e1_t3`, `mtt done e1_t3`), while the transition
+The point: **the agent works in task terms** (`mtt start t17`, `mtt done t17`), while the transition
 hides the status-flow mechanics (checks, branch, …) — less distraction on details.
 
 Execution is behind the **`Runner`** port: `core` orchestrates the transition, calls `Runner`, and gates on
@@ -501,7 +510,7 @@ Tasks and comments carry **`refs`** — a structured list of verifiable referenc
 ```yaml
 refs:
   - {kind: note, id: auth-design, label: "spec"}
-  - {kind: task, id: e1_t2}
+  - {kind: task, id: t2}
   - {kind: url,  id: "https://…"}
 ```
 
@@ -532,7 +541,7 @@ has a text/ASCII Gantt. The latest phase.
 | Phase | Content | Status |
 |---|---|---|
 | 0 | Scaffold: repo, module, AGENTS/DESIGN, CLI skeleton, gate, CI | ✅ done |
-| 1 | `pkg/mtt` **pure** contract (domain types + `TaskStore` port); config+types (**structural** invariants: `kind` by topology, ≥1 of each, no name literals), `mtt init`; the YAML adapter **mints IDs** `e1_t3_s2`; core usecases + `add/list/show/edit/close` | |
+| 1 | `pkg/mtt` **pure** contract (domain types + `TaskStore` port); config+types (**structural** invariants: `kind` by topology, ≥1 of each, no name literals), `mtt init`; the YAML adapter **mints IDs** flat per-prefix (`e1`/`t17`/`s3`); core usecases + `add/list/show/edit/close` | |
 | 2 | Hierarchy (by `parents` from config); dependencies; `ready`; cycle detection | |
 | 3 | Flow enforcement: transition validation + running `commands` (the `Runner` port), gating on exit codes; `mtt start/done/status` | |
 | 4 | Comments (tree) | |
@@ -547,6 +556,12 @@ Positioning priorities: phase 3 (flow) and **adaptivity** (external backends, ph
 **simple**; the knowledge base (phase 5) is low priority (beads already has an analog), done only if cheap.
 
 Dogfooding: until phase 4 the plan is kept here; after that we move mtt's development onto mtt itself.
+
+**Later (backlog):**
+
+- later — **re-parenting** (`mtt reparent`/`move`): change a task's `parent`; enabled by flat, position-free IDs.
+- later — **tags**: a cross-cutting `[]string` label on tasks (reserved in the model now); filtering lands with `list`.
+- later — **boards / views**: a query/view over tags/status/type (relates to `list` and `mtt-ui`); the backlog is such a view.
 
 ## Code layout
 

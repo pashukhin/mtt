@@ -1,0 +1,49 @@
+# init, then create and view tasks
+mkdir proj
+cd proj
+exec mtt init
+stdout 'initialized'
+
+# explicit root type -> e1, then e2
+exec mtt add --type epic 'fix login'
+stdout 'created e1'
+exec mtt add --type epic 'second epic'
+stdout 'created e2'
+
+# default type (task) requires a parent
+! exec mtt add 'bare task'
+stderr 'requires a parent'
+
+# --no-parent creates the default type (task) at top level -> t1
+exec mtt add --no-parent 'orphan task'
+stdout 'created t1'
+
+# show renders id, type, status, title
+exec mtt show e1
+stdout 'e1  epic  \[tbd\]'
+stdout 'fix login'
+
+exec mtt show t1
+stdout 't1  task  \[tbd\]'
+stdout 'orphan task'
+
+# --description flows through to show (t2)
+exec mtt add --no-parent --description 'figure out the auth flow' 'desc task'
+stdout 'created t2'
+exec mtt show t2
+stdout 'figure out the auth flow'
+
+# unknown type and missing id error
+! exec mtt add --type nope 'x'
+stderr 'unknown type'
+! exec mtt show missing
+stderr 'not found'
+
+# outside a project: not initialized
+cd $WORK/empty
+! exec mtt add --no-parent 'x'
+stderr 'not initialized'
+! exec mtt show e1
+stderr 'not initialized'
+
+-- empty/.keep --

@@ -64,6 +64,12 @@ func TestValidateErrors(t *testing.T) {
 		{"initial with incoming", func(c *Config) {
 			c.Types[0].Transitions = append(c.Types[0].Transitions, Transition{From: "doing", To: "tbd"})
 		}, "initial needs 0 incoming"},
+		{"two default statuses", func(c *Config) {
+			c.Types[0].Statuses[0].Default = true
+			c.Types[0].Statuses = append(c.Types[0].Statuses, Status{Name: "tbd2", Kind: KindInitial, Default: true})
+			c.Types[0].Transitions = append(c.Types[0].Transitions, Transition{From: "tbd2", To: "doing"})
+		}, "default statuses"},
+		{"default on non-initial", func(c *Config) { c.Types[0].Statuses[1].Default = true }, "default status must be initial"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

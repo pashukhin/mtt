@@ -4,16 +4,20 @@ A living handoff doc. Update it at the end of each session (what's done / what's
 
 ## Where we are
 
-- **Phase 0 (scaffold) + session 001 (init & inspect) are DONE and merged to `main`.** Shipped
-  `mtt init [--template default|coding] [--force] [--name]` and `mtt types [<type>]`; `make check` green
-  (coverage pkg/mtt ~94% / yaml ~81% / cli ~92%). CI runs on Node 24 action majors.
+- **Phase 0 (scaffold) + session 001 (init & inspect) + session 002 (create & view) are DONE and merged to
+  `main`.** Session 001 shipped `mtt init [--template default|coding] [--force] [--name]` and
+  `mtt types [<type>]`. Session 002 shipped `mtt add [title] [--type] [--no-parent] [--description]` and
+  `mtt show <id>`; `make check` green. CI runs on Node 24 action majors.
 - **In place now:** the pure `pkg/mtt` contract (`Config/Type/Flow/Status/Transition`, the `StatusKind`
-  value object, structural `Config.Validate()`, `DefaultType`/`ChildrenIn`) and the YAML adapter's **config
+  value object, structural `Config.Validate()`, `DefaultType`/`ChildrenIn`), the YAML adapter's **config
   layer** (`FindRoot`, embedded `default`/`coding` templates, atomic `Init`, `Load` + `config.local.yaml`
-  overlay, DTO↔domain mapping, prefix/one-default checks). **Not yet:** `internal/core`, the `TaskStore`
-  port, the `Task` model, ID minting.
+  overlay, DTO↔domain mapping, prefix/one-default checks), **and, from 002:** the `Task` model + `TaskStore`
+  port (`pkg/mtt`), `internal/core`'s `add` usecase (default/explicit type, `--no-parent`, entry-status
+  resolution, injected clock), and the YAML adapter's **flat per-prefix ID minting** (`O_EXCL`) +
+  deterministic serialization. **Not yet:** `list`/`edit`, hierarchy (`--parent`/`tree`), dependencies, flow
+  enforcement, comments.
 - Work is organized in **compact sessions** (see [sessions/README.md](sessions/README.md)); next up is
-  **session 002** (create & view tasks).
+  **session 003** (list & edit tasks).
 - Repo: <https://github.com/pashukhin/mtt> (public). Branch per session → PR → CI green → merge into `main`.
 - Stack: Go 1.23, cobra, `gopkg.in/yaml.v3`, `go-internal/testscript` (e2e); storage — YAML file-per-task.
 
@@ -23,8 +27,9 @@ Before any code — a planning phase (use the superpowers skills: brainstorming/
 account for the key invariants from DESIGN.md:
 
 - **Types and hierarchy are domain (from config); ID/slug is the adapter's job.** The code has NO literals
-  for type names or ID structure. Hierarchy comes from a type's `parents` field. The ID is minted by
-  `TaskStore` (YAML: `<prefix><N>` along the chain, `e1` → `e1_t3` → `e1_t3_s2`; `prefix` is a YAML-adapter field).
+  for type names or ID structure. Hierarchy comes from a type's `parents` field, stored (not encoded in the
+  ID). The ID is minted by `TaskStore` and is **flat, per-prefix** (YAML: `<prefix><N>`, e.g. `e1`/`t17`/`s3`;
+  `prefix` is a YAML-adapter field) — decoupled from position, so re-parenting never re-mints it.
 - **Invariants (validated on config load, structural & name-agnostic):** `kind` (initial/active/terminal) is
   defined by flow **topology** and validated; **≥1 of each kind per flow** (minimal `initial → active →
   terminal`; a 2-status flow is invalid); **multiple initials allowed**; status identity is per-flow
@@ -78,34 +83,22 @@ The plugin is declared in the personal `.claude/settings.local.json` (per-user, 
    (alternative — the official marketplace: `/plugin install superpowers@claude-plugins-official`)
 3. Verify the TDD/brainstorming/debugging skills are available, and **use them**.
 
-## Next task — session 002 (create & view)
+## Next task — session 003 (list & edit)
 
-- Start with **[sessions/002_create_and_view.md](sessions/002_create_and_view.md)**; branch
-  `feat/s002-create-view`. Refine its plan (superpowers brainstorming/planning), then work **test-first**;
+- Start with **[sessions/003_list_and_edit.md](sessions/003_list_and_edit.md)**; branch
+  `feat/s003-list-edit`. Refine its plan (superpowers brainstorming/planning), then work **test-first**;
   the acceptance e2e + `make check` must pass before the PR.
-- Session 002 introduces what 001 deferred: the **`TaskStore` port** (in `pkg/mtt`), **`internal/core`**
-  (the `add` usecase — create its `CLAUDE.md`), the **`Task` model** (with `history`/`refs`/`comments`
-  field stubs), and **ID minting** in the YAML adapter (`<prefix><N>` along the parent chain, `O_EXCL`,
-  deterministic serialization, atomic write, `<id>.yaml`).
-- Architecture now grows to the full **`cli → core → port ← adapter`**: `core` depends on the `TaskStore`
-  interface (public `pkg/mtt`), the YAML adapter implements it, the CLI wires it. `core` must NOT import
-  `adapter/*`. (Config stays config-as-data as in 001; **tasks** go through the port.)
-- **Reference (authoritative model):** session 001's spec/plan under
-  `docs/superpowers/{specs,plans}/2026-07-03-session-001-*` and DESIGN.md.
+- Session 003 rounds out flat task CRUD before hierarchy: **`mtt list`** (filters `--status`/`--type`,
+  stable order) and **`mtt edit <id> [--title] [--description]`** (non-flow fields only — status changes
+  go through flow enforcement in session 006). Both build on what 002 shipped: the `Task` model, the
+  `TaskStore` port, `internal/core`, and flat per-prefix ID minting.
+- Architecture stays the full **`cli → core → port ← adapter`**: `list`/`edit` usecases live in
+  `internal/core` behind the `TaskStore` interface (public `pkg/mtt`); `core` must NOT import `adapter/*`.
+- **Reference (authoritative model):** session 002's spec/plan under
+  `docs/superpowers/{specs,plans}/2026-07-04-session-002-*`, and DESIGN.md/AGENTS.md (now updated with the
+  flat-ID and `--no-parent`/`Status.Default` decisions taken in 002).
 
-### Open questions to resolve in 002's brainstorm (flagged from 001 — do NOT skip)
-1. **Entry status when a type has ≥1 `initial`.** The corrected model allows multiple initial statuses, so
-   `add` must choose the task's starting status. Decide the rule: a per-type entry marker, "first initial",
-   or `--status`.
-2. **Root-vs-parent for the default `add`.** The default type `task` has `parents: [epic]`, so a bare
-   `mtt add` (no `--parent`; `--parent` is deferred to 004) cannot mint an `<epic>_t<N>` id and would
-   violate parent-type hierarchy. The 002 acceptance's `e1` even implies creating an *epic*. Reconcile:
-   does bare `add` create a root type, seed an epic, or require a minimal `--type`/`--parent` now? (ID
-   minting for a root type like `epic` `parents: []` is just `e1`; a child type needs its parent's id.)
-3. **Parent-type validation** (a task's parent must be an allowed parent type) — decide how much lands in
-   002 vs 004.
-
-### Carry-over lessons from 001 (save review loops)
+### Carry-over lessons (001 & 002 — save review loops)
 - **CLI output → stdout**: use `fmt.Fprint(cmd.OutOrStdout(), …)`, NOT `cmd.Print/Printf` (those route to
   stderr when no writer is set — breaks pipes and e2e `stdout` asserts). Errors surface via `Execute` (stderr).
 - **golangci-lint `unused`** (standard set) fails on unused unexported package-level consts/funcs — declare
@@ -113,17 +106,23 @@ The plugin is declared in the personal `.claude/settings.local.json` (per-user, 
 - **testscript e2e**: pin `go-internal@v1.14.1` (latest needs Go ≥1.25); use `testscript.Main` (not the
   deprecated `RunMain`); make sure an "uninitialized dir" case is a genuine sibling of the init'd dir (no
   `.mtt` ancestor) or the assertion is vacuous. Drive the real binary; assert stdout vs stderr correctly.
-- **New package → its own thin `CLAUDE.md`** (per AGENTS): `internal/core` needs one in 002.
+- **testscript assertions must anchor, not substring-match** (a 002 review catch): assert e.g.
+  `'t1  task  \[tbd\]'`, not a bare `'task'` — a loose substring can match vacuously against unrelated output.
+- **A pure read needs no `core` usecase** (a 002 correction): `show` reads a task directly through the
+  `TaskStore` port; only mutations (`add`) go through `core`. Don't over-layer a query — apply the same
+  question to `list` in 003.
+- **New package → its own thin `CLAUDE.md`** (per AGENTS): `internal/core` got one in 002; keep it current
+  as `list`/`edit` land in 003.
 
 ## Ready-to-paste kickoff prompt (for a new session)
 
-> We're continuing mtt. Session 001 (init & types) is merged to main. Read CLAUDE.md, AGENTS.md, DESIGN.md,
-> TASKS.md, NEXT_SESSION.md, sessions/README.md, and the session-001 spec/plan under docs/superpowers/.
-> Make sure the superpowers skills are active (otherwise activate them per NEXT_SESSION.md). We work in
-> compact sessions; do **session 002** (sessions/002_create_and_view.md): first brainstorm/refine the plan —
-> resolving the "Open questions" in NEXT_SESSION (entry-status with ≥1 initial; root-vs-parent for the
-> default `add`) — then implement strictly test-first on branch `feat/s002-create-view` until its
-> acceptance e2e + `make check` are green. Build the full hexagon now: the `TaskStore` port in the public
-> `pkg/mtt`, the `add` usecase in `internal/core` (which must NOT import adapter/*), the `Task` model, and
-> ID minting in internal/adapter/yaml. Heed the "Carry-over lessons" in NEXT_SESSION. Follow
-> SOLID/DRY/KISS/TDD/DDD/clean-architecture and the self-check from AGENTS.md.
+> We're continuing mtt. Sessions 001 (init & types) and 002 (create & view) are merged to main. Read
+> CLAUDE.md, AGENTS.md, DESIGN.md, TASKS.md, NEXT_SESSION.md, sessions/README.md, and the session-002
+> spec/plan under docs/superpowers/. Make sure the superpowers skills are active (otherwise activate them
+> per NEXT_SESSION.md). We work in compact sessions; do **session 003**
+> (sessions/003_list_and_edit.md): first brainstorm/refine the plan, then implement strictly test-first on
+> branch `feat/s003-list-edit` until its acceptance e2e + `make check` are green. Build `mtt list` (filters,
+> stable order) and `mtt edit` (non-flow fields) as `internal/core` usecases behind the `TaskStore` port
+> (public `pkg/mtt`), wired thin in `internal/cli`; `core` must NOT import adapter/*. Heed the "Carry-over
+> lessons" in NEXT_SESSION. Follow SOLID/DRY/KISS/TDD/DDD/clean-architecture and the self-check from
+> AGENTS.md.
