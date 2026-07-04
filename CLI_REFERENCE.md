@@ -36,7 +36,7 @@ Run `mtt help [command]` or `mtt <command> -h` for built-in help.
 | `-q, --quiet` | — | Suppress non-essential output (still prints errors and requested data). *(pending)* |
 | `--no-color` | `NO_COLOR` | Disable ANSI color in human output. *(pending)* |
 | `-h, --help` | — | Help for the command. |
-| `--version` | — | Print the version and exit (same as `mtt version`). **Implemented (session 003)**. |
+| `--version` | — | Print the version and exit (same as `mtt version`). **Implemented (session 003)**. Unlike the other flags in this table, this is root-only (cobra's `root.Version`): `mtt --version` works, `mtt <subcommand> --version` does not. |
 
 ## Transition flags (shared by status-changing commands: `status`, `advance`, `start`, `done`)
 

@@ -5,7 +5,7 @@ A living handoff doc. Update it at the end of each session (what's done / what's
 ## Where we are
 
 - **Phase 0 (scaffold) + session 001 (init & inspect) + session 002 (create & view) + session 003 (list &
-  edit) are DONE** (003 merged to `main` pending its PR — branch `feat/s003-list-edit`, `make check` green,
+  edit) are DONE** (003 done on branch `feat/s003-list-edit`, `make check` green, PR not yet opened,
   e2e `list_edit.txt` passing). Session 001 shipped `mtt init [--template default|coding] [--force]
   [--name]` and `mtt types [<type>]`. Session 002 shipped `mtt add [title] [--type] [--no-parent]
   [--description]` and `mtt show <id>`. Session 003 shipped `mtt list` (`--status`/`--type`/`--sort
@@ -144,7 +144,7 @@ The plugin is declared in the personal `.claude/settings.local.json` (per-user, 
 ## Ready-to-paste kickoff prompt (for a new session)
 
 > We're continuing mtt. Sessions 001 (init & types), 002 (create & view), and 003 (list & edit) are done
-> (003 merged to `main` pending its PR). Read, in order: CLAUDE.md, AGENTS.md, DESIGN.md, TASKS.md,
+> (003 done on branch `feat/s003-list-edit`, `make check` green, PR not yet opened). Read, in order: CLAUDE.md, AGENTS.md, DESIGN.md, TASKS.md,
 > NEXT_SESSION.md, sessions/README.md, sessions/003_list_and_edit.md (for the shipped `Select`/`Editor`
 > shape), and CLI_REFERENCE.md. Make sure the superpowers skills are active (otherwise activate them per
 > NEXT_SESSION.md). We work in compact sessions; do **session 004 (hierarchy)** on branch

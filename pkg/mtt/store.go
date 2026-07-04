@@ -3,8 +3,8 @@ package mtt
 import "errors"
 
 // TaskStore is the mandatory-minimum driven port for tasks: create (the adapter
-// mints the ID) and get by ID. Implementations map their own DTOs to and from
-// these pure domain types.
+// mints the ID), get by ID, list all, and update an existing task. Implementations
+// map their own DTOs to and from these pure domain types.
 type TaskStore interface {
 	// Create persists a logical task (empty ID); the adapter mints the ID and
 	// returns the stored task.
