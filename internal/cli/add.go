@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"time"
@@ -21,7 +22,12 @@ func newAddCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "add [title]",
 		Short: "Create a task",
-		Args:  cobra.MaximumNArgs(1),
+		Args: func(_ *cobra.Command, args []string) error {
+			if len(args) > 1 {
+				return errors.New("too many arguments: wrap a multi-word title in quotes (example: mtt add \"fix login\")")
+			}
+			return nil
+		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cwd, err := os.Getwd()
 			if err != nil {

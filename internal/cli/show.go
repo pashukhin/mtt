@@ -18,7 +18,12 @@ func newShowCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "show <id>",
 		Short: "Show a task",
-		Args:  cobra.ExactArgs(1),
+		Args: func(_ *cobra.Command, args []string) error {
+			if len(args) != 1 {
+				return errors.New("provide exactly one task id (example: mtt show e1)")
+			}
+			return nil
+		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cwd, err := os.Getwd()
 			if err != nil {

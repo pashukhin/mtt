@@ -50,3 +50,16 @@ func TestShowCommand(t *testing.T) {
 		t.Fatal("show of a missing id should error")
 	}
 }
+
+func TestShowArgError(t *testing.T) {
+	dir := t.TempDir()
+	chdir(t, dir)
+	if err := runRoot(t, "init"); err != nil {
+		t.Fatalf("init: %v", err)
+	}
+	// `show` with no id must give a human-friendly error, not cobra's default.
+	_, _, err := runOut(t, "show")
+	if err == nil || !strings.Contains(err.Error(), "task id") {
+		t.Fatalf("show with no id should mention 'task id', got: %v", err)
+	}
+}

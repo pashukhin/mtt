@@ -49,3 +49,16 @@ func TestAddCommand(t *testing.T) {
 		t.Fatal("unknown type should error")
 	}
 }
+
+func TestAddArgError(t *testing.T) {
+	dir := t.TempDir()
+	chdir(t, dir)
+	if err := runRoot(t, "init"); err != nil {
+		t.Fatalf("init: %v", err)
+	}
+	// an unquoted multi-word title arrives as several args — give a human-friendly hint.
+	_, _, err := runOut(t, "add", "--no-parent", "fix", "login", "bug")
+	if err == nil || !strings.Contains(err.Error(), "too many arguments") {
+		t.Fatalf("multi-arg add should mention 'too many arguments', got: %v", err)
+	}
+}
