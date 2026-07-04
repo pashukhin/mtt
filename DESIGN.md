@@ -578,6 +578,14 @@ Dogfooding: until phase 4 the plan is kept here; after that we move mtt's develo
   attribution, likely a `.mtt/config.local.yaml` field, distinct from `--role` (`--role` is *what hat* they
   wear, `By` is *who*). Both deferred; the `history` field stays **transition-only** (phase 3) — it does not
   grow to cover plain `edit`s.
+- later — **`list` filter-value validation**: today `list --status X`/`--type Y` filters against tasks
+  only, so an unknown value yields an empty result — indistinguishable from "valid status, no tasks yet".
+  Validate the filter values against the config (a status must exist in *some* flow, a type must be a
+  configured type) and error on an unknown value, so "no tasks in this status" and "this status can't exist
+  in the flow" are distinct. Needs `list` to load config (it currently reads only the store).
+- later — **`mtt edit <id> --editor`**: open the task in `$EDITOR` (edit the fields interactively / via the
+  rendered file) instead of passing `--title`/`--description` on the command line — a human-friendly
+  alternative to the flag-driven edit.
 
 ## Code layout
 
