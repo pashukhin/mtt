@@ -37,7 +37,7 @@ func TestTaskRoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !reflectDeepEqualTask(t, want, got) {
+	if !taskYAMLEqual(t, want, got) {
 		t.Fatalf("round-trip mismatch:\nwant %+v\n got %+v", want, got)
 	}
 }
@@ -65,7 +65,7 @@ func TestTaskGoldenMinimal(t *testing.T) {
 	}
 }
 
-func reflectDeepEqualTask(t *testing.T, a, b mtt.Task) bool {
+func taskYAMLEqual(t *testing.T, a, b mtt.Task) bool {
 	t.Helper()
 	da, _ := goyaml.Marshal(fromDomainTask(a))
 	db, _ := goyaml.Marshal(fromDomainTask(b))

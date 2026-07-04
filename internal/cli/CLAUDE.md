@@ -5,7 +5,8 @@ The CLI layer on cobra. **Only** flag/argument parsing, wiring adapters from con
 
 ## Boundaries
 
-- NO business logic and NO direct storage access — logic in `core`, data behind a port.
+- NO business logic; storage only through a port — logic in `core`; a pure read (e.g. `show`) may call a
+  `TaskStore` method directly, without a `core` usecase.
 - One command = one file `<cmd>.go` with a constructor `new<Cmd>Cmd() *cobra.Command`.
 - Commands return errors via `RunE` (they don't print errors themselves or call `os.Exit`).
 - Output only through `cmd.OutOrStdout()` / `cmd.ErrOrStderr()` (testability).

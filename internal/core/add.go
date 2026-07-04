@@ -49,7 +49,7 @@ func (a *Adder) Add(p AddParams) (mtt.Task, error) {
 		return mtt.Task{}, fmt.Errorf("no types configured")
 	}
 	if !typ.IsRoot() && !p.NoParent {
-		return mtt.Task{}, fmt.Errorf("type %q requires a parent; use --parent (session 004) or --no-parent to create it top-level", typ.Name)
+		return mtt.Task{}, fmt.Errorf("type %q requires a parent; use --no-parent to create it at the top level", typ.Name)
 	}
 	initial, ok := typ.InitialStatus()
 	if !ok {

@@ -27,7 +27,7 @@ agent layer over the existing stack).
 | Storage (default) | YAML adapter: **one file per task**, `.mtt/` directory |
 | Source of truth | Files (in the YAML adapter); a DB/index would be derived, gitignored |
 | Human UI | Optional: default `mtt-ui` (local web); with an external backend — its native UI |
-| ID/slug | Minted by the **adapter** (YAML: stable flat per-prefix e1/t17/s3); the domain knows only the logical task |
+| ID/slug | Minted by the **adapter** (YAML: stable flat per-prefix `e1`/`t17`/`s3`); the domain knows only the logical task |
 | Flow | Executable transitions: `description` + `commands` (all → 0, else the transition is blocked) |
 | Advance | `advance --to` (meta: walk to a target); modes `--stop`(default)/`--atomic`/`--force`; no config DSL |
 | Roles | `start`/`done` semantics depend on the role — seam laid (`role` in history, `--role`, config `roles`); implementation deferred |
