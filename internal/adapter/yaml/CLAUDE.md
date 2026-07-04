@@ -7,6 +7,8 @@ beyond provider-specific checks.
 ## Responsibilities
 
 - `FindRoot` — locate `.mtt/` walking up (like git).
+- `HasProject(dir)` — reports whether `dir` **directly** contains `.mtt/` (no upward walk); used by the
+  CLI's `--dir`/`MTT_DIR` resolution, which is explicit-root and must not silently fall back to discovery.
 - `Init` — render an embedded template (`default`/`coding`, `text/template` `{{.Name}}`), **atomic** write (temp+rename), refuse overwrite without force.
 - `Load` — read config + optional gitignored `config.local.yaml` overlay (later wins at top-level-field granularity: a scalar like `project.name` overrides, but a list such as `types` replaces wholesale — no element-level merge), map DTO→domain, run provider checks (exactly one `default`; prefix present+unique). Domain `Config.Validate()` is the caller's call.
 - `NewTaskStore(root)` / `Store` — implements `mtt.TaskStore`. `Create` mints a **flat per-prefix** ID (`<prefix><N>` via `mint`, scan `max+1`, `O_EXCL` reserve), serializes the `ymlTask` DTO (RFC3339 UTC, `omitempty` on reserved fields), and writes atomically to `.mtt/tasks/<id>.yaml`. `Get` reads/maps a task, returning `mtt.ErrNotFound` when absent. IDs are flat (no parent chain) → stable under re-parenting; identity lives in the ID, hierarchy in the `parent` field. `List` reads `.mtt/tasks/*.yaml` → domain (order unspecified; `core` orders). `Update` overwrites an existing task by ID (`ErrNotFound` if absent). `Create`/`Update` share one private `write` (marshal + atomic temp+rename) — serialization lives in exactly one place.
