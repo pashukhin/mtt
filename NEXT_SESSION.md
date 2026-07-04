@@ -104,6 +104,19 @@ The plugin is declared in the personal `.claude/settings.local.json` (per-user, 
   `docs/superpowers/{specs,plans}/2026-07-04-session-002-*`, and DESIGN.md/AGENTS.md (now updated with the
   flat-ID and `--no-parent`/`Status.Default` decisions taken in 002).
 
+### Open questions to resolve in 003's brainstorm (do NOT skip)
+1. **Enumerating tasks — the port grows.** `TaskStore` is only `Create`/`Get`. `list` needs to enumerate
+   tasks: add `List()`/`All()` to the port (enumeration is the adapter's job), then filter/sort where? Apply
+   the 002 correction ("a pure read needs no `core` usecase") — is `list` a direct port read, or does
+   filter/sort count as logic that belongs in `core`? Draw the "query → adapter" vs "logic → core" line.
+2. **Editing — a mutating store method.** `edit` needs a store `Update`/`Save` (atomic write; currently only
+   `Create`). Decide which fields are editable (title/description) vs explicitly rejected with a clear error
+   (id/type/status/parent — status is flow-only in 006, type is immutable, parent is re-parenting/later);
+   bump `updated` via the injected clock.
+3. **`--json` shape + global-flags scope.** The machine-readable output shape, and how many global flags land
+   in 003 (all of `--dir`/`--version`/`--json`, or split `--json` into a small follow-up if 003 gets heavy).
+4. **Deterministic `list` order** (by id? by created?) for stable golden/e2e output.
+
 ### Carry-over lessons (001 & 002 — save review loops)
 - **CLI output → stdout**: use `fmt.Fprint(cmd.OutOrStdout(), …)`, NOT `cmd.Print/Printf` (those route to
   stderr when no writer is set — breaks pipes and e2e `stdout` asserts). Errors surface via `Execute` (stderr).
@@ -122,13 +135,27 @@ The plugin is declared in the personal `.claude/settings.local.json` (per-user, 
 
 ## Ready-to-paste kickoff prompt (for a new session)
 
-> We're continuing mtt. Sessions 001 (init & types) and 002 (create & view) are merged to main. Read
-> CLAUDE.md, AGENTS.md, DESIGN.md, TASKS.md, NEXT_SESSION.md, sessions/README.md, and the session-002
-> spec/plan under docs/superpowers/. Make sure the superpowers skills are active (otherwise activate them
-> per NEXT_SESSION.md). We work in compact sessions; do **session 003**
-> (sessions/003_list_and_edit.md): first brainstorm/refine the plan, then implement strictly test-first on
-> branch `feat/s003-list-edit` until its acceptance e2e + `make check` are green. Build `mtt list` (filters,
-> stable order) and `mtt edit` (non-flow fields) as `internal/core` usecases behind the `TaskStore` port
-> (public `pkg/mtt`), wired thin in `internal/cli`; `core` must NOT import adapter/*. Heed the "Carry-over
-> lessons" in NEXT_SESSION. Follow SOLID/DRY/KISS/TDD/DDD/clean-architecture and the self-check from
-> AGENTS.md.
+> We're continuing mtt. Sessions 001 (init & types) and 002 (create & view) are merged to `main`. Read, in
+> order: CLAUDE.md, AGENTS.md, DESIGN.md, TASKS.md, NEXT_SESSION.md, sessions/README.md,
+> sessions/003_list_and_edit.md, CLI_REFERENCE.md ("Global flags"), and the session-002 spec/plan under
+> docs/superpowers/{specs,plans}/2026-07-04-session-002-*. Make sure the superpowers skills are active
+> (otherwise activate them per NEXT_SESSION.md). We work in compact sessions; do **session 003 (list &
+> edit)** on branch `feat/s003-list-edit`: first brainstorm/refine the plan (superpowers brainstorming →
+> writing-plans), then implement strictly test-first until the acceptance e2e + `make check` are green;
+> branch → PR → CI green → merge to `main`.
+>
+> Scope: `mtt list` (filters `--status`/`--type`, stable order; human output + `--json`) and
+> `mtt edit <id> [--title] [--description]` (non-flow fields only — a status change is flow enforcement in
+> 006; type is immutable; parent/re-parenting is later; bump `updated`). Session 003 also **owns the
+> global-flags surface** (CLI_REFERENCE → "Global flags"): wire `--dir`/`MTT_DIR`, the `--version` flag, and
+> `--json` as root **persistent flags** so later commands inherit them (`--dir` also DRYs the repeated
+> `Getwd → FindRoot`); defer `--role`/`MTT_ROLE` to 006 and `--quiet`/`--no-color` to later.
+>
+> Architecture stays the full `cli → core → port ← adapter`; `core` must NOT import `adapter/*`. Apply the
+> 002 correction — a pure read needs no `core` usecase (`show` reads directly via `TaskStore.Get`) — to
+> `list`. Resolve the **Open questions** in NEXT_SESSION (chiefly the `TaskStore` port evolution —
+> `List`/`Update` beside `Create`/`Get` — and whether `list` reads directly or filters/sorts in `core`; plus
+> `edit`'s editable-vs-rejected fields, the `--json` shape, and `list` ordering). Heed the "Carry-over
+> lessons" (CLI stdout via `fmt.Fprint(cmd.OutOrStdout(), …)`; anchor testscript assertions; `golangci
+> unused`; new package → its own thin CLAUDE.md). Follow SOLID/DRY/KISS/TDD/DDD/clean-architecture and the
+> self-check from AGENTS.md.
