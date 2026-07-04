@@ -2,7 +2,6 @@ package cli
 
 import (
 	"fmt"
-	"os"
 	"path/filepath"
 
 	"github.com/spf13/cobra"
@@ -22,15 +21,15 @@ func newInitCmd() *cobra.Command {
 		Short: "Initialize a project (.mtt/config.yaml)",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			cwd, err := os.Getwd()
+			base, err := baseDir(cmd)
 			if err != nil {
-				return fmt.Errorf("getwd: %w", err)
+				return err
 			}
 			projectName := name
 			if projectName == "" {
-				projectName = filepath.Base(cwd)
+				projectName = filepath.Base(base)
 			}
-			if err := yaml.Init(cwd, tmpl, projectName, force); err != nil {
+			if err := yaml.Init(base, tmpl, projectName, force); err != nil {
 				return err
 			}
 			if _, err := fmt.Fprintf(cmd.OutOrStdout(), "initialized .mtt/config.yaml (template %q)\n", tmpl); err != nil {

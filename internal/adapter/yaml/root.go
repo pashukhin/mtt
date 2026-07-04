@@ -39,3 +39,11 @@ func FindRoot(start string) (string, error) {
 		dir = parent
 	}
 }
+
+// HasProject reports whether dir directly contains an .mtt/ project directory
+// (no upward walk, unlike FindRoot). Used by callers that resolve an explicit
+// project root (e.g. a --dir flag).
+func HasProject(dir string) bool {
+	info, err := os.Stat(filepath.Join(dir, dirName))
+	return err == nil && info.IsDir()
+}

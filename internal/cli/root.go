@@ -15,9 +15,12 @@ func NewRootCmd() *cobra.Command {
 	root := &cobra.Command{
 		Use:           "mtt",
 		Short:         "mtt — minimalist file-backed task tracker for agents and humans",
+		Version:       version,
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}
+	root.PersistentFlags().String("dir", "", "project root containing .mtt/ (overrides discovery; env MTT_DIR)")
+	root.PersistentFlags().Bool("json", false, "emit machine-readable JSON output")
 	root.AddCommand(newVersionCmd(), newInitCmd(), newTypesCmd(), newAddCmd(), newShowCmd())
 	return root
 }

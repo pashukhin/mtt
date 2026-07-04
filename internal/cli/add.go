@@ -3,7 +3,6 @@ package cli
 import (
 	"errors"
 	"fmt"
-	"os"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -29,11 +28,7 @@ func newAddCmd() *cobra.Command {
 			return nil
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			cwd, err := os.Getwd()
-			if err != nil {
-				return fmt.Errorf("getwd: %w", err)
-			}
-			root, err := yaml.FindRoot(cwd)
+			root, err := projectRoot(cmd)
 			if err != nil {
 				return err
 			}
