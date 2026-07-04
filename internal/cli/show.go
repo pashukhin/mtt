@@ -35,6 +35,9 @@ func newShowCmd() *cobra.Command {
 				}
 				return err
 			}
+			if jsonFlag(cmd) {
+				return writeJSON(cmd.OutOrStdout(), toTaskJSON(task))
+			}
 			_, err = fmt.Fprint(cmd.OutOrStdout(), formatTask(task))
 			return err
 		},
