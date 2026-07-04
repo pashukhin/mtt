@@ -1,0 +1,94 @@
+// Package yaml is the default driven adapter: it stores mtt config (and later
+// tasks) as YAML files under .mtt/, mints IDs, and maps its own DTOs to and from
+// the pure pkg/mtt domain. It carries no business rules beyond provider-specific
+// checks (prefixes, exactly-one-default).
+package yaml
+
+import (
+	"errors"
+	"fmt"
+
+	"github.com/pashukhin/mtt/pkg/mtt"
+)
+
+// ymlConfig and friends are the on-disk DTOs: they hold the yaml tags and the
+// adapter-only prefix, and are mapped to the domain by toDomain.
+type ymlConfig struct {
+	Version int        `yaml:"version"`
+	Project ymlProject `yaml:"project"`
+	Types   []ymlType  `yaml:"types"`
+}
+
+type ymlProject struct {
+	Name string `yaml:"name"`
+}
+
+type ymlType struct {
+	Name        string          `yaml:"name"`
+	Description string          `yaml:"description"`
+	Prefix      string          `yaml:"prefix"`
+	Parents     []string        `yaml:"parents"`
+	Default     bool            `yaml:"default"`
+	Statuses    []ymlStatus     `yaml:"statuses"`
+	Transitions []ymlTransition `yaml:"transitions"`
+}
+
+type ymlStatus struct {
+	Name        string `yaml:"name"`
+	Kind        string `yaml:"kind"`
+	Description string `yaml:"description"`
+}
+
+type ymlTransition struct {
+	From        string   `yaml:"from"`
+	To          string   `yaml:"to"`
+	Description string   `yaml:"description"`
+	Commands    []string `yaml:"commands"`
+}
+
+// toDomain maps the DTO to the pure domain Config and the adapter-owned
+// type-name -> prefix map.
+func (yc ymlConfig) toDomain() (mtt.Config, map[string]string) {
+	cfg := mtt.Config{Version: yc.Version, Project: mtt.Project{Name: yc.Project.Name}}
+	prefixes := make(map[string]string, len(yc.Types))
+	for _, yt := range yc.Types {
+		t := mtt.Type{Name: yt.Name, Description: yt.Description, Parents: yt.Parents, Default: yt.Default}
+		for _, ys := range yt.Statuses {
+			t.Statuses = append(t.Statuses, mtt.Status{Name: ys.Name, Kind: mtt.StatusKind(ys.Kind), Description: ys.Description})
+		}
+		for _, yr := range yt.Transitions {
+			t.Transitions = append(t.Transitions, mtt.Transition{From: yr.From, To: yr.To, Description: yr.Description, Commands: yr.Commands})
+		}
+		cfg.Types = append(cfg.Types, t)
+		prefixes[yt.Name] = yt.Prefix
+	}
+	return cfg, prefixes
+}
+
+// checkPrefixes enforces the YAML provider's stricter rules: exactly one default
+// type, and a present + unique prefix per type.
+func checkPrefixes(cfg mtt.Config, prefixes map[string]string) error {
+	var errs []error
+	defaults := 0
+	for _, t := range cfg.Types {
+		if t.Default {
+			defaults++
+		}
+	}
+	if defaults != 1 {
+		errs = append(errs, fmt.Errorf("config: %d types marked default, want exactly one", defaults))
+	}
+	seen := make(map[string]string, len(prefixes))
+	for _, t := range cfg.Types {
+		p := prefixes[t.Name]
+		if p == "" {
+			errs = append(errs, fmt.Errorf("type %q: missing prefix", t.Name))
+			continue
+		}
+		if other, dup := seen[p]; dup {
+			errs = append(errs, fmt.Errorf("type %q: prefix %q already used by type %q", t.Name, p, other))
+		}
+		seen[p] = t.Name
+	}
+	return errors.Join(errs...)
+}

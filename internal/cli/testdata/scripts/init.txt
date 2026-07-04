@@ -1,0 +1,37 @@
+# init creates config; types lists the configured types
+mkdir proj
+cd proj
+exec mtt init
+stdout 'initialized'
+exists .mtt/config.yaml
+exec mtt types
+stdout 'epic'
+stdout 'task'
+stdout 'subtask'
+stdout 'active'
+stdout '-> done'
+stdout 'default'
+
+# a single type can be filtered
+exec mtt types epic
+stdout 'prefix e'
+! stdout 'subtask'
+
+# re-init without --force fails
+! exec mtt init
+stderr 'already initialized'
+
+# --force overwrites; coding template shows gated per-type DoD
+exec mtt init --force --template coding
+exec mtt types
+stdout 'feature'
+stdout 'bugfix'
+stdout 'refactor'
+stdout 'make test'
+
+# types outside a project errors
+cd $WORK/empty
+! exec mtt types
+stderr 'not initialized'
+
+-- empty/.keep --

@@ -31,7 +31,10 @@ agent layer over the existing stack).
 | Flow | Executable transitions: `description` + `commands` (all → 0, else the transition is blocked) |
 | Advance | `advance --to` (meta: walk to a target); modes `--stop`(default)/`--atomic`/`--force`; no config DSL |
 | Roles | `start`/`done` semantics depend on the role — seam laid (`role` in history, `--role`, config `roles`); implementation deferred |
-| Statuses | Category `kind` (initial/active/terminal); terminals `done` + `cancelled` |
+| Statuses | Category `kind` (initial/active/terminal) by flow **topology**; ≥1 of each per flow; multiple initials allowed; identity is per-flow `(type,name)`; names are config's, never code literals |
+| Domain model | Pure `pkg/mtt` (no serialization tags, no `prefix`); adapters map via DTOs; DDD value objects (`StatusKind`); references by identity, back-refs computed |
+| Providers | Types/flow may come from an external provider; domain requires a **mandatory minimum**, rest optional; wired later via `mtt connect` |
+| Recategorization | A task's **type is immutable**; recategorize = close old + create new + link via `refs` |
 | History | Append-only `history` of transitions in the task (audit + reconstruction); flow — via git |
 | Capabilities | Features are optional per adapter (`Capabilities()` / `ErrUnsupported`); YAML is the reference |
 | KB & refs | KB is an optional capability; `refs` (note/task/comment/url) — verifiable references, ≠ `depends_on` |
@@ -209,14 +212,19 @@ gitignore); richer per-adapter connection schemas come with the external adapter
 
 ## Types and hierarchy (domain) vs ID/slug (adapter)
 
-The **domain** knows the *logical* task: its **type**, **parent**, and **flow**. A type defines:
+The **domain** knows the *logical* task: its **type**, **parents**, and **flow**. A type defines:
 
 - `name` — the type name (e.g. `epic`, `task`, `subtask`);
-- `parent` — the parent type's name (empty = root level) — **this defines the hierarchy**;
-- `statuses` (each with a category `kind`: initial/active/terminal) / `transitions` — the flow (below).
+- `description` — optional human/agent orientation;
+- `parents` — allowed parent type names (empty = root level) — **this defines the hierarchy** (a type may
+  sit under several parent types); the inverse (children) is **computed**, not stored;
+- `default` — marks the type used by `add` without `--type` (at most one; the full YAML provider marks
+  exactly one); there is no literal `task` in code;
+- `statuses` (each a **value object** with a category `kind`: initial/active/terminal) / `transitions` —
+  the flow (below).
 
 The epic → task → subtask hierarchy is **not hardcoded** — it follows from the default config:
-`epic` (root) ← `task` (parent: epic) ← `subtask` (parent: task).
+`epic` (root) ← `task` (`parents: [epic]`) ← `subtask` (`parents: [task]`).
 
 **Naming (ID/slug) is the adapter's job, not the domain's.** `core` creates a logical task ("a task of
 type X under parent Y"), and `TaskStore` mints the concrete ID: for YAML it's `e1_t3_s2`, for Jira
@@ -230,19 +238,47 @@ and independent of text; the name lives in `title`. The file name = `<id>.yaml`.
 
 ### Model invariants (checked on config load)
 
-- Any set of types has a **default `task`** (used by `mtt add` without `--type`).
-- Every status has a **category** `kind`: `initial` / `active` / `terminal`. `ready`/completeness/`list`
-  logic works **by category**, not by the literal `done`.
-- Every flow contains the canonical anchors **`tbd` (initial) → `in_progress` (active) → `done`
-  (terminal)** in that order (intermediate ones allowed). There may be several terminals (the default also
-  has `cancelled`); exactly one `initial`.
-- The code has **no** literals for type/status names or ID structure: types/hierarchy/categories come from
-  config (domain), ID encoding from the adapter. Defaults live in the `mtt init` template, not in logic.
+Purely **structural and name-agnostic** — the code has **no** literals for type/status names or ID
+structure. Types/hierarchy/categories come from config (domain), ID encoding from the adapter; defaults live
+in the `mtt init` template, not in logic.
+
+- **`kind` is defined by flow topology** (and validated against the declared value): `initial` = no incoming
+  (≥1 outgoing); `active` = ≥1 incoming and ≥1 outgoing; `terminal` = no outgoing (≥1 incoming). `kind` is a
+  **value object** (`StatusKind`), not a name — it is the abstraction that lets names stay out of the code.
+- **≥1 of each kind per flow** (`initial`/`active`/`terminal`). Minimal flow: `initial → active → terminal`
+  (a 2-status flow is invalid). **Multiple `initial` statuses are allowed** (the user decides how many entry
+  states they want). `ready`/completeness/`list` logic works **by category**, never by a literal name.
+- **A flow is a per-type closed graph.** Status identity is `(type, name)` — same-named statuses in
+  different flows are **different**; there are **no cross-flow transitions**. The whole status space is a
+  **forest of disjoint per-type flows**.
+- **Reopen** is a transition into a *separate `active` status*, never back into an `initial` and never out of
+  a `terminal` (terminals are final) — this keeps task history linear and honest.
+- **Default type** is marked by `default: true` — at most one at the domain level (`DefaultType` falls back
+  to the first type); the full YAML provider must mark **exactly one**. No literal `task`.
+- **Hierarchy sanity:** each entry in a type's `parents` names an existing type; a type is not its own parent.
+- **A task's type is immutable.** Changing type = **recategorization**: close the old task (→ a terminal),
+  create a new one of the target type, and link them via `refs` (kind `task`, backlinks both ways).
 
 > **Known limitation of the YAML adapter (a conscious trade-off):** sequential IDs collide on concurrent
 > creation across branches — `e2` on two branches gives a visible git add/add conflict. Acceptable for low
 > concurrency; with more parallelism — a namespace prefix per branch/agent. Other adapters (e.g. Jira) have
 > their own scheme without this issue.
+
+### Domain model vs serialization (DDD)
+
+- **Pure domain.** `pkg/mtt` types carry **no** yaml/json tags and **no** adapter fields (`prefix` is
+  adapter-only). Each adapter has its own DTOs and **maps** them to/from the domain; the contract never
+  depends on a storage format.
+- **References by identity.** Within a flow, transitions reference statuses by **name**; across aggregates
+  (types, and later tasks) references are **names/IDs**, never pointers. **Back-references are computed** (an
+  inverse index: children, backlinks), never stored — forward refs are the single source of truth.
+- **Resolved graph is derived.** A linked, immutable in-memory object graph (for traversal: `ready`,
+  `advance`, cycle detection) is built by `internal/core` when needed — it is **not** part of the contract.
+- **Provider-agnostic.** The domain requires a **mandatory minimum** (a `Type` needs a name + a flow whose
+  statuses have name+kind and transitions have from/to) and treats the rest as optional (`description`,
+  `parents`, `default`, and `commands` — the last is *our* local gate augmentation, absent from external
+  trackers). So types/flow can come from an **external provider** (wired later via `mtt connect`); the YAML
+  adapter is the **full provider** (supplies everything).
 
 ## Task model
 
@@ -333,8 +369,8 @@ Traversal semantics (predictability over cleverness):
 - each traversed edge runs its `commands` and appends a `history` entry;
 - a non-`ready` task (open `depends_on`) is not pushed into a terminal by default — we warn.
 
-Thanks to the linear canonical `tbd → in_progress → done`, the default case is unambiguous; forks arise only
-if the user adds branching.
+Thanks to the linear default flow (`initial → active → terminal`), the default case is unambiguous; forks
+arise only if the user adds branching. (Status names come from config, never from code.)
 
 Modes (flags):
 
@@ -363,9 +399,9 @@ Guardrails (to keep it from ballooning): roles are **semantic routing** (what a 
 **not** RBAC/enforcement (agents are cooperative — we route, we don't police). Role names come from config,
 never hardcoded (like types/statuses).
 
-`mtt init` writes `.mtt/config.yaml` with the types `epic`/`task`/`subtask` and the flow
-`tbd → in_progress → done` (+ the terminal `cancelled`). **There are no commands by default** — the user
-hangs them for their own project.
+`mtt init` writes `.mtt/config.yaml` with example types `epic`/`task`/`subtask` and a linear flow
+(`initial → active → terminal`, plus a second terminal for cancellation). Those names are the **template's**,
+not the code's. **There are no commands by default** — the user hangs them for their own project.
 
 ```yaml
 version: 1
@@ -373,8 +409,9 @@ project:
   name: my_tt
 types:
   - name: epic
+    description: A large body of work spanning multiple tasks.
     prefix: e                    # prefix is a YAML-adapter field (ID encoding), not domain
-    parent: ""                   # root level
+    parents: []                  # root level
     statuses:
       - {name: tbd,         kind: initial}
       - {name: in_progress, kind: active}
@@ -384,11 +421,11 @@ types:
       - {from: tbd,         to: in_progress}
       - {from: tbd,         to: cancelled}
       - {from: in_progress, to: done, description: "all epic tasks closed"}
-      - {from: in_progress, to: cancelled}
-      - {from: in_progress, to: tbd}
-  - name: task                   # DEFAULT type (add without --type)
+      - {from: in_progress, to: cancelled}  - name: task                   # DEFAULT type (add without --type)
+    description: A unit of work under an epic.
     prefix: t
-    parent: epic
+    parents: [epic]
+    default: true
     statuses:
       - {name: tbd,         kind: initial}
       - {name: in_progress, kind: active}
@@ -398,11 +435,10 @@ types:
       - {from: tbd,         to: in_progress, description: "review the spec, create a branch"}
       - {from: tbd,         to: cancelled}
       - {from: in_progress, to: done, description: "quality gate"}
-      - {from: in_progress, to: cancelled}
-      - {from: in_progress, to: tbd}
-  - name: subtask
+      - {from: in_progress, to: cancelled}  - name: subtask
+    description: A small step within a task.
     prefix: s
-    parent: task
+    parents: [task]
     statuses:
       - {name: tbd,         kind: initial}
       - {name: in_progress, kind: active}
@@ -412,9 +448,7 @@ types:
       - {from: tbd,         to: in_progress}
       - {from: tbd,         to: cancelled}
       - {from: in_progress, to: done}
-      - {from: in_progress, to: cancelled}
-      - {from: in_progress, to: tbd}
-```
+      - {from: in_progress, to: cancelled}```
 
 Hanging commands — by editing a transition (no code changes):
 
@@ -425,7 +459,8 @@ Hanging commands — by editing a transition (no code changes):
         commands: ["make lint", "make test"]   # all → 0, else done is blocked
 ```
 
-A `bug` type (`prefix: b`, `parent: epic`, a flow with `review`) is added the same way — config only.
+A `bug` type (`prefix: b`, `parents: [epic]`, a flow with a `review` active status) is added the same way —
+config only.
 
 `mtt init --template coding` ships example coding types — `feature`/`bugfix`/`refactor` — each with its own
 gated Definition of Done (branch + lint/test; `bugfix` also requires a failing test first; `refactor`
@@ -497,8 +532,8 @@ has a text/ASCII Gantt. The latest phase.
 | Phase | Content | Status |
 |---|---|---|
 | 0 | Scaffold: repo, module, AGENTS/DESIGN, CLI skeleton, gate, CI | ✅ done |
-| 1 | `pkg/mtt` contract (domain types + `TaskStore` port); config+types (invariants: default `task`, `tbd→in_progress→done`), `mtt init`; the YAML adapter **mints IDs** `e1_t3_s2`; core usecases + `add/list/show/edit/close` | |
-| 2 | Hierarchy (by `parent` from config); dependencies; `ready`; cycle detection | |
+| 1 | `pkg/mtt` **pure** contract (domain types + `TaskStore` port); config+types (**structural** invariants: `kind` by topology, ≥1 of each, no name literals), `mtt init`; the YAML adapter **mints IDs** `e1_t3_s2`; core usecases + `add/list/show/edit/close` | |
+| 2 | Hierarchy (by `parents` from config); dependencies; `ready`; cycle detection | |
 | 3 | Flow enforcement: transition validation + running `commands` (the `Runner` port), gating on exit codes; `mtt start/done/status` | |
 | 4 | Comments (tree) | |
 | — | **⬆ agent-facing MVP — fully usable** | |

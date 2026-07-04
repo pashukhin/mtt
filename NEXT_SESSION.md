@@ -15,11 +15,17 @@ Before any code — a planning phase (use the superpowers skills: brainstorming/
 account for the key invariants from DESIGN.md:
 
 - **Types and hierarchy are domain (from config); ID/slug is the adapter's job.** The code has NO literals
-  for type names or ID structure. Hierarchy comes from a type's `parent` field. The ID is minted by
+  for type names or ID structure. Hierarchy comes from a type's `parents` field. The ID is minted by
   `TaskStore` (YAML: `<prefix><N>` along the chain, `e1` → `e1_t3` → `e1_t3_s2`; `prefix` is a YAML-adapter field).
-- **Invariants (validated on config load):** the type set has a default `task`; each status has a category
-  `kind` (initial/active/terminal), with ≥1 `terminal` (the default has `done`+`cancelled`), and
-  ready/list work by category; every flow has the anchors `tbd → in_progress → done` in that order.
+- **Invariants (validated on config load, structural & name-agnostic):** `kind` (initial/active/terminal) is
+  defined by flow **topology** and validated; **≥1 of each kind per flow** (minimal `initial → active →
+  terminal`; a 2-status flow is invalid); **multiple initials allowed**; status identity is per-flow
+  `(type, name)` with **no cross-flow transitions**; the default type is marked `default: true` (**no literal
+  `task`**); ready/list work by category, never by a literal name.
+- **Domain is pure & provider-agnostic (DDD):** `pkg/mtt` carries no serialization tags and no `prefix`
+  (adapters map via DTOs); `kind` is a value object (`StatusKind`); references are by identity, back-refs are
+  computed; the domain needs only a **mandatory minimum**, so types/flow can later come from an external
+  provider (`mtt connect`). A task's type is **immutable** (recategorize = close + create + link via `refs`).
 - **Capabilities:** features (history, dependencies, comment tree, search, **KB**) are optional per adapter
   (`Capabilities()` / `ErrUnsupported`); YAML is the reference (does everything), `core` writes to the
   minimum and "lights up" what's available. A task carries append-only `history` (always, in YAML).
@@ -69,6 +75,8 @@ The plugin is declared in the personal `.claude/settings.local.json` (per-user, 
 - Work in **compact sessions** (see [sessions/README.md](sessions/README.md)) — each ends with a
   runnable command + e2e. Start with **[sessions/001_init_and_types.md](sessions/001_init_and_types.md)**.
 - Branch: `feat/s001-init-and-types`.
+- **Refined design (authoritative for the corrected model):**
+  [docs/superpowers/specs/2026-07-03-session-001-init-and-types-design.md](docs/superpowers/specs/2026-07-03-session-001-init-and-types-design.md).
 - Refine 001's plan (superpowers), then work **test-first**; the session's acceptance e2e + `make check`
   must pass before the PR.
 - Architecture — **hexagonal**: `cli → core → port ← adapter`, contract (domain types + ports) in the

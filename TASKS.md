@@ -23,19 +23,24 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done.
 
 Test-first, one subtask per branch+PR. **Start with planning** (see NEXT_SESSION.md); the breakdown
 below is a guide — planning refines it. Invariants: types/hierarchy come from config (no literals in
-code); the **adapter** mints the ID/slug; the type set has a default `task`; every flow has
-`tbd→in_progress→done`; storage is behind a port; `core` doesn't import `adapter/*`.
+code); the **adapter** mints the ID/slug; exactly one type is marked `default` (no literal `task`); each
+flow has ≥1 status of each kind (initial/active/terminal), `kind` by topology; storage is behind a port;
+`core` doesn't import `adapter/*`.
 
 - [ ] e2_t1 — plan phase 1 (superpowers), reconcile with the DESIGN.md invariants
-- [ ] e2_t2 — `pkg/mtt` contract: domain types (`Task` with `history[]`+`refs[]`, `Comment` with
-      `refs[]`, `Ref` {kind,id,label}, `Type`, `Flow`, `Status` with `kind`, `Transition`, `Config`;
-      the history entry reserves `role` — the roles seam); the base `TaskStore` + optional capability
-      interfaces (`HistoryStore`, `DependencyStore`, `CommentStore`, `SearchStore`), `Capabilities()`,
-      `ErrUnsupported` + `pkg/mtt/CLAUDE.md` (field order = serialization order)
-- [ ] e2_t3 — config: type (`name/parent/statuses(with kind)/transitions`; `prefix` is a YAML field),
-      invariant validation (default `task`; anchor statuses `tbd`/`in_progress`/`done` with categories;
-      exactly one `initial`, ≥1 `terminal`, plus `cancelled` in the default); the default template; config
-      load merges an optional gitignored `.mtt/config.local.yaml` overlay (personal params override committed config)
+- [ ] e2_t2 — `pkg/mtt` **pure** contract (no serialization tags, no `prefix`): `Config`, `Type`
+      (`name/description/parents/default/flow`), `Flow`, `Status` (`name/kind/description`; `kind` a
+      `StatusKind` **value object**), `Transition` (`from/to/description/commands`); `Task` (with
+      `history[]`+`refs[]`), `Comment` (`refs[]`), `Ref` {kind,id,label}; the history entry reserves `role`
+      — the roles seam; the base `TaskStore` + optional capability interfaces (`HistoryStore`,
+      `DependencyStore`, `CommentStore`, `SearchStore`), `Capabilities()`, `ErrUnsupported`; references by
+      identity, back-refs computed + `pkg/mtt/CLAUDE.md`
+- [ ] e2_t3 — config: type (`name/description/parents/default/statuses(with kind)/transitions`; `prefix`
+      is a YAML-adapter field, held in the adapter DTO), **structural name-agnostic** invariant validation
+      (kind↔topology; ≥1 of each kind; no 2-status flow; multiple initials ok; per-flow status identity, no
+      cross-flow transitions; at-most-one `default` at the domain / exactly-one at the YAML provider; prefix
+      present+unique in the adapter); the default template (via DTO→domain mapping); config load merges an
+      optional gitignored `.mtt/config.local.yaml` overlay (personal params override committed config)
 - [ ] e2_t4 — `mtt init [--template default|coding]`: write the starter `.mtt/config.yaml` (`coding` =
       feature/bugfix/refactor with a gated per-type DoD — a demo of the enforcement value)
 - [ ] e2_t5 — `internal/adapter/yaml`: implement `TaskStore` **and all capability interfaces** (the

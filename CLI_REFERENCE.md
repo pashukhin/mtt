@@ -96,7 +96,7 @@ Generates a completion script for `bash`/`zsh`/`fish`/`powershell`.
 Creates a task of the given type under a parent; the adapter mints the ID. Prints the new ID.
 
 - `<title>` — the human-readable title (positional; or `--title`).
-- `--type <type>` — task type from config (default: the config's default `task`).
+- `--type <type>` — task type from config (default: the type marked `default`).
 - `--parent <id>` — parent task ID. Required when the type has a `parent`; must be empty for a root type.
 - `--description <text>` — long description (also accepts stdin with `--description -`).
 - `--depends-on <id>…` — add blocking dependencies (repeatable / comma-separated).

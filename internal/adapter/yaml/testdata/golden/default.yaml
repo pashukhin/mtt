@@ -1,0 +1,47 @@
+version: 1
+project:
+  name: demo
+types:
+  - name: epic
+    description: A large body of work spanning multiple tasks.
+    prefix: e
+    parents: []
+    statuses:
+      - {name: tbd,         kind: initial}
+      - {name: in_progress, kind: active}
+      - {name: done,        kind: terminal}
+      - {name: cancelled,   kind: terminal}
+    transitions:
+      - {from: tbd,         to: in_progress}
+      - {from: tbd,         to: cancelled}
+      - {from: in_progress, to: done, description: "all epic tasks closed"}
+      - {from: in_progress, to: cancelled}
+  - name: task
+    description: A unit of work under an epic.
+    prefix: t
+    parents: [epic]
+    default: true
+    statuses:
+      - {name: tbd,         kind: initial}
+      - {name: in_progress, kind: active}
+      - {name: done,        kind: terminal}
+      - {name: cancelled,   kind: terminal}
+    transitions:
+      - {from: tbd,         to: in_progress, description: "review the spec, create a branch"}
+      - {from: tbd,         to: cancelled}
+      - {from: in_progress, to: done, description: "quality gate"}
+      - {from: in_progress, to: cancelled}
+  - name: subtask
+    description: A small step within a task.
+    prefix: s
+    parents: [task]
+    statuses:
+      - {name: tbd,         kind: initial}
+      - {name: in_progress, kind: active}
+      - {name: done,        kind: terminal}
+      - {name: cancelled,   kind: terminal}
+    transitions:
+      - {from: tbd,         to: in_progress}
+      - {from: tbd,         to: cancelled}
+      - {from: in_progress, to: done}
+      - {from: in_progress, to: cancelled}
