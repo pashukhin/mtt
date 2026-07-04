@@ -42,3 +42,44 @@ func names(ts []Type) []string {
 	}
 	return out
 }
+
+func TestIsRoot(t *testing.T) {
+	if !(Type{}).IsRoot() {
+		t.Fatal("no parents => root")
+	}
+	if (Type{Parents: []string{"epic"}}).IsRoot() {
+		t.Fatal("with parents => not root")
+	}
+}
+
+func TestInitialStatus(t *testing.T) {
+	// first initial wins when none is marked default
+	ty := Type{Flow: Flow{Statuses: []Status{
+		{Name: "a", Kind: KindInitial},
+		{Name: "b", Kind: KindInitial},
+		{Name: "c", Kind: KindActive},
+	}}}
+	if s, ok := ty.InitialStatus(); !ok || s.Name != "a" {
+		t.Fatalf("first initial: got %q ok=%v", s.Name, ok)
+	}
+	// a marked default initial wins over order
+	ty.Statuses[1].Default = true
+	if s, ok := ty.InitialStatus(); !ok || s.Name != "b" {
+		t.Fatalf("default initial: got %q ok=%v", s.Name, ok)
+	}
+	// no initial => false
+	none := Type{Flow: Flow{Statuses: []Status{{Name: "x", Kind: KindTerminal}}}}
+	if _, ok := none.InitialStatus(); ok {
+		t.Fatal("no initial should return false")
+	}
+}
+
+func TestTypeByName(t *testing.T) {
+	c := Config{Types: []Type{{Name: "epic"}, {Name: "task"}}}
+	if ty, ok := c.TypeByName("task"); !ok || ty.Name != "task" {
+		t.Fatalf("lookup task: %q ok=%v", ty.Name, ok)
+	}
+	if _, ok := c.TypeByName("ghost"); ok {
+		t.Fatal("ghost should not resolve")
+	}
+}

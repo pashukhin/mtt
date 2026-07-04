@@ -95,5 +95,18 @@ func (t Type) validateFlow() []error {
 	if !haveTerminal {
 		errs = append(errs, fmt.Errorf("type %q: no terminal status", t.Name))
 	}
+	defaults := 0
+	for _, s := range t.Statuses {
+		if !s.Default {
+			continue
+		}
+		defaults++
+		if s.Kind != KindInitial {
+			errs = append(errs, fmt.Errorf("type %q status %q: default status must be initial", t.Name, s.Name))
+		}
+	}
+	if defaults > 1 {
+		errs = append(errs, fmt.Errorf("type %q: %d default statuses, want at most one", t.Name, defaults))
+	}
 	return errs
 }
