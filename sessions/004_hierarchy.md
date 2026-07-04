@@ -40,9 +40,15 @@ epic → task → subtask hierarchy (`mtt tree`), and show a task's lineage in `
 
 ## Plan (refine at session start — test-first; brainstorm → writing-plans)
 
-- [ ] Brainstorm the open questions: parent-type validation placement (core vs adapter); where the
-      computed children index lives (pure `core` over `TaskStore.List`, mirroring 003's `Select`); `tree`
-      rendering + deterministic sibling order; how much of `tree`/lineage filtering lands now.
+Design decisions resolved in brainstorm — authoritative spec:
+[../docs/superpowers/specs/2026-07-04-session-004-hierarchy-design.md](../docs/superpowers/specs/2026-07-04-session-004-hierarchy-design.md).
+Summary: parent-type validation lives in `core.Adder` (mutation) via a pure `Type.AcceptsParent`; the
+computed children/ancestors graph is a derived `core.Index` (no store/clock); a single `core.Match`
+predicate is shared by `list` and the `tree` walk (DRY); **full filter set** (`tree --status/--kind/--depth`,
+`list --parent/--kind`) is **in scope**; `tree` filtering uses **keep-ancestors** semantics; `tree --json`
+is a **nested** tree. No new port method.
+
+- [x] Brainstorm the open questions — resolved (see the spec above).
 - [ ] `pkg/mtt` / `internal/core`: parent-type validation + the in-memory index / traversal (children,
       ancestors), cycle-safe; keep back-refs **computed**.
 - [ ] `internal/adapter/yaml`: child ID minting is already flat per-prefix — confirm `--parent` sets
