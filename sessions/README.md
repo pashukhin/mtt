@@ -31,3 +31,10 @@ sliced so **every session delivers something usable**. Order/size may be refined
 | 009 | comments | `mtt comment add/list` (tree) | nested comments render in `show` |
 | 010 | coding template + dogfood | `mtt init --template coding`; self-host | migrate this backlog onto mtt |
 | 011+ | KB/search, Gantt, `mtt-ui`, external adapters | later phases (see DESIGN.md) | |
+
+**Cross-cutting — global flags** (root persistent flags; see [../CLI_REFERENCE.md](../CLI_REFERENCE.md) →
+"Global flags"). Not a session of their own — land early so new commands **inherit** them instead of
+retrofitting each one. Ownership: `--dir`/`MTT_DIR` + the `--version` flag (verify `--help`) → **003** (also
+DRYs the repeated `Getwd → FindRoot`); `--json` machine-readable output → **003** (`mtt list` is its first
+real consumer); `--role`/`MTT_ROLE` → **006** (recorded with `history`; the reserved roles seam);
+`-q/--quiet`, `--no-color` → later (polish).

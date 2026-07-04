@@ -9,6 +9,12 @@ Order and architecture — in [DESIGN.md](DESIGN.md); rules — in [AGENTS.md](A
 
 Legend: `[ ]` todo · `[~]` in progress · `[x]` done.
 
+**Cross-cutting — global flags** (root persistent flags; see [CLI_REFERENCE.md](CLI_REFERENCE.md) → "Global
+flags"). Not a phase of their own — land early so new commands inherit them instead of retrofitting:
+`--dir`/`MTT_DIR` + the `--version` flag (verify `--help`) with `mtt list` (session 003; also DRYs the
+repeated `Getwd → FindRoot`); `--json` machine output from `mtt list` on (session 003); `--role`/`MTT_ROLE`
+in phase 3 with `history` (see e4_t4); `-q/--quiet`, `--no-color` later.
+
 ---
 
 ## e1 — Phase 0: project scaffold  `[x]`

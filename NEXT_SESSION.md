@@ -92,6 +92,12 @@ The plugin is declared in the personal `.claude/settings.local.json` (per-user, 
   stable order) and **`mtt edit <id> [--title] [--description]`** (non-flow fields only — status changes
   go through flow enforcement in session 006). Both build on what 002 shipped: the `Task` model, the
   `TaskStore` port, `internal/core`, and flat per-prefix ID minting.
+- **Global flags (cross-cutting — land now to avoid per-command retrofit; see CLI_REFERENCE.md → "Global
+  flags"):** wire on the root command as **persistent flags** so later commands inherit them —
+  `--dir`/`MTT_DIR` (project-root override; also DRYs the repeated `Getwd → FindRoot` in init/types/add/show),
+  the `--version` flag (`--help` is already cobra-provided), and `--json` (machine-readable output — `mtt list`
+  is its first real consumer). Defer `--role`/`MTT_ROLE` to 006 (with `history`) and `--quiet`/`--no-color` to
+  later. If 003 gets heavy, `--json` may split into a small follow-up slice — the session brainstorm decides.
 - Architecture stays the full **`cli → core → port ← adapter`**: `list`/`edit` usecases live in
   `internal/core` behind the `TaskStore` interface (public `pkg/mtt`); `core` must NOT import `adapter/*`.
 - **Reference (authoritative model):** session 002's spec/plan under
