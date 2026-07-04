@@ -55,3 +55,56 @@ func TestStoreCreateAndGet(t *testing.T) {
 		t.Fatal("create with unknown type should error")
 	}
 }
+
+func TestStoreList(t *testing.T) {
+	root := initDefault(t)
+	s := NewTaskStore(root)
+
+	if tasks, err := s.List(); err != nil || len(tasks) != 0 {
+		t.Fatalf("empty list = %v, %v; want 0 tasks", tasks, err)
+	}
+	if _, err := s.Create(mtt.Task{Type: "epic", Title: "a", Status: "tbd", Created: fixedTime(), Updated: fixedTime()}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.Create(mtt.Task{Type: "epic", Title: "b", Status: "tbd", Created: fixedTime(), Updated: fixedTime()}); err != nil {
+		t.Fatal(err)
+	}
+	tasks, err := s.List()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(tasks) != 2 {
+		t.Fatalf("list len = %d, want 2", len(tasks))
+	}
+	titles := map[string]bool{}
+	for _, tk := range tasks {
+		titles[tk.Title] = true
+	}
+	if !titles["a"] || !titles["b"] {
+		t.Fatalf("round-trip titles = %v, want a and b", titles)
+	}
+}
+
+func TestStoreUpdate(t *testing.T) {
+	root := initDefault(t)
+	s := NewTaskStore(root)
+
+	created, err := s.Create(mtt.Task{Type: "epic", Title: "old", Status: "tbd", Created: fixedTime(), Updated: fixedTime()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	created.Title = "new"
+	if _, err := s.Update(created); err != nil {
+		t.Fatalf("update: %v", err)
+	}
+	got, err := s.Get(created.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Title != "new" {
+		t.Fatalf("title after update = %q, want new", got.Title)
+	}
+	if _, err := s.Update(mtt.Task{ID: "e999", Type: "epic", Status: "tbd", Created: fixedTime(), Updated: fixedTime()}); !errors.Is(err, mtt.ErrNotFound) {
+		t.Fatalf("update missing = %v, want ErrNotFound", err)
+	}
+}

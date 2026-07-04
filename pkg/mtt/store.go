@@ -11,6 +11,12 @@ type TaskStore interface {
 	Create(t Task) (Task, error)
 	// Get loads a task by ID, returning ErrNotFound when it does not resolve.
 	Get(id string) (Task, error)
+	// List returns all tasks. The order is unspecified — callers impose their
+	// own deterministic order (an adapter is not required to sort).
+	List() ([]Task, error)
+	// Update overwrites an existing task identified by t.ID, returning the stored
+	// task; it never mints and never creates. Missing task -> ErrNotFound.
+	Update(t Task) (Task, error)
 }
 
 // ErrNotFound is returned by TaskStore.Get when the ID does not resolve.
