@@ -4,10 +4,18 @@ A living handoff doc. Update it at the end of each session (what's done / what's
 
 ## Where we are
 
-- **Design phase complete**; scaffold + quality gate + CI in place, `make check` green. Implementation not started.
-- Work is organized in **compact sessions** (see [sessions/README.md](sessions/README.md)); next up is **session 001**.
-- Repo: <https://github.com/pashukhin/mtt> (public). Branch per session → PR → squash into `main`.
-- Stack: Go 1.23, cobra; storage — YAML file-per-task (see DESIGN.md).
+- **Phase 0 (scaffold) + session 001 (init & inspect) are DONE and merged to `main`.** Shipped
+  `mtt init [--template default|coding] [--force] [--name]` and `mtt types [<type>]`; `make check` green
+  (coverage pkg/mtt ~94% / yaml ~81% / cli ~92%). CI runs on Node 24 action majors.
+- **In place now:** the pure `pkg/mtt` contract (`Config/Type/Flow/Status/Transition`, the `StatusKind`
+  value object, structural `Config.Validate()`, `DefaultType`/`ChildrenIn`) and the YAML adapter's **config
+  layer** (`FindRoot`, embedded `default`/`coding` templates, atomic `Init`, `Load` + `config.local.yaml`
+  overlay, DTO↔domain mapping, prefix/one-default checks). **Not yet:** `internal/core`, the `TaskStore`
+  port, the `Task` model, ID minting.
+- Work is organized in **compact sessions** (see [sessions/README.md](sessions/README.md)); next up is
+  **session 002** (create & view tasks).
+- Repo: <https://github.com/pashukhin/mtt> (public). Branch per session → PR → CI green → merge into `main`.
+- Stack: Go 1.23, cobra, `gopkg.in/yaml.v3`, `go-internal/testscript` (e2e); storage — YAML file-per-task.
 
 ## The session starts with planning (mandatory)
 
@@ -70,26 +78,52 @@ The plugin is declared in the personal `.claude/settings.local.json` (per-user, 
    (alternative — the official marketplace: `/plugin install superpowers@claude-plugins-official`)
 3. Verify the TDD/brainstorming/debugging skills are available, and **use them**.
 
-## Next task — session 001 (after refining its plan)
+## Next task — session 002 (create & view)
 
-- Work in **compact sessions** (see [sessions/README.md](sessions/README.md)) — each ends with a
-  runnable command + e2e. Start with **[sessions/001_init_and_types.md](sessions/001_init_and_types.md)**.
-- Branch: `feat/s001-init-and-types`.
-- **Refined design (authoritative for the corrected model):**
-  [docs/superpowers/specs/2026-07-03-session-001-init-and-types-design.md](docs/superpowers/specs/2026-07-03-session-001-init-and-types-design.md).
-- Refine 001's plan (superpowers), then work **test-first**; the session's acceptance e2e + `make check`
-  must pass before the PR.
-- Architecture — **hexagonal**: `cli → core → port ← adapter`, contract (domain types + ports) in the
-  public `pkg/mtt`; `core` doesn't import `adapter/*`.
-- Create a `CLAUDE.md` for each new package (`pkg/mtt`, `internal/core`, `internal/adapter/yaml`, …).
+- Start with **[sessions/002_create_and_view.md](sessions/002_create_and_view.md)**; branch
+  `feat/s002-create-view`. Refine its plan (superpowers brainstorming/planning), then work **test-first**;
+  the acceptance e2e + `make check` must pass before the PR.
+- Session 002 introduces what 001 deferred: the **`TaskStore` port** (in `pkg/mtt`), **`internal/core`**
+  (the `add` usecase — create its `CLAUDE.md`), the **`Task` model** (with `history`/`refs`/`comments`
+  field stubs), and **ID minting** in the YAML adapter (`<prefix><N>` along the parent chain, `O_EXCL`,
+  deterministic serialization, atomic write, `<id>.yaml`).
+- Architecture now grows to the full **`cli → core → port ← adapter`**: `core` depends on the `TaskStore`
+  interface (public `pkg/mtt`), the YAML adapter implements it, the CLI wires it. `core` must NOT import
+  `adapter/*`. (Config stays config-as-data as in 001; **tasks** go through the port.)
+- **Reference (authoritative model):** session 001's spec/plan under
+  `docs/superpowers/{specs,plans}/2026-07-03-session-001-*` and DESIGN.md.
+
+### Open questions to resolve in 002's brainstorm (flagged from 001 — do NOT skip)
+1. **Entry status when a type has ≥1 `initial`.** The corrected model allows multiple initial statuses, so
+   `add` must choose the task's starting status. Decide the rule: a per-type entry marker, "first initial",
+   or `--status`.
+2. **Root-vs-parent for the default `add`.** The default type `task` has `parents: [epic]`, so a bare
+   `mtt add` (no `--parent`; `--parent` is deferred to 004) cannot mint an `<epic>_t<N>` id and would
+   violate parent-type hierarchy. The 002 acceptance's `e1` even implies creating an *epic*. Reconcile:
+   does bare `add` create a root type, seed an epic, or require a minimal `--type`/`--parent` now? (ID
+   minting for a root type like `epic` `parents: []` is just `e1`; a child type needs its parent's id.)
+3. **Parent-type validation** (a task's parent must be an allowed parent type) — decide how much lands in
+   002 vs 004.
+
+### Carry-over lessons from 001 (save review loops)
+- **CLI output → stdout**: use `fmt.Fprint(cmd.OutOrStdout(), …)`, NOT `cmd.Print/Printf` (those route to
+  stderr when no writer is set — breaks pipes and e2e `stdout` asserts). Errors surface via `Execute` (stderr).
+- **golangci-lint `unused`** (standard set) fails on unused unexported package-level consts/funcs — declare
+  a symbol in the task that first *uses* it, not ahead of time.
+- **testscript e2e**: pin `go-internal@v1.14.1` (latest needs Go ≥1.25); use `testscript.Main` (not the
+  deprecated `RunMain`); make sure an "uninitialized dir" case is a genuine sibling of the init'd dir (no
+  `.mtt` ancestor) or the assertion is vacuous. Drive the real binary; assert stdout vs stderr correctly.
+- **New package → its own thin `CLAUDE.md`** (per AGENTS): `internal/core` needs one in 002.
 
 ## Ready-to-paste kickoff prompt (for a new session)
 
-> We're continuing mtt. Read CLAUDE.md, AGENTS.md, DESIGN.md, TASKS.md, NEXT_SESSION.md and
-> sessions/README.md. Make sure the superpowers skills are active (otherwise activate them per
-> NEXT_SESSION.md). We work in compact sessions; do **session 001**
-> (sessions/001_init_and_types.md): refine its plan (superpowers), then implement strictly test-first on
-> branch `feat/s001-init-and-types` until its acceptance e2e + `make check` are green.
-> Hexagonal architecture: contract (domain types + ports) in the public `pkg/mtt`, logic in
-> `internal/core`, YAML default adapter in `internal/adapter/yaml`; types/hierarchy/ID from config (no
-> literals in code). Follow SOLID/DRY/KISS/TDD/clean-architecture and the self-check from AGENTS.md.
+> We're continuing mtt. Session 001 (init & types) is merged to main. Read CLAUDE.md, AGENTS.md, DESIGN.md,
+> TASKS.md, NEXT_SESSION.md, sessions/README.md, and the session-001 spec/plan under docs/superpowers/.
+> Make sure the superpowers skills are active (otherwise activate them per NEXT_SESSION.md). We work in
+> compact sessions; do **session 002** (sessions/002_create_and_view.md): first brainstorm/refine the plan —
+> resolving the "Open questions" in NEXT_SESSION (entry-status with ≥1 initial; root-vs-parent for the
+> default `add`) — then implement strictly test-first on branch `feat/s002-create-view` until its
+> acceptance e2e + `make check` are green. Build the full hexagon now: the `TaskStore` port in the public
+> `pkg/mtt`, the `add` usecase in `internal/core` (which must NOT import adapter/*), the `Task` model, and
+> ID minting in internal/adapter/yaml. Heed the "Carry-over lessons" in NEXT_SESSION. Follow
+> SOLID/DRY/KISS/TDD/DDD/clean-architecture and the self-check from AGENTS.md.
