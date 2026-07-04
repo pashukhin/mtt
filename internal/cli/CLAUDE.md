@@ -16,5 +16,6 @@ e2e via `testscript` (txtar) in temp dirs; one script per command.
 
 ## Current state
 
-`root` + `version` + `init` + `types` + `add` + `show`. `add`/`show` wire the YAML `TaskStore` into the
-`core` add usecase (composition root); `show` formats a task via `formatTask`. Next (session 003): `list`/`edit`.
+`root` + `version` + `init` + `types` + `add` + `show`. `add` wires the YAML `TaskStore` into `core`'s add
+usecase (composition root); `show` reads the task directly through the `TaskStore` port (a pure read needs no
+`core` usecase) and formats it via `formatTask`. Next (session 003): `list`/`edit`.
