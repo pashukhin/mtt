@@ -3,6 +3,7 @@
 package core
 
 import (
+	"errors"
 	"fmt"
 	"time"
 
@@ -28,6 +29,7 @@ func NewAdder(store mtt.TaskStore, cfg mtt.Config, now func() time.Time) *Adder 
 type AddParams struct {
 	Title       string
 	TypeName    string
+	Parent      string
 	NoParent    bool
 	Description string
 }
@@ -48,8 +50,22 @@ func (a *Adder) Add(p AddParams) (mtt.Task, error) {
 	} else if typ, ok = a.cfg.DefaultType(); !ok {
 		return mtt.Task{}, fmt.Errorf("no types configured")
 	}
-	if !typ.IsRoot() && !p.NoParent {
-		return mtt.Task{}, fmt.Errorf("type %q requires a parent; use --no-parent to create it at the top level", typ.Name)
+	parent := ""
+	switch {
+	case p.Parent != "":
+		pt, err := a.store.Get(p.Parent)
+		if err != nil {
+			if errors.Is(err, mtt.ErrNotFound) {
+				return mtt.Task{}, fmt.Errorf("parent %q not found", p.Parent)
+			}
+			return mtt.Task{}, fmt.Errorf("load parent %q: %w", p.Parent, err)
+		}
+		if !typ.AcceptsParent(pt.Type) {
+			return mtt.Task{}, fmt.Errorf("type %q cannot be placed under type %q (allowed parents: %v)", typ.Name, pt.Type, typ.Parents)
+		}
+		parent = pt.ID
+	case !typ.IsRoot() && !p.NoParent:
+		return mtt.Task{}, fmt.Errorf("type %q requires a parent; use --parent <id> (or --no-parent to create it at the top level)", typ.Name)
 	}
 	initial, ok := typ.InitialStatus()
 	if !ok {
@@ -60,6 +76,7 @@ func (a *Adder) Add(p AddParams) (mtt.Task, error) {
 		Type:        typ.Name,
 		Title:       p.Title,
 		Status:      initial.Name,
+		Parent:      parent,
 		Description: p.Description,
 		Created:     now,
 		Updated:     now,
