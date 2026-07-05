@@ -600,6 +600,10 @@ Dogfooding: until phase 4 the plan is kept here; after that we move mtt's develo
 - later — **`mtt edit <id> --editor`**: open the task in `$EDITOR` (edit the fields interactively / via the
   rendered file) instead of passing `--title`/`--description` on the command line — a human-friendly
   alternative to the flag-driven edit.
+- later — **`show` multi-line description indent**: `mtt show` prints the description via `"\n  %s\n"`, so a
+  multi-line description gets the 2-space indent on the **first line only**; continuation lines render
+  flush-left. Data is correct (round-trips as a YAML block scalar) — this is a display nit in `formatTask`
+  (from session 002). Fix: indent every line of the description. Cheap, cosmetic, non-blocking.
 
 ## Code layout
 
