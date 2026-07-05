@@ -394,9 +394,19 @@ Commands come from config (trusted, like a Makefile/git hooks), not from the net
 > on the ordering of commands. A two-phase model (checks → actions) is introduced only if needed.
 
 > **Seam (deferred): rollback / compensation.** A transition may optionally declare compensating commands
-> (e.g. `rollback:` / `on_failure:`) run when an `--atomic` or multi-step `advance` aborts after side
-> effects — to undo what a partially-applied transition did (delete the created branch, …). Not built now;
-> the executor's abort path is the hook. Additive in config, so deferrable.
+> (e.g. `rollback:` / `on_failure:`) run in **reverse order** over the already-succeeded commands when a
+> later command in the same pipeline fails (intra-pipeline compensation), and when an `--atomic` or
+> multi-step `advance` aborts after side effects — to undo what a partially-applied transition did (delete
+> the created branch, …). Not built now; the executor's abort path is the hook. Additive in config.
+
+> **Seam (deferred): structured commands.** Three wanted features — a **per-command timeout** overriding
+> the global `command_timeout` (fail fast when a fast command overruns), the `rollback` above, and
+> **placeholders** in a command (`git checkout -b task/{{.ID}}` on `tbd → in_progress`) — converge on
+> evolving `Transition.Commands` from `[]string` into a `Command` value object (`{run, timeout?, rollback?}`)
+> with placeholder expansion on `run`. Additive/back-compatible (a bare string ⇒ `{run: …}`), but a
+> **domain-shape change** — one deliberate slice. **Placeholder caveat:** substituted values reach `sh -c`,
+> so restrict to shape-safe fields (`id`/`type`/`status`) or shell-quote arbitrary ones (`title`) — never
+> interpolate raw text unquoted. See TASKS.md → Later.
 
 ### Advancing through the flow: `advance` / `start` / `done`
 
@@ -442,6 +452,15 @@ agent, `done` means something different than for an implementer (e.g. the implem
 Guardrails (to keep it from ballooning): roles are **semantic routing** (what a verb means for a role),
 **not** RBAC/enforcement (agents are cooperative — we route, we don't police). Role names come from config,
 never hardcoded (like types/statuses).
+
+> **Direction (deferred): actor profiles.** The `roles` section is expected to grow into named **profiles**
+> that pair an identity with a role — `(by, role)`, e.g. `(coding-agent, implementer)` / `(Alice, reviewer)`
+> — with exactly one marked `default: true`, applied when neither `--profile` nor `--by`/`--role` is given.
+> Since mtt is used mostly by **coding agents** sharing the repo config with a human, the agent's profile is
+> the ergonomic default and the human overrides. `mtt profile add/list/rm` manages **only** the personal
+> `config.local.yaml` profiles (shared project profiles, if any, are read-only to the command). This
+> **subsumes the s006 `author` seam** (`author` = the default profile's `by`) and is forward-compatible. See
+> TASKS.md → Later.
 
 `mtt init` writes `.mtt/config.yaml` with example types `epic`/`task`/`subtask` and a linear flow
 (`initial → active → terminal`, plus a second terminal for cancellation). Those names are the **template's**,

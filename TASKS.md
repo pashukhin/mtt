@@ -142,11 +142,33 @@ Single-edge `mtt status` shipped in **s006**; the meta-walk (`advance`/`start`/`
 - e9 — Phase 8: external indexer hook
 - later — reconstruct the observed status graph from tasks' `history` (read-only aggregation);
   explicit flow versioning/migrations (the git history of config is enough for now)
-- later — role-aware command semantics: a `roles` section in config, a role tag on transitions,
-  role-parameterization of `advance`/verb→target (the seam is already laid: `role` in history + `--role`;
-  roles are semantic routing, not RBAC)
-- later — rollback/compensation commands on transitions (`rollback`/`on_failure`) run when an `--atomic`
-  or multi-step `advance` aborts after side effects (undo a created branch, etc.)
+- later — **actor profiles** (unify `by` + `role`): named profiles in config, each a `(by, role)` pair, one
+  marked `default: true` (name-agnostic, mirrors the default-type/status marker) and applied when neither
+  `--by`/`--role` nor `--profile` is given. Motivation: mtt is used mostly by **coding agents** that share the
+  repo config with a human, so the agent's profile should be the ergonomic default (the human overrides with
+  `--profile`/`--by`). `mtt profile add/list/rm` manages **only** the personal `.mtt/config.local.yaml`
+  profiles and never touches shared project profiles (if a project defines any in `config.yaml`, they are
+  read-only to the command). `--role` stays overridable per-invocation (one identity can switch hats).
+  Supersedes the minimal s006 `author` seam (`author` = the default profile's `by`); forward-compatible.
+  Extends the reserved `roles` section: role-aware semantics (a role tag on transitions,
+  role-parameterization of `advance`/verb→target) build on profiles. Roles are semantic routing, not RBAC.
+- later — **per-command timeout** overriding the global `command_timeout` (a fast command that overruns its
+  own timeout signals a problem — fail fast, don't wait the global 5m). Attaches to the command (see the
+  structured-command note below).
+- later — **command placeholders**: template substitution in a transition's commands (e.g. auto-create a
+  branch on `tbd → in_progress`: `git checkout -b task/{{.ID}}`). A small, safe vocabulary (`.ID`, `.Type`,
+  `.From`, `.To`, …). **Caveat — shell injection:** substituted values are interpolated into `sh -c`, so
+  either restrict to shape-safe fields (`id`/`type`/`status`) or shell-quote/escape arbitrary ones (`title`);
+  never interpolate raw user text unquoted.
+- later — rollback/compensation commands on transitions (`rollback`/`on_failure`), run in **reverse order**
+  over the already-succeeded commands when a later command in the same pipeline fails (intra-pipeline
+  compensation), and when an `--atomic`/multi-step `advance` aborts after side effects (undo a created branch,
+  etc.). The executor's abort path is the hook.
+- **structured commands (convergence of the three above):** per-command timeout + rollback + placeholders
+  together argue for evolving `Transition.Commands []string` into a `[]Command` **value object**
+  (`{run string; timeout?; rollback?}`) with placeholder expansion on `run`. Additive/back-compatible (a bare
+  string maps to `{run: …}`), but it is a **domain-shape change in `pkg/mtt`** — plan it as one deliberate
+  slice, not piecemeal.
 - later — **`cancelled`-blocker semantics**: a `cancelled` (abandoned) `depends_on` currently unblocks its
   dependent (terminal by `kind`), which may be wrong — the dependent may need re-evaluation. Revisit with
   flow enforcement (s006), when terminal statuses become reachable. See DESIGN.md → "Dependencies".
@@ -154,7 +176,7 @@ Single-edge `mtt status` shipped in **s006**; the meta-walk (`advance`/`start`/`
 - later — **tags**: a cross-cutting `[]string` label on tasks (reserved in the model now); filtering lands with `list`.
 - later — **boards / views**: a query/view over tags/status/type (relates to `list` and `mtt-ui`); the backlog is such a view.
 - later — **durable, git-independent audit of edits** (a change-log or field versioning for plain `edit`s,
-  additive; `history` stays transition-only) **+ the subject-identity (`By`) source** (likely
-  `.mtt/config.local.yaml`, distinct from `--role`) — deferred out of session 003 (see DESIGN.md → "Listing
-  and editing").
+  additive; `history` stays transition-only). (The subject-identity `By` source is now **resolved** — s006
+  reads `--by` > `MTT_BY` > `config.local` `author`, to be subsumed by **actor profiles** above; only the
+  edit-audit half remains open.)
 - release — goreleaser, cross-platform binaries by tag
