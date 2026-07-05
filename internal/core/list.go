@@ -22,7 +22,7 @@ type ListFilter struct {
 	Statuses []string
 	Types    []string
 	Kinds    []mtt.StatusKind
-	Parent   string
+	Parent   mtt.TaskID
 	Sort     SortKey
 }
 

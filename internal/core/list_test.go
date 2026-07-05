@@ -7,7 +7,7 @@ import (
 	"github.com/pashukhin/mtt/pkg/mtt"
 )
 
-func tsk(id, typ, status string, created time.Time) mtt.Task {
+func tsk(id mtt.TaskID, typ, status string, created time.Time) mtt.Task {
 	return mtt.Task{ID: id, Type: typ, Status: status, Created: created, Updated: created}
 }
 
@@ -49,7 +49,7 @@ func TestSelectTieBreakByIDString(t *testing.T) {
 		tsk("t1", "task", "tbd", same),
 		tsk("e1", "epic", "tbd", same),
 	}, ListFilter{}, mtt.Config{})
-	want := []string{"e1", "t1", "t2"} // equal Created -> opaque ID string ascending
+	want := []mtt.TaskID{"e1", "t1", "t2"} // equal Created -> opaque ID string ascending
 	for i, id := range want {
 		if got[i].ID != id {
 			t.Fatalf("tie-break[%d] = %s, want %s", i, got[i].ID, id)

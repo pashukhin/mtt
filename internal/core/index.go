@@ -18,7 +18,7 @@ func lessByRecency(a, b mtt.Task, key SortKey) bool {
 	if !ta.Equal(tb) {
 		return ta.After(tb)
 	}
-	return strings.Compare(a.ID, b.ID) < 0
+	return strings.Compare(string(a.ID), string(b.ID)) < 0
 }
 
 // Index is a derived, read-only view of the parent→children hierarchy over a set
@@ -26,8 +26,8 @@ func lessByRecency(a, b mtt.Task, key SortKey) bool {
 // and is not part of the pkg/mtt contract — the resolved graph is derived.
 // Children are computed (the inverse of Parent), never stored.
 type Index struct {
-	byID     map[string]mtt.Task
-	children map[string][]mtt.Task // keyed by parent ID; roots live under key ""
+	byID     map[mtt.TaskID]mtt.Task
+	children map[mtt.TaskID][]mtt.Task // keyed by parent ID; roots live under key ""
 }
 
 // NewIndex builds the hierarchy index. A task with an empty Parent, or a Parent
@@ -36,8 +36,8 @@ type Index struct {
 // tree order matches Select.
 func NewIndex(tasks []mtt.Task) Index {
 	x := Index{
-		byID:     make(map[string]mtt.Task, len(tasks)),
-		children: make(map[string][]mtt.Task),
+		byID:     make(map[mtt.TaskID]mtt.Task, len(tasks)),
+		children: make(map[mtt.TaskID][]mtt.Task),
 	}
 	for _, t := range tasks {
 		x.byID[t.ID] = t
@@ -61,7 +61,7 @@ func NewIndex(tasks []mtt.Task) Index {
 }
 
 // Get returns the task with id, or false when absent.
-func (x Index) Get(id string) (mtt.Task, bool) {
+func (x Index) Get(id mtt.TaskID) (mtt.Task, bool) {
 	t, ok := x.byID[id]
 	return t, ok
 }
@@ -70,13 +70,13 @@ func (x Index) Get(id string) (mtt.Task, bool) {
 func (x Index) Roots() []mtt.Task { return x.children[""] }
 
 // Children returns the direct children of id in sibling order (nil when none).
-func (x Index) Children(id string) []mtt.Task { return x.children[id] }
+func (x Index) Children(id mtt.TaskID) []mtt.Task { return x.children[id] }
 
 // Ancestors returns id's parent chain from the outermost root down to the
 // immediate parent (a breadcrumb, excluding id itself). Cycle-safe: a repeated
 // id or a missing parent stops the walk.
-func (x Index) Ancestors(id string) []mtt.Task {
-	seen := map[string]bool{id: true}
+func (x Index) Ancestors(id mtt.TaskID) []mtt.Task {
+	seen := map[mtt.TaskID]bool{id: true}
 	var chain []mtt.Task
 	cur, ok := x.byID[id]
 	for ok && cur.Parent != "" && !seen[cur.Parent] {

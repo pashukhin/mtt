@@ -37,7 +37,11 @@ func newEditCmd() *cobra.Command {
 				return err
 			}
 			editor := core.NewEditor(yaml.NewTaskStore(root), time.Now)
-			task, err := editor.Edit(args[0], p)
+			id, err := mtt.NewTaskID(args[0])
+			if err != nil {
+				return err
+			}
+			task, err := editor.Edit(id, p)
 			if err != nil {
 				if errors.Is(err, mtt.ErrNotFound) {
 					return fmt.Errorf("task %q not found", args[0])

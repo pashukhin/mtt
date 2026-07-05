@@ -17,7 +17,7 @@ func fixedTime() time.Time { return time.Date(2026, 7, 4, 9, 20, 0, 0, time.UTC)
 func TestTaskRoundTrip(t *testing.T) {
 	want := mtt.Task{
 		ID: "t1", Type: "task", Title: "fix login", Status: "tbd",
-		Parent: "e1", Tags: []string{"backend", "auth"}, DependsOn: []string{"t2"},
+		Parent: "e1", Tags: []string{"backend", "auth"}, DependsOn: []mtt.TaskID{"t2"},
 		Refs:    []mtt.Ref{{Kind: mtt.RefTask, ID: "t2", Label: "blocker"}},
 		Created: fixedTime(), Updated: fixedTime(), Description: "multi\nline",
 		Comments: []mtt.Comment{{ID: 1, Author: "agent", Created: fixedTime(), Body: "hi",
@@ -70,4 +70,11 @@ func taskYAMLEqual(t *testing.T, a, b mtt.Task) bool {
 	da, _ := goyaml.Marshal(fromDomainTask(a))
 	db, _ := goyaml.Marshal(fromDomainTask(b))
 	return bytes.Equal(da, db)
+}
+
+func TestToDomainRejectsEmptyID(t *testing.T) {
+	yt := ymlTask{ID: "", Type: "task", Status: "tbd", Created: "2026-07-05T00:00:00Z", Updated: "2026-07-05T00:00:00Z"}
+	if _, err := yt.toDomain(); err == nil {
+		t.Fatal("toDomain with empty id = nil error; want empty-id error")
+	}
 }

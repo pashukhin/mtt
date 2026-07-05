@@ -10,7 +10,7 @@ type TaskStore interface {
 	// returns the stored task.
 	Create(t Task) (Task, error)
 	// Get loads a task by ID, returning ErrNotFound when it does not resolve.
-	Get(id string) (Task, error)
+	Get(id TaskID) (Task, error)
 	// List returns all tasks. The order is unspecified — callers impose their
 	// own deterministic order (an adapter is not required to sort).
 	List() ([]Task, error)

@@ -10,8 +10,8 @@ import (
 
 type fakeStore struct {
 	got   mtt.Task
-	retID string
-	byID  map[string]mtt.Task
+	retID mtt.TaskID
+	byID  map[mtt.TaskID]mtt.Task
 }
 
 func (f *fakeStore) Create(t mtt.Task) (mtt.Task, error) {
@@ -19,7 +19,7 @@ func (f *fakeStore) Create(t mtt.Task) (mtt.Task, error) {
 	t.ID = f.retID
 	return t, nil
 }
-func (f *fakeStore) Get(id string) (mtt.Task, error) {
+func (f *fakeStore) Get(id mtt.TaskID) (mtt.Task, error) {
 	if t, ok := f.byID[id]; ok {
 		return t, nil
 	}
@@ -95,7 +95,7 @@ func TestAddUnknownType(t *testing.T) {
 }
 
 func TestAddUnderParentOK(t *testing.T) {
-	fs := &fakeStore{retID: "t1", byID: map[string]mtt.Task{"e1": {ID: "e1", Type: "epic"}}}
+	fs := &fakeStore{retID: "t1", byID: map[mtt.TaskID]mtt.Task{"e1": {ID: "e1", Type: "epic"}}}
 	got, err := NewAdder(fs, cfg(), fixed).Add(AddParams{Title: "child", TypeName: "task", Parent: "e1"})
 	if err != nil {
 		t.Fatalf("valid parent should succeed: %v", err)
@@ -106,7 +106,7 @@ func TestAddUnderParentOK(t *testing.T) {
 }
 
 func TestAddParentMissing(t *testing.T) {
-	fs := &fakeStore{retID: "t1", byID: map[string]mtt.Task{}}
+	fs := &fakeStore{retID: "t1", byID: map[mtt.TaskID]mtt.Task{}}
 	_, err := NewAdder(fs, cfg(), fixed).Add(AddParams{Title: "x", TypeName: "task", Parent: "e9"})
 	if err == nil || !strings.Contains(err.Error(), `parent "e9" not found`) {
 		t.Fatalf("want parent-not-found, got %v", err)
@@ -115,7 +115,7 @@ func TestAddParentMissing(t *testing.T) {
 
 func TestAddParentWrongType(t *testing.T) {
 	// subtask.parents = [task]; placing it under an epic must fail.
-	fs := &fakeStore{retID: "s1", byID: map[string]mtt.Task{"e1": {ID: "e1", Type: "epic"}}}
+	fs := &fakeStore{retID: "s1", byID: map[mtt.TaskID]mtt.Task{"e1": {ID: "e1", Type: "epic"}}}
 	_, err := NewAdder(fs, cfg(), fixed).Add(AddParams{Title: "x", TypeName: "subtask", Parent: "e1"})
 	if err == nil || !strings.Contains(err.Error(), "cannot be placed under") {
 		t.Fatalf("want placement error, got %v", err)
@@ -124,7 +124,7 @@ func TestAddParentWrongType(t *testing.T) {
 
 func TestAddRootTypeRejectsParent(t *testing.T) {
 	// epic is a root type; giving it a parent must fail.
-	fs := &fakeStore{retID: "e2", byID: map[string]mtt.Task{"e1": {ID: "e1", Type: "epic"}}}
+	fs := &fakeStore{retID: "e2", byID: map[mtt.TaskID]mtt.Task{"e1": {ID: "e1", Type: "epic"}}}
 	_, err := NewAdder(fs, cfg(), fixed).Add(AddParams{Title: "x", TypeName: "epic", Parent: "e1"})
 	if err == nil || !strings.Contains(err.Error(), "cannot be placed under") {
 		t.Fatalf("want placement error for root+parent, got %v", err)

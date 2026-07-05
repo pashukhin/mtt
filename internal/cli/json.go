@@ -27,7 +27,7 @@ type taskJSON struct {
 // toTaskJSON maps a domain task to its JSON view (RFC3339 UTC timestamps).
 func toTaskJSON(t mtt.Task) taskJSON {
 	return taskJSON{
-		ID: t.ID, Type: t.Type, Title: t.Title, Status: t.Status, Parent: t.Parent,
+		ID: string(t.ID), Type: t.Type, Title: t.Title, Status: t.Status, Parent: string(t.Parent),
 		Created:     t.Created.UTC().Format(time.RFC3339),
 		Updated:     t.Updated.UTC().Format(time.RFC3339),
 		Description: t.Description,

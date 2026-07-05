@@ -7,7 +7,7 @@ import (
 	"github.com/pashukhin/mtt/pkg/mtt"
 )
 
-func node(id, parent string, created time.Time) mtt.Task {
+func node(id, parent mtt.TaskID, created time.Time) mtt.Task {
 	return mtt.Task{ID: id, Type: "task", Status: "tbd", Parent: parent, Created: created, Updated: created}
 }
 
@@ -53,7 +53,7 @@ func TestIndexAncestorsCycleSafe(t *testing.T) {
 func ids(ts []mtt.Task) []string {
 	out := make([]string, len(ts))
 	for i, t := range ts {
-		out[i] = t.ID
+		out[i] = string(t.ID)
 	}
 	return out
 }

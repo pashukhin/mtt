@@ -48,7 +48,11 @@ func newTreeCmd() *cobra.Command {
 			idx := core.NewIndex(tasks)
 			var roots []mtt.Task
 			if len(args) == 1 {
-				t, ok := idx.Get(args[0])
+				id, err := mtt.NewTaskID(args[0])
+				if err != nil {
+					return err
+				}
+				t, ok := idx.Get(id)
 				if !ok {
 					return fmt.Errorf("task %q not found", args[0])
 				}
@@ -91,13 +95,13 @@ func parseKinds(vals []string) ([]mtt.StatusKind, error) {
 // matches (non-matching ancestors remain as the path). maxDepth <= 0 is
 // unlimited; maxDepth n shows n levels below (and including) each root.
 func renderTree(x core.Index, roots []mtt.Task, f core.ListFilter, cfg mtt.Config, maxDepth int) string {
-	keep := map[string]bool{}
+	keep := map[mtt.TaskID]bool{}
 	for _, r := range roots {
-		markVisible(x, r.ID, f, cfg, keep, map[string]bool{})
+		markVisible(x, r.ID, f, cfg, keep, map[mtt.TaskID]bool{})
 	}
 	var b strings.Builder
-	var walk func(t mtt.Task, prefix string, isLast, root bool, level int, seen map[string]bool)
-	walk = func(t mtt.Task, prefix string, isLast, root bool, level int, seen map[string]bool) {
+	var walk func(t mtt.Task, prefix string, isLast, root bool, level int, seen map[mtt.TaskID]bool)
+	walk = func(t mtt.Task, prefix string, isLast, root bool, level int, seen map[mtt.TaskID]bool) {
 		if !keep[t.ID] || seen[t.ID] {
 			return
 		}
@@ -128,7 +132,7 @@ func renderTree(x core.Index, roots []mtt.Task, f core.ListFilter, cfg mtt.Confi
 		}
 	}
 	for _, r := range roots {
-		walk(r, "", true, true, 1, map[string]bool{})
+		walk(r, "", true, true, 1, map[mtt.TaskID]bool{})
 	}
 	return b.String()
 }
@@ -144,12 +148,12 @@ type treeNodeJSON struct {
 // filter and depth as renderTree. The top level is always a non-nil slice so an
 // empty result marshals to [] (never null).
 func buildTreeJSON(x core.Index, roots []mtt.Task, f core.ListFilter, cfg mtt.Config, maxDepth int) []treeNodeJSON {
-	keep := map[string]bool{}
+	keep := map[mtt.TaskID]bool{}
 	for _, r := range roots {
-		markVisible(x, r.ID, f, cfg, keep, map[string]bool{})
+		markVisible(x, r.ID, f, cfg, keep, map[mtt.TaskID]bool{})
 	}
-	var build func(t mtt.Task, level int, seen map[string]bool) treeNodeJSON
-	build = func(t mtt.Task, level int, seen map[string]bool) treeNodeJSON {
+	var build func(t mtt.Task, level int, seen map[mtt.TaskID]bool) treeNodeJSON
+	build = func(t mtt.Task, level int, seen map[mtt.TaskID]bool) treeNodeJSON {
 		node := treeNodeJSON{taskJSON: toTaskJSON(t)}
 		seen[t.ID] = true
 		if maxDepth > 0 && level+1 > maxDepth {
@@ -166,7 +170,7 @@ func buildTreeJSON(x core.Index, roots []mtt.Task, f core.ListFilter, cfg mtt.Co
 	out := make([]treeNodeJSON, 0, len(roots))
 	for _, r := range roots {
 		if keep[r.ID] {
-			out = append(out, build(r, 1, map[string]bool{}))
+			out = append(out, build(r, 1, map[mtt.TaskID]bool{}))
 		}
 	}
 	return out
@@ -174,7 +178,7 @@ func buildTreeJSON(x core.Index, roots []mtt.Task, f core.ListFilter, cfg mtt.Co
 
 // markVisible memoizes into keep whether id should appear: it matches the filter
 // or some descendant does. seen guards against cycles in hand-broken data.
-func markVisible(x core.Index, id string, f core.ListFilter, cfg mtt.Config, keep, seen map[string]bool) bool {
+func markVisible(x core.Index, id mtt.TaskID, f core.ListFilter, cfg mtt.Config, keep, seen map[mtt.TaskID]bool) bool {
 	if seen[id] {
 		return keep[id]
 	}
@@ -191,7 +195,7 @@ func markVisible(x core.Index, id string, f core.ListFilter, cfg mtt.Config, kee
 }
 
 // visibleChildren returns id's direct children that survive the keep set.
-func visibleChildren(x core.Index, id string, keep map[string]bool) []mtt.Task {
+func visibleChildren(x core.Index, id mtt.TaskID, keep map[mtt.TaskID]bool) []mtt.Task {
 	all := x.Children(id)
 	out := make([]mtt.Task, 0, len(all))
 	for _, c := range all {
