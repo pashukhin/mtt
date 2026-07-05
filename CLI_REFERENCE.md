@@ -125,7 +125,7 @@ Prints tasks in a stable order. Filters combine with AND.
 - `--kind <initial|active|terminal>…` — filter by status category (session 004). *(implemented)*
 - `--type <type>…` — filter by task type. *(implemented)*
 - `--parent <id>` — only direct children of this task (session 004). *(implemented)*
-- `--ready` — only tasks that are ready (no open blockers) — shorthand for `mtt ready`. *(later)*
+- `--ready` — only tasks that are ready (no open blockers) — shorthand for `mtt ready`. *(implemented, session 005)*
 - `--sort <created|updated>` — ordering key; default `created`, both descending, tie-broken by ID.
   *(implemented)*
 
@@ -178,22 +178,32 @@ the task is not `ready` (open dependencies).
 Transitions the task to `cancelled` (a terminal that unblocks its dependents). `[reason]` is recorded in
 the history. Does not run the `done` gate.
 
-### `mtt ready [flags]` — list actionable tasks  *(phase 2)*
+### `mtt ready [flags]` — list actionable tasks  *(session 005, implemented)*
 Lists non-terminal tasks whose blockers are all in a terminal status (`done`/`cancelled`) — "what can be
-picked up next". Accepts the `list` filters.
+picked up next". Accepts the `list` filters (`--status`/`--type`/`--kind`/`--parent`) and `--json`.
+Readiness is **conservative**: a dangling blocker or a status not in the current flow leaves a task not
+ready (`mtt list --ready` is the same subset via `list`).
 
 ---
 
-## Dependencies  *(phase 2; capability `DependencyStore`)*
+## Dependencies  *(session 005, implemented; the `DependencyStore` capability is for external adapters only)*
+
+`depends_on` is a **blocking** edge (distinct from hierarchy `parent` and informational `refs`). It rides
+the `Task` field and round-trips via `TaskStore.Update` — the YAML reference needs **no dedicated port**.
 
 ### `mtt dep add <id> <depends-on-id>` — add a blocking dependency
-Makes `<id>` depend on `<depends-on-id>`. Rejected if it would create a cycle.
+Makes `<id>` depend on `<depends-on-id>`. Both tasks must exist. Rejected if it would create a **cycle** or
+is a **self-edge**; re-adding an existing edge is an idempotent no-op. With `--json`, echoes the updated task.
 
 ### `mtt dep rm <id> <depends-on-id>` — remove a dependency
+Removes the edge; errors if the task does not depend on that id.
 
 ### `mtt dep list <id>` — list a task's dependencies and dependents
-- `--tree` — show the transitive dependency tree.
-- `--cycles` — report dependency cycles in the project.
+Prints the task's direct blockers (`depends on:`, dangling targets flagged `(missing)`) and its **computed**
+dependents (`required by:`). With `--json`, emits `{id, depends_on, required_by}` (non-null arrays).
+- `--tree` — show the transitive dependency tree (cycle-safe; nested `--json`).
+- `--cycles` — report dependency cycles in the project (defensive — `dep add` rejects cycles, so this only
+  fires on hand-edited data).
 
 ---
 

@@ -420,21 +420,26 @@ var NewIndex func(tasks []Task) Index
 
 // Ready reports the actionable tasks: status not terminal AND every DependsOn is
 // terminal (by Kind category, never a literal). Pure read over the task set +
-// config. Likely a flat pass plus a cycle guard reusing the visited-set pattern. [T1/s005]
+// config. Conservative: an unresolvable status or a dangling blocker leaves a
+// task not-ready. One primitive behind mtt ready and list --ready. [shipped s005]
 var Ready func(tasks []Task, cfg Config) []Task
 
 // DependencyEditor mutates DependsOn (add/remove) and persists via
 // TaskStore.Update by default (YAML path), rejecting cycles first. A
 // DependencyStore is used only when the backend advertises it and cannot embed.
-// Shown as a usecase to make the cycle-check ownership explicit (it is CORE). [T1/s005]
+// Shown as a usecase to make the cycle-check ownership explicit (it is CORE).
+// Shipped in s005 as a concrete struct (add/rm mutate DependsOn, reject self +
+// cycles via DepGraph.Reaches, idempotent duplicate add). [shipped s005]
 type DependencyEditor interface {
 	AddDependency(id, dependsOn TaskID) (Task, error)
 	RemoveDependency(id, dependsOn TaskID) (Task, error)
 }
 
-// NewDependencyEditor wires dependency mutation; the DependencyStore is optional
-// (nil → embed-and-Update path). [T1/s005]
-var NewDependencyEditor func(store TaskStore, dep DependencyStore, now func() time.Time) DependencyEditor
+// NewDependencyEditor wires dependency mutation. Shipped (s005) with a YAGNI
+// signature — no DependencyStore param: the edge rides Task.DependsOn and
+// persists via Update. The capability port is added only when an external
+// adapter that cannot embed the field needs it. [shipped s005]
+var NewDependencyEditor func(store TaskStore, now func() time.Time) DependencyEditor
 
 // Runner executes a transition's Commands and reports each result. It is defined
 // in CORE (only core uses it), implemented in internal/adapter/exec, faked in
@@ -536,6 +541,8 @@ type ResolvedEdge struct {
 //     for external backends that cannot embed. If accepted, s005 adds NO port —
 //     only core.DependencyEditor + Ready, mirroring how s004 added --parent with
 //     no new port. (Recommendation: accept.)
+//     RESOLVED (s005): accepted — DependencyEditor + Ready shipped, no port; the
+//     DependencyStore param was dropped from NewDependencyEditor (YAGNI).
 //
 //  2. Typed-identity retrofit. DONE (chore 004.5). The shipped pkg/mtt/core/
 //     adapter/cli now use TaskID/TypeName/StatusName; the YAML DTO keeps plain
@@ -561,6 +568,10 @@ type ResolvedEdge struct {
 //     idea. Do they share one traversal primitive (visited-set + injected
 //     edge-provider) or stay separate? A shared primitive is DRY but must not
 //     force a premature abstraction — revisit when s005 lands the second graph.
+//     RESOLVED (s005): DepGraph (over DependsOn) landed and was kept SEPARATE
+//     from Index — a shared primitive would be forced (single-parent tree walked
+//     upward vs multi-edge DAG walked downward with a computed reverse index).
+//     Revisit if a third graph (ResolvedFlow, s006) naturally shares it.
 //
 //  7. External-adapter authority (T3). For a subprocess/Jira adapter, which flow
 //     is authoritative — our config or the backend's native workflow — and how our

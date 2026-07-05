@@ -1,6 +1,6 @@
 # 005 — Dependencies
 
-Status: planned   ·   Branch: `feat/s005-dependencies`
+Status: done   ·   Branch: `feat/s005-dependencies`
 
 ## Target
 
@@ -68,4 +68,32 @@ question (see spec).
 
 ## Done (fill during/after the session)
 
-<What was actually built; deviations from the plan; follow-ups spun out into later sessions.>
+Shipped (all test-first, `make check` + CI green):
+
+- **`internal/core`**: `Ready` (pure, conservative — unresolvable status/dangling blocker → not ready) + a
+  shared `kindOf` helper (DRYs the type→`StatusKind` lookup with `matchesKind`); `DependencyEditor`
+  (`AddDependency`/`RemoveDependency` via `TaskStore.Update` — self + cycle rejected, duplicate add
+  idempotent, absent-edge remove errors); `DepGraph` (derived over `depends_on`:
+  `Get`/`DependsOn`/`Dependents`(computed)/`Reaches`/`Cycles`), cycle-safe, kept **separate** from `Index`.
+- **`internal/adapter/yaml`**: no store change — added a focused `depends_on` DTO round-trip test (GAP #1
+  confirmed: the edge rides the `Task` field).
+- **`internal/cli`**: `mtt dep add/rm <id> <dep-id>` (via `core.DependencyEditor`); `mtt dep list <id>`
+  (`depends on:` + computed `required by:`, dangling → `(missing)`; `--tree` transitive cycle-safe;
+  `--cycles` project-wide defensive; non-null `--json`); `mtt ready` and `list --ready` sharing one
+  primitive `Select(Ready(tasks, cfg), filter, cfg)`; shared `toStatusNames`/`toTypeNames` converters.
+- **Tests**: unit (fixed clock) for `Ready` (incl. `done`-blocker unblocks via fixture), `DepGraph`
+  (dependents/Reaches/Cycles hand-built), `DependencyEditor` (self/dup/notfound/cycle/rm), `renderDepList`/
+  `renderDepTree`/JSON builders; e2e `dep.txt` (add/list/rm/self/cycle/tree/cycles) + `ready.txt`
+  (blocking + `list --ready` + non-null json).
+- **Docs**: DESIGN.md/.ru (Dependencies rewrite + `cancelled`-blocker deferred marker), CLI_REFERENCE.md/.ru
+  (dep/ready/list --ready implemented), core + cli `CLAUDE.md`, `model.go` (GAP #1/#6 resolved,
+  `NewDependencyEditor` signature, Ready/DependencyEditor shipped), TASKS.md (e3_t2–t4 ticked + marker).
+
+Decisions (full detail in the spec): **no new port** (GAP #1 — edge on `Task.DependsOn` + `Update`);
+**conservative ready** (unresolvable = blocks); `NewDependencyEditor(store, now)` — **YAGNI**, no
+`DependencyStore` param; `DepGraph` kept **separate** from `Index` (GAP #6 not extracted); one `Ready`
+primitive for `ready` + `list --ready`.
+
+Deferred (don't lose): **`cancelled`-blocker semantics** (a cancelled blocker unblocks by `kind` — revisit
+in s006 when terminals become reachable); the `DependencyStore` capability port (external adapters);
+`--depends-on` on `add`; `refs`/backlinks → s008; the durable edit-audit + subject-identity (`By`) slice.
