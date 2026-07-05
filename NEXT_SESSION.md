@@ -171,27 +171,35 @@ resolved graph, and open gaps. Two decisions locked there that shape s005:
 
 ## Ready-to-paste kickoff prompt (for a new session)
 
-> We're continuing mtt. Sessions 001 (init & types), 002 (create & view), 003 (list & edit), and 004
-> (hierarchy) are done (merged to `main`, version `0.4.0-dev`, `make check` green). Read, in order: CLAUDE.md,
-> AGENTS.md, DESIGN.md, TASKS.md, NEXT_SESSION.md, sessions/README.md, sessions/004_hierarchy.md (for the
-> shipped `Index`/`Match`/`Adder` shape), and CLI_REFERENCE.md. Make sure the superpowers skills are active
-> (otherwise activate them per NEXT_SESSION.md). We work in compact sessions; do **session 005 (dependencies)**
-> on branch `feat/s005-dependencies`: first create `sessions/005_dependencies.md` from
-> `sessions/000_template.md` and brainstorm/refine the plan (superpowers brainstorming → writing-plans), then
+> We're continuing mtt. Sessions 001–004 and chore **004.5 (typed-identity retrofit)** are merged to `main`,
+> version `0.4.0-dev`, `make check` + CI green. The shipped `pkg/mtt`/`core`/`adapter`/`cli` surface is now
+> typed (`TaskID`/`TypeName`/`StatusName`, snapshot Gap #2 closed) — write s005 against the typed contract.
+> Read, in order: CLAUDE.md, AGENTS.md, DESIGN.md, NEXT_SESSION.md, sessions/README.md,
+> `docs/architecture/model.go` (`Ready`, `DependencyEditor`, GAPS #1 and #6), TASKS.md,
+> sessions/004_hierarchy.md (shipped `Index`/`Match`/`Adder` shape), CLI_REFERENCE.md. Confirm the superpowers
+> skills are active (else activate per NEXT_SESSION.md).
+>
+> Do **session 005 (dependencies)** on branch `feat/s005-dependencies` off fresh `main`: first create
+> `sessions/005_dependencies.md` from `sessions/000_template.md`, then brainstorm → writing-plans, then
 > implement strictly test-first until the acceptance e2e + `make check` are green; branch → PR → CI green →
-> merge to `main`.
+> squash into `main`.
 >
 > Scope: `mtt dep add/rm/list <id>` (manage `depends_on`, a blocking edge distinct from hierarchy/`refs`),
 > cycle rejection on add, and `mtt ready` (ready ⇔ status not terminal AND all `depends_on` terminal — by
-> `kind` category, never a literal). Architecture stays `cli → core → port ← adapter`; `core` must NOT import
-> `adapter/*`. Reuse 004's seams: cycle-safe traversal mirrors `core.Index` (over `depends_on`, not `parent`);
-> `ready` is a pure read (category via `Type.StatusKind`, like `core.Match`); `dep add/rm` is a `core`
-> mutation. `DependencyStore` is an optional capability (YAML is the reference); confirm `Update` suffices
-> (`depends_on` is already a round-tripped `Task` field, as `Parent` was in 004).
+> `kind` category, never a literal); consider `list --ready` as a shorthand companion. Architecture stays
+> `cli → core → port ← adapter`; `core` must NOT import `adapter/*`. **Snapshot GAP #1 (confirm on brainstorm):
+> s005 adds no new port** — `depends_on` rides the `Task` field + `TaskStore.Update` (as `parent` did in 004);
+> `DependencyStore` is only for external adapters that cannot embed. So s005 = `core.DependencyEditor` +
+> `Ready` + cycle-check. Reuse 004's seams: cycle-safe traversal mirrors `core.Index` (over `depends_on`, not
+> `parent`); `ready` is a pure read (category via `Type.StatusKind`, like `core.Match`); `dep add/rm` is a
+> `core` mutation. Everything is typed — use `mtt.TaskID` (`depends_on []TaskID`); convert strings only at the
+> cli/adapter boundary (as in 004.5). Weigh GAP #6 (a shared visited-set traversal primitive for
+> Parent/DependsOn/flow) but **avoid premature abstraction** — extract only if the second graph naturally
+> shares it.
 >
-> Heed the "Carry-over lessons" in NEXT_SESSION.md (CLI stdout via `fmt.Fprint(cmd.OutOrStdout(), …)`;
-> anchor testscript assertions; `golangci unused`; keep each package's `CLAUDE.md` current; provider-agnostic
-> order, unit-test order + e2e asserts presence; zero-match `--json` must serialize `[]` not `null`; derived
-> graphs live in `core` not the contract; one shared predicate for filters). Note the **open design slice**
-> parked in NEXT_SESSION.md (durable edit-audit + subject-identity `By` source) — not in scope for 005, just
-> don't lose it. Follow SOLID/DRY/KISS/TDD/DDD/clean-architecture and the self-check from AGENTS.md.
+> Heed the "Carry-over lessons" below (CLI stdout via `fmt.Fprint(cmd.OutOrStdout(), …)`; anchored testscript
+> asserts; `golangci unused` — declare a symbol with its first use; keep each `CLAUDE.md` current;
+> provider-agnostic order, unit-test order + e2e asserts presence; zero-match `--json` = `[]` not `null`;
+> derived graphs live in `core`, not the contract; one shared predicate for filters). Don't lose the **open
+> design slice** (durable edit-audit + subject-identity `By`) — not in s005's scope. Follow
+> SOLID/DRY/KISS/TDD/DDD/clean-architecture and the AGENTS.md self-check.
