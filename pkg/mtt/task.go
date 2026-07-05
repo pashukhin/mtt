@@ -8,7 +8,7 @@ import "time"
 // sessions and omitted from storage while empty.
 type Task struct {
 	ID          TaskID
-	Type        string
+	Type        TypeName
 	Title       string
 	Status      string
 	Parent      TaskID

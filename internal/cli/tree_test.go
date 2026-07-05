@@ -14,7 +14,7 @@ func treeCfg() mtt.Config {
 		{Name: "epic", Flow: mtt.Flow{Statuses: []mtt.Status{
 			{Name: "tbd", Kind: mtt.KindInitial}, {Name: "doing", Kind: mtt.KindActive}, {Name: "done", Kind: mtt.KindTerminal},
 		}}},
-		{Name: "task", Parents: []string{"epic"}, Flow: mtt.Flow{Statuses: []mtt.Status{
+		{Name: "task", Parents: []mtt.TypeName{"epic"}, Flow: mtt.Flow{Statuses: []mtt.Status{
 			{Name: "tbd", Kind: mtt.KindInitial}, {Name: "doing", Kind: mtt.KindActive}, {Name: "done", Kind: mtt.KindTerminal},
 		}}},
 	}}

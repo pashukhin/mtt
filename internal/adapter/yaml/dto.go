@@ -52,7 +52,7 @@ func (yc ymlConfig) toDomain() (mtt.Config, map[string]string) {
 	cfg := mtt.Config{Version: yc.Version, Project: mtt.Project{Name: yc.Project.Name}}
 	prefixes := make(map[string]string, len(yc.Types))
 	for _, yt := range yc.Types {
-		t := mtt.Type{Name: yt.Name, Description: yt.Description, Parents: yt.Parents, Default: yt.Default}
+		t := mtt.Type{Name: mtt.TypeName(yt.Name), Description: yt.Description, Parents: toTypeNames(yt.Parents), Default: yt.Default}
 		for _, ys := range yt.Statuses {
 			t.Statuses = append(t.Statuses, mtt.Status{Name: ys.Name, Kind: mtt.StatusKind(ys.Kind), Description: ys.Description})
 		}
@@ -63,6 +63,18 @@ func (yc ymlConfig) toDomain() (mtt.Config, map[string]string) {
 		prefixes[yt.Name] = yt.Prefix
 	}
 	return cfg, prefixes
+}
+
+// toTypeNames maps on-disk parent-type strings to typed names.
+func toTypeNames(names []string) []mtt.TypeName {
+	if len(names) == 0 {
+		return nil
+	}
+	out := make([]mtt.TypeName, len(names))
+	for i, n := range names {
+		out[i] = mtt.TypeName(n)
+	}
+	return out
 }
 
 // checkPrefixes enforces the YAML provider's stricter rules: exactly one default
@@ -80,7 +92,7 @@ func checkPrefixes(cfg mtt.Config, prefixes map[string]string) error {
 	}
 	seen := make(map[string]string, len(prefixes))
 	for _, t := range cfg.Types {
-		p := prefixes[t.Name]
+		p := prefixes[string(t.Name)]
 		if p == "" {
 			errs = append(errs, fmt.Errorf("type %q: missing prefix", t.Name))
 			continue
@@ -88,7 +100,7 @@ func checkPrefixes(cfg mtt.Config, prefixes map[string]string) error {
 		if other, dup := seen[p]; dup {
 			errs = append(errs, fmt.Errorf("type %q: prefix %q already used by type %q", t.Name, p, other))
 		}
-		seen[p] = t.Name
+		seen[p] = string(t.Name)
 	}
 	return errors.Join(errs...)
 }

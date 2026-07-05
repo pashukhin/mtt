@@ -29,7 +29,7 @@ func (s *Store) Create(t mtt.Task) (mtt.Task, error) {
 	if err != nil {
 		return mtt.Task{}, err
 	}
-	prefix := prefixes[t.Type]
+	prefix := prefixes[string(t.Type)]
 	if prefix == "" {
 		return mtt.Task{}, fmt.Errorf("type %q: no prefix (unknown or prefixless type)", t.Type)
 	}

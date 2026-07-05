@@ -46,8 +46,8 @@ func TestValidateErrors(t *testing.T) {
 			t2.Name = "bug"
 			c.Types = append(c.Types, t2)
 		}, "at most one"},
-		{"unknown parent", func(c *Config) { c.Types[0].Parents = []string{"ghost"} }, "unknown parent"},
-		{"self parent", func(c *Config) { c.Types[0].Parents = []string{"task"} }, "its own parent"},
+		{"unknown parent", func(c *Config) { c.Types[0].Parents = []TypeName{"ghost"} }, "unknown parent"},
+		{"self parent", func(c *Config) { c.Types[0].Parents = []TypeName{"task"} }, "its own parent"},
 		{"dup status", func(c *Config) {
 			c.Types[0].Statuses = append(c.Types[0].Statuses, Status{Name: "tbd", Kind: KindInitial})
 		}, "duplicate status"},

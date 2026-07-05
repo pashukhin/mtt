@@ -45,8 +45,8 @@ func flow() mtt.Flow {
 func cfg() mtt.Config {
 	return mtt.Config{Types: []mtt.Type{
 		{Name: "epic", Flow: flow()},
-		{Name: "task", Parents: []string{"epic"}, Default: true, Flow: flow()},
-		{Name: "subtask", Parents: []string{"task"}, Flow: flow()},
+		{Name: "task", Parents: []mtt.TypeName{"epic"}, Default: true, Flow: flow()},
+		{Name: "subtask", Parents: []mtt.TypeName{"task"}, Flow: flow()},
 	}}
 }
 

@@ -12,7 +12,7 @@ func (c Config) Validate() error {
 	if len(c.Types) == 0 {
 		errs = append(errs, errors.New("config: at least one type is required"))
 	}
-	seen := make(map[string]bool, len(c.Types))
+	seen := make(map[TypeName]bool, len(c.Types))
 	defaults := 0
 	for _, t := range c.Types {
 		if seen[t.Name] {

@@ -46,7 +46,7 @@ func newAddCmd() *cobra.Command {
 				title = args[0]
 			}
 			adder := core.NewAdder(yaml.NewTaskStore(root), cfg, time.Now)
-			task, err := adder.Add(core.AddParams{Title: title, TypeName: typeName, Parent: mtt.TaskID(parent), NoParent: noParent, Description: desc})
+			task, err := adder.Add(core.AddParams{Title: title, TypeName: mtt.TypeName(typeName), Parent: mtt.TaskID(parent), NoParent: noParent, Description: desc})
 			if err != nil {
 				return err
 			}

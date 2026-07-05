@@ -20,7 +20,7 @@ const (
 // match everything; within a field the values are OR-ed, across fields AND-ed.
 type ListFilter struct {
 	Statuses []string
-	Types    []string
+	Types    []mtt.TypeName
 	Kinds    []mtt.StatusKind
 	Parent   mtt.TaskID
 	Sort     SortKey
@@ -78,7 +78,7 @@ func Select(tasks []mtt.Task, f ListFilter, cfg mtt.Config) []mtt.Task {
 }
 
 // anyOrEmpty reports whether values is empty (match everything) or contains v.
-func anyOrEmpty(values []string, v string) bool {
+func anyOrEmpty[T comparable](values []T, v T) bool {
 	if len(values) == 0 {
 		return true
 	}

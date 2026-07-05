@@ -28,7 +28,7 @@ func NewAdder(store mtt.TaskStore, cfg mtt.Config, now func() time.Time) *Adder 
 // NoParent creates a parent-requiring type at top level (a conscious exception).
 type AddParams struct {
 	Title       string
-	TypeName    string
+	TypeName    mtt.TypeName
 	Parent      mtt.TaskID
 	NoParent    bool
 	Description string

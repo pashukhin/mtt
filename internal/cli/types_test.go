@@ -41,7 +41,7 @@ func TestFormatTypes(t *testing.T) {
 func TestFormatTypesFilter(t *testing.T) {
 	cfg := mtt.Config{Types: []mtt.Type{
 		{Name: "epic", Parents: nil, Flow: mtt.Flow{Statuses: []mtt.Status{{Name: "a", Kind: mtt.KindInitial}}}},
-		{Name: "task", Parents: []string{"epic"}},
+		{Name: "task", Parents: []mtt.TypeName{"epic"}},
 	}}
 	out, err := formatTypes(cfg, map[string]string{"epic": "e", "task": "t"}, "task")
 	if err != nil {

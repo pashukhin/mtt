@@ -23,8 +23,8 @@ func TestDefaultType(t *testing.T) {
 func TestChildrenIn(t *testing.T) {
 	c := Config{Types: []Type{
 		{Name: "epic"},
-		{Name: "task", Parents: []string{"epic"}},
-		{Name: "subtask", Parents: []string{"task"}},
+		{Name: "task", Parents: []TypeName{"epic"}},
+		{Name: "subtask", Parents: []TypeName{"task"}},
 	}}
 	kids := c.Types[0].ChildrenIn(c)
 	if len(kids) != 1 || kids[0].Name != "task" {
@@ -38,7 +38,7 @@ func TestChildrenIn(t *testing.T) {
 func names(ts []Type) []string {
 	out := make([]string, len(ts))
 	for i, t := range ts {
-		out[i] = t.Name
+		out[i] = string(t.Name)
 	}
 	return out
 }
@@ -47,7 +47,7 @@ func TestIsRoot(t *testing.T) {
 	if !(Type{}).IsRoot() {
 		t.Fatal("no parents => root")
 	}
-	if (Type{Parents: []string{"epic"}}).IsRoot() {
+	if (Type{Parents: []TypeName{"epic"}}).IsRoot() {
 		t.Fatal("with parents => not root")
 	}
 }
