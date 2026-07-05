@@ -46,3 +46,12 @@ stdout '"id": "s1"'
 # an empty subtree filter still yields a JSON array, never null
 exec mtt tree --status ghost --json
 stdout '\[\]'
+
+# show renders the lineage breadcrumb (root-first) for a nested task
+exec mtt show s1
+stdout 's1  subtask  \[tbd\]'
+stdout 'lineage:  e1 › t1'
+
+# a root task has no lineage line
+exec mtt show e1
+! stdout 'lineage:'

@@ -9,6 +9,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/pashukhin/mtt/internal/adapter/yaml"
+	"github.com/pashukhin/mtt/internal/core"
 	"github.com/pashukhin/mtt/pkg/mtt"
 )
 
@@ -28,7 +29,8 @@ func newShowCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			task, err := yaml.NewTaskStore(root).Get(args[0])
+			store := yaml.NewTaskStore(root)
+			task, err := store.Get(args[0])
 			if err != nil {
 				if errors.Is(err, mtt.ErrNotFound) {
 					return fmt.Errorf("task %q not found", args[0])
@@ -38,19 +40,31 @@ func newShowCmd() *cobra.Command {
 			if jsonFlag(cmd) {
 				return writeJSON(cmd.OutOrStdout(), toTaskJSON(task))
 			}
-			_, err = fmt.Fprint(cmd.OutOrStdout(), formatTask(task))
+			tasks, err := store.List()
+			if err != nil {
+				return err
+			}
+			lineage := core.NewIndex(tasks).Ancestors(task.ID)
+			_, err = fmt.Fprint(cmd.OutOrStdout(), formatTask(task, lineage))
 			return err
 		},
 	}
 }
 
-// formatTask renders a task as a human-readable block. The parent line shows the
-// raw parent ID; the computed lineage ("you are here") arrives in session 004.
-func formatTask(t mtt.Task) string {
+// formatTask renders a task as a human-readable block. ancestors is the
+// root-first parent chain (empty for a root task); it prints a "lineage" line.
+func formatTask(t mtt.Task, ancestors []mtt.Task) string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "%s  %s  [%s]\n", t.ID, t.Type, t.Status)
 	if t.Title != "" {
 		fmt.Fprintf(&b, "  title:    %s\n", t.Title)
+	}
+	if len(ancestors) > 0 {
+		ids := make([]string, len(ancestors))
+		for i, a := range ancestors {
+			ids[i] = a.ID
+		}
+		fmt.Fprintf(&b, "  lineage:  %s\n", strings.Join(ids, " › "))
 	}
 	if t.Parent != "" {
 		fmt.Fprintf(&b, "  parent:   %s\n", t.Parent)

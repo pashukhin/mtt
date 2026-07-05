@@ -11,7 +11,7 @@ import (
 func TestFormatTask(t *testing.T) {
 	ts := time.Date(2026, 7, 4, 9, 20, 0, 0, time.UTC)
 	got := formatTask(mtt.Task{ID: "t1", Type: "task", Title: "fix login", Status: "tbd",
-		Parent: "e1", Created: ts, Updated: ts, Description: "do the thing"})
+		Parent: "e1", Created: ts, Updated: ts, Description: "do the thing"}, nil)
 	want := "t1  task  [tbd]\n" +
 		"  title:    fix login\n" +
 		"  parent:   e1\n" +
@@ -22,7 +22,7 @@ func TestFormatTask(t *testing.T) {
 		t.Fatalf("formatTask mismatch:\n got: %q\nwant: %q", got, want)
 	}
 	// no title, no parent, no description => those lines are omitted
-	bare := formatTask(mtt.Task{ID: "e1", Type: "epic", Status: "tbd", Created: ts, Updated: ts})
+	bare := formatTask(mtt.Task{ID: "e1", Type: "epic", Status: "tbd", Created: ts, Updated: ts}, nil)
 	if strings.Contains(bare, "title:") || strings.Contains(bare, "parent:") {
 		t.Fatalf("bare task should omit title/parent lines: %q", bare)
 	}
