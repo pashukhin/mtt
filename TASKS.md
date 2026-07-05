@@ -18,6 +18,30 @@ via `projectRoot`; also DRYs the repeated `Getwd → FindRoot`); `[x]` `--json` 
 
 ---
 
+## Status & session mapping (updated 2026-07-05)
+
+Sessions are the operative slices (see [sessions/README.md](sessions/README.md)); the phase epics below are
+the architectural axis. They map many-to-one, not one-to-one. Current position:
+
+- **Phase 0 (e1)** — `[x]` scaffold.
+- **Phase 1 (e2)** — `[~]` shipped across **s001** (init & types), **s002** (add & show), **s003** (list &
+  edit + global flags). Not done: `mtt close` (a status change → belongs to phase 3/flow, not phase 1) and
+  the **optional capability interfaces** (`HistoryStore`/`DependencyStore`/`CommentStore`/`SearchStore`,
+  `Capabilities()`, `ErrUnsupported`) — deliberately NOT built yet; now designed in
+  [docs/architecture/model.go](docs/architecture/model.go) and added per capability when first needed.
+- **Phase 2 (e3)** — `[~]` hierarchy (index/traversal, `tree`, `show` lineage, `add --parent`,
+  `list --parent/--kind`) shipped in **s004**; dependencies / `ready` / cycles are **s005** (next).
+
+Two decisions from the domain-model snapshot ([docs/architecture/model.go](docs/architecture/model.go)):
+
+1. **s005 adds no new port.** `depends_on` is a `Task` field round-tripped via `TaskStore.Update` (as
+   `parent` was in s004); `DependencyStore` is only for external adapters that cannot embed. s005 = core
+   `DependencyEditor` + `Ready` + cycle-check, no `pkg/mtt` port method.
+2. **Typed-identity retrofit** (`TaskID`/`TypeName`/`StatusName`) — a small chore recommended **before s005**
+   so new code is written against the typed surface (the shipped code still uses bare `string`).
+
+---
+
 ## e1 — Phase 0: project scaffold  `[x]`
 
 - [x] e1_t1 — git init, Go module `github.com/pashukhin/mtt`, `main` branch
@@ -27,7 +51,7 @@ via `projectRoot`; also DRYs the repeated `Getwd → FindRoot`); `[x]` `--json` 
 - [x] e1_t5 — DESIGN.md, AGENTS.md, README.md
 - [x] e1_t6 — guards: principles (SOLID/DRY/KISS/TDD), hierarchical CLAUDE.md, superpowers
 
-## e2 — Phase 1: `pkg/mtt` contract, config, `mtt init`, YAML adapter, core, commands  `[ ]`
+## e2 — Phase 1: `pkg/mtt` contract, config, `mtt init`, YAML adapter, core, commands  `[~]`
 
 Test-first, one subtask per branch+PR. **Start with planning** (see NEXT_SESSION.md); the breakdown
 below is a guide — planning refines it. Invariants: types/hierarchy come from config (no literals in
@@ -35,43 +59,43 @@ code); the **adapter** mints the ID/slug; exactly one type is marked `default` (
 flow has ≥1 status of each kind (initial/active/terminal), `kind` by topology; storage is behind a port;
 `core` doesn't import `adapter/*`.
 
-- [ ] e2_t1 — plan phase 1 (superpowers), reconcile with the DESIGN.md invariants
-- [ ] e2_t2 — `pkg/mtt` **pure** contract (no serialization tags, no `prefix`): `Config`, `Type`
+- [x] e2_t1 — plan phase 1 (superpowers), reconcile with the DESIGN.md invariants
+- [~] e2_t2 — `pkg/mtt` **pure** contract (no serialization tags, no `prefix`): `Config`, `Type`
       (`name/description/parents/default/flow`), `Flow`, `Status` (`name/kind/description`; `kind` a
       `StatusKind` **value object**), `Transition` (`from/to/description/commands`); `Task` (with
       `history[]`+`refs[]`), `Comment` (`refs[]`), `Ref` {kind,id,label}; the history entry reserves `role`
       — the roles seam; the base `TaskStore` + optional capability interfaces (`HistoryStore`,
       `DependencyStore`, `CommentStore`, `SearchStore`), `Capabilities()`, `ErrUnsupported`; references by
       identity, back-refs computed + `pkg/mtt/CLAUDE.md`
-- [ ] e2_t3 — config: type (`name/description/parents/default/statuses(with kind)/transitions`; `prefix`
+- [x] e2_t3 — config: type (`name/description/parents/default/statuses(with kind)/transitions`; `prefix`
       is a YAML-adapter field, held in the adapter DTO), **structural name-agnostic** invariant validation
       (kind↔topology; ≥1 of each kind; no 2-status flow; multiple initials ok; per-flow status identity, no
       cross-flow transitions; at-most-one `default` at the domain / exactly-one at the YAML provider; prefix
       present+unique in the adapter); the default template (via DTO→domain mapping); config load merges an
       optional gitignored `.mtt/config.local.yaml` overlay (personal params override committed config)
-- [ ] e2_t4 — `mtt init [--template default|coding]`: write the starter `.mtt/config.yaml` (`coding` =
+- [x] e2_t4 — `mtt init [--template default|coding]`: write the starter `.mtt/config.yaml` (`coding` =
       feature/bugfix/refactor with a gated per-type DoD — a demo of the enforcement value)
-- [ ] e2_t5 — `internal/adapter/yaml`: implement `TaskStore` **and all capability interfaces** (the
+- [~] e2_t5 — `internal/adapter/yaml`: implement `TaskStore` **and all capability interfaces** (the
       reference) — **ID minting** (`<prefix><N>`, **flat per-prefix** — not walking the parent chain —
       `max+1`, `O_EXCL`), deterministic serialization, atomic write (temp+rename), find the `.mtt/` root,
       load config + `.../yaml/CLAUDE.md`
-- [ ] e2_t6 — `internal/core`: the usecase layer (add/list/show/edit/close); parent-type validation;
+- [x] e2_t6 — `internal/core`: the usecase layer (add/list/show/edit/close); parent-type validation;
       creates a logical task and asks `TaskStore` for the ID + `internal/core/CLAUDE.md`
-- [ ] e2_t7 — golden tests for task and config serialization (`-update` flag)
-- [ ] e2_t8 — `mtt add` (type from config, `--parent`, `--title`)
-- [ ] e2_t9 — `mtt list` (filters: status/type/parent; stable order) + `mtt show <id>`
-- [ ] e2_t10 — `mtt edit` / `mtt close` (change fields/status)
-- [ ] e2_t11 — first `testscript` e2e scenario: init → add → list → show
+- [x] e2_t7 — golden tests for task and config serialization (`-update` flag)
+- [x] e2_t8 — `mtt add` (type from config, `--parent`, `--title`)
+- [x] e2_t9 — `mtt list` (filters: status/type/parent; stable order) + `mtt show <id>`
+- [~] e2_t10 — `mtt edit` / `mtt close` (change fields/status)
+- [x] e2_t11 — first `testscript` e2e scenario: init → add → list → show
 
-## e3 — Phase 2: hierarchy, dependencies, ready  `[ ]`
+## e3 — Phase 2: hierarchy, dependencies, ready  `[~]`
 
 (Dependencies — capability `DependencyStore`; if the adapter lacks it — `ErrUnsupported`.)
 
-- [ ] e3_t1 — `internal/core`: in-memory task index, hierarchy traversal
+- [x] e3_t1 — `internal/core`: in-memory task index, hierarchy traversal
 - [ ] e3_t2 — `depends_on`: add/remove, existence validation
 - [ ] e3_t3 — dependency cycle detection
 - [ ] e3_t4 — compute `ready` + the `mtt ready` command
-- [ ] e3_t5 — `mtt tree` (hierarchical output)
+- [x] e3_t5 — `mtt tree` (hierarchical output)
 - [ ] e3_t6 — resolve `refs` of kind `task`/`comment` (existence verification) + backlinks in `show`
 
 ## e4 — Phase 3: flow enforcement + executable transitions (the killer feature)  `[ ]`

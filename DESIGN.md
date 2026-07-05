@@ -565,8 +565,8 @@ has a text/ASCII Gantt. The latest phase.
 | Phase | Content | Status |
 |---|---|---|
 | 0 | Scaffold: repo, module, AGENTS/DESIGN, CLI skeleton, gate, CI | ✅ done |
-| 1 | `pkg/mtt` **pure** contract (domain types + `TaskStore` port); config+types (**structural** invariants: `kind` by topology, ≥1 of each, no name literals), `mtt init`; the YAML adapter **mints IDs** flat per-prefix (`e1`/`t17`/`s3`); core usecases + `add/list/show/edit/close` | |
-| 2 | Hierarchy (by `parents` from config); dependencies; `ready`; cycle detection | |
+| 1 | `pkg/mtt` **pure** contract (domain types + `TaskStore` port); config+types (**structural** invariants: `kind` by topology, ≥1 of each, no name literals), `mtt init`; the YAML adapter **mints IDs** flat per-prefix (`e1`/`t17`/`s3`); core usecases + `add/list/show/edit/close` | 🔄 s001–003 (`close` → phase 3; optional capability interfaces deferred, see [architecture snapshot](docs/architecture/model.go)) |
+| 2 | Hierarchy (by `parents` from config); dependencies; `ready`; cycle detection | 🔄 hierarchy done (s004); dependencies/`ready`/cycles → s005 |
 | 3 | Flow enforcement: transition validation + running `commands` (the `Runner` port), gating on exit codes; `mtt start/done/status` | |
 | 4 | Comments (tree) | |
 | — | **⬆ agent-facing MVP — fully usable** | |
@@ -616,4 +616,14 @@ internal/
   core/                    # usecase logic: hierarchy, dependencies, cycles, flow — only through ports
   adapter/
     yaml/                  # the default driven adapter: ports over .mtt/ files
+docs/
+  architecture/model.go    # code-form domain-model snapshot (target contract; not compiled into the binary)
 ```
+
+> **Domain-model snapshot.** [docs/architecture/model.go](docs/architecture/model.go) is a code-form,
+> tiered (T1/T2/T3) index of the intended contract surface — domain types + ports + optional capabilities,
+> core usecases with their dependencies, the derived resolved graph, and the open gaps. It is a design
+> reference (compiles, lint-clean, browsable via `go doc`), NOT imported by the binary; this prose stays
+> authoritative and the snapshot is its structural map. Two layers: **A** (contract/persisted aggregates) —
+> identity by typed value (`TaskID`/`TypeName`/`StatusName`), the serialization/provider boundary; **B**
+> (core-derived resolved graph) — pointer links for traversal, never serialized.
