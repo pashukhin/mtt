@@ -1,10 +1,6 @@
 package cli
 
 import (
-	"fmt"
-	"io"
-	"strings"
-
 	"github.com/spf13/cobra"
 
 	"github.com/pashukhin/mtt/internal/adapter/yaml"
@@ -12,26 +8,20 @@ import (
 	"github.com/pashukhin/mtt/pkg/mtt"
 )
 
-// newListCmd builds `mtt list`: list tasks with filters and a stable order.
-func newListCmd() *cobra.Command {
+// newReadyCmd builds `mtt ready`: list actionable tasks (non-terminal, all
+// blockers terminal). Accepts the list filters.
+func newReadyCmd() *cobra.Command {
 	var (
 		statuses []string
 		types    []string
 		kinds    []string
 		parent   string
-		sortKey  string
-		ready    bool
 	)
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List tasks",
+		Use:   "ready",
+		Short: "List actionable tasks (no open blockers)",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			switch sortKey {
-			case "", string(core.SortCreated), string(core.SortUpdated):
-			default:
-				return fmt.Errorf("invalid --sort %q: want created|updated", sortKey)
-			}
 			kindVals, err := parseKinds(kinds)
 			if err != nil {
 				return err
@@ -48,12 +38,11 @@ func newListCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			if ready {
-				tasks = core.Ready(tasks, cfg)
+			filter := core.ListFilter{
+				Statuses: toStatusNames(statuses), Types: toTypeNames(types),
+				Kinds: kindVals, Parent: mtt.TaskID(parent),
 			}
-			selected := core.Select(tasks, core.ListFilter{
-				Statuses: toStatusNames(statuses), Types: toTypeNames(types), Kinds: kindVals, Parent: mtt.TaskID(parent), Sort: core.SortKey(sortKey),
-			}, cfg)
+			selected := core.Select(core.Ready(tasks, cfg), filter, cfg)
 			if jsonFlag(cmd) {
 				views := make([]taskJSON, 0, len(selected))
 				for _, t := range selected {
@@ -66,21 +55,24 @@ func newListCmd() *cobra.Command {
 	}
 	cmd.Flags().StringArrayVar(&statuses, "status", nil, "filter by status (repeatable)")
 	cmd.Flags().StringArrayVar(&types, "type", nil, "filter by type (repeatable)")
-	cmd.Flags().StringVar(&sortKey, "sort", "", "sort order: created|updated (default created)")
 	cmd.Flags().StringArrayVar(&kinds, "kind", nil, "filter by status category: initial|active|terminal (repeatable)")
 	cmd.Flags().StringVar(&parent, "parent", "", "only direct children of this task id")
-	cmd.Flags().BoolVar(&ready, "ready", false, "only tasks that are ready (no open blockers)")
 	return cmd
 }
 
-// writeList renders tasks one per line: "<id>  <type>  [<status>]  <title>"
-// (the title is omitted when empty).
-func writeList(w io.Writer, tasks []mtt.Task) error {
-	var b strings.Builder
-	for _, t := range tasks {
-		b.WriteString(taskLine(t))
-		b.WriteString("\n")
+// toStatusNames / toTypeNames convert CLI string slices to typed identities.
+func toStatusNames(ss []string) []mtt.StatusName {
+	out := make([]mtt.StatusName, len(ss))
+	for i, s := range ss {
+		out[i] = mtt.StatusName(s)
 	}
-	_, err := fmt.Fprint(w, b.String())
-	return err
+	return out
+}
+
+func toTypeNames(ss []string) []mtt.TypeName {
+	out := make([]mtt.TypeName, len(ss))
+	for i, s := range ss {
+		out[i] = mtt.TypeName(s)
+	}
+	return out
 }

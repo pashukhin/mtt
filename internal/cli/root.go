@@ -21,7 +21,7 @@ func NewRootCmd() *cobra.Command {
 	}
 	root.PersistentFlags().String("dir", "", "project root containing .mtt/ (overrides discovery; env MTT_DIR)")
 	root.PersistentFlags().Bool("json", false, "emit machine-readable JSON output")
-	root.AddCommand(newVersionCmd(), newInitCmd(), newTypesCmd(), newAddCmd(), newShowCmd(), newListCmd(), newEditCmd(), newTreeCmd(), newDepCmd())
+	root.AddCommand(newVersionCmd(), newInitCmd(), newTypesCmd(), newAddCmd(), newShowCmd(), newListCmd(), newEditCmd(), newTreeCmd(), newDepCmd(), newReadyCmd())
 	return root
 }
 
