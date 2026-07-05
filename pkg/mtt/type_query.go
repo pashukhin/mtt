@@ -15,7 +15,7 @@ func (t Type) AcceptsParent(parentType TypeName) bool {
 // StatusKind returns the category of the named status within t's flow, or false
 // when the status is not part of the flow (e.g. config drift on a stored task).
 // Status identity is per-flow, so the lookup stays name-agnostic at the call site.
-func (t Type) StatusKind(status string) (StatusKind, bool) {
+func (t Type) StatusKind(status StatusName) (StatusKind, bool) {
 	for _, s := range t.Statuses {
 		if s.Name == status {
 			return s.Kind, true

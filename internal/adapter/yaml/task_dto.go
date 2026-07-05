@@ -95,7 +95,7 @@ func fromDomainHistory(hs []mtt.HistoryEntry) []ymlHistoryEntry {
 				checks[j] = ymlCheck{Cmd: ch.Cmd, Exit: ch.Exit}
 			}
 		}
-		out[i] = ymlHistoryEntry{At: fmtTime(h.At), By: h.By, Role: h.Role, From: h.From, To: h.To, Checks: checks}
+		out[i] = ymlHistoryEntry{At: fmtTime(h.At), By: h.By, Role: h.Role, From: string(h.From), To: string(h.To), Checks: checks}
 	}
 	return out
 }
@@ -103,7 +103,7 @@ func fromDomainHistory(hs []mtt.HistoryEntry) []ymlHistoryEntry {
 // fromDomainTask maps the pure domain task to its on-disk DTO.
 func fromDomainTask(t mtt.Task) ymlTask {
 	return ymlTask{
-		ID: string(t.ID), Type: string(t.Type), Title: t.Title, Status: t.Status, Parent: string(t.Parent),
+		ID: string(t.ID), Type: string(t.Type), Title: t.Title, Status: string(t.Status), Parent: string(t.Parent),
 		Tags: t.Tags, DependsOn: fromDomainDeps(t.DependsOn), Refs: fromDomainRefs(t.Refs),
 		Created: fmtTime(t.Created), Updated: fmtTime(t.Updated), Description: t.Description,
 		Comments: fromDomainComments(t.Comments), History: fromDomainHistory(t.History),
@@ -183,7 +183,7 @@ func toDomainHistory(hs []ymlHistoryEntry) ([]mtt.HistoryEntry, error) {
 				checks[j] = mtt.Check{Cmd: ch.Cmd, Exit: ch.Exit}
 			}
 		}
-		out[i] = mtt.HistoryEntry{At: at, By: h.By, Role: h.Role, From: h.From, To: h.To, Checks: checks}
+		out[i] = mtt.HistoryEntry{At: at, By: h.By, Role: h.Role, From: mtt.StatusName(h.From), To: mtt.StatusName(h.To), Checks: checks}
 	}
 	return out, nil
 }
@@ -206,6 +206,10 @@ func (yt ymlTask) toDomain() (mtt.Task, error) {
 	if err != nil {
 		return mtt.Task{}, err
 	}
+	status, err := mtt.NewStatusName(yt.Status)
+	if err != nil {
+		return mtt.Task{}, err
+	}
 	created, err := parseTime(yt.Created)
 	if err != nil {
 		return mtt.Task{}, err
@@ -223,7 +227,7 @@ func (yt ymlTask) toDomain() (mtt.Task, error) {
 		return mtt.Task{}, err
 	}
 	return mtt.Task{
-		ID: id, Type: typ, Title: yt.Title, Status: yt.Status, Parent: mtt.TaskID(yt.Parent),
+		ID: id, Type: typ, Title: yt.Title, Status: status, Parent: mtt.TaskID(yt.Parent),
 		Tags: yt.Tags, DependsOn: toDomainDeps(yt.DependsOn), Refs: toDomainRefs(yt.Refs),
 		Created: created, Updated: updated, Description: yt.Description,
 		Comments: comments, History: history,

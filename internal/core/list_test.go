@@ -7,7 +7,7 @@ import (
 	"github.com/pashukhin/mtt/pkg/mtt"
 )
 
-func tsk(id mtt.TaskID, typ mtt.TypeName, status string, created time.Time) mtt.Task {
+func tsk(id mtt.TaskID, typ mtt.TypeName, status mtt.StatusName, created time.Time) mtt.Task {
 	return mtt.Task{ID: id, Type: typ, Status: status, Created: created, Updated: created}
 }
 
@@ -24,11 +24,11 @@ func TestSelectFilters(t *testing.T) {
 	if got := Select(tasks, ListFilter{Types: []mtt.TypeName{"task"}}, mtt.Config{}); len(got) != 2 {
 		t.Fatalf("type=task len = %d, want 2", len(got))
 	}
-	got := Select(tasks, ListFilter{Types: []mtt.TypeName{"task"}, Statuses: []string{"done"}}, mtt.Config{})
+	got := Select(tasks, ListFilter{Types: []mtt.TypeName{"task"}, Statuses: []mtt.StatusName{"done"}}, mtt.Config{})
 	if len(got) != 1 || got[0].ID != "t2" {
 		t.Fatalf("task AND done -> %+v", got)
 	}
-	if got := Select(tasks, ListFilter{Statuses: []string{"ghost"}}, mtt.Config{}); len(got) != 0 {
+	if got := Select(tasks, ListFilter{Statuses: []mtt.StatusName{"ghost"}}, mtt.Config{}); len(got) != 0 {
 		t.Fatalf("no match len = %d, want 0", len(got))
 	}
 }

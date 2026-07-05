@@ -51,8 +51,12 @@ func newListCmd() *cobra.Command {
 			for i, s := range types {
 				typeNames[i] = mtt.TypeName(s)
 			}
+			statusNames := make([]mtt.StatusName, len(statuses))
+			for i, s := range statuses {
+				statusNames[i] = mtt.StatusName(s)
+			}
 			selected := core.Select(tasks, core.ListFilter{
-				Statuses: statuses, Types: typeNames, Kinds: kindVals, Parent: mtt.TaskID(parent), Sort: core.SortKey(sortKey),
+				Statuses: statusNames, Types: typeNames, Kinds: kindVals, Parent: mtt.TaskID(parent), Sort: core.SortKey(sortKey),
 			}, cfg)
 			if jsonFlag(cmd) {
 				views := make([]taskJSON, 0, len(selected))

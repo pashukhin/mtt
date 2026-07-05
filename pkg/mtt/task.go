@@ -10,7 +10,7 @@ type Task struct {
 	ID          TaskID
 	Type        TypeName
 	Title       string
-	Status      string
+	Status      StatusName
 	Parent      TaskID
 	Tags        []string
 	DependsOn   []TaskID
@@ -65,8 +65,8 @@ type HistoryEntry struct {
 	At     time.Time
 	By     string
 	Role   string
-	From   string
-	To     string
+	From   StatusName
+	To     StatusName
 	Checks []Check
 }
 

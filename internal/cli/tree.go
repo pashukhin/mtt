@@ -60,7 +60,11 @@ func newTreeCmd() *cobra.Command {
 			} else {
 				roots = idx.Roots()
 			}
-			f := core.ListFilter{Statuses: statuses, Kinds: kindVals}
+			statusNames := make([]mtt.StatusName, len(statuses))
+			for i, s := range statuses {
+				statusNames[i] = mtt.StatusName(s)
+			}
+			f := core.ListFilter{Statuses: statusNames, Kinds: kindVals}
 			if jsonFlag(cmd) {
 				return writeJSON(cmd.OutOrStdout(), buildTreeJSON(idx, roots, f, cfg, depth))
 			}

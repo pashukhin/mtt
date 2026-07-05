@@ -85,3 +85,10 @@ func TestToDomainRejectsEmptyType(t *testing.T) {
 		t.Fatal("toDomain with empty type = nil error; want empty-type error")
 	}
 }
+
+func TestToDomainRejectsEmptyStatus(t *testing.T) {
+	yt := ymlTask{ID: "t1", Type: "task", Status: "", Created: "2026-07-05T00:00:00Z", Updated: "2026-07-05T00:00:00Z"}
+	if _, err := yt.toDomain(); err == nil {
+		t.Fatal("toDomain with empty status = nil error; want empty-status error")
+	}
+}

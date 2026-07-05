@@ -36,7 +36,7 @@ type Flow struct {
 // Default marks THE entry status when a flow has more than one initial (mirrors
 // Type.Default); it is ignored unless the status is initial.
 type Status struct {
-	Name        string
+	Name        StatusName
 	Kind        StatusKind
 	Description string
 	Default     bool
@@ -45,8 +45,8 @@ type Status struct {
 // Transition is a directed edge between two statuses of the same flow. Description
 // and Commands are optional; Commands run as gates in a later phase.
 type Transition struct {
-	From        string
-	To          string
+	From        StatusName
+	To          StatusName
 	Description string
 	Commands    []string
 }

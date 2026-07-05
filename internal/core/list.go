@@ -19,7 +19,7 @@ const (
 // ListFilter holds the list predicates and ordering. Empty slices/zero Parent
 // match everything; within a field the values are OR-ed, across fields AND-ed.
 type ListFilter struct {
-	Statuses []string
+	Statuses []mtt.StatusName
 	Types    []mtt.TypeName
 	Kinds    []mtt.StatusKind
 	Parent   mtt.TaskID

@@ -54,10 +54,10 @@ func (yc ymlConfig) toDomain() (mtt.Config, map[string]string) {
 	for _, yt := range yc.Types {
 		t := mtt.Type{Name: mtt.TypeName(yt.Name), Description: yt.Description, Parents: toTypeNames(yt.Parents), Default: yt.Default}
 		for _, ys := range yt.Statuses {
-			t.Statuses = append(t.Statuses, mtt.Status{Name: ys.Name, Kind: mtt.StatusKind(ys.Kind), Description: ys.Description})
+			t.Statuses = append(t.Statuses, mtt.Status{Name: mtt.StatusName(ys.Name), Kind: mtt.StatusKind(ys.Kind), Description: ys.Description})
 		}
 		for _, yr := range yt.Transitions {
-			t.Transitions = append(t.Transitions, mtt.Transition{From: yr.From, To: yr.To, Description: yr.Description, Commands: yr.Commands})
+			t.Transitions = append(t.Transitions, mtt.Transition{From: mtt.StatusName(yr.From), To: mtt.StatusName(yr.To), Description: yr.Description, Commands: yr.Commands})
 		}
 		cfg.Types = append(cfg.Types, t)
 		prefixes[yt.Name] = yt.Prefix

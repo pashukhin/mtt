@@ -46,7 +46,7 @@ func TestRenderTreeFull(t *testing.T) {
 func TestRenderTreeKeepAncestors(t *testing.T) {
 	// filter status=done: only t1 matches, but e1 (its non-matching parent) is kept as the path.
 	x := core.NewIndex(treeTasks())
-	out := renderTree(x, x.Roots(), core.ListFilter{Statuses: []string{"done"}}, treeCfg(), 0)
+	out := renderTree(x, x.Roots(), core.ListFilter{Statuses: []mtt.StatusName{"done"}}, treeCfg(), 0)
 	if !strings.Contains(out, "e1  epic") {
 		t.Fatalf("keep-ancestors: e1 should remain as path to t1:\n%s", out)
 	}
