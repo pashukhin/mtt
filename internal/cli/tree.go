@@ -57,6 +57,9 @@ func newTreeCmd() *cobra.Command {
 				roots = idx.Roots()
 			}
 			f := core.ListFilter{Statuses: statuses, Kinds: kindVals}
+			if jsonFlag(cmd) {
+				return writeJSON(cmd.OutOrStdout(), buildTreeJSON(idx, roots, f, cfg, depth))
+			}
 			_, err = fmt.Fprint(cmd.OutOrStdout(), renderTree(idx, roots, f, cfg, depth))
 			return err
 		},
@@ -128,6 +131,45 @@ func renderTree(x core.Index, roots []mtt.Task, f core.ListFilter, cfg mtt.Confi
 		walk(r, "", true, true, 1, map[string]bool{})
 	}
 	return b.String()
+}
+
+// treeNodeJSON is the nested JSON shape for `tree --json`: a task view plus its
+// (filtered) children. Empty children are omitted so leaves stay clean.
+type treeNodeJSON struct {
+	taskJSON
+	Children []treeNodeJSON `json:"children,omitempty"`
+}
+
+// buildTreeJSON builds the nested JSON forest, honoring the same keep-ancestors
+// filter and depth as renderTree. The top level is always a non-nil slice so an
+// empty result marshals to [] (never null).
+func buildTreeJSON(x core.Index, roots []mtt.Task, f core.ListFilter, cfg mtt.Config, maxDepth int) []treeNodeJSON {
+	keep := map[string]bool{}
+	for _, r := range roots {
+		markVisible(x, r.ID, f, cfg, keep, map[string]bool{})
+	}
+	var build func(t mtt.Task, level int, seen map[string]bool) treeNodeJSON
+	build = func(t mtt.Task, level int, seen map[string]bool) treeNodeJSON {
+		node := treeNodeJSON{taskJSON: toTaskJSON(t)}
+		seen[t.ID] = true
+		if maxDepth > 0 && level+1 > maxDepth {
+			return node
+		}
+		for _, c := range visibleChildren(x, t.ID, keep) {
+			if seen[c.ID] {
+				continue
+			}
+			node.Children = append(node.Children, build(c, level+1, seen))
+		}
+		return node
+	}
+	out := make([]treeNodeJSON, 0, len(roots))
+	for _, r := range roots {
+		if keep[r.ID] {
+			out = append(out, build(r, 1, map[string]bool{}))
+		}
+	}
+	return out
 }
 
 // markVisible memoizes into keep whether id should appear: it matches the filter

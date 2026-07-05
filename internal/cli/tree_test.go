@@ -68,3 +68,24 @@ func TestRenderTreeDepth(t *testing.T) {
 		t.Fatalf("depth 1 must not show children:\n%s", out)
 	}
 }
+
+func TestBuildTreeJSONNested(t *testing.T) {
+	x := core.NewIndex(treeTasks())
+	nodes := buildTreeJSON(x, x.Roots(), core.ListFilter{}, treeCfg(), 0)
+	if len(nodes) != 1 || nodes[0].ID != "e1" {
+		t.Fatalf("want one root e1, got %+v", nodes)
+	}
+	if len(nodes[0].Children) != 2 || nodes[0].Children[0].ID != "t1" {
+		t.Fatalf("want e1 -> [t1 t2], got %+v", nodes[0].Children)
+	}
+	if len(nodes[0].Children[0].Children) != 0 {
+		t.Fatalf("t1 is a leaf: children should be empty")
+	}
+}
+
+func TestBuildTreeJSONEmptyIsSlice(t *testing.T) {
+	x := core.NewIndex(nil)
+	if nodes := buildTreeJSON(x, x.Roots(), core.ListFilter{}, treeCfg(), 0); nodes == nil {
+		t.Fatal("empty tree must be a non-nil slice so it marshals to [] not null")
+	}
+}
