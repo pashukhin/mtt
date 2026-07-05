@@ -11,6 +11,25 @@ stdout 'created e2'
 exec mtt add --no-parent 'fix login'
 stdout 'created t1'
 
+# a real child of e1 for the --parent filter
+exec mtt add --type task --parent e1 'child of e1'
+stdout 'created t2'
+
+# --parent lists only direct children of e1
+exec mtt list --parent e1
+stdout 't2  task  \[tbd\]  child of e1'
+! stdout 't1  task  \[tbd\]  fix login'
+
+# --kind initial matches tbd tasks; --kind terminal matches none yet
+exec mtt list --kind initial
+stdout 'e1  epic'
+exec mtt list --kind terminal
+! stdout 'e1  epic'
+
+# an invalid --kind errors
+! exec mtt list --kind bogus
+stderr 'invalid --kind'
+
 # list shows every task (presence asserts, not order)
 exec mtt list
 stdout 'e1  epic  \[tbd\]  build auth'

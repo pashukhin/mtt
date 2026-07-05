@@ -33,6 +33,26 @@ stdout 'created t2'
 exec mtt show t2
 stdout 'figure out the auth flow'
 
+# --parent places a task under an existing epic -> t3
+exec mtt add --type task --parent e1 'child of e1'
+stdout 'created t3'
+exec mtt show t3
+stdout 't3  task  \[tbd\]'
+stdout 'lineage:  e1 › t3'
+! stdout 'parent:'
+
+# a missing parent errors
+! exec mtt add --type task --parent nope 'x'
+stderr 'parent "nope" not found'
+
+# a disallowed parent type errors (epic cannot sit under an epic)
+! exec mtt add --type epic --parent e1 'x'
+stderr 'cannot be placed under'
+
+# --parent and --no-parent are mutually exclusive
+! exec mtt add --type task --parent e1 --no-parent 'x'
+stderr 'if any flags in the group'
+
 # unknown type and missing id error
 ! exec mtt add --type nope 'x'
 stderr 'unknown type'

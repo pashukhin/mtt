@@ -15,6 +15,7 @@ import (
 func newAddCmd() *cobra.Command {
 	var (
 		typeName string
+		parent   string
 		noParent bool
 		desc     string
 	)
@@ -44,7 +45,7 @@ func newAddCmd() *cobra.Command {
 				title = args[0]
 			}
 			adder := core.NewAdder(yaml.NewTaskStore(root), cfg, time.Now)
-			task, err := adder.Add(core.AddParams{Title: title, TypeName: typeName, NoParent: noParent, Description: desc})
+			task, err := adder.Add(core.AddParams{Title: title, TypeName: typeName, Parent: parent, NoParent: noParent, Description: desc})
 			if err != nil {
 				return err
 			}
@@ -53,7 +54,9 @@ func newAddCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().StringVar(&typeName, "type", "", "task type (default: the config's default type)")
+	cmd.Flags().StringVar(&parent, "parent", "", "place under an existing parent task (by id)")
 	cmd.Flags().BoolVar(&noParent, "no-parent", false, "create a parent-requiring type at top level (conscious exception)")
 	cmd.Flags().StringVar(&desc, "description", "", "task description")
+	cmd.MarkFlagsMutuallyExclusive("parent", "no-parent")
 	return cmd
 }

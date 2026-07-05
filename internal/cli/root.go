@@ -8,7 +8,7 @@ import (
 )
 
 // version is the build version, overridable at build time via -ldflags.
-var version = "0.3.0-dev"
+var version = "0.4.0-dev"
 
 // NewRootCmd builds the root mtt command tree.
 func NewRootCmd() *cobra.Command {
@@ -21,7 +21,7 @@ func NewRootCmd() *cobra.Command {
 	}
 	root.PersistentFlags().String("dir", "", "project root containing .mtt/ (overrides discovery; env MTT_DIR)")
 	root.PersistentFlags().Bool("json", false, "emit machine-readable JSON output")
-	root.AddCommand(newVersionCmd(), newInitCmd(), newTypesCmd(), newAddCmd(), newShowCmd(), newListCmd(), newEditCmd())
+	root.AddCommand(newVersionCmd(), newInitCmd(), newTypesCmd(), newAddCmd(), newShowCmd(), newListCmd(), newEditCmd(), newTreeCmd())
 	return root
 }
 
