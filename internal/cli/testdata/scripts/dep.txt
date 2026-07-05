@@ -1,0 +1,51 @@
+# dependencies: add / list / rm, self + cycle rejection
+mkdir proj
+cd proj
+exec mtt init
+stdout 'initialized'
+
+exec mtt add --type epic 'E'
+stdout 'created e1'
+exec mtt add --type task --parent e1 'A'
+stdout 'created t1'
+exec mtt add --type task --parent e1 'B'
+stdout 'created t2'
+
+# t2 depends on t1
+exec mtt dep add t2 t1
+stdout 'added t1 to t2'
+
+# dep list shows the blocker and the reverse dependent
+exec mtt dep list t2
+stdout 't2 depends on:'
+stdout '  t1  task  \[tbd\]  A'
+exec mtt dep list t1
+stdout 'required by:'
+stdout '  t2  task  \[tbd\]  B'
+
+# a self-edge is rejected
+! exec mtt dep add t1 t1
+stderr 'cannot depend on itself'
+
+# closing the loop (t1 -> t2) is rejected as a cycle
+! exec mtt dep add t1 t2
+stderr 'cycle'
+
+# a duplicate add is a no-op (still succeeds)
+exec mtt dep add t2 t1
+stdout 'added t1 to t2'
+
+# removing a non-existent edge errors
+! exec mtt dep rm t1 t2
+stderr 'does not depend'
+
+# rm the real edge
+exec mtt dep rm t2 t1
+stdout 'removed t1 from t2'
+exec mtt dep list t2
+stdout '  \(none\)'
+
+# --json for dep list emits non-null arrays
+exec mtt dep list t1 --json
+stdout '"depends_on": \[\]'
+stdout '"required_by": \[\]'
