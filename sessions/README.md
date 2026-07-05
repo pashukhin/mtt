@@ -24,7 +24,7 @@ sliced so **every session delivers something usable**. Order/size may be refined
 | 002 ✅ | create & view | `mtt add`, `mtt show` | init → add → show the task |
 | 003 ✅ | list & edit | `mtt list` (filters), `mtt edit` | add several → list/filter → edit → show |
 | 004 ✅ | hierarchy | `mtt add --parent`, `mtt tree`, `show` lineage | epic→task→subtask; tree renders |
-| 004.5 | typed-id retrofit (chore) | — (internal: `TaskID`/`TypeName`/`StatusName`) | `make check` green; no behaviour change |
+| 004.5 ✅ | typed-id retrofit (chore) | — (internal: `TaskID`/`TypeName`/`StatusName`) | `make check` green; no behaviour change |
 | 005 | dependencies | `mtt dep add/rm/list`, `mtt ready` | dep blocks ready; cycle rejected |
 | 006 | **flow gate (killer)** | `mtt status <id> <new>` runs & gates commands | failing gate blocks transition; history written |
 | 007 | **advance** | `mtt start`/`done`/`cancel` + modes | `mtt done` walks tbd→…→done, blocks on red gate |
@@ -35,8 +35,9 @@ sliced so **every session delivers something usable**. Order/size may be refined
 
 **Decisions carried from the domain-model snapshot** ([../docs/architecture/model.go](../docs/architecture/model.go)):
 
-- **004.5 (typed-id retrofit)** is a small, optional chore recommended *before* 005 so new code is written
-  against the typed identity surface (`TaskID`/`TypeName`/`StatusName`). Mechanical; no behaviour change.
+- **004.5 (typed-id retrofit)** ✅ shipped: the `pkg/mtt`/`core`/`adapter`/`cli` surface now uses the typed
+  identities (`TaskID`/`TypeName`/`StatusName`), so 005 is written against the typed contract. Mechanical; the
+  only behaviour change is fail-fast on a corrupt on-disk `id`/`type`/`status`.
 - **005 adds no new port.** `depends_on` rides on the `Task` field + `TaskStore.Update` (as `parent` did in
   004); `DependencyStore` is only for external adapters that cannot embed. 005 = core `DependencyEditor` +
   `Ready` + cycle-check.

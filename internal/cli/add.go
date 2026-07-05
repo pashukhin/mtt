@@ -9,6 +9,7 @@ import (
 
 	"github.com/pashukhin/mtt/internal/adapter/yaml"
 	"github.com/pashukhin/mtt/internal/core"
+	"github.com/pashukhin/mtt/pkg/mtt"
 )
 
 // newAddCmd builds `mtt add [title]`: create a task.
@@ -45,7 +46,7 @@ func newAddCmd() *cobra.Command {
 				title = args[0]
 			}
 			adder := core.NewAdder(yaml.NewTaskStore(root), cfg, time.Now)
-			task, err := adder.Add(core.AddParams{Title: title, TypeName: typeName, Parent: parent, NoParent: noParent, Description: desc})
+			task, err := adder.Add(core.AddParams{Title: title, TypeName: mtt.TypeName(typeName), Parent: mtt.TaskID(parent), NoParent: noParent, Description: desc})
 			if err != nil {
 				return err
 			}

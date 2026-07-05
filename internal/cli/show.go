@@ -30,7 +30,11 @@ func newShowCmd() *cobra.Command {
 				return err
 			}
 			store := yaml.NewTaskStore(root)
-			task, err := store.Get(args[0])
+			id, err := mtt.NewTaskID(args[0])
+			if err != nil {
+				return err
+			}
+			task, err := store.Get(id)
 			if err != nil {
 				if errors.Is(err, mtt.ErrNotFound) {
 					return fmt.Errorf("task %q not found", args[0])
@@ -66,15 +70,15 @@ func formatTask(t mtt.Task, ancestors, children []mtt.Task) string {
 	if len(ancestors) > 0 {
 		ids := make([]string, 0, len(ancestors)+1)
 		for _, a := range ancestors {
-			ids = append(ids, a.ID)
+			ids = append(ids, string(a.ID))
 		}
-		ids = append(ids, t.ID) // the path ends at the task itself ("you are here")
+		ids = append(ids, string(t.ID)) // the path ends at the task itself ("you are here")
 		fmt.Fprintf(&b, "  lineage:  %s\n", strings.Join(ids, " › "))
 	}
 	if len(children) > 0 {
 		ids := make([]string, len(children))
 		for i, c := range children {
-			ids[i] = c.ID
+			ids[i] = string(c.ID)
 		}
 		fmt.Fprintf(&b, "  children: %d (%s)\n", len(children), strings.Join(ids, ", "))
 	}

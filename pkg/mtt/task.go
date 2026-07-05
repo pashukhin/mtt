@@ -7,13 +7,13 @@ import "time"
 // Tags/DependsOn/Refs/Comments/History are reserved; they are populated in later
 // sessions and omitted from storage while empty.
 type Task struct {
-	ID          string
-	Type        string
+	ID          TaskID
+	Type        TypeName
 	Title       string
-	Status      string
-	Parent      string
+	Status      StatusName
+	Parent      TaskID
 	Tags        []string
-	DependsOn   []string
+	DependsOn   []TaskID
 	Refs        []Ref
 	Created     time.Time
 	Updated     time.Time
@@ -65,8 +65,8 @@ type HistoryEntry struct {
 	At     time.Time
 	By     string
 	Role   string
-	From   string
-	To     string
+	From   StatusName
+	To     StatusName
 	Checks []Check
 }
 

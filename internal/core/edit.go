@@ -30,7 +30,7 @@ type EditParams struct {
 }
 
 // Edit applies p to task id, bumps Updated, persists, and returns the task.
-func (e *Editor) Edit(id string, p EditParams) (mtt.Task, error) {
+func (e *Editor) Edit(id mtt.TaskID, p EditParams) (mtt.Task, error) {
 	if p.Title == nil && p.Description == nil {
 		return mtt.Task{}, fmt.Errorf("nothing to edit: provide --title and/or --description")
 	}

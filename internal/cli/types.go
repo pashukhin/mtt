@@ -50,11 +50,11 @@ func formatTypes(cfg mtt.Config, prefixes map[string]string, filter string) (str
 	var b strings.Builder
 	shown := 0
 	for _, t := range cfg.Types {
-		if filter != "" && t.Name != filter {
+		if filter != "" && string(t.Name) != filter {
 			continue
 		}
 		shown++
-		writeTypeBlock(&b, t, prefixes[t.Name])
+		writeTypeBlock(&b, t, prefixes[string(t.Name)])
 	}
 	if filter != "" && shown == 0 {
 		return "", fmt.Errorf("unknown type %q", filter)
@@ -66,7 +66,11 @@ func formatTypes(cfg mtt.Config, prefixes map[string]string, filter string) (str
 func writeTypeBlock(b *strings.Builder, t mtt.Type, prefix string) {
 	rel := "root"
 	if len(t.Parents) > 0 {
-		rel = "parents: " + strings.Join(t.Parents, ", ")
+		ps := make([]string, len(t.Parents))
+		for i, p := range t.Parents {
+			ps[i] = string(p)
+		}
+		rel = "parents: " + strings.Join(ps, ", ")
 	}
 	fmt.Fprintf(b, "%s  (prefix %s · %s", t.Name, prefix, rel)
 	if t.Default {

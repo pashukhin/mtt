@@ -29,7 +29,7 @@ func (s *Store) Create(t mtt.Task) (mtt.Task, error) {
 	if err != nil {
 		return mtt.Task{}, err
 	}
-	prefix := prefixes[t.Type]
+	prefix := prefixes[string(t.Type)]
 	if prefix == "" {
 		return mtt.Task{}, fmt.Errorf("type %q: no prefix (unknown or prefixless type)", t.Type)
 	}
@@ -37,7 +37,7 @@ func (s *Store) Create(t mtt.Task) (mtt.Task, error) {
 	if err != nil {
 		return mtt.Task{}, err
 	}
-	t.ID = id
+	t.ID = mtt.TaskID(id)
 	return s.write(t)
 }
 
@@ -48,7 +48,7 @@ func (s *Store) write(t mtt.Task) (mtt.Task, error) {
 	if err != nil {
 		return mtt.Task{}, fmt.Errorf("marshal task %s: %w", t.ID, err)
 	}
-	path := filepath.Join(s.root, dirName, tasksDirName, t.ID+".yaml")
+	path := filepath.Join(s.root, dirName, tasksDirName, string(t.ID)+".yaml")
 	if err := atomicWrite(path, data); err != nil {
 		return mtt.Task{}, err
 	}
@@ -58,7 +58,7 @@ func (s *Store) write(t mtt.Task) (mtt.Task, error) {
 // Update overwrites an existing task by t.ID; it never mints and never creates.
 // A task that does not exist yields mtt.ErrNotFound.
 func (s *Store) Update(t mtt.Task) (mtt.Task, error) {
-	path := filepath.Join(s.root, dirName, tasksDirName, t.ID+".yaml")
+	path := filepath.Join(s.root, dirName, tasksDirName, string(t.ID)+".yaml")
 	if _, err := os.Stat(path); err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			return mtt.Task{}, mtt.ErrNotFound
@@ -104,8 +104,8 @@ func (s *Store) List() ([]mtt.Task, error) {
 }
 
 // Get loads a task by ID, returning mtt.ErrNotFound when the file is absent.
-func (s *Store) Get(id string) (mtt.Task, error) {
-	path := filepath.Join(s.root, dirName, tasksDirName, id+".yaml")
+func (s *Store) Get(id mtt.TaskID) (mtt.Task, error) {
+	path := filepath.Join(s.root, dirName, tasksDirName, string(id)+".yaml")
 	data, err := os.ReadFile(path)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {

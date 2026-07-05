@@ -12,7 +12,7 @@ func (c Config) Validate() error {
 	if len(c.Types) == 0 {
 		errs = append(errs, errors.New("config: at least one type is required"))
 	}
-	seen := make(map[string]bool, len(c.Types))
+	seen := make(map[TypeName]bool, len(c.Types))
 	defaults := 0
 	for _, t := range c.Types {
 		if seen[t.Name] {
@@ -44,7 +44,7 @@ func (c Config) Validate() error {
 // transition reference resolution, kind<->topology consistency, and >=1 of each kind.
 func (t Type) validateFlow() []error {
 	var errs []error
-	known := make(map[string]bool, len(t.Statuses))
+	known := make(map[StatusName]bool, len(t.Statuses))
 	for _, s := range t.Statuses {
 		if known[s.Name] {
 			errs = append(errs, fmt.Errorf("type %q: duplicate status %q", t.Name, s.Name))
@@ -54,8 +54,8 @@ func (t Type) validateFlow() []error {
 			errs = append(errs, fmt.Errorf("type %q status %q: invalid kind %q", t.Name, s.Name, s.Kind))
 		}
 	}
-	in := make(map[string]int)
-	out := make(map[string]int)
+	in := make(map[StatusName]int)
+	out := make(map[StatusName]int)
 	for _, tr := range t.Transitions {
 		if !known[tr.From] {
 			errs = append(errs, fmt.Errorf("type %q: transition from unknown status %q", t.Name, tr.From))

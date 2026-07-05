@@ -37,8 +37,10 @@ Two decisions from the domain-model snapshot ([docs/architecture/model.go](docs/
 1. **s005 adds no new port.** `depends_on` is a `Task` field round-tripped via `TaskStore.Update` (as
    `parent` was in s004); `DependencyStore` is only for external adapters that cannot embed. s005 = core
    `DependencyEditor` + `Ready` + cycle-check, no `pkg/mtt` port method.
-2. **Typed-identity retrofit** (`TaskID`/`TypeName`/`StatusName`) — a small chore recommended **before s005**
-   so new code is written against the typed surface (the shipped code still uses bare `string`).
+2. **Typed-identity retrofit** (`TaskID`/`TypeName`/`StatusName`) — **shipped (chore 004.5)**: the
+   `pkg/mtt`/`core`/`adapter`/`cli` surface uses the typed identities, so s005 is written against the typed
+   contract. The YAML DTO keeps plain strings on disk (`string↔typed` at its boundary); the only behaviour
+   change is fail-fast on a corrupt on-disk `id`/`type`/`status`.
 
 ---
 

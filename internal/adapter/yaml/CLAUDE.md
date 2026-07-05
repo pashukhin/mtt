@@ -16,5 +16,9 @@ beyond provider-specific checks.
 ## Boundaries
 
 - The domain never sees YAML: DTOs carry the yaml tags + `prefix`; `toDomain` maps to pure types.
+- **Identity mapping**: on-disk DTOs keep plain `string` fields; `fromDomain*` casts the named identities
+  (`TaskID`/`TypeName`/`StatusName`) to `string`, and `toDomain` maps back — **guarding** the required
+  `id`/`type`/`status` via `mtt.NewTaskID`/`NewTypeName`/`NewStatusName` (a corrupt file with an empty one
+  fails to load). Optional fields (`parent`, `depends_on`) use plain conversion (empty is legitimate).
 - No flow/ready/traversal logic here (that is `core`, later). Templates are the **only** home of default type/status names.
 - `.mtt/config.yaml` is edited only through this adapter (determinism + validation).

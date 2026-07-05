@@ -17,9 +17,9 @@ type Project struct {
 // default marker, and its flow. Mandatory: Name and a Flow whose statuses have a
 // name+kind and whose transitions have from/to.
 type Type struct {
-	Name        string
+	Name        TypeName
 	Description string
-	Parents     []string
+	Parents     []TypeName
 	Default     bool
 	Flow
 }
@@ -36,7 +36,7 @@ type Flow struct {
 // Default marks THE entry status when a flow has more than one initial (mirrors
 // Type.Default); it is ignored unless the status is initial.
 type Status struct {
-	Name        string
+	Name        StatusName
 	Kind        StatusKind
 	Description string
 	Default     bool
@@ -45,8 +45,8 @@ type Status struct {
 // Transition is a directed edge between two statuses of the same flow. Description
 // and Commands are optional; Commands run as gates in a later phase.
 type Transition struct {
-	From        string
-	To          string
+	From        StatusName
+	To          StatusName
 	Description string
 	Commands    []string
 }
@@ -104,7 +104,7 @@ func (t Type) InitialStatus() (Status, bool) {
 }
 
 // TypeByName returns the type with the given name, or false when absent.
-func (c Config) TypeByName(name string) (Type, bool) {
+func (c Config) TypeByName(name TypeName) (Type, bool) {
 	for _, t := range c.Types {
 		if t.Name == name {
 			return t, true

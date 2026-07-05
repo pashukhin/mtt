@@ -17,7 +17,7 @@ type editStore struct {
 }
 
 func (s *editStore) Create(t mtt.Task) (mtt.Task, error) { return t, nil }
-func (s *editStore) Get(string) (mtt.Task, error)        { return s.get, s.getErr }
+func (s *editStore) Get(mtt.TaskID) (mtt.Task, error)    { return s.get, s.getErr }
 func (s *editStore) List() ([]mtt.Task, error)           { return nil, nil }
 func (s *editStore) Update(t mtt.Task) (mtt.Task, error) { s.updated = t; return t, nil }
 

@@ -5,7 +5,7 @@ import "testing"
 func typeQueryFixture() Type {
 	return Type{
 		Name:    "task",
-		Parents: []string{"epic"},
+		Parents: []TypeName{"epic"},
 		Flow: Flow{Statuses: []Status{
 			{Name: "tbd", Kind: KindInitial},
 			{Name: "doing", Kind: KindActive},
