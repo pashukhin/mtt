@@ -44,30 +44,39 @@ func newShowCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			lineage := core.NewIndex(tasks).Ancestors(task.ID)
-			_, err = fmt.Fprint(cmd.OutOrStdout(), formatTask(task, lineage))
+			idx := core.NewIndex(tasks)
+			_, err = fmt.Fprint(cmd.OutOrStdout(), formatTask(task, idx.Ancestors(task.ID), idx.Children(task.ID)))
 			return err
 		},
 	}
 }
 
 // formatTask renders a task as a human-readable block. ancestors is the
-// root-first parent chain (empty for a root task); it prints a "lineage" line.
-func formatTask(t mtt.Task, ancestors []mtt.Task) string {
+// root-first parent chain (empty for a root task) and children the direct
+// children (both computed by core.Index). The lineage line is the "you are here"
+// path from the root down to and including the task itself (shown only when the
+// task has ancestors); the children line lists direct children (shown only when
+// present). The raw parent is not printed — it is the breadcrumb's tail.
+func formatTask(t mtt.Task, ancestors, children []mtt.Task) string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "%s  %s  [%s]\n", t.ID, t.Type, t.Status)
 	if t.Title != "" {
 		fmt.Fprintf(&b, "  title:    %s\n", t.Title)
 	}
 	if len(ancestors) > 0 {
-		ids := make([]string, len(ancestors))
-		for i, a := range ancestors {
-			ids[i] = a.ID
+		ids := make([]string, 0, len(ancestors)+1)
+		for _, a := range ancestors {
+			ids = append(ids, a.ID)
 		}
+		ids = append(ids, t.ID) // the path ends at the task itself ("you are here")
 		fmt.Fprintf(&b, "  lineage:  %s\n", strings.Join(ids, " › "))
 	}
-	if t.Parent != "" {
-		fmt.Fprintf(&b, "  parent:   %s\n", t.Parent)
+	if len(children) > 0 {
+		ids := make([]string, len(children))
+		for i, c := range children {
+			ids[i] = c.ID
+		}
+		fmt.Fprintf(&b, "  children: %d (%s)\n", len(children), strings.Join(ids, ", "))
 	}
 	fmt.Fprintf(&b, "  created:  %s\n", t.Created.UTC().Format(time.RFC3339))
 	fmt.Fprintf(&b, "  updated:  %s\n", t.Updated.UTC().Format(time.RFC3339))

@@ -38,7 +38,8 @@ exec mtt add --type task --parent e1 'child of e1'
 stdout 'created t3'
 exec mtt show t3
 stdout 't3  task  \[tbd\]'
-stdout 'parent:   e1'
+stdout 'lineage:  e1 › t3'
+! stdout 'parent:'
 
 # a missing parent errors
 ! exec mtt add --type task --parent nope 'x'

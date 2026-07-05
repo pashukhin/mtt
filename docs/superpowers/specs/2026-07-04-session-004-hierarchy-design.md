@@ -171,12 +171,23 @@ $ mtt tree t1         # subtree rooted at t1
   `Select`/`Match`. This also settles the deferred "`list` must load config" note from the 003 backlog.
 - Human and `--json` output are the existing flat `list` renders (unchanged shape).
 
-## 9. `mtt show` lineage
+## 9. `mtt show` lineage & children  *(format revised post-review — see note)*
 
-- Build `Index` from `store.List`; `Index.Ancestors(id)` yields the root-first chain.
-- Render a breadcrumb line after the header when the task has ancestors, e.g. `  lineage:  e1 › t3` (the
-  task's own id is not repeated — the header already shows it). No ancestors → no line (root task).
+- Build `Index` from `store.List`; use `Index.Ancestors(id)` (root-first chain) and `Index.Children(id)`.
+- **Lineage breadcrumb** — a "you are here" path from the root **down to and including the task itself**,
+  e.g. `  lineage:  e1 › t1 › s1` (the last element is the task). Printed only when the task has ancestors
+  (a root task shows no lineage line — the path would be just itself, already in the header).
+- **Children line** — `  children:  N (id1, id2, …)` (direct children in sibling order), printed only when
+  the task has children. Gives the downward count/ids without running `tree`.
+- **The raw `parent:` line is removed** — it was redundant with the breadcrumb's second-to-last element.
 - Replaces the `formatTask` TODO at [../../../internal/cli/show.go](../../../internal/cli/show.go).
+
+> **Post-review revision:** the original spec rendered only ancestors (`lineage: e1 › t1`) and kept a
+> separate `parent:` line. Review caught that `parent` duplicates the breadcrumb tail. Decision: the
+> breadcrumb now includes the node itself (a complete root-to-self path), the redundant `parent:` line is
+> dropped, and a `children:` summary line is added (hierarchy info that `show` previously lacked). Consistent
+> fields (breadcrumb is always upward ids; children is always a count + ids) — no mixing of id and count in
+> one token.
 
 ## 10. Errors & edge cases
 

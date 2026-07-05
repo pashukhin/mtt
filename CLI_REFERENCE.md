@@ -107,10 +107,12 @@ A non-root type given neither `--parent` nor `--no-parent` errors and tells you 
 parent, or a parent whose type the child may not sit under, errors with guidance.
 
 ### `mtt show <id> [flags]` — show a task  *(phase 1, implemented; lineage in session 004)*
-Shows a task: id, type, status, title, the **lineage** breadcrumb (root-first parent chain, e.g.
-`lineage:  e1 › t1`, omitted for a root task), timestamps, and description. Dependencies, references and
-**backlinks**, the comment tree, and the transition `history` (audit trail) print once those land in
-later phases.
+Shows a task: id, type, status, title, the **lineage** breadcrumb, a **children** summary, timestamps, and
+description. The lineage is a "you are here" path from the root **down to and including the task**
+(`lineage:  e1 › t1 › s1`), shown only when the task has a parent; a root task shows none. The children line
+lists direct children (`children: 2 (t1, t2)`), shown only when present. There is no separate `parent:` line
+— the parent is the breadcrumb's second-to-last element. Dependencies, references and **backlinks**, the
+comment tree, and the transition `history` (audit trail) print once those land in later phases.
 
 - `<id>` — the task to show.
 - `--no-history` — *(later)* omit the history/audit trail.

@@ -47,11 +47,18 @@ stdout '"id": "s1"'
 exec mtt tree --status ghost --json
 stdout '\[\]'
 
-# show renders the lineage breadcrumb (root-first) for a nested task
+# show renders the lineage breadcrumb (root-to-self path) for a nested task
 exec mtt show s1
 stdout 's1  subtask  \[tbd\]'
-stdout 'lineage:  e1 › t1'
+stdout 'lineage:  e1 › t1 › s1'
+! stdout 'parent:'
 
-# a root task has no lineage line
+# a mid-level task shows its lineage and its children
+exec mtt show t1
+stdout 'lineage:  e1 › t1'
+stdout 'children: 1 \(s1\)'
+
+# a root task has no lineage line, but does list its children
 exec mtt show e1
 ! stdout 'lineage:'
+stdout 'children: 1 \(t1\)'

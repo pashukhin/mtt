@@ -67,7 +67,8 @@ Shipped (all test-first, `make check` green, version bumped to `0.4.0-dev`):
   `lessByRecency` comparator; `Adder` validates `--parent` (exists + `AcceptsParent`).
 - **`internal/cli`**: `mtt add --parent <id>` (mutually exclusive with `--no-parent`); `mtt tree [<id>]`
   (ASCII render, keep-ancestors `--status`/`--kind`, `--depth`, nested `--json`); `mtt list --parent`/`--kind`;
-  `mtt show` lineage breadcrumb; shared `taskLine`/`parseKinds` helpers.
+  `mtt show` lineage breadcrumb (root-to-self path) + children summary line (the raw `parent:` line dropped
+  as redundant — a post-review refinement); shared `taskLine`/`parseKinds` helpers.
 - **Tests**: unit (fixed clock) for predicates, `Index`, `Match`, `Adder`, `renderTree`/`buildTreeJSON`;
   e2e `tree.txt` + extended `add_show.txt`/`list_edit.txt`.
 - **Docs**: DESIGN.md/.ru (hierarchy section), CLI_REFERENCE.md/.ru (add/show/list/tree), CLAUDE.md

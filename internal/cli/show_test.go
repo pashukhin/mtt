@@ -10,21 +10,29 @@ import (
 
 func TestFormatTask(t *testing.T) {
 	ts := time.Date(2026, 7, 4, 9, 20, 0, 0, time.UTC)
+	// a nested task with ancestors and children: lineage is the full root-to-self
+	// path (self last), a children line lists direct children, no raw parent line.
+	anc := []mtt.Task{{ID: "e1"}}
+	kids := []mtt.Task{{ID: "s1"}, {ID: "s2"}}
 	got := formatTask(mtt.Task{ID: "t1", Type: "task", Title: "fix login", Status: "tbd",
-		Parent: "e1", Created: ts, Updated: ts, Description: "do the thing"}, nil)
+		Parent: "e1", Created: ts, Updated: ts, Description: "do the thing"}, anc, kids)
 	want := "t1  task  [tbd]\n" +
 		"  title:    fix login\n" +
-		"  parent:   e1\n" +
+		"  lineage:  e1 › t1\n" +
+		"  children: 2 (s1, s2)\n" +
 		"  created:  2026-07-04T09:20:00Z\n" +
 		"  updated:  2026-07-04T09:20:00Z\n" +
 		"\n  do the thing\n"
 	if got != want {
 		t.Fatalf("formatTask mismatch:\n got: %q\nwant: %q", got, want)
 	}
-	// no title, no parent, no description => those lines are omitted
-	bare := formatTask(mtt.Task{ID: "e1", Type: "epic", Status: "tbd", Created: ts, Updated: ts}, nil)
-	if strings.Contains(bare, "title:") || strings.Contains(bare, "parent:") {
-		t.Fatalf("bare task should omit title/parent lines: %q", bare)
+	if strings.Contains(got, "parent:") {
+		t.Fatalf("the raw parent line must be dropped: %q", got)
+	}
+	// a root task with no ancestors and no children: no lineage/children/parent lines
+	bare := formatTask(mtt.Task{ID: "e1", Type: "epic", Status: "tbd", Created: ts, Updated: ts}, nil, nil)
+	if strings.Contains(bare, "lineage:") || strings.Contains(bare, "children:") || strings.Contains(bare, "parent:") {
+		t.Fatalf("bare root task should omit lineage/children/parent lines: %q", bare)
 	}
 }
 
