@@ -17,6 +17,8 @@ func newListCmd() *cobra.Command {
 	var (
 		statuses []string
 		types    []string
+		kinds    []string
+		parent   string
 		sortKey  string
 	)
 	cmd := &cobra.Command{
@@ -28,6 +30,10 @@ func newListCmd() *cobra.Command {
 			case "", string(core.SortCreated), string(core.SortUpdated):
 			default:
 				return fmt.Errorf("invalid --sort %q: want created|updated", sortKey)
+			}
+			kindVals, err := parseKinds(kinds)
+			if err != nil {
+				return err
 			}
 			root, err := projectRoot(cmd)
 			if err != nil {
@@ -42,7 +48,7 @@ func newListCmd() *cobra.Command {
 				return err
 			}
 			selected := core.Select(tasks, core.ListFilter{
-				Statuses: statuses, Types: types, Sort: core.SortKey(sortKey),
+				Statuses: statuses, Types: types, Kinds: kindVals, Parent: parent, Sort: core.SortKey(sortKey),
 			}, cfg)
 			if jsonFlag(cmd) {
 				views := make([]taskJSON, 0, len(selected))
@@ -57,6 +63,8 @@ func newListCmd() *cobra.Command {
 	cmd.Flags().StringArrayVar(&statuses, "status", nil, "filter by status (repeatable)")
 	cmd.Flags().StringArrayVar(&types, "type", nil, "filter by type (repeatable)")
 	cmd.Flags().StringVar(&sortKey, "sort", "", "sort order: created|updated (default created)")
+	cmd.Flags().StringArrayVar(&kinds, "kind", nil, "filter by status category: initial|active|terminal (repeatable)")
+	cmd.Flags().StringVar(&parent, "parent", "", "only direct children of this task id")
 	return cmd
 }
 
