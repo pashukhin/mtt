@@ -59,7 +59,7 @@ func newDepAddCmd() *cobra.Command {
 			if jsonFlag(cmd) {
 				return writeJSON(cmd.OutOrStdout(), toTaskJSON(task))
 			}
-			_, err = fmt.Fprintf(cmd.OutOrStdout(), "added %s to %s\n", dep, id)
+			_, err = fmt.Fprintf(cmd.OutOrStdout(), "now %s depends on %s\n", id, dep)
 			return err
 		},
 	}
@@ -83,7 +83,7 @@ func newDepRmCmd() *cobra.Command {
 			if jsonFlag(cmd) {
 				return writeJSON(cmd.OutOrStdout(), toTaskJSON(task))
 			}
-			_, err = fmt.Fprintf(cmd.OutOrStdout(), "removed %s from %s\n", dep, id)
+			_, err = fmt.Fprintf(cmd.OutOrStdout(), "%s no longer depends on %s\n", id, dep)
 			return err
 		},
 	}

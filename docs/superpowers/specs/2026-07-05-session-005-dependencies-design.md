@@ -82,8 +82,9 @@ was in s004.
     `updated` bump). **Cycle-check**: build `DepGraph` from `store.List()`; if `dependsOn` can `Reaches(id)`
     over `depends_on`, reject (`… would create a cycle`). Otherwise append `dependsOn`, bump `updated` from
     the injected clock, `Update`.
-  - **RemoveDependency**: `Get(id)`; if the edge is **absent** → error (`task %q does not depend on %q`,
-    mirroring `ref rm`); otherwise drop it, bump `updated`, `Update`.
+  - **RemoveDependency**: `Get(id)`; if the edge is **absent** → idempotent no-op (return the loaded task,
+    no write, no bump — symmetric with the duplicate-add no-op; post-review change); otherwise drop it, bump
+    `updated`, `Update`. (The task itself must exist — a missing `id` still errors.)
   - The cycle rule lives **here** (core policy), never in an adapter.
 
 - **`DepGraph`** (derived, pure — parallel to `Index`), built from a task slice via `NewDepGraph(tasks)`:
@@ -132,7 +133,7 @@ already round-trips (`fromDomainDeps`/`toDomainDeps`, `omitempty`). Add a round-
 | `dep add t1 t1` (self) | reject — trivial cycle |
 | `dep add` unknown `<id>` / `<dep-id>` | not-found error |
 | `dep add` duplicate edge | idempotent no-op (exit 0, no `updated` bump) |
-| `dep rm` absent edge | error |
+| `dep rm` absent edge | idempotent no-op (post-review: symmetric with duplicate add) |
 | `dep add`/`rm` real change | bump `updated` from the injected clock |
 | exit codes | keep the current single generic failure (`1`); the `2`–`6` taxonomy lands with its behaviours later |
 

@@ -115,8 +115,28 @@ func TestRemoveDependency(t *testing.T) {
 	if len(got.DependsOn) != 0 {
 		t.Fatalf("DependsOn = %v; want empty", got.DependsOn)
 	}
-	if _, err := NewDependencyEditor(m, laterClock).RemoveDependency("t2", "t1"); err == nil ||
-		!strings.Contains(err.Error(), "does not depend") {
-		t.Fatalf("err = %v; want absent-edge error", err)
+	if !got.Updated.Equal(laterClock().Truncate(time.Second)) {
+		t.Fatalf("Updated not bumped on real removal: %v", got.Updated)
+	}
+}
+
+func TestRemoveDependencyIdempotent(t *testing.T) {
+	// t2 has no blockers; removing an absent edge is a no-op, not an error.
+	m := newMemStore(withDeps("t1"), withDeps("t2"))
+	before := m.byID["t2"].Updated
+	got, err := NewDependencyEditor(m, laterClock).RemoveDependency("t2", "t1")
+	if err != nil {
+		t.Fatalf("idempotent rm errored: %v", err)
+	}
+	if len(got.DependsOn) != 0 {
+		t.Fatalf("DependsOn = %v; want empty", got.DependsOn)
+	}
+	if !got.Updated.Equal(before) {
+		t.Fatalf("no-op rm bumped Updated: %v", got.Updated)
+	}
+	// a missing task still errors
+	if _, err := NewDependencyEditor(m, laterClock).RemoveDependency("ghost", "t1"); err == nil ||
+		!strings.Contains(err.Error(), "not found") {
+		t.Fatalf("err = %v; want task-not-found", err)
 	}
 }

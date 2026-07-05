@@ -16,8 +16,8 @@ mirroring the s004 hierarchy `Index`.
   - **`mtt dep add <id> <depends-on-id>`** — add a blocking edge (`depends_on`). Validates both tasks
     exist; rejects a **self-edge** and any edge that would create a **cycle**; adding an already-present
     edge is an idempotent no-op. Bumps `updated` on a real change.
-  - **`mtt dep rm <id> <depends-on-id>`** — remove a blocking edge; errors if the edge is absent (mirrors
-    the planned `ref rm`). Bumps `updated`.
+  - **`mtt dep rm <id> <depends-on-id>`** — remove a blocking edge; idempotent (removing an absent edge is
+    a no-op, symmetric with `add`; the task must exist). Bumps `updated` on a real removal.
   - **`mtt dep list <id>`** — show a task's direct blockers (`depends on:`, dangling targets flagged
     `(missing)`) and its **computed** dependents (`required by:`); `--tree` renders the transitive
     dependency tree (cycle-safe); `--cycles` reports dependency cycles project-wide; `--json`.
@@ -72,8 +72,8 @@ Shipped (all test-first, `make check` + CI green):
 
 - **`internal/core`**: `Ready` (pure, conservative — unresolvable status/dangling blocker → not ready) + a
   shared `kindOf` helper (DRYs the type→`StatusKind` lookup with `matchesKind`); `DependencyEditor`
-  (`AddDependency`/`RemoveDependency` via `TaskStore.Update` — self + cycle rejected, duplicate add
-  idempotent, absent-edge remove errors); `DepGraph` (derived over `depends_on`:
+  (`AddDependency`/`RemoveDependency` via `TaskStore.Update` — self + cycle rejected, add and rm both
+  idempotent (duplicate/absent-edge are no-ops)); `DepGraph` (derived over `depends_on`:
   `Get`/`DependsOn`/`Dependents`(computed)/`Reaches`/`Cycles`), cycle-safe, kept **separate** from `Index`.
 - **`internal/adapter/yaml`**: no store change — added a focused `depends_on` DTO round-trip test (GAP #1
   confirmed: the edge rides the `Task` field).

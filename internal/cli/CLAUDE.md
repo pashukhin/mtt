@@ -33,7 +33,7 @@ shared one-row formatter (list + tree); `parseKinds` validates `--kind` against 
 (shared by `list` + `tree`). Pure reads (`tree`/`show`) call the store directly — no usecase.
 
 Dependencies & ready (session 005): `dep add/rm <id> <dep-id>` route through `core.DependencyEditor`
-(self/cycle rejected, duplicate no-op, absent-edge rm errors); `dep list <id>` builds `core.DepGraph` from
+(self/cycle rejected; add and rm both idempotent — duplicate/absent-edge are no-ops); `dep list <id>` builds `core.DepGraph` from
 `TaskStore.List` and renders `depends on:` (dangling → `(missing)`) + computed `required by:`, with `--tree`
 (transitive, cycle-safe), `--cycles` (project-wide, defensive), and a non-null `--json`. `mtt ready` and
 `list --ready` share one primitive — `core.Select(core.Ready(tasks, cfg), filter, cfg)` — so readiness and

@@ -429,7 +429,8 @@ var Ready func(tasks []Task, cfg Config) []Task
 // DependencyStore is used only when the backend advertises it and cannot embed.
 // Shown as a usecase to make the cycle-check ownership explicit (it is CORE).
 // Shipped in s005 as a concrete struct (add/rm mutate DependsOn, reject self +
-// cycles via DepGraph.Reaches, idempotent duplicate add). [shipped s005]
+// cycles via DepGraph.Reaches; add and rm both idempotent — duplicate/absent-edge
+// are no-ops). [shipped s005]
 type DependencyEditor interface {
 	AddDependency(id, dependsOn TaskID) (Task, error)
 	RemoveDependency(id, dependsOn TaskID) (Task, error)

@@ -54,8 +54,10 @@ func (d *DependencyEditor) AddDependency(id, dependsOn mtt.TaskID) (mtt.Task, er
 	return d.store.Update(t)
 }
 
-// RemoveDependency drops the dependsOn edge from id. Errors when id is absent or
-// the edge is not present. On removal it bumps Updated and persists.
+// RemoveDependency drops the dependsOn edge from id. The task must exist;
+// removing an edge that is already absent is an idempotent no-op (no write, no
+// timestamp bump), symmetric with AddDependency's duplicate no-op. On a real
+// removal it bumps Updated and persists.
 func (d *DependencyEditor) RemoveDependency(id, dependsOn mtt.TaskID) (mtt.Task, error) {
 	t, err := d.load(id, "task")
 	if err != nil {
@@ -69,7 +71,7 @@ func (d *DependencyEditor) RemoveDependency(id, dependsOn mtt.TaskID) (mtt.Task,
 		}
 	}
 	if idx == -1 {
-		return mtt.Task{}, fmt.Errorf("task %q does not depend on %q", id, dependsOn)
+		return t, nil // idempotent: edge already absent
 	}
 	t.DependsOn = append(t.DependsOn[:idx], t.DependsOn[idx+1:]...)
 	t.Updated = d.now().UTC().Truncate(time.Second)

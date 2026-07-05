@@ -196,7 +196,7 @@ Makes `<id>` depend on `<depends-on-id>`. Both tasks must exist. Rejected if it 
 is a **self-edge**; re-adding an existing edge is an idempotent no-op. With `--json`, echoes the updated task.
 
 ### `mtt dep rm <id> <depends-on-id>` — remove a dependency
-Removes the edge; errors if the task does not depend on that id.
+Removes the edge. Idempotent: removing an edge that is already absent is a no-op (the task must exist).
 
 ### `mtt dep list <id>` — list a task's dependencies and dependents
 Prints the task's direct blockers (`depends on:`, dangling targets flagged `(missing)`) and its **computed**

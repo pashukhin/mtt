@@ -4,7 +4,7 @@ A living handoff doc. Update it at the end of each session (what's done / what's
 
 ## Where we are
 
-- **Phase 0 (scaffold) + sessions 001–005 are DONE** (version `0.4.0-dev`, `make check` green). **Session 005
+- **Phase 0 (scaffold) + sessions 001–005 are DONE** (version `0.5.0-dev`, `make check` green). **Session 005
   (dependencies)** shipped `mtt dep add/rm/list <id>` (`--tree`/`--cycles`), `mtt ready`, and `list --ready`
   over `core.DependencyEditor` (add/rm + cycle rejection, no new port — the edge rides `Task.DependsOn` +
   `TaskStore.Update`), a conservative `core.Ready` primitive (shared by `ready` + `list --ready`), and a
@@ -199,7 +199,7 @@ resolved graph, and open gaps. Two decisions locked there that shape s005:
 ## Ready-to-paste kickoff prompt (for a new session)
 
 > We're continuing mtt. Sessions 001–005 and chore **004.5 (typed-identity retrofit)** are merged to `main`,
-> version `0.4.0-dev`, `make check` + CI green. Phase 2 is complete: s005 shipped dependencies —
+> version `0.5.0-dev`, `make check` + CI green. Phase 2 is complete: s005 shipped dependencies —
 > `mtt dep add/rm/list` (`--tree`/`--cycles`), `mtt ready`, `list --ready` over `core.DependencyEditor`
 > (add/rm + cycle rejection, no new port), a conservative `core.Ready`, and a derived `core.DepGraph`.
 > Read, in order: CLAUDE.md, AGENTS.md, DESIGN.md, NEXT_SESSION.md, sessions/README.md,
