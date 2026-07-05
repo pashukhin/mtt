@@ -384,7 +384,10 @@ Commands come from config (trusted, like a Makefile/git hooks), not from the net
 > writes no `history`. The per-command timeout is config-driven (`command_timeout`, default `5m`, an
 > adapter-level setting). Core sentinels `ErrBlocked`/`ErrInvalidTransition` map to exit codes `3`/`6`. A
 > single-edge lookup in `Type.Transitions` suffices (no `ResolvedFlow` yet — it earns its keep in s007's
-> multi-edge `advance`). The `advance`/`start`/`done` meta-walk and modes are s007.
+> multi-edge `advance`). The `advance`/`start`/`done` meta-walk and modes are s007. The gate prints **live
+> pipeline progress** to stderr (`▶`/`✓`/`✗` + per-command timing); the commands' own output is hidden by
+> default, streamed with `-v`, and/or written with `--log-file`. `by` resolves `--by` > `MTT_BY` >
+> `config.local.yaml` `author` (the durable personal default; `role` stays flag/env only).
 
 > Caveat (for planning): commands with side effects (creating a branch) go **after** the checks; if one
 > fails after a side effect, we don't commit the transition, but the side effect already happened — that's

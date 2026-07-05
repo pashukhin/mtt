@@ -70,6 +70,24 @@ func TestLoadCommandTimeoutDefault(t *testing.T) {
 	}
 }
 
+func TestLoadAuthorFromLocalOverlay(t *testing.T) {
+	root := t.TempDir()
+	if err := Init(root, "default", "demo", false); err != nil {
+		t.Fatalf("init: %v", err)
+	}
+	overlay := filepath.Join(root, dirName, localConfigName)
+	if err := os.WriteFile(overlay, []byte("author: grisha\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	_, s, err := Load(root)
+	if err != nil {
+		t.Fatalf("load: %v", err)
+	}
+	if s.Author != "grisha" {
+		t.Fatalf("author = %q, want grisha", s.Author)
+	}
+}
+
 func TestLoadCommandTimeoutFromConfig(t *testing.T) {
 	root := t.TempDir()
 	if err := Init(root, "default", "demo", false); err != nil {

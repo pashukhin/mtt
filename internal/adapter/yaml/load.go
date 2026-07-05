@@ -17,12 +17,14 @@ import (
 const defaultCommandTimeout = 5 * time.Minute
 
 // Settings are the YAML adapter's non-domain, execution-level settings, returned
-// alongside the pure domain Config: the type→prefix map (ID encoding) and the
-// per-command gate timeout. Kept out of pkg/mtt (an external tracker adapter runs
-// no local commands).
+// alongside the pure domain Config: the type→prefix map (ID encoding), the
+// per-command gate timeout, and the acting subject (Author, typically from the
+// gitignored config.local overlay — the durable `by` default). Kept out of
+// pkg/mtt (an external tracker adapter runs no local commands).
 type Settings struct {
 	Prefixes       map[string]string
 	CommandTimeout time.Duration
+	Author         string
 }
 
 // Load reads .mtt/config.yaml under root, merges the optional gitignored
@@ -48,7 +50,7 @@ func Load(root string) (mtt.Config, Settings, error) {
 	if err != nil {
 		return mtt.Config{}, Settings{}, err
 	}
-	return cfg, Settings{Prefixes: prefixes, CommandTimeout: timeout}, nil
+	return cfg, Settings{Prefixes: prefixes, CommandTimeout: timeout, Author: yc.Author}, nil
 }
 
 // parseCommandTimeout parses the command_timeout string; empty yields the

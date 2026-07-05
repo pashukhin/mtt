@@ -8,6 +8,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"os/exec"
 	"runtime"
 	"time"
@@ -15,26 +16,46 @@ import (
 	"github.com/pashukhin/mtt/pkg/mtt"
 )
 
-// Runner runs shell commands in dir, each bounded by timeout.
+// Runner runs shell commands in dir, each bounded by timeout. It reports live
+// pipeline progress to `progress` (always) and streams each command's own
+// stdout/stderr to `cmdOut` (opt-in — the CLI passes io.Discard, stderr, or a
+// file). Timing is display-only (not persisted).
 type Runner struct {
-	dir     string
-	timeout time.Duration
+	dir      string
+	timeout  time.Duration
+	progress io.Writer
+	cmdOut   io.Writer
 }
 
 // NewRunner returns a Runner that executes commands with cwd=dir and the given
-// per-command timeout.
-func NewRunner(dir string, timeout time.Duration) *Runner {
-	return &Runner{dir: dir, timeout: timeout}
+// per-command timeout. progress receives the ▶/✓/✗ pipeline lines; cmdOut
+// receives the commands' own output. Nil writers default to io.Discard.
+func NewRunner(dir string, timeout time.Duration, progress, cmdOut io.Writer) *Runner {
+	if progress == nil {
+		progress = io.Discard
+	}
+	if cmdOut == nil {
+		cmdOut = io.Discard
+	}
+	return &Runner{dir: dir, timeout: timeout, progress: progress, cmdOut: cmdOut}
 }
 
-// Run executes commands in order, recording a Check per executed command. It
-// stops at the first non-zero exit (a Check, not an error). An operational
-// failure (launch error or timeout) returns the checks so far plus a non-nil
-// error.
+// Run executes commands in order, recording a Check per executed command and
+// reporting live progress. It stops at the first non-zero exit (a Check, not an
+// error). An operational failure (launch error or timeout) returns the checks so
+// far plus a non-nil error.
 func (r *Runner) Run(commands []string) ([]mtt.Check, error) {
 	checks := make([]mtt.Check, 0, len(commands))
 	for _, cmd := range commands {
+		_, _ = fmt.Fprintf(r.progress, "▶ %s\n", cmd)
+		start := time.Now()
 		exit, err := r.runOne(cmd)
+		elapsed := time.Since(start).Round(time.Millisecond)
+		mark := "✓"
+		if exit != 0 || err != nil {
+			mark = "✗"
+		}
+		_, _ = fmt.Fprintf(r.progress, "%s %s (exit %d, %s)\n", mark, cmd, exit, elapsed)
 		checks = append(checks, mtt.Check{Cmd: cmd, Exit: exit})
 		if err != nil {
 			return checks, err
@@ -46,14 +67,17 @@ func (r *Runner) Run(commands []string) ([]mtt.Check, error) {
 	return checks, nil
 }
 
-// runOne runs a single command, returning its exit code. A clean non-zero exit
-// yields (code, nil); a timeout or launch failure yields (-1, error).
+// runOne runs a single command, streaming its output to cmdOut and returning its
+// exit code. A clean non-zero exit yields (code, nil); a timeout or launch
+// failure yields (-1, error).
 func (r *Runner) runOne(cmd string) (int, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), r.timeout)
 	defer cancel()
 	name, args := shell(cmd)
 	c := exec.CommandContext(ctx, name, args...)
 	c.Dir = r.dir
+	c.Stdout = r.cmdOut
+	c.Stderr = r.cmdOut
 	err := c.Run()
 	if err == nil {
 		return 0, nil

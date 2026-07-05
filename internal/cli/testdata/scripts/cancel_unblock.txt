@@ -12,12 +12,19 @@ exec mtt ready
 ! stdout 't2  task'
 stdout 't1  task'
 
+# config.local author becomes the default `by` in history
+cp local.yaml .mtt/config.local.yaml
+
 # cancel t1 (tbd -> cancelled, no gate) -> t2 becomes ready
 exec mtt status t1 cancelled
 stdout 't1: tbd → cancelled'
+exec mtt show t1
+stdout 'by grisha'
 exec mtt ready
 stdout 't2  task'
 
+-- local.yaml --
+author: grisha
 -- gated.yaml --
 version: 1
 project:

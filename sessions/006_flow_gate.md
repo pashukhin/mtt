@@ -94,6 +94,12 @@ Shipped (all test-first, `make check` + CI green), version `0.5.0-dev` → `0.6.
 **Pre-execution plan fixes:** the `Init(root, tmpl, project, force)` arg order; and — critically —
 `Execute() int` would have broken the testscript harness (`TestMain` treated it as `error`), fixed in the same task.
 
+**Addendum (post-manual-review, same PR):** gate execution now reports **live pipeline progress** to stderr
+(`▶`/`✓`/`✗ <cmd> (exit N, <elapsed>)`) always — so a blocked run shows which commands passed; each command's
+own output is hidden by default, streamed with `-v`/`--verbose`, and/or written with `--log-file` (exec
+`Runner` gained `progress`/`cmdOut` writers, timing display-only). `by` now resolves `--by` > `MTT_BY` >
+`config.local.yaml` `author` (adapter `Settings.Author`) — GAP #5's durable source. Spec updated (addendum).
+
 Deferred (don't lose): the `advance`/`start`/`done` meta-walk + `ResolvedFlow` + modes → **s007**; packaging
-(`make install`) → a small chore-PR; the durable subject-identity (`By`) source (config.local) + edit-audit;
+(`make install`) → a small chore-PR; a git-independent **edit-audit** trail (beyond transitions);
 a real cancelled-blocker fix (hard/soft edges); `--force` on `status`; per-transition timeout override.

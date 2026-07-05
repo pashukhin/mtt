@@ -466,8 +466,8 @@ type Transitioner interface {
 }
 
 // TransitionOptions carry the roles seam (Role, from --role/MTT_ROLE), the
-// subject-identity seam (By, from --by/MTT_BY — GAP #5 minimal source; the
-// durable config.local source stays open), and NoRun (bypass the gate). [shipped s006]
+// subject-identity By (from --by > MTT_BY > config.local `author` — GAP #5
+// resolved), and NoRun (bypass the gate). [shipped s006]
 type TransitionOptions struct {
 	Role  string
 	By    string
@@ -588,10 +588,11 @@ type ResolvedEdge struct {
 //     set type. A slice is simplest and forward-compatible; confirm.
 //
 //  5. Subject identity (By) source. Who is "acting", for history attribution —
-//     distinct from --role ("what hat"). PARTIAL (s006): By is now written from
-//     --by/MTT_BY (a minimal flag/env seam, mirroring --role). The DURABLE source
-//     (a .mtt/config.local.yaml author field) + a git-independent edit-audit trail
-//     stay deferred (a dedicated slice).
+//     distinct from --role ("what hat"). RESOLVED (s006): By is written from
+//     --by > MTT_BY > the config.local.yaml `author` field (the durable personal
+//     default; surfaced via the adapter Settings.Author). role stays flag/env only
+//     (per-invocation). A git-independent edit-audit trail (queryable edit history
+//     beyond transitions) stays deferred (a dedicated slice).
 //
 //  6. Resolved-graph generality. Index (Parent edge) and ResolvedFlow (transition
 //     edge) and the dependency graph (DependsOn edge) are three instances of one

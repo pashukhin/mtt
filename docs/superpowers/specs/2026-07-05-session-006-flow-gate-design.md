@@ -1,6 +1,10 @@
 # Session 006 — Flow gate (the killer feature) — design
 
-Date: 2026-07-05 · Branch: `feat/s006-flow-gate` · Status: approved
+Date: 2026-07-05 · Branch: `feat/s006-flow-gate` · Status: approved (+ addendum below)
+
+> **Addendum (post-manual-review):** gate execution reports **live pipeline progress** (always) and
+> optionally streams **command output** behind flags; the subject-identity `by` also reads a durable
+> `config.local.yaml` `author`. See "Addendum — live gate output & config.local author" at the end.
 
 ## Goal
 
@@ -183,3 +187,51 @@ stays a documented, deferred slice (DESIGN → Dependencies; TASKS → Later).
   the minimal `--by`/`MTT_BY`).
 - A real fix for cancelled-blocker semantics (hard/soft edges) — documented, deferred.
 - Per-transition timeout override, rollback/compensation commands, `mtt caps`.
+
+## Addendum — live gate output & config.local `author` (post-manual-review)
+
+Manual e2e surfaced two gaps: on a blocked transition you couldn't see which commands **passed** (the CLI
+printed a post-hoc `✓` summary and swallowed the commands' own output), and `by` had no durable source.
+
+### 1. Live pipeline progress (always) vs command output (opt-in)
+
+Two separate concerns, previously conflated:
+
+- **Pipeline progress** — which command is running and its outcome — is **always** shown, **live**, on
+  **stderr**, so a blocked run shows the passed `✓` lines and the failing `✗` before it stops:
+  ```
+  ▶ make lint
+  ✓ make lint (exit 0, 1.2s)
+  ▶ make test
+  ✗ make test (exit 1, 0.4s)
+  ```
+  Timing is per-command elapsed (real `time.Now()` in the exec adapter, display-only — **not** persisted to
+  `history.checks`).
+- **Command output** (each command's own stdout/stderr) is **opt-in** (hidden by default, as before):
+  - `-v` / `--verbose` — stream it live to stderr;
+  - `--log-file <path>` — write it to a file (create/truncate); with `-v`, tee to both (`io.MultiWriter`).
+
+`exec.NewRunner(dir, timeout, progress, cmdOut io.Writer)`: `progress` is always the CLI's stderr; `cmdOut`
+is `io.Discard` / stderr / a file / a multi-writer, chosen by the flags. The exec adapter prints the `▶`/`✓`/
+`✗` progress lines (it alone knows real-time) and wires `cmd.Stdout=cmdOut; cmd.Stderr=cmdOut`. The port
+method `Run(commands)` is unchanged (writers are baked in at construction, like `dir`/`timeout`). The CLI
+drops its post-hoc `✓` summary and prints only the domain outcome (`t1: from → to`, or JSON) on **stdout**,
+so `--json` stdout stays clean (progress on stderr).
+
+### 2. `by` from `config.local.yaml` `author`
+
+The durable subject-identity source (GAP #5, minimal): resolve `by` as `--by` > `MTT_BY` >
+`config.local.yaml` `author:` > empty. `role` stays flag/env only (it is "what hat *now*", per-invocation,
+not a personal constant). `author` lives **only** in the gitignored personal overlay — it is not added to the
+committed templates. Surfaced via the adapter `Settings.Author` (from `Load`); `resolveRoleBy` takes the
+author default. The remaining durable edit-audit trail stays deferred.
+
+### Tests (addendum)
+
+- `exec.Runner`: progress lines (`▶`/`✓`/`✗ … (exit N, …)`) go to the `progress` writer; command output goes
+  to `cmdOut` only (assert a captured buffer sees it and the progress buffer does not, and vice-versa);
+  durations are not asserted exactly (prefix match).
+- CLI: `-v` routes command output to stderr; `--log-file` writes it to the file; `by` falls back to
+  `config.local` `author` when `--by`/`MTT_BY` are unset (precedence).
+- e2e `status.txt`: assert a `✗` progress marker on **stderr** for the blocked edge (passed `✓` visible);
+  an added arm writes a `config.local.yaml` with `author:` and asserts `mtt show` history records that `by`.

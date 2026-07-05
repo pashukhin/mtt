@@ -5,17 +5,22 @@ cp gated.yaml .mtt/config.yaml
 exec mtt add 'A'
 stdout 'created t1'
 
-# green gate: tbd -> in_progress runs `true`, moves, records history
-exec mtt status t1 in_progress
+# green gate: tbd -> in_progress runs `echo $((3+4))`, moves, records history.
+# pipeline progress goes to stderr; command output is redirected to a file.
+exec mtt status t1 in_progress --log-file build.log
 stdout 't1: tbd → in_progress'
+stderr '\(exit 0,'
+grep '7' build.log
 exec mtt show t1
 stdout '\[in_progress\]'
 stdout 'history:'
 stdout 'tbd → in_progress'
 
-# red gate: in_progress -> done runs `false` -> blocked; task stays put
+# red gate: in_progress -> done runs `false` -> blocked; task stays put.
+# the failing command's progress line is on stderr.
 ! exec mtt status t1 done
 stderr 'blocked'
+stderr '\(exit 1,'
 exec mtt show t1
 stdout '\[in_progress\]'
 
@@ -43,7 +48,7 @@ types:
       - {name: done, kind: terminal}
       - {name: cancelled, kind: terminal}
     transitions:
-      - {from: tbd, to: in_progress, commands: ["true"]}
+      - {from: tbd, to: in_progress, commands: ["echo $((3+4))"]}
       - {from: tbd, to: cancelled}
       - {from: in_progress, to: done, commands: ["false"]}
       - {from: in_progress, to: cancelled}

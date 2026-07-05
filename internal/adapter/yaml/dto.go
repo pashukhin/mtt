@@ -17,6 +17,7 @@ type ymlConfig struct {
 	Version        int        `yaml:"version"`
 	Project        ymlProject `yaml:"project"`
 	CommandTimeout string     `yaml:"command_timeout,omitempty"`
+	Author         string     `yaml:"author,omitempty"`
 	Types          []ymlType  `yaml:"types"`
 }
 

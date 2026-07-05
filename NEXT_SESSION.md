@@ -265,6 +265,7 @@ resolved graph, and open gaps. Two decisions locked there that shape s005:
 > `-- gated.yaml --` `cp`'d over `.mtt/config.yaml`, `mtt add`'s title is positional; single-edge lookup beat
 > `ResolvedFlow` for one edge (reconsider for the walk); CLI stdout via `fmt.Fprint(cmd.OutOrStdout(), …)`;
 > anchored testscript asserts; `golangci unused`; keep each `CLAUDE.md` current; zero-match `--json` = `[]`.
-> Don't lose the **open design slices**: the durable subject-identity (`By`) source (config.local) + edit-audit
-> (GAP #5); a real `cancelled`-blocker fix (kept-as-is in s006); packaging (`make install`) chore-PR. Follow
+> Don't lose the **open design slices**: a git-independent **edit-audit** trail beyond transitions (GAP #5's
+> remaining half — `By` source is now resolved via config.local `author`); a real `cancelled`-blocker fix
+> (kept-as-is in s006); packaging (`make install`) chore-PR. Follow
 > SOLID/DRY/KISS/TDD/DDD/clean-architecture and the AGENTS.md self-check.
