@@ -28,10 +28,14 @@ sliced so **every session delivers something usable**. Order/size may be refined
 | 005 ✅ | dependencies | `mtt dep add/rm/list` (`--tree`/`--cycles`), `mtt ready`, `list --ready` | dep blocks ready; cycle rejected |
 | 006 ✅ | **flow gate (killer)** | `mtt status <id> <new>` runs & gates commands | failing gate blocks transition; history written |
 | 007 | **advance** | `mtt start`/`done`/`cancel` + modes | `mtt done` walks tbd→…→done, blocks on red gate |
-| 008 | references | `mtt ref add/rm/list`, backlinks | ref resolves; dangling flagged |
-| 009 | comments | `mtt comment add/list` (tree) | nested comments render in `show` |
-| 010 | coding template + dogfood | `mtt init --template coding`; self-host | migrate this backlog onto mtt |
-| 011+ | KB/search, Gantt, `mtt-ui`, external adapters | later phases (see DESIGN.md) | |
+| 008 | **structured commands** | placeholders + per-command timeout in transition commands | `start` creates a `task/<id>` branch; a slow gate fails fast |
+| 009 | **rollback** | reverse-order compensating commands on a failed pipeline / `--atomic` abort | a late gate failure undoes prior side effects |
+| 009.5 | dogfood enablers (chore) | `mtt rm`, `--depends-on` on `add`, packaging (`make install`) | delete a task; `add --depends-on`; `go install ./cmd/mtt` |
+| 010 | **dogfood** | self-host: `mtt init` this repo, task-aware gates, migrate the backlog | mtt tracks its own tasks; `done` gated on `make check` |
+| 011 | references | `mtt ref add/rm/list`, backlinks | ref resolves; task↔PR/spec link |
+| 012 | comments | `mtt comment add/list` (tree) | nested comments render in `show` |
+| 013 | actor profiles | `mtt profile …`; default profile = the coding agent | `by`/`role` from the default profile |
+| 014+ | coding template demo, KB/search, Gantt, `mtt-ui`, external adapters | later phases (see DESIGN.md) | |
 
 **Decisions carried from the domain-model snapshot** ([../docs/architecture/model.go](../docs/architecture/model.go)):
 
@@ -41,9 +45,17 @@ sliced so **every session delivers something usable**. Order/size may be refined
 - **005 adds no new port.** `depends_on` rides on the `Task` field + `TaskStore.Update` (as `parent` did in
   004); `DependencyStore` is only for external adapters that cannot embed. 005 = core `DependencyEditor` +
   `Ready` + cycle-check.
-- **Packaging** (`make install` → `go install ./cmd/mtt`) is a separate small chore, best landed near **006**
-  — that is when status transitions make mtt a real tracker worth dogfooding. Full release tooling
-  (goreleaser, tagged binaries) is later.
+- **Packaging** (`make install` → `go install ./cmd/mtt`) folds into the **009.5** dogfood-enablers chore
+  (alongside `mtt rm` and `--depends-on` on `add`). Full release tooling (goreleaser, tagged binaries) is later.
+
+**Roadmap regrouped (2026-07-05, after s006).** Dogfooding "the agent works in task terms, with all shell
+orchestration living in flow transitions" has a hard prerequisite: **command placeholders** (a transition
+can't create a per-task branch — `git checkout -b task/{{.ID}}` — without them), plus per-command timeout and
+rollback for robustness. So **structured commands** (008) + **rollback** (009) were pulled up from the
+backlog to right after `advance` (007), and **dogfood** (010) moved *earlier* — ahead of references/comments,
+which enrich a full self-host but don't enable it. The `coding` template demo (branch + gated DoD) only
+becomes fully powered once 008 lands, so it moved to the later-phases bucket. **actor profiles** (013,
+default profile = the coding agent) pair with instructing the agent to work in task terms.
 
 **Cross-cutting — global flags** (root persistent flags; see [../CLI_REFERENCE.md](../CLI_REFERENCE.md) →
 "Global flags"). Not a session of their own — land early so new commands **inherit** them instead of

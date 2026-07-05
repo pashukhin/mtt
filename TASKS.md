@@ -125,12 +125,30 @@ Single-edge `mtt status` shipped in **s006**; the meta-walk (`advance`/`start`/`
       modes `--stop`(default)/`--atomic`/`--force`; `mtt start`/`mtt done` aliases → **s007**
 - [ ] e4_t6 — `mtt types` (types/flow from config) + `mtt caps` (the current backend's capabilities)
 - [ ] e4_t7 — `ready`/`list`/completeness — **by status category** (not by the literal `done`)
+- [ ] e4_t8 — **structured commands** (**s008**): evolve `Transition.Commands` `[]string` → a `Command`
+      value object (`{run, timeout?}`) with **placeholder** expansion on `run` (`.ID`/`.Type`/`.From`/`.To`;
+      shell-quote/restrict — injection caveat) + **per-command timeout** overriding `command_timeout`.
+      Additive/back-compatible (bare string ⇒ `{run: …}`), but a **domain-shape change** in `pkg/mtt`. This
+      is the enabler for "the agent works in task terms" (task-aware transitions, e.g. branch creation)
+- [ ] e4_t9 — **rollback/compensation** (**s009**): reverse-order compensating commands on a failed pipeline
+      or an `--atomic`/multi-step `advance` abort after side effects; the executor's abort path is the hook
 
-## e5 — Phase 4: comments (tree)  `[ ]`
+## e5 — Phase 4: dogfood → references → comments → profiles (regrouped 2026-07-05)  `[ ]`
 
-- [ ] e5_t1 — `mtt comment add <id> [--reply <cid>]`
-- [ ] e5_t2 — render the comment tree in `show`
-- [ ] e5_t3 — **dogfooding**: move this tracker onto mtt itself
+Reordered so mtt self-hosts as soon as flow orchestration is complete (after e4), ahead of references and
+comments (which enrich a full self-host but don't enable it). See sessions/README.md → "Roadmap regrouped".
+
+- [ ] e5_t1 — **dogfood enablers (chore, s009.5)**: `mtt rm <id>` (hard-delete, distinct from `cancel`),
+      `--depends-on` on `add`, packaging (`make install` → `go install ./cmd/mtt` + a smoke test)
+- [ ] e5_t2 — **dogfooding (s010)**: `mtt init` this repo, a config whose gates are task-aware (branch on
+      `start` via a placeholder, `make check` on `done`), migrate the backlog onto mtt
+- [ ] e5_t3 — references (**s011**): `mtt ref add/rm/list`, backlinks; resolve `task`/`comment` refs (link a
+      task ↔ its PR/spec)
+- [ ] e5_t4 — comments (**s012**): `mtt comment add <id> [--reply <cid>]` (tree) + render in `show`
+- [ ] e5_t5 — **actor profiles (s013)**: named `(by, role)` profiles in `config.local`, one `default: true`
+      (= the coding agent), managed by `mtt profile add/list/rm` (local-only); subsumes the s006 `author` seam
+- [ ] e5_t6 — `mtt init --template coding` demo (feature/bugfix/refactor with task-aware gated DoD) — fully
+      powered once structured commands (e4_t8) land
 
 ## Later (coarse)
 
@@ -142,33 +160,10 @@ Single-edge `mtt status` shipped in **s006**; the meta-walk (`advance`/`start`/`
 - e9 — Phase 8: external indexer hook
 - later — reconstruct the observed status graph from tasks' `history` (read-only aggregation);
   explicit flow versioning/migrations (the git history of config is enough for now)
-- later — **actor profiles** (unify `by` + `role`): named profiles in config, each a `(by, role)` pair, one
-  marked `default: true` (name-agnostic, mirrors the default-type/status marker) and applied when neither
-  `--by`/`--role` nor `--profile` is given. Motivation: mtt is used mostly by **coding agents** that share the
-  repo config with a human, so the agent's profile should be the ergonomic default (the human overrides with
-  `--profile`/`--by`). `mtt profile add/list/rm` manages **only** the personal `.mtt/config.local.yaml`
-  profiles and never touches shared project profiles (if a project defines any in `config.yaml`, they are
-  read-only to the command). `--role` stays overridable per-invocation (one identity can switch hats).
-  Supersedes the minimal s006 `author` seam (`author` = the default profile's `by`); forward-compatible.
-  Extends the reserved `roles` section: role-aware semantics (a role tag on transitions,
-  role-parameterization of `advance`/verb→target) build on profiles. Roles are semantic routing, not RBAC.
-- later — **per-command timeout** overriding the global `command_timeout` (a fast command that overruns its
-  own timeout signals a problem — fail fast, don't wait the global 5m). Attaches to the command (see the
-  structured-command note below).
-- later — **command placeholders**: template substitution in a transition's commands (e.g. auto-create a
-  branch on `tbd → in_progress`: `git checkout -b task/{{.ID}}`). A small, safe vocabulary (`.ID`, `.Type`,
-  `.From`, `.To`, …). **Caveat — shell injection:** substituted values are interpolated into `sh -c`, so
-  either restrict to shape-safe fields (`id`/`type`/`status`) or shell-quote/escape arbitrary ones (`title`);
-  never interpolate raw user text unquoted.
-- later — rollback/compensation commands on transitions (`rollback`/`on_failure`), run in **reverse order**
-  over the already-succeeded commands when a later command in the same pipeline fails (intra-pipeline
-  compensation), and when an `--atomic`/multi-step `advance` aborts after side effects (undo a created branch,
-  etc.). The executor's abort path is the hook.
-- **structured commands (convergence of the three above):** per-command timeout + rollback + placeholders
-  together argue for evolving `Transition.Commands []string` into a `[]Command` **value object**
-  (`{run string; timeout?; rollback?}`) with placeholder expansion on `run`. Additive/back-compatible (a bare
-  string maps to `{run: …}`), but it is a **domain-shape change in `pkg/mtt`** — plan it as one deliberate
-  slice, not piecemeal.
+- **now scheduled (regrouped 2026-07-05):** structured commands (placeholders + per-command timeout) →
+  **e4_t8 / s008**; rollback/compensation → **e4_t9 / s009**; dogfood enablers (`mtt rm`, `--depends-on`) +
+  packaging → **e5_t1 / s009.5**; actor profiles → **e5_t5 / s013**. Design detail lives in DESIGN.md →
+  "Seam (deferred): structured commands" / "Direction (deferred): actor profiles" and the rollback seam.
 - later — **`cancelled`-blocker semantics**: a `cancelled` (abandoned) `depends_on` currently unblocks its
   dependent (terminal by `kind`), which may be wrong — the dependent may need re-evaluation. Revisit with
   flow enforcement (s006), when terminal statuses become reachable. See DESIGN.md → "Dependencies".

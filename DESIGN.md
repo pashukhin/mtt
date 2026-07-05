@@ -615,8 +615,8 @@ has a text/ASCII Gantt. The latest phase.
 | 0 | Scaffold: repo, module, AGENTS/DESIGN, CLI skeleton, gate, CI | ✅ done |
 | 1 | `pkg/mtt` **pure** contract (domain types + `TaskStore` port); config+types (**structural** invariants: `kind` by topology, ≥1 of each, no name literals), `mtt init`; the YAML adapter **mints IDs** flat per-prefix (`e1`/`t17`/`s3`); core usecases + `add/list/show/edit/close` | 🔄 s001–003 (`close` → phase 3; optional capability interfaces deferred, see [architecture snapshot](docs/architecture/model.go)) |
 | 2 | Hierarchy (by `parents` from config); dependencies; `ready`; cycle detection | 🔄 hierarchy done (s004); dependencies/`ready`/cycles → s005 |
-| 3 | Flow enforcement: transition validation + running `commands` (the `Runner` port), gating on exit codes; `mtt start/done/status` | 🔄 single-edge `mtt status` shipped (s006: `Runner` port + `internal/adapter/exec`, `core.Transitioner`, exit codes 3/6, `history`, `--role`/`--by`); the `advance`/`start`/`done` meta-walk → s007 |
-| 4 | Comments (tree) | |
+| 3 | Flow enforcement: transition validation + running `commands` (the `Runner` port), gating on exit codes; `mtt start/done/status`; **structured commands** (placeholders + per-command timeout) + **rollback** | 🔄 single-edge `mtt status` shipped (s006); `advance`/`start`/`done` → s007; structured commands (the "work in task terms" enabler) → s008; rollback → s009 |
+| 4 | **Dogfood** (pulled ahead — s010, after flow orchestration is complete), then references (s011), comments (s012), actor profiles (s013) | |
 | — | **⬆ agent-facing MVP — fully usable** | |
 | 5 | `KnowledgeStore` port + YAML KB adapter; text search | |
 | 6 | Text/ASCII Gantt in the CLI; richer list/query | |
@@ -627,7 +627,11 @@ Positioning priorities: phase 3 (flow) and **adaptivity** (external backends, ph
 `mtt-ui` (phase 7) is a nice optional default, not the main argument. Dependencies (phase 2) stay
 **simple**; the knowledge base (phase 5) is low priority (beads already has an analog), done only if cheap.
 
-Dogfooding: until phase 4 the plan is kept here; after that we move mtt's development onto mtt itself.
+Dogfooding: **pulled ahead** (s010, once flow orchestration — advance + structured commands — is complete),
+before references/comments, since those enrich a full self-host but don't enable it. "The agent works in task
+terms, with shell orchestration living in flow transitions" hinges on **command placeholders** (s008): a
+transition can't create a per-task branch without them. Until then the plan is kept in this repo's docs;
+after dogfood we move mtt's development onto mtt itself. See sessions/README.md → "Roadmap regrouped".
 
 **Later (backlog):**
 
