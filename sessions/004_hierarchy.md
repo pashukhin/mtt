@@ -58,4 +58,26 @@ is a **nested** tree. No new port method.
 
 ## Done (fill during/after the session)
 
-—
+Shipped (all test-first, `make check` green, version bumped to `0.4.0-dev`):
+
+- **`pkg/mtt`**: pure predicates `Type.AcceptsParent(parentType)` and `Type.StatusKind(status)`.
+- **`internal/core`**: `Index` (derived hierarchy — `Roots`/`Children`/`Ancestors`/`Get`, computed children,
+  orphans-as-roots, cycle-safe) built from `TaskStore.List`; `Match` (shared status/type/kind/parent
+  predicate); `Select` refactored to `Select(tasks, ListFilter, cfg)` using `Match` + the shared
+  `lessByRecency` comparator; `Adder` validates `--parent` (exists + `AcceptsParent`).
+- **`internal/cli`**: `mtt add --parent <id>` (mutually exclusive with `--no-parent`); `mtt tree [<id>]`
+  (ASCII render, keep-ancestors `--status`/`--kind`, `--depth`, nested `--json`); `mtt list --parent`/`--kind`;
+  `mtt show` lineage breadcrumb; shared `taskLine`/`parseKinds` helpers.
+- **Tests**: unit (fixed clock) for predicates, `Index`, `Match`, `Adder`, `renderTree`/`buildTreeJSON`;
+  e2e `tree.txt` + extended `add_show.txt`/`list_edit.txt`.
+- **Docs**: DESIGN.md/.ru (hierarchy section), CLI_REFERENCE.md/.ru (add/show/list/tree), CLAUDE.md
+  (pkg/mtt, core, cli).
+
+Decisions (full detail in the spec): parent-type validation is a `core.Adder` mutation using a pure domain
+predicate; the children/ancestors graph is a derived `core.Index` (no store/clock, not in the contract);
+one `core.Match` predicate serves `list` and `tree` (DRY); full filter set is in scope; `tree` filtering is
+**keep-ancestors**; `tree --json` is a **nested** tree. No new `TaskStore` method (`Create` already persists
+`Parent`).
+
+Deferred (unchanged): `depends_on`/`ready`/dependency cycles → 005; `reparent`/`move`; `--depends-on`/`--ref`
+on `add`; `tree --sort`.

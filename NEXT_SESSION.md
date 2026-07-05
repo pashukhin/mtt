@@ -4,13 +4,15 @@ A living handoff doc. Update it at the end of each session (what's done / what's
 
 ## Where we are
 
-- **Phase 0 (scaffold) + session 001 (init & inspect) + session 002 (create & view) + session 003 (list &
-  edit) are DONE** (003 done on branch `feat/s003-list-edit`, `make check` green, PR not yet opened,
-  e2e `list_edit.txt` passing). Session 001 shipped `mtt init [--template default|coding] [--force]
-  [--name]` and `mtt types [<type>]`. Session 002 shipped `mtt add [title] [--type] [--no-parent]
-  [--description]` and `mtt show <id>`. Session 003 shipped `mtt list` (`--status`/`--type`/`--sort
-  created|updated`/`--json`), `mtt edit <id> [--title] [--description]`, and the global flags
-  `--dir`/`MTT_DIR`, `--version`, `--json`. CI runs on Node 24 action majors.
+- **Phase 0 (scaffold) + sessions 001–004 are DONE** (version `0.4.0-dev`, `make check` green). Session 001
+  shipped `mtt init [--template default|coding] [--force] [--name]` and `mtt types [<type>]`. Session 002
+  shipped `mtt add [title] [--type] [--no-parent] [--description]` and `mtt show <id>`. Session 003 shipped
+  `mtt list` (`--status`/`--type`/`--sort created|updated`/`--json`), `mtt edit <id> [--title]
+  [--description]`, and the global flags `--dir`/`MTT_DIR`, `--version`, `--json`. **Session 004 (hierarchy)**
+  shipped `mtt add --parent <id>` (validated placement, mutually exclusive with `--no-parent`), `mtt tree
+  [<id>] [--status/--kind/--depth/--json]` (ASCII, keep-ancestors, nested JSON), `mtt list --parent/--kind`,
+  and the `mtt show` lineage breadcrumb — over a derived `core.Index` (computed children/ancestors, cycle-safe)
+  and a shared `core.Match` predicate. CI runs on Node 24 action majors.
 - **In place now:** the pure `pkg/mtt` contract (`Config/Type/Flow/Status/Transition`, the `StatusKind`
   value object, structural `Config.Validate()`, `DefaultType`/`ChildrenIn`), the YAML adapter's **config
   layer** (`FindRoot`, `HasProject`, embedded `default`/`coding` templates, atomic `Init`, `Load` +
@@ -21,9 +23,9 @@ A living handoff doc. Update it at the end of each session (what's done / what's
   serialization, and the CLI's `projectRoot`/`baseDir` (DRY root resolution) + `taskJSON` (shared `--json`
   view for `show`/`list`/`edit`). **Not yet:** hierarchy (`--parent`/`tree`), dependencies, flow enforcement,
   comments; also deferred out of 003 — a durable edit-audit trail and the subject-identity (`By`) source
-  (see "Open design slice" below).
+  (see "Open design slice" below). Hierarchy landed in 004; **dependencies/`ready`/cycle-detection** are next.
 - Work is organized in **compact sessions** (see [sessions/README.md](sessions/README.md)); next up is
-  **session 004** (hierarchy: `mtt add --parent`, `mtt tree`).
+  **session 005** (dependencies: `mtt dep add/rm/list`, `mtt ready`; dependency-cycle rejection).
 - Repo: <https://github.com/pashukhin/mtt> (public). Branch per session → PR → CI green → merge into `main`.
 - Stack: Go 1.23, cobra, `gopkg.in/yaml.v3`, `go-internal/testscript` (e2e); storage — YAML file-per-task.
 
@@ -89,27 +91,26 @@ The plugin is declared in the personal `.claude/settings.local.json` (per-user, 
    (alternative — the official marketplace: `/plugin install superpowers@claude-plugins-official`)
 3. Verify the TDD/brainstorming/debugging skills are available, and **use them**.
 
-## Next task — session 004 (hierarchy)
+## Next task — session 005 (dependencies)
 
-- No `sessions/004_*.md` file yet — **create it from `sessions/000_template.md`** as the first step
-  (mirrors how 003 started: a design-spec + plan commit before implementation), named per the roadmap
-  (`sessions/README.md`): `004 — hierarchy`. Branch `feat/s004-hierarchy`. Refine the plan (superpowers
-  brainstorming/planning) before writing code; work **test-first**; the acceptance e2e + `make check` must
-  pass before the PR.
-- Scope per the roadmap: **`mtt add --parent <id>`** (place a task under a parent; validate the parent's
-  type against the child type's `parents`, per the "Hierarchy sanity" invariant in DESIGN.md) and **`mtt
-  tree [<id>] [--status …] [--kind …] [--depth <n>]`** (render the epic → task → subtask hierarchy;
-  optionally rooted at `<id>`). `mtt list --parent <id>` (direct children only) is the natural companion —
-  see CLI_REFERENCE.md → `mtt list`.
-- Architecture stays the full **`cli → core → port ← adapter`**: hierarchy traversal is a pure read (in
-  `internal/core`, alongside `Select`) built from `TaskStore.List` — apply the "pure read needs no usecase
-  struct" lesson only where there's truly no mutation; `add --parent` still goes through `core.Adder` (a
-  mutation) since it already validates placement.
-- **Reference (authoritative model):** DESIGN.md → "Types and hierarchy" / "Model invariants" (hierarchy
-  sanity, type immutability) and → "Listing (`list`) and editing (`edit`) — session 003" (the shipped
-  `Select`/`Editor` this session builds on).
+- **Create `sessions/005_dependencies.md` from `sessions/000_template.md`** as the first step (mirrors 003/004:
+  a design-spec + plan commit before implementation), named per the roadmap (`sessions/README.md`):
+  `005 — dependencies`. Branch `feat/s005-dependencies`. Refine the plan (superpowers brainstorming/planning)
+  before writing code; work **test-first**; the acceptance e2e + `make check` must pass before the PR.
+- Scope per the roadmap: **`mtt dep add/rm/list <id>`** (manage `depends_on`, a **blocking** edge distinct
+  from hierarchy/`refs`), **cycle rejection on add**, and **`mtt ready`** (a task is ready ⇔ status not
+  terminal AND all `depends_on` are terminal — by category `kind`, never a literal). Consider `list --ready`
+  as the shorthand companion (CLI_REFERENCE.md → `mtt list`).
+- Architecture stays the full **`cli → core → port ← adapter`**. Reuse the 004 seams: cycle-safe traversal
+  patterns mirror `core.Index` (but over `depends_on`, not `parent`); `ready` is a **pure read** (category
+  logic via `Type.StatusKind`, like `core.Match`'s kind resolution); mutations (`dep add/rm`) go through a
+  `core` usecase. `DependencyStore` is an optional capability (DESIGN.md → "Adapter capabilities"); the YAML
+  adapter is the reference. Confirm whether the port needs a new method or `Update` suffices (`depends_on` is
+  already a `Task` field, round-tripped by the DTO — likely `Update` is enough, mirroring 004's Parent).
+- **Reference (authoritative model):** DESIGN.md → "Dependencies" and "Adapter capabilities"; the shipped
+  `core.Index`/`Match`/`Type.StatusKind` this session builds on (session 004).
 
-### Open design slice to schedule (not session 004's scope, but don't lose it)
+### Open design slice to schedule (not session 005's scope, but don't lose it)
 - **Durable, git-independent audit of edits** + **the subject-identity (`By`) source.** `edit` today only
   bumps `updated`; git is the de facto audit trail. A change-log or field versioning (additive) would make
   edit history queryable without git, and needs an identity source for "who" (likely
@@ -139,28 +140,44 @@ The plugin is declared in the personal `.claude/settings.local.json` (per-user, 
   drives the real binary against wall-clock timestamps that can tie at second resolution.
 - **Zero-match `--json` must be `[]`, not `null`**: build the slice with `make([]T, 0, …)` before appending,
   so `encoding/json` marshals an empty result set as `[]` — a `nil` slice marshals to `null`, which most
-  JSON consumers don't treat the same as an empty array.
+  JSON consumers don't treat the same as an empty array. (004: nested `tree --json` — top-level slice is
+  `make([]T,0,…)`; leaf `children` use `omitempty`.)
+- **Derived graphs live in `core`, not the contract** (004): `core.Index` (parent→children/ancestors) is a
+  pure value built from `TaskStore.List` — no store, no clock, **not** in `pkg/mtt`. Back-refs are computed,
+  cycle-safe (visited-set), orphans surface as roots. Keep the sibling comparator shared with `Select`
+  (`lessByRecency`) so tree and list order identically (DRY). Reuse this shape for `depends_on` in 005.
+- **One predicate, many consumers** (004): `core.Match` (status/type/kind/parent) backs both `list` and the
+  `tree` walk. When a filter needs config (e.g. `--kind` → `Type.StatusKind`), thread `cfg` into the pure
+  function (`Select(tasks, ListFilter, cfg)`) — `cfg` is domain data, so the function stays pure.
+- **Mutually-exclusive cobra flags**: `cmd.MarkFlagsMutuallyExclusive("parent","no-parent")`; the e2e error
+  text to assert is `if any flags in the group`.
+- **Tree filter semantics = keep-ancestors** (004 decision): a node shows if it matches or any descendant
+  matches; non-matching ancestors stay as the path. Prove render/order by **unit test** (fixed clock); the
+  e2e asserts presence.
 
 ## Ready-to-paste kickoff prompt (for a new session)
 
-> We're continuing mtt. Sessions 001 (init & types), 002 (create & view), and 003 (list & edit) are done
-> (003 done on branch `feat/s003-list-edit`, `make check` green, PR not yet opened). Read, in order: CLAUDE.md, AGENTS.md, DESIGN.md, TASKS.md,
-> NEXT_SESSION.md, sessions/README.md, sessions/003_list_and_edit.md (for the shipped `Select`/`Editor`
-> shape), and CLI_REFERENCE.md. Make sure the superpowers skills are active (otherwise activate them per
-> NEXT_SESSION.md). We work in compact sessions; do **session 004 (hierarchy)** on branch
-> `feat/s004-hierarchy`: first create `sessions/004_hierarchy.md` from `sessions/000_template.md` and
-> brainstorm/refine the plan (superpowers brainstorming → writing-plans), then implement strictly
-> test-first until the acceptance e2e + `make check` are green; branch → PR → CI green → merge to `main`.
+> We're continuing mtt. Sessions 001 (init & types), 002 (create & view), 003 (list & edit), and 004
+> (hierarchy) are done (merged to `main`, version `0.4.0-dev`, `make check` green). Read, in order: CLAUDE.md,
+> AGENTS.md, DESIGN.md, TASKS.md, NEXT_SESSION.md, sessions/README.md, sessions/004_hierarchy.md (for the
+> shipped `Index`/`Match`/`Adder` shape), and CLI_REFERENCE.md. Make sure the superpowers skills are active
+> (otherwise activate them per NEXT_SESSION.md). We work in compact sessions; do **session 005 (dependencies)**
+> on branch `feat/s005-dependencies`: first create `sessions/005_dependencies.md` from
+> `sessions/000_template.md` and brainstorm/refine the plan (superpowers brainstorming → writing-plans), then
+> implement strictly test-first until the acceptance e2e + `make check` are green; branch → PR → CI green →
+> merge to `main`.
 >
-> Scope: `mtt add --parent <id>` (hierarchy placement, validated against the type's `parents`) and `mtt tree
-> [<id>] [--status …] [--kind …] [--depth <n>]` (render epic → task → subtask; optionally rooted at `<id>`);
-> `mtt list --parent <id>` is the natural companion. Architecture stays `cli → core → port ← adapter`;
-> `core` must NOT import `adapter/*`; hierarchy traversal is a pure read (like 003's `core.Select`) built
-> from `TaskStore.List`, while `add --parent` stays a `core.Adder` mutation.
+> Scope: `mtt dep add/rm/list <id>` (manage `depends_on`, a blocking edge distinct from hierarchy/`refs`),
+> cycle rejection on add, and `mtt ready` (ready ⇔ status not terminal AND all `depends_on` terminal — by
+> `kind` category, never a literal). Architecture stays `cli → core → port ← adapter`; `core` must NOT import
+> `adapter/*`. Reuse 004's seams: cycle-safe traversal mirrors `core.Index` (over `depends_on`, not `parent`);
+> `ready` is a pure read (category via `Type.StatusKind`, like `core.Match`); `dep add/rm` is a `core`
+> mutation. `DependencyStore` is an optional capability (YAML is the reference); confirm `Update` suffices
+> (`depends_on` is already a round-tripped `Task` field, as `Parent` was in 004).
 >
 > Heed the "Carry-over lessons" in NEXT_SESSION.md (CLI stdout via `fmt.Fprint(cmd.OutOrStdout(), …)`;
-> anchor testscript assertions; `golangci unused`; new package → its own thin CLAUDE.md; list order is a
-> provider-agnostic domain timestamp, unit-test the order, e2e asserts presence; zero-match `--json` must
-> serialize `[]` not `null`). Note the **open design slice** parked in NEXT_SESSION.md (durable edit-audit +
-> subject-identity `By` source) — not in scope for 004, just don't lose it. Follow
-> SOLID/DRY/KISS/TDD/DDD/clean-architecture and the self-check from AGENTS.md.
+> anchor testscript assertions; `golangci unused`; keep each package's `CLAUDE.md` current; provider-agnostic
+> order, unit-test order + e2e asserts presence; zero-match `--json` must serialize `[]` not `null`; derived
+> graphs live in `core` not the contract; one shared predicate for filters). Note the **open design slice**
+> parked in NEXT_SESSION.md (durable edit-audit + subject-identity `By` source) — not in scope for 005, just
+> don't lose it. Follow SOLID/DRY/KISS/TDD/DDD/clean-architecture and the self-check from AGENTS.md.

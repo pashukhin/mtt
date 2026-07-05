@@ -342,6 +342,20 @@ history:
   stay enforced; re-parenting (changing `parent`) and re-typing are **separate operations**, not `edit` —
   already called out above and in the backlog.
 
+## Hierarchy: placement and rendering — session 004
+
+- **`add --parent <id>` is the normal placement path.** A child records only its `parent` (a forward ref by
+  ID); the adapter still mints a **flat per-prefix** ID, so identity is decoupled from position. Placement is
+  validated as a mutation in `core.Adder`: the parent must exist and its **type** must be allowed by the child
+  type's `parents` (the pure `Type.AcceptsParent` predicate). `--no-parent` stays the escape hatch.
+- **Children/ancestors are computed, never stored.** `core.Index` is a derived, in-memory view built from
+  `TaskStore.List` (a pure value — no store, no clock; the "resolved graph is derived", not part of the
+  `pkg/mtt` contract): parent→children, ancestor chain, roots; cycle-safe; orphans (dangling parent) surface
+  as roots. Sibling order reuses the provider-agnostic `Select` ordering (`Created` desc, ID tiebreak).
+- **`tree` and `show` lineage are pure reads** (no usecase): `mtt tree` renders the forest (keep-ancestors
+  filtering, `--depth`, nested `--json`); `mtt show` prints the "you are here" lineage breadcrumb. A single
+  `core.Match` predicate (status/type/kind/parent) is shared by `list` and the `tree` walk (DRY).
+
 ## Flow: executable transitions (the killer feature) and `mtt init`
 
 A type defines a **flow** — a status graph with transitions. On each transition you can hang:

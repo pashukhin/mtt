@@ -97,15 +97,18 @@ Create a task. Provide a `title` (positional) and/or `--description`; at least o
 adapter mints the ID — a flat, per-prefix ID such as `e1` or `t17` — and prints `created <id>`.
 
 - `--type <name>` — task type from config (default: the type marked `default`).
-- `--no-parent` — create a parent-requiring type at top level (a conscious exception; `--parent`
-  (required when the type has a `parent`), `--depends-on <id>…`, and `--ref <kind>:<target>…` (e.g.
-  `note:auth-design`, `task:t2`) arrive in a later session).
+- `--parent <id>` — place the task under an existing parent (session 004). Validated: the parent exists and
+  its **type** is allowed by the child type's `parents`. Mutually exclusive with `--no-parent`. *(implemented)*
+- `--no-parent` — create a parent-requiring type at top level (a conscious exception). *(implemented)*
 - `--description <text>` — the task description (stdin via `--description -` planned).
+- `--depends-on <id>…` and `--ref <kind>:<target>…` (e.g. `note:auth-design`, `task:t2`) arrive in a later session.
 
-A non-root default type without `--no-parent` errors and tells you how to proceed.
+A non-root type given neither `--parent` nor `--no-parent` errors and tells you how to proceed. A missing
+parent, or a parent whose type the child may not sit under, errors with guidance.
 
-### `mtt show <id> [flags]` — show a task  *(phase 1, implemented)*
-Shows a task: id, type, status, title, timestamps, and description. Dependencies, references and
+### `mtt show <id> [flags]` — show a task  *(phase 1, implemented; lineage in session 004)*
+Shows a task: id, type, status, title, the **lineage** breadcrumb (root-first parent chain, e.g.
+`lineage:  e1 › t1`, omitted for a root task), timestamps, and description. Dependencies, references and
 **backlinks**, the comment tree, and the transition `history` (audit trail) print once those land in
 later phases.
 
@@ -117,9 +120,9 @@ later phases.
 Prints tasks in a stable order. Filters combine with AND.
 
 - `--status <status>…` — filter by status name. *(implemented)*
-- `--kind <initial|active|terminal>` — filter by status category. *(later)*
+- `--kind <initial|active|terminal>…` — filter by status category (session 004). *(implemented)*
 - `--type <type>…` — filter by task type. *(implemented)*
-- `--parent <id>` — only direct children of this task. *(later, session 004 — hierarchy)*
+- `--parent <id>` — only direct children of this task (session 004). *(implemented)*
 - `--ready` — only tasks that are ready (no open blockers) — shorthand for `mtt ready`. *(later)*
 - `--sort <created|updated>` — ordering key; default `created`, both descending, tie-broken by ID.
   *(implemented)*
@@ -132,11 +135,19 @@ in the YAML adapter — see Notes).
 - `--title <text>` — new title.
 - `--description <text>` — new description (`-` for stdin still later).
 
-### `mtt tree [<id>] [flags]` — show the hierarchy  *(phase 2)*
-Prints the epic → task → subtask tree. With `<id>`, roots the tree at that task.
+### `mtt tree [<id>] [flags]` — show the hierarchy  *(session 004, implemented)*
+Prints the epic → task → subtask tree as an ASCII tree (`├─`/`└─`/`│` connectors; each node is
+`<id>  <type>  [<status>]  <title>`). Without `<id>` it renders the forest from all roots; with `<id>` it
+roots the tree at that task. Children are **computed** (an inverse index in `core`, not stored); sibling
+order is deterministic (`Created` desc, tie-broken by ID). An orphan (a task whose parent id is absent) is
+surfaced as a root, never dropped.
 
-- `--status <status>…` / `--kind <…>` — filter displayed nodes.
-- `--depth <n>` — limit nesting depth.
+- `--status <status>…` / `--kind <initial|active|terminal>…` — filter displayed nodes. Filtering uses
+  **keep-ancestors** semantics: a node shows if it matches or any descendant matches, and non-matching
+  ancestors are kept as the path to a match (so a matching leaf is never lost under a non-matching parent).
+- `--depth <n>` — limit visible levels, like `tree -L n` (`--depth 1` = roots only; `0`/unset = unlimited).
+- `--json` — emit a **nested** tree (`{…task fields…, "children": [ … ]}`); the top level is always a JSON
+  array (`[]` when empty, never `null`); leaf `children` are omitted.
 
 ---
 
