@@ -14,9 +14,10 @@ import (
 // ymlConfig and friends are the on-disk DTOs: they hold the yaml tags and the
 // adapter-only prefix, and are mapped to the domain by toDomain.
 type ymlConfig struct {
-	Version int        `yaml:"version"`
-	Project ymlProject `yaml:"project"`
-	Types   []ymlType  `yaml:"types"`
+	Version        int        `yaml:"version"`
+	Project        ymlProject `yaml:"project"`
+	CommandTimeout string     `yaml:"command_timeout,omitempty"`
+	Types          []ymlType  `yaml:"types"`
 }
 
 type ymlProject struct {
