@@ -31,3 +31,12 @@ ASCII tree (`renderTree`) with **keep-ancestors** filtering (`--status`/`--kind`
 `--json` (`buildTreeJSON`); `show` prints the lineage breadcrumb from `Index.Ancestors`. `taskLine` is the
 shared one-row formatter (list + tree); `parseKinds` validates `--kind` against the `StatusKind` vocabulary
 (shared by `list` + `tree`). Pure reads (`tree`/`show`) call the store directly — no usecase.
+
+Dependencies & ready (session 005): `dep add/rm <id> <dep-id>` route through `core.DependencyEditor`
+(self/cycle rejected; add and rm both idempotent — duplicate/absent-edge are no-ops); `dep list <id>` builds `core.DepGraph` from
+`TaskStore.List` and renders `depends on:` (dangling → `(missing)`) + computed `required by:`, with `--tree`
+(transitive, cycle-safe), `--cycles` (project-wide, defensive), and a non-null `--json`. `mtt ready` and
+`list --ready` share one primitive — `core.Select(core.Ready(tasks, cfg), filter, cfg)` — so readiness and
+the list filters compose (AND). `toStatusNames`/`toTypeNames` are the shared string→identity converters for
+`list`/`ready`. Pure reads (`dep list`/`ready`) call the store directly; mutations (`dep add/rm`) go through
+`core`.

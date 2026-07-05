@@ -29,8 +29,10 @@ the architectural axis. They map many-to-one, not one-to-one. Current position:
   the **optional capability interfaces** (`HistoryStore`/`DependencyStore`/`CommentStore`/`SearchStore`,
   `Capabilities()`, `ErrUnsupported`) — deliberately NOT built yet; now designed in
   [docs/architecture/model.go](docs/architecture/model.go) and added per capability when first needed.
-- **Phase 2 (e3)** — `[~]` hierarchy (index/traversal, `tree`, `show` lineage, `add --parent`,
-  `list --parent/--kind`) shipped in **s004**; dependencies / `ready` / cycles are **s005** (next).
+- **Phase 2 (e3)** — `[x]` hierarchy (index/traversal, `tree`, `show` lineage, `add --parent`,
+  `list --parent/--kind`) shipped in **s004**; dependencies / `ready` / cycles shipped in **s005**
+  (`core.DependencyEditor`/`Ready`/`DepGraph`; `mtt dep add/rm/list` + `--tree`/`--cycles`, `mtt ready`,
+  `list --ready`). Next: flow enforcement (e4 / s006).
 
 Two decisions from the domain-model snapshot ([docs/architecture/model.go](docs/architecture/model.go)):
 
@@ -94,9 +96,9 @@ flow has ≥1 status of each kind (initial/active/terminal), `kind` by topology;
 (Dependencies — capability `DependencyStore`; if the adapter lacks it — `ErrUnsupported`.)
 
 - [x] e3_t1 — `internal/core`: in-memory task index, hierarchy traversal
-- [ ] e3_t2 — `depends_on`: add/remove, existence validation
-- [ ] e3_t3 — dependency cycle detection
-- [ ] e3_t4 — compute `ready` + the `mtt ready` command
+- [x] e3_t2 — `depends_on`: add/remove, existence validation (s005: `core.DependencyEditor`, `mtt dep add/rm`)
+- [x] e3_t3 — dependency cycle detection (s005: `DepGraph.Reaches`/`Cycles`, cycle rejected on add, `dep list --cycles`)
+- [x] e3_t4 — compute `ready` + the `mtt ready` command (s005: `core.Ready` conservative; `mtt ready`, `list --ready`)
 - [x] e3_t5 — `mtt tree` (hierarchical output)
 - [ ] e3_t6 — resolve `refs` of kind `task`/`comment` (existence verification) + backlinks in `show`
 
@@ -138,6 +140,9 @@ flow has ≥1 status of each kind (initial/active/terminal), `kind` by topology;
   roles are semantic routing, not RBAC)
 - later — rollback/compensation commands on transitions (`rollback`/`on_failure`) run when an `--atomic`
   or multi-step `advance` aborts after side effects (undo a created branch, etc.)
+- later — **`cancelled`-blocker semantics**: a `cancelled` (abandoned) `depends_on` currently unblocks its
+  dependent (terminal by `kind`), which may be wrong — the dependent may need re-evaluation. Revisit with
+  flow enforcement (s006), when terminal statuses become reachable. See DESIGN.md → "Dependencies".
 - later — **re-parenting** (`mtt reparent`/`move`): change a task's `parent`; enabled by flat, position-free IDs.
 - later — **tags**: a cross-cutting `[]string` label on tasks (reserved in the model now); filtering lands with `list`.
 - later — **boards / views**: a query/view over tags/status/type (relates to `list` and `mtt-ui`); the backlog is such a view.

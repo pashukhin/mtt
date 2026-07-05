@@ -4,7 +4,12 @@ A living handoff doc. Update it at the end of each session (what's done / what's
 
 ## Where we are
 
-- **Phase 0 (scaffold) + sessions 001–004 are DONE** (version `0.4.0-dev`, `make check` green). Session 001
+- **Phase 0 (scaffold) + sessions 001–005 are DONE** (version `0.5.0-dev`, `make check` green). **Session 005
+  (dependencies)** shipped `mtt dep add/rm/list <id>` (`--tree`/`--cycles`), `mtt ready`, and `list --ready`
+  over `core.DependencyEditor` (add/rm + cycle rejection, no new port — the edge rides `Task.DependsOn` +
+  `TaskStore.Update`), a conservative `core.Ready` primitive (shared by `ready` + `list --ready`), and a
+  derived `core.DepGraph` (over `depends_on`, kept separate from `Index`). Phase 2 (e3) is now complete;
+  **next is session 006 — flow enforcement (the killer feature)**. Session 001
   shipped `mtt init [--template default|coding] [--force] [--name]` and `mtt types [<type>]`. Session 002
   shipped `mtt add [title] [--type] [--no-parent] [--description]` and `mtt show <id>`. Session 003 shipped
   `mtt list` (`--status`/`--type`/`--sort created|updated`/`--json`), `mtt edit <id> [--title]
@@ -23,9 +28,11 @@ A living handoff doc. Update it at the end of each session (what's done / what's
   serialization, and the CLI's `projectRoot`/`baseDir` (DRY root resolution) + `taskJSON` (shared `--json`
   view for `show`/`list`/`edit`). **Not yet:** hierarchy (`--parent`/`tree`), dependencies, flow enforcement,
   comments; also deferred out of 003 — a durable edit-audit trail and the subject-identity (`By`) source
-  (see "Open design slice" below). Hierarchy landed in 004; **dependencies/`ready`/cycle-detection** are next.
+  (see "Open design slice" below). Hierarchy landed in 004; dependencies/`ready`/cycle-detection landed in
+  005; **flow enforcement (transition validation + executable `commands` gates via the `Runner` port)** is next.
 - Work is organized in **compact sessions** (see [sessions/README.md](sessions/README.md)); next up is
-  **session 005** (dependencies: `mtt dep add/rm/list`, `mtt ready`; dependency-cycle rejection).
+  **session 006** (flow gate: `mtt status <id> <new>` runs & gates the transition's `commands`, writes
+  `history`; the `Runner` port + `internal/adapter/exec` + a fake; `--role`/`MTT_ROLE` recorded).
 - Repo: <https://github.com/pashukhin/mtt> (public). Branch per session → PR → CI green → merge into `main`.
 - Stack: Go 1.23, cobra, `gopkg.in/yaml.v3`, `go-internal/testscript` (e2e); storage — YAML file-per-task.
 
@@ -91,7 +98,7 @@ The plugin is declared in the personal `.claude/settings.local.json` (per-user, 
    (alternative — the official marketplace: `/plugin install superpowers@claude-plugins-official`)
 3. Verify the TDD/brainstorming/debugging skills are available, and **use them**.
 
-## Domain-model snapshot (read before s005)
+## Domain-model snapshot (read before s006)
 
 [docs/architecture/model.go](docs/architecture/model.go) — a code-form, tiered (T1/T2/T3) index of the whole
 intended contract: domain types + ports + optional capabilities, core usecases with dependencies, the derived
@@ -105,31 +112,51 @@ resolved graph, and open gaps. Two decisions locked there that shape s005:
   at its boundary (`toDomain` fails fast on a corrupt empty `id`/`type`/`status`). s005 is written against the
   typed contract. Constructors reject empty, no transform; `Ref.ID` stays `string`; `NoteSlug` deferred (KB).
 
-## Next task — session 005 (dependencies)
+## Next task — session 006 (flow gate — the killer feature)
 
-- **Create `sessions/005_dependencies.md` from `sessions/000_template.md`** as the first step (mirrors 003/004:
+- **Create `sessions/006_flow_gate.md` from `sessions/000_template.md`** as the first step (mirrors 003/004/005:
   a design-spec + plan commit before implementation), named per the roadmap (`sessions/README.md`):
-  `005 — dependencies`. Branch `feat/s005-dependencies`. Refine the plan (superpowers brainstorming/planning)
-  before writing code; work **test-first**; the acceptance e2e + `make check` must pass before the PR.
-- Scope per the roadmap: **`mtt dep add/rm/list <id>`** (manage `depends_on`, a **blocking** edge distinct
-  from hierarchy/`refs`), **cycle rejection on add**, and **`mtt ready`** (a task is ready ⇔ status not
-  terminal AND all `depends_on` are terminal — by category `kind`, never a literal). Consider `list --ready`
-  as the shorthand companion (CLI_REFERENCE.md → `mtt list`).
-- Architecture stays the full **`cli → core → port ← adapter`**. Reuse the 004 seams: cycle-safe traversal
-  patterns mirror `core.Index` (but over `depends_on`, not `parent`); `ready` is a **pure read** (category
-  logic via `Type.StatusKind`, like `core.Match`'s kind resolution); mutations (`dep add/rm`) go through a
-  `core` usecase. `DependencyStore` is an optional capability (DESIGN.md → "Adapter capabilities"); the YAML
-  adapter is the reference. Confirm whether the port needs a new method or `Update` suffices (`depends_on` is
-  already a `Task` field, round-tripped by the DTO — likely `Update` is enough, mirroring 004's Parent).
-- **Reference (authoritative model):** DESIGN.md → "Dependencies" and "Adapter capabilities"; the shipped
-  `core.Index`/`Match`/`Type.StatusKind` this session builds on (session 004).
+  `006 — flow gate`. Branch `feat/s006-flow-gate`. Refine the plan (superpowers brainstorming/planning) before
+  writing code; work **test-first**; the acceptance e2e + `make check` must pass before the PR.
+- Scope per the roadmap (see also DESIGN.md → "Flow: executable transitions"): **`mtt status <id> <new>`** —
+  a **single** transition validated against the type's `transitions`, running that edge's `commands` (all →
+  0, else the move is **blocked**), and appending a `history` entry (`from→to`, `at`, `by`, `role` from
+  `--role`/`MTT_ROLE`, `checks` results). Introduce the **`Runner` port** (defined in `core`) +
+  `internal/adapter/exec` (run commands, per-command timeout, cwd = project root), with a **fake Runner** in
+  tests. `--no-run` (bypass gates) and the `--role`/`MTT_ROLE` seam land here. `advance`/`start`/`done`
+  (the meta-walk) is s007 — keep s006 to a single edge.
+- Architecture stays **`cli → core → port ← adapter`**; `core` defines `Runner`, `adapter/exec` implements it,
+  tests fake it — the first *driven* port beyond storage. `history` rides the `Task.History` field +
+  `TaskStore.Update` (no `HistoryStore` port — same GAP #1 rule as `depends_on`). Weigh whether the resolved
+  flow graph (`ResolvedFlow`, model.go Layer B) is worth building now or a single-edge lookup suffices (likely
+  the latter for `status`; `ResolvedFlow` earns its keep in s007's multi-edge `advance`).
+- **Reference (authoritative model):** DESIGN.md → "Flow: executable transitions (the killer feature)" and
+  "Advancing through the flow"; model.go → `Runner`/`Advancer`/`ResolvedFlow` (T2), GAP #5 (`By` source).
 
-### Open design slice to schedule (not session 005's scope, but don't lose it)
+### Open design slice to schedule (not session 006's scope, but don't lose it)
 - **Durable, git-independent audit of edits** + **the subject-identity (`By`) source.** `edit` today only
   bumps `updated`; git is the de facto audit trail. A change-log or field versioning (additive) would make
   edit history queryable without git, and needs an identity source for "who" (likely
   `.mtt/config.local.yaml`, distinct from `--role`, which is "what hat"). See DESIGN.md → "Listing and
   editing" / TASKS.md → "Later (coarse)". Schedule a design pass before it's needed for real auditing.
+
+### Carry-over lessons (005 — dependencies)
+- **No new port for an embedded edge** (GAP #1 confirmed): `depends_on` rides `Task.DependsOn` + `TaskStore.Update`
+  (like `parent` in 004); `core.DependencyEditor` owns the cycle-check. The `DependencyStore` capability stays
+  unimplemented until an external adapter needs it — **YAGNI** the signature too (`NewDependencyEditor(store, now)`,
+  no nil capability param). Apply the same to `history`/`comments` in later sessions.
+- **Conservative derived-read semantics**: `core.Ready` requires *positive confirmation* — an unresolvable status
+  (config drift, `kindOf` false) or a dangling blocker leaves a task **not** ready, mirroring how `Match` fails an
+  unresolvable `--kind`. Prefer honest-not-ready over optimistic-ready for anything the data can't confirm.
+- **Second derived graph kept separate** (GAP #6 not extracted): `DepGraph` (multi-edge DAG over `depends_on`) and
+  `Index` (single-parent tree over `parent`) don't share a traversal primitive — a shared one would be forced.
+  Revisit only if a third graph (`ResolvedFlow`, s006) naturally shares it. Both still reuse `lessByRecency` for order.
+- **One primitive, two commands**: `mtt ready` and `list --ready` are both `Select(Ready(tasks, cfg), filter, cfg)` —
+  readiness AND the list filters compose (both ANDs, order-independent). Extract the subset builder, don't duplicate.
+- **e2e can't reach states a later session unlocks**: no status transition exists until s006, so `dep.txt`/`ready.txt`
+  prove blocking + cycle rejection, while unblock-on-terminal and `--cycles`-on-a-real-cycle are **unit** fixtures
+  (a `done`-blocker task / a hand-built cycle — the CLI's `add` rejects cycles, so it can't build one). Note the gap
+  explicitly rather than faking the state.
 
 ### Carry-over lessons (001, 002 & 003 — save review loops)
 - **CLI output → stdout**: use `fmt.Fprint(cmd.OutOrStdout(), …)`, NOT `cmd.Print/Printf` (those route to
@@ -171,35 +198,37 @@ resolved graph, and open gaps. Two decisions locked there that shape s005:
 
 ## Ready-to-paste kickoff prompt (for a new session)
 
-> We're continuing mtt. Sessions 001–004 and chore **004.5 (typed-identity retrofit)** are merged to `main`,
-> version `0.4.0-dev`, `make check` + CI green. The shipped `pkg/mtt`/`core`/`adapter`/`cli` surface is now
-> typed (`TaskID`/`TypeName`/`StatusName`, snapshot Gap #2 closed) — write s005 against the typed contract.
+> We're continuing mtt. Sessions 001–005 and chore **004.5 (typed-identity retrofit)** are merged to `main`,
+> version `0.5.0-dev`, `make check` + CI green. Phase 2 is complete: s005 shipped dependencies —
+> `mtt dep add/rm/list` (`--tree`/`--cycles`), `mtt ready`, `list --ready` over `core.DependencyEditor`
+> (add/rm + cycle rejection, no new port), a conservative `core.Ready`, and a derived `core.DepGraph`.
 > Read, in order: CLAUDE.md, AGENTS.md, DESIGN.md, NEXT_SESSION.md, sessions/README.md,
-> `docs/architecture/model.go` (`Ready`, `DependencyEditor`, GAPS #1 and #6), TASKS.md,
-> sessions/004_hierarchy.md (shipped `Index`/`Match`/`Adder` shape), CLI_REFERENCE.md. Confirm the superpowers
-> skills are active (else activate per NEXT_SESSION.md).
+> `docs/architecture/model.go` (`Runner`, `Advancer`, `ResolvedFlow`, GAP #5), TASKS.md,
+> sessions/005_dependencies.md (shipped `DependencyEditor`/`Ready`/`DepGraph` shape) and
+> sessions/004_hierarchy.md, CLI_REFERENCE.md. Confirm the superpowers skills are active (else activate per
+> NEXT_SESSION.md).
 >
-> Do **session 005 (dependencies)** on branch `feat/s005-dependencies` off fresh `main`: first create
-> `sessions/005_dependencies.md` from `sessions/000_template.md`, then brainstorm → writing-plans, then
+> Do **session 006 (flow gate — the killer feature)** on branch `feat/s006-flow-gate` off fresh `main`: first
+> create `sessions/006_flow_gate.md` from `sessions/000_template.md`, then brainstorm → writing-plans, then
 > implement strictly test-first until the acceptance e2e + `make check` are green; branch → PR → CI green →
 > squash into `main`.
 >
-> Scope: `mtt dep add/rm/list <id>` (manage `depends_on`, a blocking edge distinct from hierarchy/`refs`),
-> cycle rejection on add, and `mtt ready` (ready ⇔ status not terminal AND all `depends_on` terminal — by
-> `kind` category, never a literal); consider `list --ready` as a shorthand companion. Architecture stays
-> `cli → core → port ← adapter`; `core` must NOT import `adapter/*`. **Snapshot GAP #1 (confirm on brainstorm):
-> s005 adds no new port** — `depends_on` rides the `Task` field + `TaskStore.Update` (as `parent` did in 004);
-> `DependencyStore` is only for external adapters that cannot embed. So s005 = `core.DependencyEditor` +
-> `Ready` + cycle-check. Reuse 004's seams: cycle-safe traversal mirrors `core.Index` (over `depends_on`, not
-> `parent`); `ready` is a pure read (category via `Type.StatusKind`, like `core.Match`); `dep add/rm` is a
-> `core` mutation. Everything is typed — use `mtt.TaskID` (`depends_on []TaskID`); convert strings only at the
-> cli/adapter boundary (as in 004.5). Weigh GAP #6 (a shared visited-set traversal primitive for
-> Parent/DependsOn/flow) but **avoid premature abstraction** — extract only if the second graph naturally
-> shares it.
+> Scope: **`mtt status <id> <new>`** — a single transition validated against the type's `transitions`, running
+> that edge's `commands` (all → 0, else **blocked**), appending a `history` entry (`from→to`, `at`, `by`,
+> `role` from `--role`/`MTT_ROLE`, `checks`). Introduce the **`Runner` port** (defined in `core`) +
+> `internal/adapter/exec` (per-command timeout, cwd = project root) with a **fake** in tests; `--no-run`
+> bypasses gates. `advance`/`start`/`done` (the meta-walk) is s007 — keep s006 to one edge. Architecture stays
+> `cli → core → port ← adapter`; `core` defines `Runner`, `adapter/exec` implements it (the first driven port
+> beyond storage). `history` rides `Task.History` + `TaskStore.Update` (no `HistoryStore` port — same GAP #1
+> rule as `depends_on`). Everything typed — `mtt.TaskID`/`StatusName`; convert strings only at the cli/adapter
+> boundary. Weigh whether `ResolvedFlow` (model.go Layer B) is worth building for a single edge (likely a
+> single-edge lookup suffices; `ResolvedFlow` earns its keep in s007's multi-edge `advance`).
 >
 > Heed the "Carry-over lessons" below (CLI stdout via `fmt.Fprint(cmd.OutOrStdout(), …)`; anchored testscript
 > asserts; `golangci unused` — declare a symbol with its first use; keep each `CLAUDE.md` current;
 > provider-agnostic order, unit-test order + e2e asserts presence; zero-match `--json` = `[]` not `null`;
-> derived graphs live in `core`, not the contract; one shared predicate for filters). Don't lose the **open
-> design slice** (durable edit-audit + subject-identity `By`) — not in s005's scope. Follow
-> SOLID/DRY/KISS/TDD/DDD/clean-architecture and the AGENTS.md self-check.
+> derived graphs live in `core`, not the contract; one shared predicate for filters; no new port for an
+> embedded field; conservative derived-read semantics; a fake for the new driven port). Don't lose the **open
+> design slices** (durable edit-audit + subject-identity `By` — GAP #5, now due since `history` writes `by`;
+> `cancelled`-blocker semantics from s005). Follow SOLID/DRY/KISS/TDD/DDD/clean-architecture and the AGENTS.md
+> self-check.

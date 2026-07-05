@@ -92,3 +92,19 @@ func TestToDomainRejectsEmptyStatus(t *testing.T) {
 		t.Fatal("toDomain with empty status = nil error; want empty-status error")
 	}
 }
+
+func TestTaskDTODependsOnRoundTrip(t *testing.T) {
+	in := mtt.Task{
+		ID: "t3", Type: "task", Title: "c", Status: "tbd",
+		DependsOn: []mtt.TaskID{"t1", "t2"},
+		Created:   time.Date(2026, 7, 5, 9, 0, 0, 0, time.UTC),
+		Updated:   time.Date(2026, 7, 5, 9, 0, 0, 0, time.UTC),
+	}
+	out, err := fromDomainTask(in).toDomain()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(out.DependsOn) != 2 || out.DependsOn[0] != "t1" || out.DependsOn[1] != "t2" {
+		t.Fatalf("DependsOn round-trip = %v; want [t1 t2]", out.DependsOn)
+	}
+}

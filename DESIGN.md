@@ -501,10 +501,26 @@ requires no public-API diff), as a ready-made demo of the enforcement value.
 
 ## Dependencies
 
-- `depends_on: [id, …]`; on adding, we check for the absence of cycles.
+- `depends_on: [id, …]` is a **blocking** edge (distinct from the hierarchy `parent` and the informational
+  `refs`). It rides the `Task` field and round-trips via `TaskStore.Update` — **no dedicated port** for the
+  YAML reference (a `DependencyStore` capability exists only for external adapters that cannot embed the
+  field). Adding an edge is rejected if it would create a **cycle** (a `core` rule), and a self-edge is
+  rejected; the cycle-check builds a derived `core.DepGraph` over `depends_on` (parallel to the s004 `Index`
+  over `parent`, kept separate — the two graphs have different shapes).
 - A task is **ready** ⇔ its status is not `terminal` AND all `depends_on` are in a `terminal` status (by
-  category `kind`: `done` or `cancelled`, not by the literal). A cancelled blocker also unblocks.
-- `mtt ready` — "what can be picked up for work".
+  category `kind`: `done` or `cancelled`, not by the literal). Readiness is **conservative**: an
+  unresolvable blocker (a dangling `depends_on`, or a status not in the current flow) leaves the task
+  **not** ready — `ready` requires positive confirmation.
+- `mtt ready` — "what can be picked up for work"; `mtt list --ready` is the shorthand companion (one shared
+  `core.Ready` primitive backs both). `mtt dep list <id>` shows a task's direct blockers and its computed
+  dependents, with `--tree` (transitive) and `--cycles` (project-wide, defensive).
+
+> **Deferred design question — `cancelled` blocker semantics.** A `terminal` blocker unblocks its dependent,
+> and `cancelled` is a terminal `kind`, so a task whose blockers are `done` **and** `cancelled` is formally
+> ready — yet a *cancelled* (abandoned, not completed) blocker arguably means the dependent needs
+> re-evaluation, not silent unblocking. Current behaviour keeps terminal-by-`kind` (cancelled unblocks);
+> revisiting this (a succeeded-vs-abandoned distinction, a hard/soft edge, or a warning on `ready`) is
+> deferred to flow enforcement (s006), where terminal statuses first become reachable. See TASKS.md → Later.
 
 ## Flow versioning and task history
 

@@ -1,0 +1,33 @@
+# ready: a blocked task is excluded; blockers with no deps are ready
+mkdir proj
+cd proj
+exec mtt init
+stdout 'initialized'
+
+exec mtt add --type epic 'E'
+stdout 'created e1'
+exec mtt add --type task --parent e1 'A'
+stdout 'created t1'
+exec mtt add --type task --parent e1 'B'
+stdout 'created t2'
+
+# no deps yet: e1, t1, t2 are all ready
+exec mtt ready
+stdout 'e1  epic  \[tbd\]  E'
+stdout 't1  task  \[tbd\]  A'
+stdout 't2  task  \[tbd\]  B'
+
+# t2 depends on t1 (t1 is tbd, non-terminal) -> t2 is no longer ready
+exec mtt dep add t2 t1
+exec mtt ready
+stdout 't1  task  \[tbd\]  A'
+! stdout 't2  task  \[tbd\]  B'
+
+# list --ready is the same subset; a --type filter still applies
+exec mtt list --ready --type task
+stdout 't1  task  \[tbd\]  A'
+! stdout 't2  task'
+
+# --json on ready is a (possibly empty) array, never null
+exec mtt ready --type subtask --json
+stdout '\[\]'
