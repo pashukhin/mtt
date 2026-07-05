@@ -9,11 +9,7 @@ import (
 
 func TestMain(m *testing.M) {
 	testscript.Main(m, map[string]func(){
-		"mtt": func() {
-			if err := Execute(); err != nil {
-				os.Exit(1)
-			}
-		},
+		"mtt": func() { os.Exit(Execute()) },
 	})
 }
 
