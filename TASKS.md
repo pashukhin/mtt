@@ -32,7 +32,11 @@ the architectural axis. They map many-to-one, not one-to-one. Current position:
 - **Phase 2 (e3)** — `[x]` hierarchy (index/traversal, `tree`, `show` lineage, `add --parent`,
   `list --parent/--kind`) shipped in **s004**; dependencies / `ready` / cycles shipped in **s005**
   (`core.DependencyEditor`/`Ready`/`DepGraph`; `mtt dep add/rm/list` + `--tree`/`--cycles`, `mtt ready`,
-  `list --ready`). Next: flow enforcement (e4 / s006).
+  `list --ready`).
+- **Phase 3 (e4)** — `[~]` single-edge flow enforcement shipped in **s006**: the `Runner` port +
+  `internal/adapter/exec` + fake, `core.Transitioner`, `mtt status <id> <new>` (gate on `commands`, exit
+  codes 3/6, append `history`, `--role`/`--by`), config-driven `command_timeout`, `mtt show` history. Next:
+  the `advance`/`start`/`done` meta-walk (e4_t5 / **s007**).
 
 Two decisions from the domain-model snapshot ([docs/architecture/model.go](docs/architecture/model.go)):
 
@@ -102,20 +106,23 @@ flow has ≥1 status of each kind (initial/active/terminal), `kind` by topology;
 - [x] e3_t5 — `mtt tree` (hierarchical output)
 - [ ] e3_t6 — resolve `refs` of kind `task`/`comment` (existence verification) + backlinks in `show`
 
-## e4 — Phase 3: flow enforcement + executable transitions (the killer feature)  `[ ]`
+## e4 — Phase 3: flow enforcement + executable transitions (the killer feature)  `[~]`
 
 (The type/flow model is introduced in phase 1; here — applying transitions and running commands.)
+Single-edge `mtt status` shipped in **s006**; the meta-walk (`advance`/`start`/`done`) is **s007**.
 
-- [ ] e4_t1 — validate a status transition against the type's `transitions` (+ show `description`)
-- [ ] e4_t2 — the `Runner` port (in `core`) + `internal/adapter/exec` (run commands; timeout,
-      cwd=root); a fake for tests
-- [ ] e4_t3 — run a transition's `commands` in order, gating on exit codes (the transition is blocked on
-      the first non-zero); the `--no-run` flag
-- [ ] e4_t4 — record the transition in the task's `history` (from→to, at, by, `role` from
-      `--role`/`MTT_ROLE`, `checks` results), append-only (capability `HistoryStore`; if absent — graceful degradation)
-- [ ] e4_t5 — `mtt advance <id> --to <status>` — the meta-walk to a target (progressing edges, stop at a
-      fork, cycle guard, never into a different terminal); modes `--stop`(default)/`--atomic`/`--force`;
-      `mtt start`/`mtt done` — aliases; `mtt status <id> <new>` — a single transition
+- [x] e4_t1 — validate a status transition against the type's `transitions` (s006: `core.Transitioner`
+      single-edge lookup; `ErrInvalidTransition` → exit 6, message lists allowed targets)
+- [x] e4_t2 — the `Runner` port (in `core`) + `internal/adapter/exec` (run commands; per-command timeout,
+      cwd=root, cross-platform shell seam); a fake for tests (s006)
+- [x] e4_t3 — run a transition's `commands` in order, gating on exit codes (blocked on the first non-zero →
+      exit 3, task unchanged); the `--no-run` flag (s006). Timeout is config-driven (`command_timeout`, 5m default)
+- [x] e4_t4 — record the transition in the task's `history` (from→to, at, `by` from `--by`/`MTT_BY`, `role`
+      from `--role`/`MTT_ROLE`, `checks`), append-only (s006; rides `Task.History` + `Update` — no `HistoryStore`
+      port, GAP #1). `mtt show` renders the history section
+- [~] e4_t5 — **s006** shipped `mtt status <id> <new>` (a single transition). The meta-walk `mtt advance
+      <id> --to <status>` (progressing edges, stop at a fork, cycle guard, never into a different terminal);
+      modes `--stop`(default)/`--atomic`/`--force`; `mtt start`/`mtt done` aliases → **s007**
 - [ ] e4_t6 — `mtt types` (types/flow from config) + `mtt caps` (the current backend's capabilities)
 - [ ] e4_t7 — `ready`/`list`/completeness — **by status category** (not by the literal `done`)
 

@@ -14,8 +14,8 @@ func TestFormatTaskRendersHistory(t *testing.T) {
 		Created: time.Date(2026, 7, 5, 12, 0, 0, 0, time.UTC),
 		Updated: time.Date(2026, 7, 5, 12, 0, 0, 0, time.UTC),
 		History: []mtt.HistoryEntry{{
-			At:   time.Date(2026, 7, 5, 12, 0, 0, 0, time.UTC),
-			By:   "grisha", Role: "impl", From: "tbd", To: "in_progress",
+			At: time.Date(2026, 7, 5, 12, 0, 0, 0, time.UTC),
+			By: "grisha", Role: "impl", From: "tbd", To: "in_progress",
 			Checks: []mtt.Check{{Cmd: "make lint", Exit: 0}},
 		}},
 	}

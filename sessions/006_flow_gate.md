@@ -1,6 +1,6 @@
 # 006 — Flow gate (the killer feature)
 
-Status: in progress   ·   Branch: `feat/s006-flow-gate`
+Status: done   ·   Branch: `feat/s006-flow-gate`
 
 ## Target
 
@@ -65,4 +65,35 @@ Summary: model already carries `HistoryEntry`/`Check` (no `pkg/mtt` change); `Ru
 
 ## Done (fill during/after the session)
 
-<filled during/after the session>
+Shipped (all test-first, `make check` + CI green), version `0.5.0-dev` → `0.6.0-dev`:
+
+- **`internal/core`**: the `Runner` port (`Run(commands) ([]mtt.Check, error)` — no `dir`; a non-zero exit
+  is data, not an error) + sentinels `ErrBlocked`/`ErrInvalidTransition`; `Transitioner`
+  (`Transition(id, to, TransitionOptions{Role,By,NoRun})`) — a **single-edge** lookup in `Type.Transitions`
+  (no `ResolvedFlow`), gate via `Runner` (any non-zero check → `ErrBlocked`, task unchanged, no history),
+  append a `HistoryEntry`, persist via `TaskStore.Update` (**no new port** — history rides `Task.History`).
+- **`internal/adapter/exec`** (the first driven port beyond storage): `Runner` over `os/exec` — per-command
+  timeout (`context.WithTimeout`), `cwd=root`, cross-platform shell seam (`sh -c` / `cmd /c`), stops at the
+  first non-zero. A **fake** backs the `core` tests; the adapter is unit-tested against `true`/`false`/timeout.
+- **`internal/adapter/yaml`**: config-driven `command_timeout` — `Load` now returns
+  `Settings{Prefixes, CommandTimeout}` (default 5m when absent, `config.local`-overridable); both templates
+  gained `command_timeout: 5m` (goldens updated). Kept out of pure `pkg/mtt`.
+- **`internal/cli`**: `mtt status <id> <new>` (`--no-run`); root persistent `--role`/`MTT_ROLE` +
+  `--by`/`MTT_BY` (resolved by `resolveRoleBy`); `Execute()` now returns an **`int`** exit code
+  (`exitCode`: `ErrBlocked`→3, `ErrInvalidTransition`→6, else 1) — `main` + the testscript harness do
+  `os.Exit(Execute())`; `mtt show` renders a `history:` audit section.
+- **Tests**: unit — `Transitioner` (apply+history, blocked-no-change, invalid edge, `--no-run` bypass;
+  fake Runner), `exec.Runner` (pass/stop-at-non-zero/timeout), `exitCode` mapping, `formatTask` history,
+  `command_timeout` (default + from config); e2e — `status.txt` (green/red gate, `--no-run`, invalid edge
+  exit 6, history via `show`) + `cancel_unblock.txt` (cancelling a blocker unblocks its dependent).
+- **Docs**: DESIGN.md/.ru (flow-gate shipped note + cancelled-blocker decision + phase-3 row),
+  CLI_REFERENCE.md/.ru (`status`, exit codes 3/6, `--role`/`--by`/`MTT_BY`, `command_timeout`), core + cli +
+  new exec `CLAUDE.md`, `model.go` (Runner signature, `Transitioner`, GAP #5 partial), TASKS.md (e4_t1–t4
+  ticked, e4_t5 partial), sessions/README.md (006 ✅).
+
+**Pre-execution plan fixes:** the `Init(root, tmpl, project, force)` arg order; and — critically —
+`Execute() int` would have broken the testscript harness (`TestMain` treated it as `error`), fixed in the same task.
+
+Deferred (don't lose): the `advance`/`start`/`done` meta-walk + `ResolvedFlow` + modes → **s007**; packaging
+(`make install`) → a small chore-PR; the durable subject-identity (`By`) source (config.local) + edit-audit;
+a real cancelled-blocker fix (hard/soft edges); `--force` on `status`; per-transition timeout override.

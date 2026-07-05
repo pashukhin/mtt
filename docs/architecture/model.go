@@ -444,11 +444,39 @@ var NewDependencyEditor func(store TaskStore, now func() time.Time) DependencyEd
 
 // Runner executes a transition's Commands and reports each result. It is defined
 // in CORE (only core uses it), implemented in internal/adapter/exec, faked in
-// tests. Commands run in order in the project root with a per-command timeout,
-// aborting on the first non-zero exit. [T2]
+// tests. Commands run in order with cwd = project root (held by the exec adapter,
+// NOT passed here — keeps core free of filesystem paths) and a per-command
+// timeout, aborting on the first non-zero exit. A non-zero exit is DATA (a
+// Check), not a Go error; the error signals an operational failure (launch /
+// timeout). [shipped s006]
 type Runner interface {
-	Run(commands []string, dir string) ([]Check, error)
+	Run(commands []string) ([]Check, error)
 }
+
+// Transitioner applies a SINGLE flow edge (mtt status <id> <new>): validate the
+// current status → to against the type's transitions, gate on the edge's Commands
+// via Runner (ErrBlocked on a non-zero exit; the task is left unchanged), append
+// a HistoryEntry, persist via TaskStore.Update. No new port — history rides
+// Task.History (GAP #1 rule). A single-edge lookup, NOT ResolvedFlow (that earns
+// its keep in s007's multi-edge Advancer). Sentinels ErrBlocked /
+// ErrInvalidTransition live in core (flow is core policy); the CLI maps them to
+// exit codes 3 / 6. [shipped s006]
+type Transitioner interface {
+	Transition(id TaskID, to StatusName, opts TransitionOptions) (Task, error)
+}
+
+// TransitionOptions carry the roles seam (Role, from --role/MTT_ROLE), the
+// subject-identity seam (By, from --by/MTT_BY — GAP #5 minimal source; the
+// durable config.local source stays open), and NoRun (bypass the gate). [shipped s006]
+type TransitionOptions struct {
+	Role  string
+	By    string
+	NoRun bool
+}
+
+// NewTransitioner wires the single-edge usecase (store for load/persist, config
+// for the flow, Runner for the gate, injected clock for history). [shipped s006]
+var NewTransitioner func(store TaskStore, cfg Config, runner Runner, now func() time.Time) Transitioner
 
 // AdvanceMode selects how far a walk proceeds. [T2]
 type AdvanceMode string
@@ -560,9 +588,10 @@ type ResolvedEdge struct {
 //     set type. A slice is simplest and forward-compatible; confirm.
 //
 //  5. Subject identity (By) source. Who is "acting", for history attribution —
-//     likely a .mtt/config.local.yaml field, distinct from --role ("what hat").
-//     Reserved in HistoryEntry; the source is unspecified. Pairs with a durable,
-//     git-independent edit-audit trail (both deferred).
+//     distinct from --role ("what hat"). PARTIAL (s006): By is now written from
+//     --by/MTT_BY (a minimal flag/env seam, mirroring --role). The DURABLE source
+//     (a .mtt/config.local.yaml author field) + a git-independent edit-audit trail
+//     stay deferred (a dedicated slice).
 //
 //  6. Resolved-graph generality. Index (Parent edge) and ResolvedFlow (transition
 //     edge) and the dependency graph (DependsOn edge) are three instances of one

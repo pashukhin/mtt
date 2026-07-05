@@ -26,7 +26,7 @@ sliced so **every session delivers something usable**. Order/size may be refined
 | 004 ✅ | hierarchy | `mtt add --parent`, `mtt tree`, `show` lineage | epic→task→subtask; tree renders |
 | 004.5 ✅ | typed-id retrofit (chore) | — (internal: `TaskID`/`TypeName`/`StatusName`) | `make check` green; no behaviour change |
 | 005 ✅ | dependencies | `mtt dep add/rm/list` (`--tree`/`--cycles`), `mtt ready`, `list --ready` | dep blocks ready; cycle rejected |
-| 006 🔄 | **flow gate (killer)** | `mtt status <id> <new>` runs & gates commands | failing gate blocks transition; history written |
+| 006 ✅ | **flow gate (killer)** | `mtt status <id> <new>` runs & gates commands | failing gate blocks transition; history written |
 | 007 | **advance** | `mtt start`/`done`/`cancel` + modes | `mtt done` walks tbd→…→done, blocks on red gate |
 | 008 | references | `mtt ref add/rm/list`, backlinks | ref resolves; dangling flagged |
 | 009 | comments | `mtt comment add/list` (tree) | nested comments render in `show` |

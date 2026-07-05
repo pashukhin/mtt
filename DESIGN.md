@@ -378,6 +378,14 @@ Commands run in order, aborting on the first non-zero; the working directory is 
 per-command timeout; the escape hatch `--no-run` forces the transition without commands (for emergencies).
 Commands come from config (trusted, like a Makefile/git hooks), not from the network.
 
+> **Shipped (s006, `mtt status <id> <new>`):** a **single** gated edge. `Runner.Run(commands)` takes no
+> `dir` — the `exec` adapter is constructed with `cwd = project root` (core stays free of filesystem paths).
+> A non-zero exit is **data** (a `Check`), not a Go error; a blocked gate leaves the task unchanged and
+> writes no `history`. The per-command timeout is config-driven (`command_timeout`, default `5m`, an
+> adapter-level setting). Core sentinels `ErrBlocked`/`ErrInvalidTransition` map to exit codes `3`/`6`. A
+> single-edge lookup in `Type.Transitions` suffices (no `ResolvedFlow` yet — it earns its keep in s007's
+> multi-edge `advance`). The `advance`/`start`/`done` meta-walk and modes are s007.
+
 > Caveat (for planning): commands with side effects (creating a branch) go **after** the checks; if one
 > fails after a side effect, we don't commit the transition, but the side effect already happened — that's
 > on the ordering of commands. A two-phase model (checks → actions) is introduced only if needed.
@@ -518,9 +526,11 @@ requires no public-API diff), as a ready-made demo of the enforcement value.
 > **Deferred design question — `cancelled` blocker semantics.** A `terminal` blocker unblocks its dependent,
 > and `cancelled` is a terminal `kind`, so a task whose blockers are `done` **and** `cancelled` is formally
 > ready — yet a *cancelled* (abandoned, not completed) blocker arguably means the dependent needs
-> re-evaluation, not silent unblocking. Current behaviour keeps terminal-by-`kind` (cancelled unblocks);
-> revisiting this (a succeeded-vs-abandoned distinction, a hard/soft edge, or a warning on `ready`) is
-> deferred to flow enforcement (s006), where terminal statuses first become reachable. See TASKS.md → Later.
+> re-evaluation, not silent unblocking. **Revisited in s006** (terminals are now reachable via `mtt status`):
+> the decision is to **keep** terminal-by-`kind` (cancelled unblocks) — a proper fix (a
+> succeeded-vs-abandoned distinction, a hard/soft edge) needs new domain modelling that a flow-gate session
+> should not smuggle in, and would risk the name-agnostic principle. s006 adds an e2e (`cancel_unblock`)
+> demonstrating the current semantics with a reachable state; the deeper fix stays deferred. See TASKS.md → Later.
 
 ## Flow versioning and task history
 
@@ -583,7 +593,7 @@ has a text/ASCII Gantt. The latest phase.
 | 0 | Scaffold: repo, module, AGENTS/DESIGN, CLI skeleton, gate, CI | ✅ done |
 | 1 | `pkg/mtt` **pure** contract (domain types + `TaskStore` port); config+types (**structural** invariants: `kind` by topology, ≥1 of each, no name literals), `mtt init`; the YAML adapter **mints IDs** flat per-prefix (`e1`/`t17`/`s3`); core usecases + `add/list/show/edit/close` | 🔄 s001–003 (`close` → phase 3; optional capability interfaces deferred, see [architecture snapshot](docs/architecture/model.go)) |
 | 2 | Hierarchy (by `parents` from config); dependencies; `ready`; cycle detection | 🔄 hierarchy done (s004); dependencies/`ready`/cycles → s005 |
-| 3 | Flow enforcement: transition validation + running `commands` (the `Runner` port), gating on exit codes; `mtt start/done/status` | |
+| 3 | Flow enforcement: transition validation + running `commands` (the `Runner` port), gating on exit codes; `mtt start/done/status` | 🔄 single-edge `mtt status` shipped (s006: `Runner` port + `internal/adapter/exec`, `core.Transitioner`, exit codes 3/6, `history`, `--role`/`--by`); the `advance`/`start`/`done` meta-walk → s007 |
 | 4 | Comments (tree) | |
 | — | **⬆ agent-facing MVP — fully usable** | |
 | 5 | `KnowledgeStore` port + YAML KB adapter; text search | |

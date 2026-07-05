@@ -17,8 +17,9 @@ e2e via `testscript` (txtar) in temp dirs; one script per command.
 
 ## Current state
 
-`root` + `version` + `init` + `types` + `add` + `show` + `list` + `edit` + `tree`, plus the root persistent
-flags `--dir`/`MTT_DIR`, `--version`, and `--json`. `projectRoot(cmd)` resolves the root (--dir/MTT_DIR else
+`root` + `version` + `init` + `types` + `add` + `show` + `list` + `edit` + `tree` + `dep` + `ready` +
+`status`, plus the root persistent flags `--dir`/`MTT_DIR`, `--version`, `--json`, and (session 006)
+`--role`/`MTT_ROLE` + `--by`/`MTT_BY` (the history seams, resolved by `resolveRoleBy`). `projectRoot(cmd)` resolves the root (--dir/MTT_DIR else
 FindRoot) and DRYs the former `Getwd → FindRoot`; `baseDir` does the same for `init` (no .mtt required).
 `list` composes `TaskStore.List` → `core.Select` (pure read: filter/order in core, no usecase; loads `cfg`
 for the `--kind`/`--parent` filters) and renders human text or, with `--json`, a `taskJSON` array; `edit`
@@ -40,3 +41,9 @@ Dependencies & ready (session 005): `dep add/rm <id> <dep-id>` route through `co
 the list filters compose (AND). `toStatusNames`/`toTypeNames` are the shared string→identity converters for
 `list`/`ready`. Pure reads (`dep list`/`ready`) call the store directly; mutations (`dep add/rm`) go through
 `core`.
+
+Flow gate (session 006): `mtt status <id> <new>` wires `yaml.Load` (→ `Settings.CommandTimeout`) +
+`exec.NewRunner(root, timeout)` + `core.Transitioner`; `--no-run` bypasses the gate; `--role`/`--by`
+(+ env) feed `history`. **`Execute()` returns an `int` exit code** (`exitCode`: `core.ErrBlocked`→3,
+`core.ErrInvalidTransition`→6, else 1); `main` and the testscript harness call `os.Exit(Execute())`.
+`mtt show` renders a `history:` audit section from `Task.History`.
