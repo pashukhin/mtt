@@ -537,12 +537,12 @@ type ResolvedEdge struct {
 //     only core.DependencyEditor + Ready, mirroring how s004 added --parent with
 //     no new port. (Recommendation: accept.)
 //
-//  2. Typed-identity retrofit. This snapshot uses TaskID/TypeName/StatusName;
-//     the shipped pkg/mtt/core/adapter still use bare string. Retrofitting is
-//     mechanical but broad (every signature + DTO conversion at the adapter
-//     boundary). Decide timing: a dedicated chore, opportunistic per session, or
-//     folded into s005. Recommendation: a small dedicated chore before s005 so
-//     new code is written against the typed surface.
+//  2. Typed-identity retrofit. DONE (chore 004.5). The shipped pkg/mtt/core/
+//     adapter/cli now use TaskID/TypeName/StatusName; the YAML DTO keeps plain
+//     strings on disk and maps string<->typed at its boundary, and toDomain
+//     rejects an empty on-disk id/type/status via the smart constructors. Ref.ID
+//     stays string (heterogeneous target); NoteSlug is deferred to the KB tier
+//     (no caller yet). Constructors reject empty and do not transform.
 //
 //  3. Error taxonomy. ErrNotFound is real (T1). Reserve ErrUnsupported and
 //     ErrConflict now (so consumers can branch on them) or when first thrown?

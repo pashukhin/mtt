@@ -100,9 +100,10 @@ resolved graph, and open gaps. Two decisions locked there that shape s005:
 - **s005 adds no new port.** `depends_on` is a `Task` field round-tripped via `TaskStore.Update` (as `parent`
   was in s004); `DependencyStore` is only for external adapters that cannot embed. s005 = core
   `DependencyEditor` + `Ready` + cycle-check, no `pkg/mtt` port method.
-- **Optional `--before-s005` chore (004.5): typed-identity retrofit** — introduce `TaskID`/`TypeName`/
-  `StatusName` across the shipped `pkg/mtt`/`core`/`adapter` (they use bare `string` today) so s005 is written
-  against the typed surface. Mechanical, no behaviour change; do it only if you want the cleaner base first.
+- **Chore 004.5: typed-identity retrofit — DONE.** `TaskID`/`TypeName`/`StatusName` are now used across the
+  shipped `pkg/mtt`/`core`/`adapter`/`cli`; the YAML DTO keeps plain strings on disk and maps `string↔typed`
+  at its boundary (`toDomain` fails fast on a corrupt empty `id`/`type`/`status`). s005 is written against the
+  typed contract. Constructors reject empty, no transform; `Ref.ID` stays `string`; `NoteSlug` deferred (KB).
 
 ## Next task — session 005 (dependencies)
 
