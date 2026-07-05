@@ -13,8 +13,9 @@ A living handoff doc. Update it at the end of each session (what's done / what's
   and a `history:` section in `mtt show`. **Session 005 (dependencies)** shipped `mtt dep add/rm/list <id>`
   (`--tree`/`--cycles`), `mtt ready`, and `list --ready` over `core.DependencyEditor` (no new port — the edge
   rides `Task.DependsOn` + `TaskStore.Update`), a conservative `core.Ready`, and a derived `core.DepGraph`.
-  Phase 2 (e3) is complete and Phase 3 (e4) is underway; **next is session 007 — the `advance`/`start`/`done`
-  meta-walk**. Session 001
+  Phase 2 (e3) is complete and Phase 3 (e4) is underway; **next is session 006.5 — attribution + verb sugar**
+  (`--why`/`--who` + `mtt <status> <id>`), then s007 structured commands. **`advance`/`start`/`done` + roles
+  are PARKED** (on-demand — single-edge `status` is the norm). Session 001
   shipped `mtt init [--template default|coding] [--force] [--name]` and `mtt types [<type>]`. Session 002
   shipped `mtt add [title] [--type] [--no-parent] [--description]` and `mtt show <id>`. Session 003 shipped
   `mtt list` (`--status`/`--type`/`--sort created|updated`/`--json`), `mtt edit <id> [--title]
@@ -117,28 +118,36 @@ resolved graph, and open gaps. Two decisions locked there that shape s005:
   at its boundary (`toDomain` fails fast on a corrupt empty `id`/`type`/`status`). s005 is written against the
   typed contract. Constructors reject empty, no transform; `Ref.ID` stays `string`; `NoteSlug` deferred (KB).
 
-## Next task — session 007 (advance / start / done — the meta-walk)
+## Next task — session 006.5 (attribution + verb sugar)
 
-- **Create `sessions/007_advance.md` from `sessions/000_template.md`** as the first step (mirrors 003–006:
-  a design-spec + plan commit before implementation), named per the roadmap (`sessions/README.md`):
-  `007 — advance`. Branch `feat/s007-advance`. Refine the plan (superpowers brainstorming/planning) before
-  writing code; work **test-first**; the acceptance e2e + `make check` must pass before the PR.
-- Scope per the roadmap (DESIGN.md → "Advancing through the flow"): **`mtt advance <id> --to <status>`** — the
-  meta-walk through a **chain** of transitions to a target, running each edge's gate (reuse s006's `Runner` +
-  `Transitioner` single-edge primitive) and appending a `history` entry per edge. Follow only progressing
-  edges; **never** enter a different terminal (no auto-`cancel`); a cycle guard; unreachable target → error;
-  at a real fork (≥2 progressing edges) — **stop, don't guess**. Modes `--stop`(default)/`--atomic`/`--force`.
-  `mtt start` = `--to <first active>`, `mtt done` = `--to <terminal>`, `mtt cancel` = `--to <cancelled>` — the
-  built-in aliases. Non-`ready` task pushed toward a terminal → warn.
-- **This is where `ResolvedFlow` (model.go Layer B) likely earns its keep** — a linked status graph for the
-  multi-edge walk (progress detection, fork detection, cycle guard), built by `core` from the `Flow`. s006
-  deliberately used a single-edge lookup; weigh building `ResolvedFlow` now vs. iterating single-edge lookups.
-- Architecture stays **`cli → core → port ← adapter`**; reuse `Runner` (exec) + the s006 gate. `history` keeps
-  riding `Task.History` + `Update`. The resolver takes a **role** param (today one implicit role — the roles
-  seam stays reserved). Everything typed — `mtt.TaskID`/`StatusName`; convert strings only at cli/adapter.
-- **Reference (authoritative model):** DESIGN.md → "Advancing through the flow: `advance`/`start`/`done`";
-  model.go → `Advancer`/`ResolvedFlow` (T2), GAP #5 (`By` durable source — still open) and GAP #6 (does
-  `ResolvedFlow` share a traversal primitive with `Index`/`DepGraph`? — revisit now that a third graph lands).
+- **Create `sessions/006.5_attribution_and_sugar.md` from `sessions/000_template.md`** (mirrors 003–006:
+  design-spec + plan before code). Branch `feat/s006.5-attribution-sugar`. Refine the plan (superpowers
+  brainstorming/planning), work **test-first**; acceptance e2e + `make check` green before the PR.
+- Scope (three small, related pieces — see sessions/README.md → "Roadmap regrouped" and DESIGN.md →
+  "Advancing through the flow"):
+  1. **`--why <text>`** — a durable free-text reason recorded on the transition. Add a `Why` field to
+     `mtt.HistoryEntry` (name `why`; agent-friendly, renameable later) + the YAML DTO (`ymlHistoryEntry`) +
+     render it in `mtt show`'s history section. It rides `Task.History` (no new port). "Who + why moved it."
+  2. **`--who <subject>`** — a symmetric **alias of `--by`** (same target `history.by`; keep `--by`, add
+     `--who` so `--who`/`--why` read as a pair). Precedence unchanged: `--who`/`--by` > `MTT_BY` >
+     config.local `author`.
+  3. **`mtt <status> <id>` verb sugar** — a single-edge status move via **fallback-routing**: the root's
+     `RunE` handles exactly-two-args where arg0 is *not* a registered subcommand and *is* a valid target
+     status for arg1's type → route to the `status` path. NOT dynamic command registration (avoids the
+     config-before-parse problem, namespace pollution, and help clutter). A status colliding with a real
+     command name loses to the command (documented); statuses unusable as tokens (spaces) fall back to
+     `mtt status`. Forward-compatible: the sugar's semantics can grow single-edge → `advance` later with no
+     surface change.
+- Architecture stays **`cli → core → port ← adapter`**. Reuse `core.Transitioner` (single edge) for the
+  sugar; the `Why` field is the only `pkg/mtt` change (additive). Everything typed; string conversion only at
+  the cli/adapter boundary.
+- **PARKED (do not build):** `advance`/`start`/`done`/`cancel`, modes (`--stop`/`--atomic`/`--force`),
+  roles-on-edges, config verb→status. On-demand only — when a flow actually branches. The `advance` design
+  intent lives in DESIGN.md → "Advancing through the flow" (marked PARKED); `model.go` `Advancer`/
+  `ResolvedFlow` stay as T2 intent.
+- **After 006.5 → s007 structured commands** (placeholders + per-command timeout — the "work in task terms"
+  enabler; `Transition.Commands []string` → a `Command` value object, a domain-shape change), then s008
+  rollback, then dogfood (s008.5 chore + s009). See the roadmap.
 
 ### Open design slice to schedule (not session 006's scope, but don't lose it)
 - **Durable, git-independent audit of edits** + **the subject-identity (`By`) source.** `edit` today only
@@ -243,21 +252,21 @@ resolved graph, and open gaps. Two decisions locked there that shape s005:
 > sessions/005_dependencies.md, CLI_REFERENCE.md. Confirm the superpowers skills are active (else activate per
 > NEXT_SESSION.md).
 >
-> Do **session 007 (advance / start / done — the meta-walk)** on branch `feat/s007-advance` off fresh `main`:
-> first create `sessions/007_advance.md` from `sessions/000_template.md`, then brainstorm → writing-plans, then
-> implement strictly test-first until the acceptance e2e + `make check` are green; branch → PR → CI green →
-> squash into `main`.
+> Do **session 006.5 (attribution + verb sugar)** on branch `feat/s006.5-attribution-sugar` off fresh `main`:
+> first create `sessions/006.5_attribution_and_sugar.md` from `sessions/000_template.md`, then brainstorm →
+> writing-plans, then implement strictly test-first until the acceptance e2e + `make check` are green; branch →
+> PR → CI green → squash into `main`.
 >
-> Scope: **`mtt advance <id> --to <status>`** — the meta-walk through a **chain** of transitions to a target,
-> running each edge's gate (reuse s006's `Runner` + `Transitioner` single-edge primitive) and appending a
-> `history` entry per edge. Follow only progressing edges; never enter a different terminal; cycle guard;
-> unreachable → error; a real fork (≥2 progressing edges) → **stop**. Modes `--stop`(default)/`--atomic`/
-> `--force`. `mtt start`/`done`/`cancel` are the built-in aliases. **`ResolvedFlow` (model.go Layer B) likely
-> earns its keep here** — a linked status graph for progress/fork/cycle detection; weigh it vs. iterating the
-> single-edge lookup (GAP #6: does it share a traversal primitive with `Index`/`DepGraph`?). Architecture stays
-> `cli → core → port ← adapter`; reuse `Runner` (exec) + the s006 gate; `history` keeps riding `Task.History` +
-> `Update`; the resolver takes a **role** param (one implicit role today). Everything typed — `mtt.TaskID`/
-> `StatusName`; convert strings only at the cli/adapter boundary.
+> Scope (three small related pieces): (1) **`--why <text>`** — a durable free-text reason on the transition;
+> add a `Why` field to `mtt.HistoryEntry` (name `why`) + YAML DTO + render in `mtt show` (rides `Task.History`,
+> no new port). (2) **`--who`** — a symmetric **alias of `--by`** (same `history.by`; precedence `--who`/`--by`
+> > `MTT_BY` > config.local `author`). (3) **`mtt <status> <id>` verb sugar** — a single-edge move via
+> **fallback-routing** (root `RunE` handles two args where arg0 is not a registered subcommand and is a valid
+> target status for arg1's type → route to `status`); NOT dynamic command registration; a real command name
+> wins a clash; forward-compatible (single-edge → advance later, no surface change). Reuse `core.Transitioner`;
+> the `Why` field is the only `pkg/mtt` change. **PARKED — do NOT build:** `advance`/`start`/`done`/`cancel`,
+> modes, roles-on-edges (on-demand, when a flow branches). After 006.5 → s007 structured commands (placeholders
+> + per-command timeout), s008 rollback, then dogfood. Everything typed; convert strings only at cli/adapter.
 >
 > Heed the "Carry-over lessons" below — esp. s006's: a fake for the driven port + real exec adapter; a non-zero
 > exit is **data**, not a Go error; adapter settings ride the config layer not `pkg/mtt`; exit-code taxonomy in

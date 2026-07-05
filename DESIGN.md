@@ -410,10 +410,21 @@ Commands come from config (trusted, like a Makefile/git hooks), not from the net
 
 ### Advancing through the flow: `advance` / `start` / `done`
 
+> **PARKED (2026-07-05, on-demand).** `advance` and the verbs `start`/`done`/`cancel`, the modes
+> (`--stop`/`--atomic`/`--force`), and **roles-on-edges** are **deferred** — most status transitions are
+> exactly **one edge**, so single-edge `mtt status` is the norm and a multi-edge walk solves a problem we
+> don't have yet; role-tagged edges are near-RBAC and premature (identity/role may later come from an
+> external provider). This subsection is the **design intent** for when a flow actually branches; nothing
+> here is built until then. The ergonomic win is delivered earlier and cheaply by the `mtt <status> <id>`
+> **verb sugar** (s006.5) — a single-edge move via fallback-routing on an unknown first arg (not dynamic
+> command registration), forward-compatible: its semantics can grow single-edge → `advance` later without a
+> surface change. Attribution is `--who`/`--by` (who) + `--why` (a durable free-text reason recorded in
+> `history`). Design below is preserved as the target semantics.
+
 `start`/`done` are not a single transition but a **meta-command**: the primitive `advance <task> --to
 <status>` walks the task through a chain of transitions to a target status, running the edge gates along the
-way. `start` = `--to in_progress`, `done` = `--to done` (built-in aliases). **We do not build a config
-command DSL** — modes are flags.
+way. `start` = `--to <active>`, `done` = `--to <terminal>` (built-in aliases, resolved by category, not by
+literal names). **We do not build a config command DSL** — modes are flags.
 
 Traversal semantics (predictability over cleverness):
 
@@ -615,8 +626,8 @@ has a text/ASCII Gantt. The latest phase.
 | 0 | Scaffold: repo, module, AGENTS/DESIGN, CLI skeleton, gate, CI | ✅ done |
 | 1 | `pkg/mtt` **pure** contract (domain types + `TaskStore` port); config+types (**structural** invariants: `kind` by topology, ≥1 of each, no name literals), `mtt init`; the YAML adapter **mints IDs** flat per-prefix (`e1`/`t17`/`s3`); core usecases + `add/list/show/edit/close` | 🔄 s001–003 (`close` → phase 3; optional capability interfaces deferred, see [architecture snapshot](docs/architecture/model.go)) |
 | 2 | Hierarchy (by `parents` from config); dependencies; `ready`; cycle detection | 🔄 hierarchy done (s004); dependencies/`ready`/cycles → s005 |
-| 3 | Flow enforcement: transition validation + running `commands` (the `Runner` port), gating on exit codes; `mtt start/done/status`; **structured commands** (placeholders + per-command timeout) + **rollback** | 🔄 single-edge `mtt status` shipped (s006); `advance`/`start`/`done` → s007; structured commands (the "work in task terms" enabler) → s008; rollback → s009 |
-| 4 | **Dogfood** (pulled ahead — s010, after flow orchestration is complete), then references (s011), comments (s012), actor profiles (s013) | |
+| 3 | Flow enforcement: transition validation + running `commands` (the `Runner` port), gating on exit codes; `mtt status`; **attribution + verb sugar**; **structured commands** (placeholders + per-command timeout) + **rollback** | 🔄 single-edge `mtt status` shipped (s006); attribution+sugar (`--why`/`--who`, `mtt <status> <id>`) → s006.5; structured commands (the "work in task terms" enabler) → s007; rollback → s008. **`advance`/`start`/`done`/`cancel` + modes + roles-on-edges are PARKED** (on-demand — single-edge `status` is the norm) |
+| 4 | **Dogfood** (pulled ahead — s009, after flow orchestration is complete), then references (s010), comments (s011), actor profiles (s012) | |
 | — | **⬆ agent-facing MVP — fully usable** | |
 | 5 | `KnowledgeStore` port + YAML KB adapter; text search | |
 | 6 | Text/ASCII Gantt in the CLI; richer list/query | |

@@ -212,12 +212,15 @@ type Comment struct {
 	Replies []Comment
 }
 
-// HistoryEntry is one append-only transition record. Role is the roles seam
-// (reserved now; routing resolved in T2). By is the subject-identity seam. [T2]
+// HistoryEntry is one append-only transition record. By is the subject-identity
+// (--who/--by > MTT_BY > config.local author). Role is a dumb attribution string
+// (no routing built — near-RBAC, parked). Why is a durable free-text reason
+// (--why), added in s006.5. [T2]
 type HistoryEntry struct {
 	At     time.Time
 	By     string
 	Role   string
+	Why    string // free-text reason (--why); added s006.5
 	From   StatusName
 	To     StatusName
 	Checks []Check
@@ -498,7 +501,11 @@ type AdvanceOptions struct {
 // Advancer is the meta-command behind start/done/cancel: it walks a task through
 // the flow to a target status, running each edge's gates (via Runner) and
 // appending History. start = --to <first active>, done = --to <terminal>. The
-// resolver is parameterized by Role (today one implicit role). [T2]
+// resolver is parameterized by Role (today one implicit role).
+// PARKED (2026-07-05, on-demand): single-edge `mtt status` is the norm; the
+// multi-edge walk, the verbs, the modes, and roles-on-edges surface only when a
+// flow actually branches. The ergonomic `mtt <status> <id>` sugar (s006.5) is a
+// single-edge move via CLI fallback-routing, forward-compatible to this. [T2]
 type Advancer interface {
 	Advance(id TaskID, toStatus StatusName, opts AdvanceOptions) (Task, error)
 }

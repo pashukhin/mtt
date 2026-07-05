@@ -120,35 +120,42 @@ Single-edge `mtt status` shipped in **s006**; the meta-walk (`advance`/`start`/`
 - [x] e4_t4 — record the transition in the task's `history` (from→to, at, `by` from `--by`/`MTT_BY`, `role`
       from `--role`/`MTT_ROLE`, `checks`), append-only (s006; rides `Task.History` + `Update` — no `HistoryStore`
       port, GAP #1). `mtt show` renders the history section
-- [~] e4_t5 — **s006** shipped `mtt status <id> <new>` (a single transition). The meta-walk `mtt advance
-      <id> --to <status>` (progressing edges, stop at a fork, cycle guard, never into a different terminal);
-      modes `--stop`(default)/`--atomic`/`--force`; `mtt start`/`mtt done` aliases → **s007**
+- [~] e4_t5 — **s006** shipped `mtt status <id> <new>` (a single transition — the norm). **PARKED
+      (on-demand):** the meta-walk `mtt advance <id> --to <status>` (progressing edges, stop at a fork, cycle
+      guard, never into a different terminal), modes `--stop`/`--atomic`/`--force`, `mtt start`/`done`/`cancel`
+      aliases, and **roles-on-edges**. Deferred until a flow actually branches (single-edge covers ~all cases;
+      role-tagged edges are near-RBAC and premature — identity/role may later come from an external provider).
 - [ ] e4_t6 — `mtt types` (types/flow from config) + `mtt caps` (the current backend's capabilities)
 - [ ] e4_t7 — `ready`/`list`/completeness — **by status category** (not by the literal `done`)
-- [ ] e4_t8 — **structured commands** (**s008**): evolve `Transition.Commands` `[]string` → a `Command`
+- [ ] e4_t8 — **attribution + verb sugar (s006.5)**: `--why` (a durable free-text reason recorded in
+      `history`; new `HistoryEntry.Why` field + DTO + `show` rendering — "who + why moved the task"), `--who`
+      (a symmetric alias of `--by`), and the `mtt <status> <id>` verb sugar (via **fallback-routing** on an
+      unknown first arg — not dynamic command registration; single-edge; forward-compatible to advance later
+      without a surface change; a status colliding with a real command name loses to the command)
+- [ ] e4_t9 — **structured commands (s007)**: evolve `Transition.Commands` `[]string` → a `Command`
       value object (`{run, timeout?}`) with **placeholder** expansion on `run` (`.ID`/`.Type`/`.From`/`.To`;
       shell-quote/restrict — injection caveat) + **per-command timeout** overriding `command_timeout`.
       Additive/back-compatible (bare string ⇒ `{run: …}`), but a **domain-shape change** in `pkg/mtt`. This
       is the enabler for "the agent works in task terms" (task-aware transitions, e.g. branch creation)
-- [ ] e4_t9 — **rollback/compensation** (**s009**): reverse-order compensating commands on a failed pipeline
-      or an `--atomic`/multi-step `advance` abort after side effects; the executor's abort path is the hook
+- [ ] e4_t10 — **rollback/compensation (s008)**: reverse-order compensating commands on a failed pipeline
+      or (later) an `--atomic`/multi-step abort after side effects; the executor's abort path is the hook
 
 ## e5 — Phase 4: dogfood → references → comments → profiles (regrouped 2026-07-05)  `[ ]`
 
 Reordered so mtt self-hosts as soon as flow orchestration is complete (after e4), ahead of references and
 comments (which enrich a full self-host but don't enable it). See sessions/README.md → "Roadmap regrouped".
 
-- [ ] e5_t1 — **dogfood enablers (chore, s009.5)**: `mtt rm <id>` (hard-delete, distinct from `cancel`),
+- [ ] e5_t1 — **dogfood enablers (chore, s008.5)**: `mtt rm <id>` (hard-delete, distinct from `cancel`),
       `--depends-on` on `add`, packaging (`make install` → `go install ./cmd/mtt` + a smoke test)
-- [ ] e5_t2 — **dogfooding (s010)**: `mtt init` this repo, a config whose gates are task-aware (branch on
-      `start` via a placeholder, `make check` on `done`), migrate the backlog onto mtt
-- [ ] e5_t3 — references (**s011**): `mtt ref add/rm/list`, backlinks; resolve `task`/`comment` refs (link a
+- [ ] e5_t2 — **dogfooding (s009)**: `mtt init` this repo, a config whose gates are task-aware (branch on the
+      `→ in_progress` edge via a placeholder, `make check` on `→ done`), migrate the backlog onto mtt
+- [ ] e5_t3 — references (**s010**): `mtt ref add/rm/list`, backlinks; resolve `task`/`comment` refs (link a
       task ↔ its PR/spec)
-- [ ] e5_t4 — comments (**s012**): `mtt comment add <id> [--reply <cid>]` (tree) + render in `show`
-- [ ] e5_t5 — **actor profiles (s013)**: named `(by, role)` profiles in `config.local`, one `default: true`
+- [ ] e5_t4 — comments (**s011**): `mtt comment add <id> [--reply <cid>]` (tree) + render in `show`
+- [ ] e5_t5 — **actor profiles (s012)**: named `(by, role)` profiles in `config.local`, one `default: true`
       (= the coding agent), managed by `mtt profile add/list/rm` (local-only); subsumes the s006 `author` seam
 - [ ] e5_t6 — `mtt init --template coding` demo (feature/bugfix/refactor with task-aware gated DoD) — fully
-      powered once structured commands (e4_t8) land
+      powered once structured commands (e4_t9) land
 
 ## Later (coarse)
 
@@ -160,10 +167,15 @@ comments (which enrich a full self-host but don't enable it). See sessions/READM
 - e9 — Phase 8: external indexer hook
 - later — reconstruct the observed status graph from tasks' `history` (read-only aggregation);
   explicit flow versioning/migrations (the git history of config is enough for now)
-- **now scheduled (regrouped 2026-07-05):** structured commands (placeholders + per-command timeout) →
-  **e4_t8 / s008**; rollback/compensation → **e4_t9 / s009**; dogfood enablers (`mtt rm`, `--depends-on`) +
-  packaging → **e5_t1 / s009.5**; actor profiles → **e5_t5 / s013**. Design detail lives in DESIGN.md →
-  "Seam (deferred): structured commands" / "Direction (deferred): actor profiles" and the rollback seam.
+- later — **export the status flow as Graphviz** (`mtt types --dot` / `mtt flow --graphviz`): render a
+  type's flow — statuses (by `kind`) + transitions, annotated with attached `commands`/roles — as DOT for
+  visualization. Cheap read-only view; pairs well with the observed-graph reconstruction above.
+- **now scheduled (regrouped 2026-07-05):** attribution + verb sugar (`--why`/`--who` + `mtt <status> <id>`)
+  → **e4_t8 / s006.5**; structured commands (placeholders + per-command timeout) → **e4_t9 / s007**;
+  rollback/compensation → **e4_t10 / s008**; dogfood enablers (`mtt rm`, `--depends-on`) + packaging →
+  **e5_t1 / s008.5**; actor profiles → **e5_t5 / s012**. `advance`/`start`/`done`/`cancel` + modes +
+  roles-on-edges are **parked** (on-demand — see e4_t5). Design detail: DESIGN.md → "Advancing through the
+  flow" (parked), "Seam (deferred): structured commands", "Direction (deferred): actor profiles", rollback seam.
 - later — **`cancelled`-blocker semantics**: a `cancelled` (abandoned) `depends_on` currently unblocks its
   dependent (terminal by `kind`), which may be wrong — the dependent may need re-evaluation. Revisit with
   flow enforcement (s006), when terminal statuses become reachable. See DESIGN.md → "Dependencies".
