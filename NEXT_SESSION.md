@@ -91,6 +91,19 @@ The plugin is declared in the personal `.claude/settings.local.json` (per-user, 
    (alternative — the official marketplace: `/plugin install superpowers@claude-plugins-official`)
 3. Verify the TDD/brainstorming/debugging skills are available, and **use them**.
 
+## Domain-model snapshot (read before s005)
+
+[docs/architecture/model.go](docs/architecture/model.go) — a code-form, tiered (T1/T2/T3) index of the whole
+intended contract: domain types + ports + optional capabilities, core usecases with dependencies, the derived
+resolved graph, and open gaps. Two decisions locked there that shape s005:
+
+- **s005 adds no new port.** `depends_on` is a `Task` field round-tripped via `TaskStore.Update` (as `parent`
+  was in s004); `DependencyStore` is only for external adapters that cannot embed. s005 = core
+  `DependencyEditor` + `Ready` + cycle-check, no `pkg/mtt` port method.
+- **Optional `--before-s005` chore (004.5): typed-identity retrofit** — introduce `TaskID`/`TypeName`/
+  `StatusName` across the shipped `pkg/mtt`/`core`/`adapter` (they use bare `string` today) so s005 is written
+  against the typed surface. Mechanical, no behaviour change; do it only if you want the cleaner base first.
+
 ## Next task — session 005 (dependencies)
 
 - **Create `sessions/005_dependencies.md` from `sessions/000_template.md`** as the first step (mirrors 003/004:
