@@ -34,6 +34,8 @@ Run `mtt help [command]` or `mtt <command> -h` for built-in help.
 | `--dir <path>` | `MTT_DIR` | Project root that holds `.mtt/`. Default: the nearest ancestor of the current directory that contains `.mtt/`. **Implemented (session 003)**: `--dir`/`MTT_DIR` is an explicit root (must itself contain `.mtt/`, no upward walk); omitted, falls back to ancestor discovery. |
 | `--role <role>` | `MTT_ROLE` | The acting role (e.g. `implementer`, `reviewer`). Recorded into a task's transition `history`. A reserved seam — it does not change routing yet (see DESIGN → Roles). **Implemented (session 006)** — recorded, not enforced. |
 | `--by <subject>` | `MTT_BY` | The acting subject ("who"), recorded into transition `history`. Distinct from `--role` ("what hat"). Falls back to `MTT_BY`, then the `config.local.yaml` `author` (the durable personal default). **Implemented (session 006)**. |
+| `--who <subject>` | `MTT_BY` | Symmetric alias of `--by` (reads as a pair with `--why`). *(pending — session 006.5)* |
+| `--why <text>` | — | A durable free-text reason for the transition, recorded into `history`. *(pending — session 006.5)* |
 | `-q, --quiet` | — | Suppress non-essential output (still prints errors and requested data). *(pending)* |
 | `--no-color` | `NO_COLOR` | Disable ANSI color in human output. *(pending)* |
 | `-h, --help` | — | Help for the command. |
@@ -65,6 +67,11 @@ and is overridable via `config.local.yaml`.
 **`author`** (top-level, typically in the gitignored `config.local.yaml`) is the durable default for the
 history `by` field — "who is acting" — used when neither `--by` nor `MTT_BY` is set (precedence
 `--by` > `MTT_BY` > `author`). Personal, so it belongs in the local overlay, not the committed config.
+
+**`require`** (top-level, in the **committed** config, e.g. `require: {who: true, why: true}`) makes
+`--who`/`--why` mandatory on a status change — validated **before** the gate runs and not bypassed by
+`--no-run`/`--force`; `config.local` may only **tighten** it. A violation aggregates all missing fields into
+one usage error (exit `2`). *(pending — session 006.5)*
 
 ---
 
@@ -334,9 +341,9 @@ Distinct codes let agents branch on the outcome without parsing text.
 | `6` | Invalid transition — not allowed by the type's flow |
 
 Codes `3` (gate blocked) and `6` (invalid transition) are **implemented (session 006)** on `mtt status`
-(`Execute()` maps `core.ErrBlocked`→3, `core.ErrInvalidTransition`→6). The remaining codes (`2`, `4`, `5`)
-are still **proposed** and land alongside the behaviors they distinguish (usage validation, capability
-gates, …); other error paths keep the generic `1`.
+(`Execute()` maps `core.ErrBlocked`→3, `core.ErrInvalidTransition`→6); code `2` (usage) lands with
+required-attribution (session 006.5). The remaining codes (`4`, `5`) are still **proposed** and land
+alongside the behaviors they distinguish (capability gates, …); other error paths keep the generic `1`.
 
 ---
 

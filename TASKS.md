@@ -127,11 +127,16 @@ Single-edge `mtt status` shipped in **s006**; the meta-walk (`advance`/`start`/`
       role-tagged edges are near-RBAC and premature — identity/role may later come from an external provider).
 - [ ] e4_t6 — `mtt types` (types/flow from config) + `mtt caps` (the current backend's capabilities)
 - [ ] e4_t7 — `ready`/`list`/completeness — **by status category** (not by the literal `done`)
-- [ ] e4_t8 — **attribution + verb sugar (s006.5)**: `--why` (a durable free-text reason recorded in
-      `history`; new `HistoryEntry.Why` field + DTO + `show` rendering — "who + why moved the task"), `--who`
-      (a symmetric alias of `--by`), and the `mtt <status> <id>` verb sugar (via **fallback-routing** on an
-      unknown first arg — not dynamic command registration; single-edge; forward-compatible to advance later
-      without a surface change; a status colliding with a real command name loses to the command)
+- [ ] e4_t8 — **attribution + verb sugar (s006.5)** — a release-complete attribution slice (no roles/profiles
+      needed): `--why` (a durable free-text reason recorded in `history`; new `HistoryEntry.Why` field + DTO +
+      `show` rendering — "who + why moved the task"), `--who` (a symmetric alias of `--by`), the
+      `mtt <status> <id>` verb sugar (via **fallback-routing** on an unknown first arg — not dynamic command
+      registration; single-edge; forward-compatible to advance later; a status colliding with a real command
+      name loses to the command), and **required-attribution**: a project-global `require: {who, why}` in the
+      committed config (adapter-level `Settings`, like `command_timeout`; `config.local` may only **tighten**,
+      not relax) — **validated before the gate runs** (fail fast) and **not** bypassed by `--no-run`/`--force`;
+      on a violation, **aggregate all missing fields into one error** (agent fixes them in one shot) and exit
+      **2 (usage)**. This is a natural release point (full release tooling — goreleaser/tags — stays later).
 - [ ] e4_t9 — **structured commands (s007)**: evolve `Transition.Commands` `[]string` → a `Command`
       value object (`{run, timeout?}`) with **placeholder** expansion on `run` (`.ID`/`.Type`/`.From`/`.To`;
       shell-quote/restrict — injection caveat) + **per-command timeout** overriding `command_timeout`.
@@ -170,6 +175,15 @@ comments (which enrich a full self-host but don't enable it). See sessions/READM
 - later — **export the status flow as Graphviz** (`mtt types --dot` / `mtt flow --graphviz`): render a
   type's flow — statuses (by `kind`) + transitions, annotated with attached `commands`/roles — as DOT for
   visualization. Cheap read-only view; pairs well with the observed-graph reconstruction above.
+- later (think) — **argument-resolution grammar**: generalize the s006.5 `mtt <status> <id>` fallback into a
+  coherent scheme for resolving positional args (command / status / role / id / …). Is `mtt <role> …` a
+  form? What's the precedence and disambiguation when arg0 (or arg1+) could be several kinds? Decide the
+  grammar **before** adding more sugar forms, so the surface stays predictable.
+- later (think) — **subagent identity under multi-agent access**: roles/RBAC are pointless unless we can
+  distinguish subagents acting with **different** roles — that is what our RBAC ultimately hinges on. Figure
+  out the identity mechanism (per-agent `config.local`? an env/handshake/token? a provider-supplied
+  identity?) — this is the **real precondition** for the parked roles/profiles work (e5_t5) and for `By`
+  attribution to mean more than a self-declared string. Decide it before reviving roles.
 - **now scheduled (regrouped 2026-07-05):** attribution + verb sugar (`--why`/`--who` + `mtt <status> <id>`)
   → **e4_t8 / s006.5**; structured commands (placeholders + per-command timeout) → **e4_t9 / s007**;
   rollback/compensation → **e4_t10 / s008**; dogfood enablers (`mtt rm`, `--depends-on`) + packaging →

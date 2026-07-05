@@ -472,6 +472,15 @@ never hardcoded (like types/statuses).
 > `config.local.yaml` profiles (shared project profiles, if any, are read-only to the command). This
 > **subsumes the s006 `author` seam** (`author` = the default profile's `by`) and is forward-compatible. See
 > TASKS.md → Later.
+>
+> **Hard precondition (the real question): subagent identity.** Roles/RBAC are pointless unless we can
+> distinguish subagents acting with **different** roles under multi-agent access — that is what RBAC hinges
+> on. Until there is an identity mechanism (per-agent `config.local`, an env/handshake/token, or a
+> provider-supplied identity), `by`/`role` are self-declared strings and profiles are just ergonomic
+> defaults, not enforcement. Decide subagent identity **before** reviving roles. Meanwhile attribution is
+> release-complete without any of this: `--who`/`--why` (free text) + a project-global `require: {who, why}`
+> config (an execution/adapter setting, like `command_timeout`; `config.local` may only tighten) validated
+> before the gate, aggregating all missing fields into one usage error (exit 2). Roles/profiles stay parked.
 
 `mtt init` writes `.mtt/config.yaml` with example types `epic`/`task`/`subtask` and a linear flow
 (`initial → active → terminal`, plus a second terminal for cancellation). Those names are the **template's**,

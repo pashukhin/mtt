@@ -138,6 +138,13 @@ resolved graph, and open gaps. Two decisions locked there that shape s005:
      command name loses to the command (documented); statuses unusable as tokens (spaces) fall back to
      `mtt status`. Forward-compatible: the sugar's semantics can grow single-edge → `advance` later with no
      surface change.
+  4. **Required-attribution** — a project-global `require: {who, why}` in the **committed** `config.yaml`
+     (adapter-level `Settings`, like `command_timeout`; `config.local` may only **tighten**, never relax).
+     Validated **before the gate runs** (fail fast — don't run `make check` only to reject on a missing
+     `why`) and **not** bypassed by `--no-run`/`--force` (attribution is about the record, not the gate). On
+     a violation, **aggregate all missing fields into one error** (the agent fixes them in one shot, not
+     iteratively) and exit **2 (usage)** — realize exit code 2, mirroring how s006 realized 3/6. This makes
+     s006.5 a release-complete attribution slice **with no roles/profiles** (those stay parked).
 - Architecture stays **`cli → core → port ← adapter`**. Reuse `core.Transitioner` (single edge) for the
   sugar; the `Why` field is the only `pkg/mtt` change (additive). Everything typed; string conversion only at
   the cli/adapter boundary.
