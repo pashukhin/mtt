@@ -38,3 +38,22 @@ func TestBuildDepListJSONEmpty(t *testing.T) {
 		t.Fatalf("slices must be non-nil (marshal to [] not null): %+v", v)
 	}
 }
+
+func TestRenderDepTree(t *testing.T) {
+	// t3 -> t2 -> t1  (transitive blockers of t3)
+	g := core.NewDepGraph([]mtt.Task{depTask("t1"), depTask("t2", "t1"), depTask("t3", "t2")})
+	out := renderDepTree(g, "t3")
+	if !strings.Contains(out, "t3  task  [tbd]") ||
+		!strings.Contains(out, "└─ t2  task  [tbd]") ||
+		!strings.Contains(out, "t1  task  [tbd]") {
+		t.Fatalf("transitive tree wrong:\n%s", out)
+	}
+}
+
+func TestBuildDepTreeJSONNested(t *testing.T) {
+	g := core.NewDepGraph([]mtt.Task{depTask("t1"), depTask("t2", "t1")})
+	v := buildDepTreeJSON(g, "t2")
+	if v.ID != "t2" || len(v.DependsOn) != 1 || v.DependsOn[0].ID != "t1" {
+		t.Fatalf("nested tree json wrong: %+v", v)
+	}
+}

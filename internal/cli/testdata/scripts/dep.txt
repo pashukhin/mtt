@@ -49,3 +49,19 @@ stdout '  \(none\)'
 exec mtt dep list t1 --json
 stdout '"depends_on": \[\]'
 stdout '"required_by": \[\]'
+
+# re-establish t2 -> t1 for tree/cycles checks
+exec mtt dep add t2 t1
+exec mtt add --type task --parent e1 'C'
+stdout 'created t3'
+exec mtt dep add t3 t2
+
+# --tree shows the transitive chain t3 -> t2 -> t1
+exec mtt dep list t3 --tree
+stdout 't3  task  \[tbd\]  C'
+stdout '└─ t2  task  \[tbd\]  B'
+stdout 't1  task  \[tbd\]  A'
+
+# --cycles on an acyclic graph reports none (the CLI cannot build a cycle)
+exec mtt dep list t1 --cycles
+stdout 'no cycles'
