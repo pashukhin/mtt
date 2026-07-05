@@ -1,0 +1,40 @@
+# cancelling a blocker (a reachable terminal) unblocks its dependent
+exec mtt init
+cp gated.yaml .mtt/config.yaml
+exec mtt add 'A'
+stdout 'created t1'
+exec mtt add 'B'
+stdout 'created t2'
+exec mtt dep add t2 t1
+
+# t2 is blocked while t1 is tbd
+exec mtt ready
+! stdout 't2  task'
+stdout 't1  task'
+
+# cancel t1 (tbd -> cancelled, no gate) -> t2 becomes ready
+exec mtt status t1 cancelled
+stdout 't1: tbd → cancelled'
+exec mtt ready
+stdout 't2  task'
+
+-- gated.yaml --
+version: 1
+project:
+  name: demo
+command_timeout: 5m
+types:
+  - name: task
+    prefix: t
+    default: true
+    parents: []
+    statuses:
+      - {name: tbd, kind: initial}
+      - {name: in_progress, kind: active}
+      - {name: done, kind: terminal}
+      - {name: cancelled, kind: terminal}
+    transitions:
+      - {from: tbd, to: in_progress, commands: ["true"]}
+      - {from: tbd, to: cancelled}
+      - {from: in_progress, to: done, commands: ["false"]}
+      - {from: in_progress, to: cancelled}
