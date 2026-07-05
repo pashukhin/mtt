@@ -1,0 +1,37 @@
+# build an epic -> task -> subtask chain and render it
+mkdir proj
+cd proj
+exec mtt init
+stdout 'initialized'
+
+exec mtt add --type epic 'E'
+stdout 'created e1'
+exec mtt add --type task --parent e1 'T'
+stdout 'created t1'
+exec mtt add --type subtask --parent t1 'S'
+stdout 'created s1'
+
+# tree renders all three nodes (presence, not order)
+exec mtt tree
+stdout 'e1  epic  \[tbd\]  E'
+stdout 't1  task  \[tbd\]  T'
+stdout 's1  subtask  \[tbd\]  S'
+
+# rooting at t1 shows t1 + s1 but not e1
+exec mtt tree t1
+stdout 't1  task  \[tbd\]  T'
+stdout 's1  subtask'
+! stdout 'e1  epic'
+
+# depth 1 from the root shows only e1
+exec mtt tree --depth 1
+stdout 'e1  epic'
+! stdout 't1  task'
+
+# a missing root errors
+! exec mtt tree nope
+stderr 'task "nope" not found'
+
+# an invalid --kind errors
+! exec mtt tree --kind bogus
+stderr 'invalid --kind'

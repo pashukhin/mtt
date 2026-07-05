@@ -65,10 +65,7 @@ func newListCmd() *cobra.Command {
 func writeList(w io.Writer, tasks []mtt.Task) error {
 	var b strings.Builder
 	for _, t := range tasks {
-		fmt.Fprintf(&b, "%s  %s  [%s]", t.ID, t.Type, t.Status)
-		if t.Title != "" {
-			fmt.Fprintf(&b, "  %s", t.Title)
-		}
+		b.WriteString(taskLine(t))
 		b.WriteString("\n")
 	}
 	_, err := fmt.Fprint(w, b.String())
