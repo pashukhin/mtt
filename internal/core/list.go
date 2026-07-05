@@ -44,11 +44,7 @@ func Match(t mtt.Task, f ListFilter, cfg mtt.Config) bool {
 }
 
 func matchesKind(t mtt.Task, kinds []mtt.StatusKind, cfg mtt.Config) bool {
-	typ, ok := cfg.TypeByName(t.Type)
-	if !ok {
-		return false
-	}
-	k, ok := typ.StatusKind(t.Status)
+	k, ok := kindOf(t, cfg)
 	if !ok {
 		return false
 	}
