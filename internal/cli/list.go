@@ -33,13 +33,17 @@ func newListCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			cfg, _, err := yaml.Load(root)
+			if err != nil {
+				return err
+			}
 			tasks, err := yaml.NewTaskStore(root).List()
 			if err != nil {
 				return err
 			}
 			selected := core.Select(tasks, core.ListFilter{
 				Statuses: statuses, Types: types, Sort: core.SortKey(sortKey),
-			})
+			}, cfg)
 			if jsonFlag(cmd) {
 				views := make([]taskJSON, 0, len(selected))
 				for _, t := range selected {
