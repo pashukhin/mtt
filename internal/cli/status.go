@@ -24,8 +24,8 @@ func newStatusCmd() *cobra.Command {
 		Use:   "status <id> <new-status>",
 		Short: "Move a task across one flow edge (runs & gates the edge's commands)",
 		Args: func(_ *cobra.Command, args []string) error {
-			if len(args) != 2 {
-				return errors.New("provide a task id and a target status (example: mtt status t1 in_progress)")
+			if len(args) != 1 && len(args) != 2 {
+				return errors.New("provide a target status (and optionally a task id): mtt status [<id>] <new-status>")
 			}
 			return nil
 		},
@@ -38,11 +38,15 @@ func newStatusCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			id, err := mtt.NewTaskID(args[0])
+			explicit, toArg := "", args[0]
+			if len(args) == 2 {
+				explicit, toArg = args[0], args[1]
+			}
+			id, err := resolveTaskID(root, explicit)
 			if err != nil {
 				return err
 			}
-			to, err := mtt.NewStatusName(args[1])
+			to, err := mtt.NewStatusName(toArg)
 			if err != nil {
 				return err
 			}

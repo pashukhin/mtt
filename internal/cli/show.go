@@ -17,28 +17,23 @@ import (
 // newShowCmd builds `mtt show <id>`: display a task.
 func newShowCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:   "show <id>",
-		Short: "Show a task",
-		Args: func(_ *cobra.Command, args []string) error {
-			if len(args) != 1 {
-				return errors.New("provide exactly one task id (example: mtt show e1)")
-			}
-			return nil
-		},
+		Use:   "show [<id>]",
+		Short: "Show a task (the current task when the id is omitted)",
+		Args:  cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			root, err := projectRoot(cmd)
 			if err != nil {
 				return err
 			}
 			store := yaml.NewTaskStore(root)
-			id, err := mtt.NewTaskID(args[0])
+			id, err := resolveTaskID(root, argOrEmpty(args))
 			if err != nil {
 				return err
 			}
 			task, err := store.Get(id)
 			if err != nil {
 				if errors.Is(err, mtt.ErrNotFound) {
-					return fmt.Errorf("task %q not found", args[0])
+					return fmt.Errorf("task %q not found", id)
 				}
 				return err
 			}

@@ -16,14 +16,9 @@ import (
 func newEditCmd() *cobra.Command {
 	var title, desc string
 	cmd := &cobra.Command{
-		Use:   "edit <id>",
-		Short: "Edit a task's title and/or description",
-		Args: func(_ *cobra.Command, args []string) error {
-			if len(args) != 1 {
-				return errors.New("provide exactly one task id (example: mtt edit e1 --title \"…\")")
-			}
-			return nil
-		},
+		Use:   "edit [<id>]",
+		Short: "Edit a task's title and/or description (the current task when the id is omitted)",
+		Args:  cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var p core.EditParams
 			if cmd.Flags().Changed("title") {
@@ -37,14 +32,14 @@ func newEditCmd() *cobra.Command {
 				return err
 			}
 			editor := core.NewEditor(yaml.NewTaskStore(root), time.Now)
-			id, err := mtt.NewTaskID(args[0])
+			id, err := resolveTaskID(root, argOrEmpty(args))
 			if err != nil {
 				return err
 			}
 			task, err := editor.Edit(id, p)
 			if err != nil {
 				if errors.Is(err, mtt.ErrNotFound) {
-					return fmt.Errorf("task %q not found", args[0])
+					return fmt.Errorf("task %q not found", id)
 				}
 				return err
 			}
