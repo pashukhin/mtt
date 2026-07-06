@@ -1,0 +1,52 @@
+# s008 rollback/compensation: a later gate failure blocks the transition AND runs
+# the succeeded commands' rollbacks in reverse (intra-pipeline compensation).
+# Generic commands (touch/rm/false) — no git dependency, no guard.
+
+exec mtt init
+cp gated.yaml .mtt/config.yaml
+
+exec mtt add 'implement feature'
+stdout 'created t1'
+
+# mtt types surfaces the compensator with a ↩ line.
+exec mtt types
+stdout '↩ rm a-'
+
+# take-into-work gate: touch a-t1 (rb rm a-t1), touch b-t1 (rb rm b-t1), then
+# `false` fails -> blocked (non-zero exit), and the two touches are compensated.
+! exec mtt in_progress t1
+stderr 'blocked'
+stderr '↩ compensating \(2 commands\)'
+stderr 'compensated 2 commands'
+
+# the created sentinels were removed by their rollbacks (placeholders expanded).
+! exists a-t1
+! exists b-t1
+
+# the transition did not apply: the task is still tbd (no status change).
+exec mtt show t1
+stdout '\[tbd\]'
+
+-- gated.yaml --
+version: 1
+project:
+  name: rb
+command_timeout: 5m
+types:
+  - name: task
+    prefix: t
+    default: true
+    statuses:
+      - {name: tbd, kind: initial}
+      - {name: in_progress, kind: active}
+      - {name: done, kind: terminal}
+    transitions:
+      - from: tbd
+        to: in_progress
+        commands:
+          - run: touch a-{{.ID}}
+            rollback: rm a-{{.ID}}
+          - run: touch b-{{.ID}}
+            rollback: rm b-{{.ID}}
+          - "false"
+      - {from: in_progress, to: done}
