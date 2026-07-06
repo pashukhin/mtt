@@ -201,6 +201,15 @@ comments (which enrich a full self-host but don't enable it). See sessions/READM
   out the identity mechanism (per-agent `config.local`? an env/handshake/token? a provider-supplied
   identity?) — this is the **real precondition** for the parked roles/profiles work (e5_t5) and for `By`
   attribution to mean more than a self-declared string. Decide it before reviving roles.
+- later (think) — **node-level status actions** (custom verbs): generalize executable pipelines from **edges**
+  (transitions) to **nodes** — a status may carry **named, rollback-able action pipelines** that run **without
+  changing status** (intermediate `commit`, `build`, `check`), each invoked as a custom verb `mtt <action>
+  <id>`. The shared primitive (a named rollback-able pipeline) hangs on an edge *or* a node; completes the
+  "all shell in the flow / pure task terms" story. **Blocked on** structured commands + rollback (reuses the
+  `Command` VO + compensation) and the argument-resolution grammar (custom verbs collide with real commands /
+  the status-sugar — `mtt check` is reserved for ref-checking); a non-transition action's audit ties to
+  edit-audit. **Open: release-needed?** Lean *no* (an agent commits WIP via plain `git` while `in_progress` —
+  completeness polish, not the minimum); revisit once structured commands land. See DESIGN.md → Flow seam.
 - **now scheduled (regrouped 2026-07-05):** attribution + verb sugar (`--why`/`--who` + `mtt <status> <id>`)
   → **e4_t8 / s006.5**; structured commands (placeholders + per-command timeout) → **e4_t9 / s007**;
   rollback/compensation → **e4_t10 / s008**; dogfood enablers (`mtt rm`, `--depends-on`) + packaging →

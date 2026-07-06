@@ -408,6 +408,20 @@ Commands come from config (trusted, like a Makefile/git hooks), not from the net
 > so restrict to shape-safe fields (`id`/`type`/`status`) or shell-quote arbitrary ones (`title`) — never
 > interpolate raw text unquoted. See TASKS.md → Later.
 
+> **Seam (deferred, think): node-level status actions.** Today executable pipelines hang only on **edges**
+> (transitions — they change status and gate). But "commit intermediate work / build / run checks **while
+> staying** in a status" is a node operation with no home (a self-loop transition is a hack — false history,
+> broken topology). Generalize: a status may carry **named, rollback-able action pipelines**, each invoked as
+> a **custom verb** `mtt <action> <id>` on the task's current status. The shared primitive — *a named
+> rollback-able command pipeline* — then hangs on either an **edge** (transition) or a **node** (status), both
+> served by `Runner` + rollback. This completes the "all shell orchestration lives in the flow / agent works
+> purely in task terms" story. **Blocked on** structured commands + rollback (reuses the `Command` VO +
+> compensation) and on the argument-resolution grammar (custom verbs collide with real commands and the
+> status-sugar — e.g. `mtt check` is reserved for ref-checking); a non-transition action's audit ties to the
+> edit-audit slice. **Open question: is it release-needed?** Lean *no* — for a release an agent commits WIP
+> via plain `git` while `in_progress`; this is the completeness polish, not the minimum. Revisit once
+> structured commands land (it is blocked on them regardless). See TASKS.md → Later.
+
 ### Advancing through the flow: `advance` / `start` / `done`
 
 > **PARKED (2026-07-05, on-demand).** `advance` and the verbs `start`/`done`/`cancel`, the modes
