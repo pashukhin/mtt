@@ -70,6 +70,24 @@ func TestRunStreamsProgressAndSeparatesOutput(t *testing.T) {
 	}
 }
 
+func TestRunPerCommandTimeoutOverridesGlobal(t *testing.T) {
+	// Global is generous; a tight per-command timeout must fire first.
+	_, err := NewRunner(t.TempDir(), time.Minute, io.Discard, io.Discard).
+		Run([]mtt.Command{{Run: "sleep 1", Timeout: 20 * time.Millisecond}})
+	if err == nil {
+		t.Fatal("want a per-command timeout error, got nil")
+	}
+}
+
+func TestRunFallsBackToGlobalTimeout(t *testing.T) {
+	// No per-command timeout -> the (tight) global applies and fires.
+	_, err := NewRunner(t.TempDir(), 20*time.Millisecond, io.Discard, io.Discard).
+		Run([]mtt.Command{{Run: "sleep 1"}})
+	if err == nil {
+		t.Fatal("want a global timeout error, got nil")
+	}
+}
+
 func TestRunProgressMarksFailure(t *testing.T) {
 	var prog bytes.Buffer
 	_, err := NewRunner(t.TempDir(), time.Minute, &prog, io.Discard).Run([]mtt.Command{{Run: "false"}})
