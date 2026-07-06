@@ -83,14 +83,10 @@ func (tr *Transitioner) Transition(id mtt.TaskID, to mtt.StatusName, opts Transi
 	return tr.store.Update(t)
 }
 
-// findTransition returns the edge from → to in typ's flow, if any.
+// findTransition returns the edge from → to in typ's flow, if any. Delegates to
+// the pure pkg/mtt primitive (single source of truth for edge lookup).
 func findTransition(typ mtt.Type, from, to mtt.StatusName) (mtt.Transition, bool) {
-	for _, e := range typ.Transitions {
-		if e.From == from && e.To == to {
-			return e, true
-		}
-	}
-	return mtt.Transition{}, false
+	return typ.FindTransition(from, to)
 }
 
 // allowedTargets lists the statuses reachable from `from` in one edge (for a
