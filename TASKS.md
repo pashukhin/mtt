@@ -137,6 +137,16 @@ Single-edge `mtt status` shipped in **s006**; the meta-walk (`advance`/`start`/`
       not relax) — **validated before the gate runs** (fail fast) and **not** bypassed by `--no-run`/`--force`;
       on a violation, **aggregate all missing fields into one error** (agent fixes them in one shot) and exit
       **2 (usage)**. This is a natural release point (full release tooling — goreleaser/tags — stays later).
+- [ ] e4_t8a — **current task / working context (s006.7)** — kills id-repetition (git-`HEAD`-for-tasks):
+      a `current` record in `config.local.yaml` (personal, gitignored — the **value**), set/cleared by a
+      **transition property** (the committed flow declares the **rule** — a new additive `pkg/mtt.Transition`
+      field, e.g. `current: set|clear`; name-agnostic; topology-default set-on-→active / clear-on-→terminal is
+      a brainstorm option). An **omitted id** resolves to `current` **only for single-task direct verbs**
+      (status/`mtt <status>`/show/edit/tag add·rm/…) — never for filter/list/stdin/bulk (resolution order:
+      explicit id > filter/stdin > current). Companion `mtt use <id>` (git-checkout-like set) + a way to show
+      the current task. **Caveat:** a shared checkout with multiple agents = one `config.local` = one
+      `current` → collision; per-agent current ties to the subagent-identity think-item (fine for solo /
+      one-agent-per-checkout). Composes with the s008.9 selector (its "no source" single-verb case = current).
 - [ ] e4_t9 — **structured commands (s007)**: evolve `Transition.Commands` `[]string` → a `Command`
       value object (`{run, timeout?}`) with **placeholder** expansion on `run` (`.ID`/`.Type`/`.From`/`.To`;
       shell-quote/restrict — injection caveat) + **per-command timeout** overriding `command_timeout`.
@@ -211,8 +221,8 @@ comments (which enrich a full self-host but don't enable it). See sessions/READM
   edit-audit. **Open: release-needed?** Lean *no* (an agent commits WIP via plain `git` while `in_progress` —
   completeness polish, not the minimum); revisit once structured commands land. See DESIGN.md → Flow seam.
 - **now scheduled (regrouped 2026-07-05):** attribution + verb sugar (`--why`/`--who` + `mtt <status> <id>`)
-  → **e4_t8 / s006.5**; structured commands (placeholders + per-command timeout) → **e4_t9 / s007**;
-  rollback/compensation → **e4_t10 / s008**; dogfood enablers (`mtt rm`, `--depends-on`) + packaging →
+  → **e4_t8 / s006.5**; current task / working context → **e4_t8a / s006.7**; structured commands
+  (placeholders + per-command timeout) → **e4_t9 / s007**; rollback/compensation → **e4_t10 / s008**; dogfood enablers (`mtt rm`, `--depends-on`) + packaging →
   **e5_t1 / s008.5**; **tags** (+`#hashtags`) → **e5_t1b / s008.7**; **batch & pipeline** (task-set selector +
   `--ids` + stdin) → **e5_t1c / s008.9**; actor profiles → **e5_t5 / s012**. `advance`/`start`/`done`/`cancel` + modes +
   roles-on-edges are **parked** (on-demand — see e4_t5). Design detail: DESIGN.md → "Advancing through the

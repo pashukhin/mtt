@@ -28,6 +28,7 @@ sliced so **every session delivers something usable**. Order/size may be refined
 | 005 ✅ | dependencies | `mtt dep add/rm/list` (`--tree`/`--cycles`), `mtt ready`, `list --ready` | dep blocks ready; cycle rejected |
 | 006 ✅ | **flow gate (killer)** | `mtt status <id> <new>` runs & gates commands | failing gate blocks transition; history written |
 | 006.5 | attribution + verb sugar | `--why` (+ history field), `--who` (alias of `--by`), `mtt <status> <id>` | `mtt done t1`; `show` prints who/why |
+| 006.7 | **current task** (working context) | `current` in `config.local`, set/clear via a transition property; omitted id → current for single-task verbs; `mtt use <id>` | `mtt done` / `mtt show` act on the current task |
 | 007 | **structured commands** | placeholders + per-command timeout in transition commands | `status … in_progress` creates a `task/<id>` branch; a slow gate fails fast |
 | 008 | **rollback** | reverse-order compensating commands on a failed pipeline | a late gate failure undoes prior side effects |
 | 008.5 | dogfood enablers (chore) | `mtt rm`, `--depends-on` on `add`, packaging (`make install`) | delete a task; `add --depends-on`; `go install ./cmd/mtt` |

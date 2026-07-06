@@ -152,10 +152,12 @@ resolved graph, and open gaps. Two decisions locked there that shape s005:
   roles-on-edges, config verb→status. On-demand only — when a flow actually branches. The `advance` design
   intent lives in DESIGN.md → "Advancing through the flow" (marked PARKED); `model.go` `Advancer`/
   `ResolvedFlow` stay as T2 intent.
-- **After 006.5 → s007 structured commands** (placeholders + per-command timeout — the "work in task terms"
-  enabler; `Transition.Commands []string` → a `Command` value object, a domain-shape change), then s008
-  rollback, s008.5 dogfood-enablers chore, s008.7 tags (+`#hashtags`), s008.9 batch & pipeline (task-set
-  selector + `--ids` + stdin), then dogfood (s009). See the roadmap.
+- **After 006.5 → s006.7 current task** (working context: `current` in `config.local`, set/clear via a
+  transition property; omitted id → current for single-task verbs), then **s007 structured commands**
+  (placeholders + per-command timeout — the "work in task terms" enabler; `Transition.Commands []string` → a
+  `Command` value object, a domain-shape change), s008 rollback, s008.5 dogfood-enablers chore, s008.7 tags
+  (+`#hashtags`), s008.9 batch & pipeline (task-set selector + `--ids` + stdin), then dogfood (s009). See the
+  roadmap.
 
 ### Open design slice to schedule (not session 006's scope, but don't lose it)
 - **Durable, git-independent audit of edits** + **the subject-identity (`By`) source.** `edit` today only
@@ -273,8 +275,9 @@ resolved graph, and open gaps. Two decisions locked there that shape s005:
 > target status for arg1's type → route to `status`); NOT dynamic command registration; a real command name
 > wins a clash; forward-compatible (single-edge → advance later, no surface change). Reuse `core.Transitioner`;
 > the `Why` field is the only `pkg/mtt` change. **PARKED — do NOT build:** `advance`/`start`/`done`/`cancel`,
-> modes, roles-on-edges (on-demand, when a flow branches). After 006.5 → s007 structured commands (placeholders
-> + per-command timeout), s008 rollback, then dogfood. Everything typed; convert strings only at cli/adapter.
+> modes, roles-on-edges (on-demand, when a flow branches). After 006.5 → s006.7 current task (working
+> context), s007 structured commands (placeholders + per-command timeout), s008 rollback, then dogfood.
+> Everything typed; convert strings only at cli/adapter.
 >
 > Heed the "Carry-over lessons" below — esp. s006's: a fake for the driven port + real exec adapter; a non-zero
 > exit is **data**, not a Go error; adapter settings ride the config layer not `pkg/mtt`; exit-code taxonomy in
