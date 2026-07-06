@@ -34,8 +34,10 @@ Run `mtt help [command]` or `mtt <command> -h` for built-in help.
 | `--dir <path>` | `MTT_DIR` | Project root that holds `.mtt/`. Default: the nearest ancestor of the current directory that contains `.mtt/`. **Implemented (session 003)**: `--dir`/`MTT_DIR` is an explicit root (must itself contain `.mtt/`, no upward walk); omitted, falls back to ancestor discovery. |
 | `--role <role>` | `MTT_ROLE` | The acting role (e.g. `implementer`, `reviewer`). Recorded into a task's transition `history`. A reserved seam — it does not change routing yet (see DESIGN → Roles). **Implemented (session 006)** — recorded, not enforced. |
 | `--by <subject>` | `MTT_BY` | The acting subject ("who"), recorded into transition `history`. Distinct from `--role` ("what hat"). Falls back to `MTT_BY`, then the `config.local.yaml` `author` (the durable personal default). **Implemented (session 006)**. |
-| `--who <subject>` | `MTT_BY` | Symmetric alias of `--by` (reads as a pair with `--why`). *(pending — session 006.5)* |
-| `--why <text>` | — | A durable free-text reason for the transition, recorded into `history`. *(pending — session 006.5)* |
+| `--who <subject>` | `MTT_BY` | Symmetric alias of `--by` (reads as a pair with `--why`). **Mutually exclusive** with `--by` (set only one). **Implemented (session 006.5)**. |
+| `--why <text>` | — | A durable free-text reason for the transition, recorded into `history` and rendered by `mtt show`. **Implemented (session 006.5)**. |
+| `-v, --verbose` | — | Stream a gate command's own output to stderr (only meaningful on a gated transition). **Implemented (session 006; root-persistent since 006.5)**. |
+| `--log-file <path>` | — | Write a gate command's own output to a file. **Implemented (session 006; root-persistent since 006.5)**. |
 | `-q, --quiet` | — | Suppress non-essential output (still prints errors and requested data). *(pending)* |
 | `--no-color` | `NO_COLOR` | Disable ANSI color in human output. *(pending)* |
 | `-h, --help` | — | Help for the command. |
@@ -70,8 +72,8 @@ history `by` field — "who is acting" — used when neither `--by` nor `MTT_BY`
 
 **`require`** (top-level, in the **committed** config, e.g. `require: {who: true, why: true}`) makes
 `--who`/`--why` mandatory on a status change — validated **before** the gate runs and not bypassed by
-`--no-run`/`--force`; `config.local` may only **tighten** it. A violation aggregates all missing fields into
-one usage error (exit `2`). *(pending — session 006.5)*
+`--no-run`; `config.local` may only **tighten** it (a committed requirement cannot be relaxed locally). A
+violation aggregates all missing fields into one usage error (exit `2`). **Implemented (session 006.5)**.
 
 ---
 
@@ -174,17 +176,28 @@ surfaced as a root, never dropped.
 ### `mtt status <id> <status> [flags]` — single transition  *(session 006, implemented)*
 Moves the task across **one** edge to `<status>`, validating it against the type's `transitions` and
 running that edge's `commands` (gate: all exit `0`, else the move is **blocked** — exit `3` — and the task
-is left unchanged, no history). On success it appends a `history` entry (`from→to`, `at`, `by`/`role` from
-`--by`/`--role`, `checks`) and prints `t1: tbd → in_progress` (plus a line per check), or the task object
-with `--json`. A transition not in the flow exits `6`.
+is left unchanged, no history). On success it appends a `history` entry (`from→to`, `at`, `by`/`role`/`why`
+from `--who`/`--by`/`--role`/`--why`, `checks`) and prints `t1: tbd → in_progress` (plus a line per check),
+or the task object with `--json`. A transition not in the flow exits `6`. If the project's `require` policy
+is unmet, it exits `2` **before** running the gate (see Configuration → `require`).
 
 The gate reports **live pipeline progress** to stderr (`▶ <cmd>` / `✓|✗ <cmd> (exit N, <elapsed>)`) as each
 command runs; the commands' own output is hidden by default.
 
-- `--no-run` — skip the edge's `commands` (bypass the gate). *(implemented)*
-- `-v`, `--verbose` — stream each gate command's stdout/stderr to stderr. *(implemented)*
-- `--log-file <path>` — write the gate commands' output to a file (with `-v`, to both). *(implemented)*
+- `--no-run` — skip the edge's `commands` (bypass the gate). Local to `mtt status` (the sugar cannot bypass
+  the gate); does **not** bypass required-attribution. *(implemented)*
+- `-v`, `--verbose` / `--log-file <path>` — gate-output control (root-persistent global flags). *(implemented)*
 - `--force` — *(not yet — lands with the advance family, s007)*
+
+#### Verb sugar: `mtt <status> <id>`  *(session 006.5, implemented)*
+A shorthand for a single-edge move: `mtt in_progress t1` ≡ `mtt status t1 in_progress` (note the **reversed**
+argument order — `<status> <id>`). It is resolved by **fallback-routing**, not a registered command: with
+exactly two arguments where the first is not a real subcommand, an existing task `<id>`, and `<status>` is a
+status in that task's type flow, mtt routes to the `status` path (reusing all its validation, gates, exit
+codes, and `--who`/`--why`). A real command always wins a name clash (e.g. there is no sugar that shadows
+`list`); anything that does not classify as a status move is an `unknown command` (exit `1`). The sugar takes
+no gate-control flags (`--no-run`/`-v`/`--log-file` remain on `mtt status`); it is forward-compatible — its
+semantics can grow single-edge → `advance` later without a surface change.
 
 ### `mtt advance <id> --to <status> [flags]` — walk to a target status  *(phase 3)*
 Meta-command: walks the task through a chain of transitions to `--to <status>`, running edge gates along
@@ -334,16 +347,17 @@ Distinct codes let agents branch on the outcome without parsing text.
 |---|---|
 | `0` | Success |
 | `1` | Generic error |
-| `2` | Usage error (bad flags/arguments) |
+| `2` | Usage error — here: missing required attribution (`ErrMissingAttribution`) |
 | `3` | Transition blocked — a gate command returned non-zero |
 | `4` | Not found (task/note/target does not exist) |
 | `5` | Unsupported — the active adapter lacks the required capability (`ErrUnsupported`) |
 | `6` | Invalid transition — not allowed by the type's flow |
 
-Codes `3` (gate blocked) and `6` (invalid transition) are **implemented (session 006)** on `mtt status`
-(`Execute()` maps `core.ErrBlocked`→3, `core.ErrInvalidTransition`→6); code `2` (usage) lands with
-required-attribution (session 006.5). The remaining codes (`4`, `5`) are still **proposed** and land
-alongside the behaviors they distinguish (capability gates, …); other error paths keep the generic `1`.
+Codes `3` (gate blocked) and `6` (invalid transition) are **implemented (session 006)**, and `2` (missing
+required attribution) is **implemented (session 006.5)** on `mtt status`/the verb sugar (`Execute()` maps
+`core.ErrBlocked`→3, `core.ErrInvalidTransition`→6, `core.ErrMissingAttribution`→2). The remaining codes
+(`4`, `5`) are still **proposed** and land alongside the behaviors they distinguish (capability gates, …);
+other error paths keep the generic `1`.
 
 ---
 

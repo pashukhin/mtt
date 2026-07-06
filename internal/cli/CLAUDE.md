@@ -46,7 +46,18 @@ Flow gate (session 006): `mtt status <id> <new>` wires `yaml.Load` (→ `Setting
 `exec.NewRunner(root, timeout, progress, cmdOut)` + `core.Transitioner`; `--no-run` bypasses the gate.
 Gate execution reports **live pipeline progress** (`▶`/`✓`/`✗` + timing) to **stderr** always; the
 commands' own output is hidden by default, streamed to stderr with `-v`/`--verbose`, and/or written to a
-file with `--log-file` (`gateOutputWriter` builds the `io.Discard`/stderr/file/`MultiWriter`). `resolveRoleBy`
-resolves `role` (flag→`MTT_ROLE`) and `by` (flag→`MTT_BY`→`Settings.Author` from config.local). **`Execute()`
-returns an `int` exit code** (`exitCode`: `core.ErrBlocked`→3, `core.ErrInvalidTransition`→6, else 1); `main`
-and the testscript harness call `os.Exit(Execute())`. `mtt show` renders a `history:` audit section.
+file with `--log-file` (`gateOutputWriter` builds the `io.Discard`/stderr/file/`MultiWriter`). **`Execute()`
+returns an `int` exit code** (`exitCode`: `core.ErrBlocked`→3, `core.ErrInvalidTransition`→6,
+`core.ErrMissingAttribution`→2, else 1); `main` and the testscript harness call `os.Exit(Execute())`.
+`mtt show` renders a `history:` audit section.
+
+Attribution + verb sugar (session 006.5): `runTransition(cmd, root, cfg, settings, id, to, noRun)` is the
+shared gated-edge path used by **both** `mtt status` and the sugar; `resolveAttribution(cmd, author)` returns
+`role/by/why` — `by` is `--who`/`--by` (mutually exclusive, else error) → `MTT_BY` → `Settings.Author`; `why`
+is `--why`; both ride into `core.TransitionOptions` along with `settings.Require.{Who,Why}`. **Verb sugar**
+`mtt <status> <id>` is `root.RunE` (`runSugar`/`trySugar`): with exactly 2 args where arg0 is not a registered
+command (cobra dispatches real commands first), it routes to `runTransition` iff arg1 is an existing task and
+arg0 is a status in that task's type flow (`Type.StatusKind`); any classification miss → `unknown command`
+(exit 1); `mtt` with no args → help. `--who`/`--why`/`-v`/`--verbose`/`--log-file` are **root-persistent** (the
+sugar inherits output control); `--no-run` stays **local to `mtt status`** (the sugar cannot bypass the gate).
+`mtt show` renders the reason as `why "…"` in the history line.

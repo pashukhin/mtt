@@ -127,16 +127,15 @@ Single-edge `mtt status` shipped in **s006**; the meta-walk (`advance`/`start`/`
       role-tagged edges are near-RBAC and premature — identity/role may later come from an external provider).
 - [ ] e4_t6 — `mtt types` (types/flow from config) + `mtt caps` (the current backend's capabilities)
 - [ ] e4_t7 — `ready`/`list`/completeness — **by status category** (not by the literal `done`)
-- [ ] e4_t8 — **attribution + verb sugar (s006.5)** — a release-complete attribution slice (no roles/profiles
-      needed): `--why` (a durable free-text reason recorded in `history`; new `HistoryEntry.Why` field + DTO +
-      `show` rendering — "who + why moved the task"), `--who` (a symmetric alias of `--by`), the
-      `mtt <status> <id>` verb sugar (via **fallback-routing** on an unknown first arg — not dynamic command
-      registration; single-edge; forward-compatible to advance later; a status colliding with a real command
-      name loses to the command), and **required-attribution**: a project-global `require: {who, why}` in the
-      committed config (adapter-level `Settings`, like `command_timeout`; `config.local` may only **tighten**,
-      not relax) — **validated before the gate runs** (fail fast) and **not** bypassed by `--no-run`/`--force`;
-      on a violation, **aggregate all missing fields into one error** (agent fixes them in one shot) and exit
-      **2 (usage)**. This is a natural release point (full release tooling — goreleaser/tags — stays later).
+- [x] e4_t8 — **attribution + verb sugar (s006.5)** — shipped: `--why` (durable reason; `HistoryEntry.Why`
+      field + YAML DTO + `mtt show` rendering), `--who` (symmetric alias of `--by`, **mutually exclusive**),
+      the `mtt <status> <id>` verb sugar (via **fallback-routing** in `root.RunE` — not command registration;
+      routes when arg0 is a status of arg1's type flow, else `unknown command` exit 1; a real command wins a
+      clash; single-edge, forward-compatible to advance), and **required-attribution**: a project-global
+      `require: {who, why}` in the committed config (adapter `Settings.Require`; `config.local` may only
+      **tighten** — captured pre-overlay + OR-combined) validated in `core.Transitioner` **before the gate**
+      (fail fast; `--no-run` does not bypass), aggregating all missing fields into one `ErrMissingAttribution`
+      → exit **2**. `-v`/`--log-file` moved to root-persistent; `--no-run` stays local to `mtt status`.
 - [ ] e4_t8a — **current task / working context (s006.7)** — kills id-repetition (git-`HEAD`-for-tasks):
       a `current` record in `config.local.yaml` (personal, gitignored — the **value**), set/cleared by a
       **transition property** (the committed flow declares the **rule** — a new additive `pkg/mtt.Transition`
@@ -206,6 +205,12 @@ comments (which enrich a full self-host but don't enable it). See sessions/READM
   coherent scheme for resolving positional args (command / status / role / id / …). Is `mtt <role> …` a
   form? What's the precedence and disambiguation when arg0 (or arg1+) could be several kinds? Decide the
   grammar **before** adding more sugar forms, so the surface stays predictable.
+- later (think) — **dangerous ops must mandate `--who`/`--why`**: flow-bypassing / risk actions — `--no-run`
+  over a transition whose edge has a **non-empty** command list (skipping a real gate), and later `--force` /
+  atomic aborts after side effects — should **force** attribution regardless of the project `require` setting
+  (you may skip the gate, but you must sign for it). Independent of the global `require` knob; ties into the
+  s007+ structured-commands / rollback risk surface. Surfaced in the s006.5 brainstorm. See DESIGN.md →
+  required-attribution deferred note.
 - later (think) — **subagent identity under multi-agent access**: roles/RBAC are pointless unless we can
   distinguish subagents acting with **different** roles — that is what our RBAC ultimately hinges on. Figure
   out the identity mechanism (per-agent `config.local`? an env/handshake/token? a provider-supplied
