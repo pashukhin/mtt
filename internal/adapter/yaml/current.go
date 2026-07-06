@@ -100,7 +100,11 @@ func (c *Current) upsert(mutate func(root *goyaml.Node)) error {
 	default:
 		return fmt.Errorf("read %s: %w", c.path(), err)
 	}
-	mutate(ensureMapping(&doc))
+	root, err := rootMapping(&doc)
+	if err != nil {
+		return err
+	}
+	mutate(root)
 	out, err := goyaml.Marshal(&doc)
 	if err != nil {
 		return fmt.Errorf("marshal %s: %w", c.path(), err)
@@ -122,14 +126,21 @@ func documentRoot(doc *goyaml.Node) *goyaml.Node {
 	return doc
 }
 
-// ensureMapping guarantees doc is a document node whose first child is a mapping,
-// and returns that mapping (so an absent/empty file yields a fresh `{}`).
-func ensureMapping(doc *goyaml.Node) *goyaml.Node {
+// rootMapping returns the document's root mapping node, creating a fresh one for
+// an absent/empty file. A non-empty file whose root is NOT a mapping (a sequence
+// or scalar) is a corrupt config.local — return an error rather than silently
+// appending to a sequence or no-op'ing on a scalar.
+func rootMapping(doc *goyaml.Node) (*goyaml.Node, error) {
 	if doc.Kind == 0 {
 		doc.Kind = goyaml.DocumentNode
 	}
 	if len(doc.Content) == 0 {
 		doc.Content = []*goyaml.Node{{Kind: goyaml.MappingNode}}
+		return doc.Content[0], nil
 	}
-	return doc.Content[0]
+	root := doc.Content[0]
+	if root.Kind != goyaml.MappingNode {
+		return nil, fmt.Errorf("%s: root is not a mapping", localConfigName)
+	}
+	return root, nil
 }

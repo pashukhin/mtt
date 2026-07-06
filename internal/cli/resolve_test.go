@@ -1,6 +1,8 @@
 package cli
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -64,5 +66,26 @@ func TestOmittedIdVerbsUseCurrent(t *testing.T) {
 	// unknown first arg still unknown command
 	if _, err := runCmd(t, dir, "bogus"); err == nil {
 		t.Fatal("bogus = nil, want unknown command")
+	}
+}
+
+func TestResolveTaskIDStaleCurrent(t *testing.T) {
+	dir := t.TempDir()
+	if _, err := runCmd(t, dir, "init"); err != nil {
+		t.Fatal(err)
+	}
+	// point current at a task that does not exist (a hand-edited config.local —
+	// the CLI cannot produce a dangling pointer until `mtt rm` in s008.5)
+	local := filepath.Join(dir, ".mtt", "config.local.yaml")
+	if err := os.WriteFile(local, []byte("current: t404\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	// resolveTaskID validates at the point of use -> actionable error, not silent
+	if _, err := resolveTaskID(dir, ""); err == nil || !strings.Contains(err.Error(), "no longer exists") {
+		t.Fatalf("stale current resolveTaskID err = %v, want 'no longer exists'", err)
+	}
+	// and a verb (show, no id) surfaces the same (the error is returned, not printed)
+	if _, err := runCmd(t, dir, "show"); err == nil || !strings.Contains(err.Error(), "no longer exists") {
+		t.Fatalf("show (stale current) err = %v, want 'no longer exists'", err)
 	}
 }

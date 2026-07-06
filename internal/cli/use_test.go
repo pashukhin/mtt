@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -52,5 +53,38 @@ func TestUseSetShowClear(t *testing.T) {
 	}
 	if data, _ := os.ReadFile(filepath.Join(dir, ".mtt", "config.local.yaml")); bytes.Contains(data, []byte("t99")) {
 		t.Fatal("missing task was written to current")
+	}
+}
+
+func TestUseClearRejectsID(t *testing.T) {
+	dir := t.TempDir()
+	if _, err := runCmd(t, dir, "init"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := runCmd(t, dir, "add", "A", "--no-parent"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := runCmd(t, dir, "use", "t1", "--clear"); err == nil {
+		t.Fatal("use t1 --clear = nil, want a mutual-exclusion error")
+	}
+}
+
+func TestUseJSON(t *testing.T) {
+	dir := t.TempDir()
+	if _, err := runCmd(t, dir, "init"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := runCmd(t, dir, "add", "A", "--no-parent"); err != nil {
+		t.Fatal(err)
+	}
+	// set --json emits the task object
+	out, err := runCmd(t, dir, "use", "t1", "--json")
+	if err != nil || !strings.Contains(out, `"id"`) || !strings.Contains(out, "t1") {
+		t.Fatalf("use t1 --json = %q, %v", out, err)
+	}
+	// show --json emits the task object
+	out, err = runCmd(t, dir, "use", "--json")
+	if err != nil || !strings.Contains(out, `"id"`) || !strings.Contains(out, "t1") {
+		t.Fatalf("use --json (show) = %q, %v", out, err)
 	}
 }
