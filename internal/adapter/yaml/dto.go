@@ -61,25 +61,29 @@ type ymlTransition struct {
 }
 
 // ymlCommand is one gate command on disk. It accepts either a bare scalar (a
-// command string, back-compat) or a mapping {run, timeout}; both collapse to a
-// single mtt.Command. The duration is parsed here so toDomain stays error-free.
+// command string, back-compat) or a mapping {run, timeout, rollback}; both
+// collapse to a single mtt.Command. The duration is parsed here so toDomain
+// stays error-free. The optional rollback is itself a ymlCommand (scalar or map).
 type ymlCommand struct {
-	Run     string
-	Timeout time.Duration
+	Run      string
+	Timeout  time.Duration
+	Rollback *ymlCommand // nil = none
 }
 
-// UnmarshalYAML decodes a scalar command string or a {run, timeout} mapping. The
-// map branch decodes into a LOCAL string-Timeout alias (never back into
-// ymlCommand — that would recurse; and yaml.v3 cannot decode "30s" into a
-// time.Duration) then parses the duration.
+// UnmarshalYAML decodes a scalar command string or a {run, timeout, rollback}
+// mapping. The map branch decodes into a LOCAL string-Timeout alias (never back
+// into ymlCommand — that would recurse; and yaml.v3 cannot decode "30s" into a
+// time.Duration) then parses the duration; the rollback field is a *ymlCommand,
+// so yaml.v3 recurses into this same UnmarshalYAML for it (scalar or map).
 func (c *ymlCommand) UnmarshalYAML(value *goyaml.Node) error {
 	if value.Kind == goyaml.ScalarNode {
 		c.Run = value.Value
 		return nil
 	}
 	var raw struct {
-		Run     string `yaml:"run"`
-		Timeout string `yaml:"timeout"`
+		Run      string      `yaml:"run"`
+		Timeout  string      `yaml:"timeout"`
+		Rollback *ymlCommand `yaml:"rollback"`
 	}
 	if err := value.Decode(&raw); err != nil {
 		return err
@@ -92,7 +96,20 @@ func (c *ymlCommand) UnmarshalYAML(value *goyaml.Node) error {
 		}
 		c.Timeout = d
 	}
+	c.Rollback = raw.Rollback
 	return nil
+}
+
+// toDomain maps the command DTO to the pure domain Command, recursively copying
+// the optional rollback compensator (a deep copy — a fresh *Command, not the
+// DTO's pointer).
+func (c ymlCommand) toDomain() mtt.Command {
+	m := mtt.Command{Run: c.Run, Timeout: c.Timeout}
+	if c.Rollback != nil {
+		rb := c.Rollback.toDomain()
+		m.Rollback = &rb
+	}
+	return m
 }
 
 // toDomain maps the DTO to the pure domain Config and the adapter-owned
@@ -108,7 +125,7 @@ func (yc ymlConfig) toDomain() (mtt.Config, map[string]string) {
 		for _, yr := range yt.Transitions {
 			cmds := make([]mtt.Command, 0, len(yr.Commands))
 			for _, c := range yr.Commands {
-				cmds = append(cmds, mtt.Command{Run: c.Run, Timeout: c.Timeout})
+				cmds = append(cmds, c.toDomain())
 			}
 			t.Transitions = append(t.Transitions, mtt.Transition{From: mtt.StatusName(yr.From), To: mtt.StatusName(yr.To), Description: yr.Description, Commands: cmds, Current: mtt.CurrentAction(yr.Current)})
 		}
