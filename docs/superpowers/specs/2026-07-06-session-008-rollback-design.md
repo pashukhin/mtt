@@ -133,9 +133,17 @@ func (c Command) Valid() bool {
   unchanged (`Rollback == nil`); every s007 command/YAML keeps working. The bare-scalar form (`- make lint`)
   still produces `{Run: "make lint"}` (no rollback).
 - **Leaf invariant in `Valid()`.** A compensator is a `*Command` for machinery reuse, but conceptually it is a
-  single command with no compensator of its own. `Valid()` rejects a second-level `rollback.rollback`, so
-  `Config.Validate` (which already loops `cmd.Valid()`) surfaces the mistake at `Load`. No smart constructor
-  (the `StatusKind`/`CurrentAction`/s007-`Command` idiom).
+  single command with no compensator of its own. `Valid()` rejects a second-level `rollback.rollback` via
+  `Config.Validate` (which already loops `cmd.Valid()`). No smart constructor (the
+  `StatusKind`/`CurrentAction`/s007-`Command` idiom).
+- **Where the leaf invariant actually bites (accurate).** `Config.Validate` is called on `mtt add`
+  (`add.go`) and `mtt types` (`types.go`) — **not** in `yaml.Load` and **not** on the gate/transition path
+  (`status`/sugar). This is the pre-existing s006/s007 status quo (`load.go`'s own comment: "domain
+  invariants are the caller's"); s008 does **not** change it (validating the whole config on every
+  transition would be its own slice). Runtime is safe regardless: a stray second-level `rollback.rollback`
+  *parses* but `expandOne` recurses harmlessly and `succeededRollbacks` reads only one level — so it is
+  **silently ignored** on the gate path and **rejected** on `add`/`types`. Do not claim it is enforced "at
+  Load."
 
 ### 1b. `Config.Validate` — unchanged call site
 
@@ -184,7 +192,11 @@ func (c *ymlCommand) UnmarshalYAML(value *goyaml.Node) error {
   -D task/{{.ID}}`) **or** map (`rollback: {run: …, timeout: 30s}`) forms, decoded through the same
   `UnmarshalYAML` (natural recursion). yaml.v3 recurses fine (the `raw` alias keeps `Timeout` a string to dodge
   the `30s`-into-`time.Duration` and self-recursion traps, exactly as s007). A second-level `rollback.rollback`
-  *parses* (arbitrary depth) but is rejected by the domain `Valid()` (§1a) at `Load` — one home for the rule.
+  *parses* (arbitrary depth) but is caught by the domain `Valid()` (§1a) — checked in `Config.Validate` (on
+  `add`/`types`, not the gate path; see the validation note in §1a), and harmlessly ignored at runtime.
+- **Cyclic YAML anchors are a non-concern.** The DTO is now self-recursive, so a hand-crafted
+  `&a {rollback: *a}` is conceivable, but config is trusted local input (Makefile-equivalent) and yaml.v3's
+  alias-expansion limits guard against an alias bomb; no explicit cycle check is warranted.
 
 ### 2b. `toDomain` — recursive pure copy
 
@@ -267,7 +279,11 @@ func expandTemplate(raw string, ctx cmdContext) (string, error) { /* the current
 ```go
 type Runner interface {
 	// Run executes the gate commands in order, stopping at the first non-zero
-	// exit; a non-zero exit is data (a Check), the error is operational.
+	// exit; a non-zero exit is data (a Check), the error is operational. CONTRACT
+	// (compensation relies on it): on an operational failure the returned checks
+	// include a Check for the failing command as the LAST element (Exit -1) — the
+	// exec adapter already does this (exec.go: append then return err). A fake
+	// Runner MUST replicate it (a guard test keeps it honest).
 	Run(commands []mtt.Command) ([]mtt.Check, error)
 	// Compensate runs the given (already-expanded) commands best-effort: in
 	// order, NEVER stopping, NEVER returning an error — an operational failure
@@ -277,22 +293,38 @@ type Runner interface {
 }
 ```
 
+The `CONTRACT` line is new documentation of a dependency that already exists in the exec adapter; the §3c
+math and the test fake both rely on it.
+
 ### 3c. `transition.go` — compensate on a block
 
-On a gate block (operational error **or** first non-zero check), before returning `ErrBlocked`, compute the
-compensation plan and run it. The executed-command count is `len(checks)`; the runner stops at (or returns on)
-the failing command, so the **last** check is the failure and `expanded[:len(checks)-1]` are the succeeded
-commands. Collect their rollbacks in **reverse** and, if any, `Compensate` them; fold a summary into the block
-error. The task is **not** changed and **no** history is written (s006 invariant preserved).
+On a gate block (operational error **or** a non-zero check), before returning `ErrBlocked`, compute the
+compensation plan from an **explicit failure index** and run it. The succeeded set is `expanded[:failIdx]`;
+its members' rollbacks run in **reverse**. This derives "which command failed" from a **single source**
+(§ Issue-2 hardening): the failure index — never re-inferred as "the last check" at one site and "the first
+non-zero" at another (those coincide only because the exec adapter stops at the first non-zero; a divergent
+Runner must not misclassify the failed command as succeeded and run its rollback).
+
+`firstFailure` is extended to also return the index, and one helper walks the succeeded prefix in reverse:
 
 ```go
-// succeededRollbacks returns the rollbacks of the commands that succeeded before
-// the failure, in reverse order (compensation order). checks are 1:1 with the
-// executed expanded commands; the last executed one is the failure.
-func succeededRollbacks(expanded []mtt.Command, checks []mtt.Check) []mtt.Command {
-	n := len(checks) - 1 // succeeded = expanded[:n]
+// firstFailure returns the index and Check of the first non-zero exit (incl. an
+// operational -1), and whether one was found.
+func firstFailure(checks []mtt.Check) (int, mtt.Check, bool) {
+	for i, c := range checks {
+		if c.Exit != 0 {
+			return i, c, true
+		}
+	}
+	return 0, mtt.Check{}, false
+}
+
+// rollbacksBefore returns the rollbacks of expanded[:failIdx] in reverse order
+// (compensation order) — never including the failing command itself. Safe for
+// failIdx <= 0 (no compensation).
+func rollbacksBefore(expanded []mtt.Command, failIdx int) []mtt.Command {
 	var rbs []mtt.Command
-	for i := n - 1; i >= 0; i-- {
+	for i := failIdx - 1; i >= 0; i-- {
 		if rb := expanded[i].Rollback; rb != nil {
 			rbs = append(rbs, *rb)
 		}
@@ -301,20 +333,27 @@ func succeededRollbacks(expanded []mtt.Command, checks []mtt.Check) []mtt.Comman
 }
 ```
 
-The two block sites (operational error; first-failure) funnel through one helper that runs compensation and
-formats the error, e.g.:
+The two block sites resolve `failIdx` from their own path and funnel through one helper:
 
 ```go
-block := func(cause string) (mtt.Task, error) {
-	if rbs := succeededRollbacks(expanded, checks); len(rbs) > 0 {
+func (tr *Transitioner) block(expanded []mtt.Command, failIdx int, cause string) (mtt.Task, error) {
+	if rbs := rollbacksBefore(expanded, failIdx); len(rbs) > 0 {
 		comp := tr.runner.Compensate(rbs)
 		return mtt.Task{}, fmt.Errorf("%w: %s; %s", ErrBlocked, cause, compSummary(comp))
 	}
 	return mtt.Task{}, fmt.Errorf("%w: %s", ErrBlocked, cause)
 }
-// operational: return block(err.Error())
-// non-zero:    return block(fmt.Sprintf("command %q exited %d", c.Cmd, c.Exit))
+
+// operational error: the failing command is the last recorded check (port
+// contract); if the runner recorded none, len(checks)-1 == -1 → no compensation.
+//   return tr.block(expanded, len(checks)-1, rerr.Error())
+// non-zero check: failIdx is the FIRST non-zero (single source of truth).
+//   idx, c, _ := firstFailure(checks)
+//   return tr.block(expanded, idx, fmt.Sprintf("command %q exited %d", c.Cmd, c.Exit))
 ```
+
+The task is **not** changed and **no** history is written (s006 invariant preserved); `block` returns before
+any `tr.store.Update`.
 
 ```go
 // compSummary counts failed compensators (Exit != 0) for the block message.
@@ -333,8 +372,9 @@ func compSummary(checks []mtt.Check) string {
 ```
 
 - **Succeeded-only:** the failing command's own rollback is **never** run (it did not "succeed"; its side
-  effect is uncertain). If the **first** command fails, `len(checks)==1` → no compensation. If **all** succeed,
-  there is no block → the transition applies normally (no compensation).
+  effect is uncertain) — structurally, `rollbacksBefore` starts at `failIdx-1`. If the **first** command
+  fails, `failIdx==0` → no compensation. If **all** succeed, there is no block → the transition applies
+  normally (no compensation).
 - **Exit code unchanged:** the error stays `ErrBlocked` → exit 3 regardless of compensator outcomes.
 - **`--no-run`:** skips the gate entirely → nothing ran → nothing to compensate (unchanged path).
 
@@ -421,31 +461,59 @@ func (r *Runner) Compensate(commands []mtt.Command) []mtt.Check {
   the rollback (pointer, not aliased); a bad rollback duration errors at `Load`.
 - `core.expandCommands`: expands `Rollback.Run` with the same context; a malformed rollback template errors
   (up-front, before any run); `Timeout` copied through; nil rollback stays nil.
-- `core.Transitioner` (fake `Runner`): on a mid-pipeline failure, `Compensate` is called with the succeeded
-  commands' rollbacks **in reverse order**; the **failing** command's rollback is not included; **first**
-  command fails → no compensation; **all pass** → no compensation + normal apply; a **best-effort** compensator
-  failure does not change the outcome (still `ErrBlocked`, task unchanged, **no history**, task file's status
-  preserved); the block error contains the `compensated N …` summary.
+- `core.Transitioner` (fake `Runner`): on a **non-zero mid-pipeline** failure, `Compensate` is called with the
+  succeeded commands' rollbacks **in reverse order**; the **failing** command's rollback is not included;
+  **first** command fails → no compensation; **all pass** → no compensation + normal apply; a **best-effort**
+  compensator failure does not change the outcome (still `ErrBlocked`, task unchanged, **no history**, task
+  file's status preserved); the block error contains the `compensated N …` summary.
+- `core.Transitioner` — **operational-error path** (separate test): the fake returns `(checks-with-failing-last,
+  err != nil)`; assert reverse compensation over the succeeded prefix and still `ErrBlocked` (exit 3), task
+  unchanged. This exercises the `block(expanded, len(checks)-1, err.Error())` branch (§3c) the non-zero test
+  does not.
+- `core` — **port-contract guard:** the test fake's `Run` appends the failing command's `Check` as the last
+  element on the operational path (mirrors the exec adapter, §3b CONTRACT); a small assertion documents that the
+  fake honors it, so `rollbacksBefore`'s `len(checks)-1` locates the failure.
 - `exec.Runner.Compensate`: runs every command despite a non-zero/timeout in the middle (best-effort), records
   a `Check` per command (operational → `-1`), never returns an error; honors a per-command timeout; prints the
   `↩ compensating` header. (`exec.Run` behavior unchanged after the `runReport` extraction — keep its tests
   green.)
+- `cli` — **`mtt types` `↩` rendering** (mirror `TestFormatTypesShowsCommandTimeout` in `types_test.go`): a
+  command with a `rollback` renders the `↩ <rollback.Run>` line (and its own `(timeout <d>)` when set); a
+  command without one renders no `↩` line.
 
-**e2e — `rollback.txt` (generic commands, no git guard):** a swapped single-root-type config with a
-`tbd → in_progress` edge:
-```yaml
-commands:
-  - run: touch a-{{.ID}}
-    rollback: rm a-{{.ID}}
-  - run: touch b-{{.ID}}
-    rollback: rm b-{{.ID}}
-  - "false"
+**e2e — `rollback.txt` (generic commands, no git guard):** a swapped **full** single-root-type config
+(`cp`'d over `.mtt/config.yaml`, the s006/s007 pattern — the fragment must be a complete valid flow, else
+`mtt add` fails; note `mtt add` itself calls `Config.Validate`, so the e2e also exercises the leaf check):
 ```
-`mtt init` → `cp` the config → `mtt add 'A'` (t1) → `! exec mtt in_progress t1` (blocked). Assert: the created
-sentinels are gone (`! exists a-t1`, `! exists b-t1` — compensation ran, placeholders expanded); the status is
-still `tbd` and no `in_progress` history (s006 invariant); the progress/stderr shows `↩ compensating (2
-commands)` and the block message shows `compensated 2 commands`. (Precise reverse order + best-effort are the
-unit tests above.)
+-- gated.yaml --
+version: 1
+project:
+  name: rb
+command_timeout: 5m
+types:
+  - name: task
+    prefix: t
+    default: true
+    statuses:
+      - {name: tbd, kind: initial}
+      - {name: in_progress, kind: active}
+      - {name: done, kind: terminal}
+    transitions:
+      - from: tbd
+        to: in_progress
+        commands:
+          - run: touch a-{{.ID}}
+            rollback: rm a-{{.ID}}
+          - run: touch b-{{.ID}}
+            rollback: rm b-{{.ID}}
+          - "false"
+      - {from: in_progress, to: done}
+```
+`mtt init` → `cp gated.yaml .mtt/config.yaml` → `mtt add 'A'` (t1, single root type → no `--no-parent`) →
+`! exec mtt in_progress t1` (blocked, exit 3). Assert: the created sentinels are gone (`! exists a-t1`,
+`! exists b-t1` — compensation ran, placeholders expanded); the status is still `tbd` and no `in_progress`
+history (s006 invariant, via `mtt show t1`); `stderr` shows `↩ compensating (2 commands)` and the block
+message shows `compensated 2 commands`. (Precise reverse order + best-effort are the unit tests above.)
 
 ## 7. Docs + version
 
@@ -483,8 +551,28 @@ unit tests above.)
 2. `adapter/yaml`: `ymlCommand.Rollback` recursive unmarshal + `toDomain` (unit).
 3. `core`: `expandCommands` rollback expansion (refactor to `expandOne`/`expandTemplate`) (unit).
 4. `core` + `exec`: `Runner.Compensate` (port + exec `runReport`/`Compensate` + fake) (unit).
-5. `core`: `Transitioner` compensation on block (`succeededRollbacks`/`compSummary`) (unit).
+5. `core`: `Transitioner` compensation on block (`firstFailure`-index / `rollbacksBefore` / `compSummary`)
+   (unit — incl. the operational-error path).
 6. `cli`: `mtt types` `↩` + block summary surfaced; e2e `rollback.txt`.
 7. Docs + version bump.
 
 Each commit keeps `make check` green (the s007 "behavior-preserving slices" lesson).
+
+## Review addendum (post-brainstorm subagent review, 2026-07-06)
+
+An independent adversarial review verified the sketches against the real code (verdict: implementation-ready
+with fixes, no blockers). Applied to this spec:
+- **Issue 1 (SHOULD-FIX):** corrected the false "enforced at Load" claim — `Config.Validate` runs on
+  `add`/`types`, not `yaml.Load` nor the gate path (pre-existing s006/s007 status quo). The leaf invariant is
+  caught there; a stray second-level rollback on the gate path is harmlessly ignored at runtime (§1a, §2a).
+- **Issue 2 (SHOULD-FIX):** hardened the succeeded/failed derivation to a **single source of truth** — an
+  explicit `failIdx` (`firstFailure` index for a non-zero check; `len(checks)-1` for an operational error) with
+  `rollbacksBefore(expanded, failIdx)` — so the failed command's rollback is never run even if a future Runner
+  does not stop at the first non-zero (§3c).
+- **Issue 3 (NIT):** documented the `Runner.Run` port contract (operational failure records the failing Check
+  last) that compensation relies on, plus a fake guard test (§3b, §6).
+- **Issues 4–5 (NITs):** added the operational-error compensation test, the `mtt types` `↩` render test, and a
+  full valid e2e config (§6).
+- **Open questions answered:** (1) the gate path does **not** call `Config.Validate` — status quo kept, scope
+  unchanged; (2) yes, the Run-appends-failing-check-last contract is now explicit; (3) cyclic YAML anchors are
+  a non-concern for trusted config (yaml.v3 alias limits) (§2a).
