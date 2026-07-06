@@ -7,6 +7,9 @@ package yaml
 import (
 	"errors"
 	"fmt"
+	"time"
+
+	goyaml "gopkg.in/yaml.v3"
 
 	"github.com/pashukhin/mtt/pkg/mtt"
 )
@@ -50,11 +53,46 @@ type ymlStatus struct {
 }
 
 type ymlTransition struct {
-	From        string   `yaml:"from"`
-	To          string   `yaml:"to"`
-	Description string   `yaml:"description"`
-	Commands    []string `yaml:"commands"`
-	Current     string   `yaml:"current,omitempty"`
+	From        string       `yaml:"from"`
+	To          string       `yaml:"to"`
+	Description string       `yaml:"description"`
+	Commands    []ymlCommand `yaml:"commands"`
+	Current     string       `yaml:"current,omitempty"`
+}
+
+// ymlCommand is one gate command on disk. It accepts either a bare scalar (a
+// command string, back-compat) or a mapping {run, timeout}; both collapse to a
+// single mtt.Command. The duration is parsed here so toDomain stays error-free.
+type ymlCommand struct {
+	Run     string
+	Timeout time.Duration
+}
+
+// UnmarshalYAML decodes a scalar command string or a {run, timeout} mapping. The
+// map branch decodes into a LOCAL string-Timeout alias (never back into
+// ymlCommand — that would recurse; and yaml.v3 cannot decode "30s" into a
+// time.Duration) then parses the duration.
+func (c *ymlCommand) UnmarshalYAML(value *goyaml.Node) error {
+	if value.Kind == goyaml.ScalarNode {
+		c.Run = value.Value
+		return nil
+	}
+	var raw struct {
+		Run     string `yaml:"run"`
+		Timeout string `yaml:"timeout"`
+	}
+	if err := value.Decode(&raw); err != nil {
+		return err
+	}
+	c.Run = raw.Run
+	if raw.Timeout != "" {
+		d, err := time.ParseDuration(raw.Timeout)
+		if err != nil {
+			return fmt.Errorf("command %q: timeout %q: %w", raw.Run, raw.Timeout, err)
+		}
+		c.Timeout = d
+	}
+	return nil
 }
 
 // toDomain maps the DTO to the pure domain Config and the adapter-owned
@@ -69,8 +107,8 @@ func (yc ymlConfig) toDomain() (mtt.Config, map[string]string) {
 		}
 		for _, yr := range yt.Transitions {
 			cmds := make([]mtt.Command, 0, len(yr.Commands))
-			for _, run := range yr.Commands {
-				cmds = append(cmds, mtt.Command{Run: run})
+			for _, c := range yr.Commands {
+				cmds = append(cmds, mtt.Command{Run: c.Run, Timeout: c.Timeout})
 			}
 			t.Transitions = append(t.Transitions, mtt.Transition{From: mtt.StatusName(yr.From), To: mtt.StatusName(yr.To), Description: yr.Description, Commands: cmds, Current: mtt.CurrentAction(yr.Current)})
 		}
