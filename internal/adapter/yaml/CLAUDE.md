@@ -22,3 +22,10 @@ beyond provider-specific checks.
   fails to load). Optional fields (`parent`, `depends_on`) use plain conversion (empty is legitimate).
 - No flow/ready/traversal logic here (that is `core`, later). Templates are the **only** home of default type/status names.
 - `.mtt/config.yaml` is edited only through this adapter (determinism + validation).
+- `NewCurrent(root)` / `Current` — implements `mtt.CurrentStore` (session 006.7), owning **only** the top-level
+  `current:` key of `.mtt/config.local.yaml`. Read/modify/write go through a **`yaml.Node`** (not a struct
+  decode) so `author`, comments, and any other local keys survive a rewrite (the file is human-edited); the
+  write is atomic (temp+rename, shared `atomicWrite`). Independent of `Load` (which decodes non-strictly and
+  ignores the unknown `current:` key). `Current()` returns `(_, false, nil)` when the file/key is absent (not an
+  error); `SetCurrent` upserts; `ClearCurrent` deletes only that key. `ymlTransition.current` (`omitempty`)
+  carries the `Transition.Current` (`set|clear`) rule; `toDomain` casts it (validated by `Config.Validate`).

@@ -13,7 +13,7 @@ import (
 // newUseCmd builds `mtt use`: set (`use <id>`), show (`use`), or clear
 // (`use --clear`) the current-task pointer — git-checkout-for-tasks.
 func newUseCmd() *cobra.Command {
-	var clear bool
+	var clearFlag bool
 	cmd := &cobra.Command{
 		Use:   "use [<id>]",
 		Short: "Set, show, or clear the current task (the working-context pointer)",
@@ -25,7 +25,7 @@ func newUseCmd() *cobra.Command {
 			}
 			current := yaml.NewCurrent(root)
 			switch {
-			case clear:
+			case clearFlag:
 				if len(args) > 0 {
 					return errors.New("--clear takes no id")
 				}
@@ -78,6 +78,6 @@ func newUseCmd() *cobra.Command {
 			}
 		},
 	}
-	cmd.Flags().BoolVar(&clear, "clear", false, "clear the current task")
+	cmd.Flags().BoolVar(&clearFlag, "clear", false, "clear the current task")
 	return cmd
 }
