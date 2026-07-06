@@ -1,7 +1,9 @@
 package cli
 
 import (
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/pashukhin/mtt/pkg/mtt"
 )
@@ -35,6 +37,30 @@ func TestFormatTypes(t *testing.T) {
 		"\n"
 	if out != want {
 		t.Fatalf("formatTypes mismatch:\n got: %q\nwant: %q", out, want)
+	}
+}
+
+func TestFormatTypesShowsCommandTimeout(t *testing.T) {
+	cfg := mtt.Config{Types: []mtt.Type{{
+		Name: "task", Default: true,
+		Flow: mtt.Flow{
+			Statuses: []mtt.Status{
+				{Name: "tbd", Kind: mtt.KindInitial},
+				{Name: "doing", Kind: mtt.KindActive},
+				{Name: "done", Kind: mtt.KindTerminal},
+			},
+			Transitions: []mtt.Transition{
+				{From: "tbd", To: "doing", Commands: []mtt.Command{{Run: "slow", Timeout: 30 * time.Second}}},
+				{From: "doing", To: "done"},
+			},
+		},
+	}}}
+	out, err := formatTypes(cfg, map[string]string{"task": "t"}, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out, "$ slow  (timeout 30s)") {
+		t.Fatalf("missing timeout annotation:\n%s", out)
 	}
 }
 
