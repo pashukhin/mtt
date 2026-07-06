@@ -252,6 +252,28 @@ comments (which enrich a full self-host but don't enable it). See sessions/READM
   field is name-agnostic; role-conditioning + a `SetCurrent(id, actor)` port param are additive). **Decide when
   roles unpark** — this is a precondition to consider *with* subagent-identity, not before. See DESIGN.md →
   "Roles — a seam" and "Working context: the current task".
+- later (think) — **scale / algorithmic-complexity stress test** (surfaced s006.7 review). Does execution cost
+  grow badly with **thousands of tasks** and **large, complex status graphs** (tens–hundreds of statuses, dense
+  edges, deep chains, high fan-out)? Audit the complexity and set soft budgets before dogfooding at volume.
+  **Suspected hotspots to check first:** (1) the dominant cost is likely **I/O, not algorithm** — the YAML
+  `TaskStore.List()` reads + parses every `.mtt/tasks/*.yaml` on *every* command (list/tree/ready/dep) with no
+  cache/index → O(N) disk + YAML per invocation. (2) **linear scans inside per-task loops** — `StatusKind` /
+  `FindTransition` / `TypeByName` are linear and are called inside loops (`Ready`, `Match --kind`,
+  `Config.Validate`), so a complex flow × many tasks creeps to O(N·S) / O(N·E). (3) **graph rebuilds** —
+  `DependencyEditor` rebuilds `DepGraph` (O(V+E)) per `dep add` cycle-check; batch ops (s008.9) and the future
+  `advance`/`ResolvedFlow` walk (s007) multiply this. **Likely fix if bad = a resolved index** (build map's
+  `status→kind`, `(from,to)→edge`, adjacency once per command and reuse — O(1) lookups), **not a graph library**
+  — the graphs are small/sparse and a dep (gonum/graph) buys little against KISS + "no heavy deps without
+  reason"; revisit a lib only if measurement forces it. **How to run it (esp. graphs — the hard part):** a
+  **task generator** minting N tasks (100 / 1k / 10k) into a temp `.mtt/`, plus a **flow generator**
+  parameterized by #statuses / edge-density / depth / fan-out that emits *valid-but-stressful* topologies
+  (respecting the initial/active/terminal invariants) and adversarial ones (long chains, dense DAGs, near-cycles);
+  then `testing.B` benchmarks + `-benchmem` + pprof (CPU/alloc) over `list`/`tree`/`ready`/`dep`/`status` and the
+  validate/`FindTransition`/(future) walk paths — measure the **scaling exponent** (cost vs N and vs graph size),
+  flag any super-linear growth. The benchmarks then double as **regression guards** for s007 / s008.9. **Timing:**
+  a cheap first pass (List I/O scaling + the linear-scan-in-loop audit) can happen anytime; the full graph
+  stress is most valuable **after** s007 (`ResolvedFlow`/advance — the real graph-algorithm surface) and s008.9
+  (batch — where per-op rebuilds compound), around s009 dogfood (real volume).
 - later (think) — **show the status/transition `description` on a successful move**: an in-flow reminder for the
   agent ("what this transition is for") printed after `mtt status`/sugar. A read-side nicety from the s006.7
   brainstorm; cheap, but decide the output shape (stdout vs stderr, interaction with `--quiet`).
