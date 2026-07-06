@@ -65,7 +65,7 @@ behavior-preserving-slices lesson):
 - [ ] `adapter/yaml`: `ymlCommand.Rollback` recursive unmarshal + `toDomain`.
 - [ ] `core`: `expandCommands` rollback expansion (`expandOne`/`expandTemplate` refactor).
 - [ ] `core` + `exec`: `Runner.Compensate` (port + exec `runReport`/`Compensate` + fake).
-- [ ] `core`: `Transitioner` compensation on block (`succeededRollbacks`/`compSummary`).
+- [ ] `core`: `Transitioner` compensation on block (`firstFailure`-index / `rollbacksBefore` / `compSummary`).
 - [ ] `cli`: `mtt types` `↩` + block summary; e2e `rollback.txt`; unit tests per the spec.
 - [ ] Docs: DESIGN.md/.ru, CLI_REFERENCE.md/.ru, CLAUDE.md ×5, model.go, TASKS.md, sessions/README.md,
       NEXT_SESSION.md; bump `0.7.0-dev` → `0.8.0-dev`.
