@@ -102,15 +102,23 @@ added then as a new optional field — trivially additive. YAGNI: no unused fiel
 ```go
 type ymlCommand struct {
     Run     string
-    Timeout time.Duration // already parsed from the on-disk "timeout" string
+    Timeout time.Duration // parsed from the on-disk "timeout" string (0 = unset)
 }
 
 func (yc *ymlCommand) UnmarshalYAML(value *yaml.Node) error {
     // Scalar node: a bare command string ⇒ {Run: value, Timeout: 0}  (back-compat).
-    // Mapping node: decode {run, timeout string}; parse timeout via time.ParseDuration
-    //   (empty ⇒ 0). A bad duration returns an error → surfaces at Load.
+    // Mapping node: decode into a LOCAL alias whose Timeout is a STRING
+    //   (type raw struct { Run string `yaml:"run"`; Timeout string `yaml:"timeout"` }),
+    //   then time.ParseDuration(raw.Timeout) (empty ⇒ 0) into yc.Timeout. A bad
+    //   duration returns an error → surfaces at Load.
 }
 ```
+
+- **Decode the map into a string-Timeout alias, never back into `ymlCommand`.** yaml.v3 cannot unmarshal a
+  string like `30s` into a `time.Duration` (an int64), and decoding the mapping node back into `ymlCommand`
+  would recurse into `UnmarshalYAML` infinitely. So the map branch decodes into a private `raw` struct with a
+  `Timeout string`, then `time.ParseDuration` fills `yc.Timeout` — mirroring `parseCommandTimeout` (load.go)
+  for the global one.
 
 - Back-compat is at the **element** level: `commands: ["make lint", "make test"]` decodes each scalar element
   through `UnmarshalYAML` → `{Run: "make lint"}`. A map element `{run: "...", timeout: 30s}` decodes to
@@ -206,11 +214,15 @@ Unit:
 
 e2e `testscript` `structured_commands.txt` (swapped `-- gated.yaml --` config `cp`'d over `.mtt/config.yaml`,
 the s006 pattern; a single root type so `mtt add A --no-parent` is unnecessary — mirror the working s006/006.7
-configs):
-- `tbd → in_progress` carries `commands: ["git checkout -b task/{{.ID}}"]`; the project is `git init`'d in the
-  script so the branch command works. `mtt add A` (t1) → `mtt in_progress t1 --who a --why w` → the gate runs,
-  the branch `task/t1` exists (assert via `exec git branch --list task/t1` → stdout matches), the transition
-  is applied, history shows the **expanded** command.
+configs). Guard the script with `[!exec:git] skip` (the one script that shells out to `git`; testscript
+propagates the host `PATH`, and the work dir is not a git repo by default):
+- `tbd → in_progress` carries `commands: ["git checkout -b task/{{.ID}}"]`; the script `exec git init`s the
+  work dir so the branch command works. `mtt add A` (t1) → `mtt in_progress t1 --who a --why w` → the gate
+  runs and creates the branch. **Assert via `exec git symbolic-ref --short HEAD` → `stdout 'task/t1'`**, NOT
+  `git branch --list` — on a fresh `git init` with no commits the new branch is *unborn*, so `git branch
+  --list task/t1` prints nothing (empirically verified); `symbolic-ref` reports the current branch and needs
+  no user config. The transition is applied and history shows the **expanded** command (`git checkout -b
+  task/t1`).
 - A second edge (or a second task) carries a command with a **tight** per-command `timeout` that overruns
   (e.g. `{run: "sleep 2", timeout: 100ms}`) while the global `command_timeout` is large (e.g. `5m`): the move
   is **blocked**, `! mtt … ` asserts non-zero (exit 3), the task stays put. (Proves per-command fails fast,
