@@ -66,6 +66,11 @@ func (t Type) validateFlow() []error {
 		if !tr.Current.Valid() {
 			errs = append(errs, fmt.Errorf("type %q transition %q->%q: invalid current action %q", t.Name, tr.From, tr.To, tr.Current))
 		}
+		for _, cmd := range tr.Commands {
+			if !cmd.Valid() {
+				errs = append(errs, fmt.Errorf("type %q transition %q->%q: invalid command (empty run or negative timeout)", t.Name, tr.From, tr.To))
+			}
+		}
 		out[tr.From]++
 		in[tr.To]++
 	}

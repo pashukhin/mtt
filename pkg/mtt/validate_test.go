@@ -102,3 +102,26 @@ func TestValidateRejectsBadCurrent(t *testing.T) {
 		t.Fatal("Validate() = nil, want an invalid-current error")
 	}
 }
+
+func TestValidateRejectsInvalidCommand(t *testing.T) {
+	cfg := Config{
+		Version: 1,
+		Types: []Type{{
+			Name: "task", Default: true,
+			Flow: Flow{
+				Statuses: []Status{
+					{Name: "tbd", Kind: KindInitial},
+					{Name: "doing", Kind: KindActive},
+					{Name: "done", Kind: KindTerminal},
+				},
+				Transitions: []Transition{
+					{From: "tbd", To: "doing", Commands: []Command{{Run: ""}}}, // empty run
+					{From: "doing", To: "done"},
+				},
+			},
+		}},
+	}
+	if err := cfg.Validate(); err == nil {
+		t.Fatal("want error for a command with an empty run")
+	}
+}
