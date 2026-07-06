@@ -77,10 +77,12 @@ func (tr *Transitioner) Transition(id mtt.TaskID, to mtt.StatusName, opts Transi
 		}
 		checks, err = tr.runner.Run(expanded)
 		if err != nil {
-			return mtt.Task{}, fmt.Errorf("%w: %v", ErrBlocked, err)
+			// operational failure: the failing command is the last recorded check
+			// (Runner CONTRACT); if none was recorded, len(checks)-1 == -1 → no comp.
+			return tr.block(expanded, len(checks)-1, err.Error())
 		}
-		if c, failed := firstFailure(checks); failed {
-			return mtt.Task{}, fmt.Errorf("%w: command %q exited %d", ErrBlocked, c.Cmd, c.Exit)
+		if i, c, failed := firstFailure(checks); failed {
+			return tr.block(expanded, i, fmt.Sprintf("command %q exited %d", c.Cmd, c.Exit))
 		}
 	}
 	ts := tr.now().UTC().Truncate(time.Second)
@@ -123,12 +125,56 @@ func missingAttribution(opts TransitionOptions) []string {
 	return missing
 }
 
-// firstFailure returns the first non-zero check, if any.
-func firstFailure(checks []mtt.Check) (mtt.Check, bool) {
-	for _, c := range checks {
+// firstFailure returns the index and Check of the first non-zero exit (incl. an
+// operational -1), and whether one was found.
+func firstFailure(checks []mtt.Check) (int, mtt.Check, bool) {
+	for i, c := range checks {
 		if c.Exit != 0 {
-			return c, true
+			return i, c, true
 		}
 	}
-	return mtt.Check{}, false
+	return 0, mtt.Check{}, false
+}
+
+// block runs best-effort compensation over the commands that succeeded before
+// failIdx (their rollbacks, in reverse) and returns ErrBlocked with a summary.
+// The task is left unchanged and no history is written (s006 invariant): block
+// returns before any tr.store.Update.
+func (tr *Transitioner) block(expanded []mtt.Command, failIdx int, cause string) (mtt.Task, error) {
+	if rbs := rollbacksBefore(expanded, failIdx); len(rbs) > 0 {
+		comp := tr.runner.Compensate(rbs)
+		return mtt.Task{}, fmt.Errorf("%w: %s; %s", ErrBlocked, cause, compSummary(comp))
+	}
+	return mtt.Task{}, fmt.Errorf("%w: %s", ErrBlocked, cause)
+}
+
+// rollbacksBefore returns the rollbacks of expanded[:failIdx] in reverse order
+// (compensation order) — never including the failing command itself. Safe for
+// failIdx <= 0 (returns nil).
+func rollbacksBefore(expanded []mtt.Command, failIdx int) []mtt.Command {
+	var rbs []mtt.Command
+	for i := failIdx - 1; i >= 0; i-- {
+		if rb := expanded[i].Rollback; rb != nil {
+			rbs = append(rbs, *rb)
+		}
+	}
+	return rbs
+}
+
+// compSummary reports how many compensators ran and how many failed (Exit != 0).
+func compSummary(checks []mtt.Check) string {
+	noun := "commands"
+	if len(checks) == 1 {
+		noun = "command"
+	}
+	failed := 0
+	for _, c := range checks {
+		if c.Exit != 0 {
+			failed++
+		}
+	}
+	if failed > 0 {
+		return fmt.Sprintf("compensated %d %s (%d failed)", len(checks), noun, failed)
+	}
+	return fmt.Sprintf("compensated %d %s", len(checks), noun)
 }

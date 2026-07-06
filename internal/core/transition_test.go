@@ -12,16 +12,42 @@ import (
 // fakeRunner is the test double for the Runner port: it records the commands it
 // was handed and returns canned checks/error without spawning a process.
 type fakeRunner struct {
-	checks  []mtt.Check
-	err     error
-	called  bool
-	gotCmds []mtt.Command
+	checks     []mtt.Check
+	err        error
+	called     bool
+	gotCmds    []mtt.Command
+	compCmds   []mtt.Command // commands passed to Compensate (nil = never called)
+	compChecks []mtt.Check   // canned Compensate result (nil = all succeed)
 }
 
 func (f *fakeRunner) Run(commands []mtt.Command) ([]mtt.Check, error) {
 	f.called = true
 	f.gotCmds = commands
 	return f.checks, f.err
+}
+
+func (f *fakeRunner) Compensate(commands []mtt.Command) []mtt.Check {
+	f.compCmds = commands
+	if f.compChecks != nil {
+		return f.compChecks
+	}
+	out := make([]mtt.Check, len(commands))
+	for i, c := range commands {
+		out[i] = mtt.Check{Cmd: c.Run, Exit: 0}
+	}
+	return out
+}
+
+// rbCmd is a command with a leaf compensator, for compensation tests.
+func rbCmd(run, rollback string) mtt.Command {
+	return mtt.Command{Run: run, Rollback: &mtt.Command{Run: rollback}}
+}
+
+// flowCfgA is flowCfg with explicit Commands on the tbd→in_progress edge (index 0).
+func flowCfgA(cmdsA []mtt.Command) mtt.Config {
+	cfg := flowCfg(nil, nil)
+	cfg.Types[0].Transitions[0].Commands = cmdsA
+	return cfg
 }
 
 // strCmds wraps bare command strings as Commands (no per-command timeout).
@@ -240,5 +266,80 @@ func TestTransitionNoRunBypassesRunner(t *testing.T) {
 	}
 	if got.Status != "in_progress" || len(got.History) != 1 || len(got.History[0].Checks) != 0 {
 		t.Fatalf("no-run result = %+v", got)
+	}
+}
+
+func TestTransitionCompensatesSucceededInReverse(t *testing.T) {
+	store := newMemStore(baseTask())
+	runner := &fakeRunner{checks: []mtt.Check{
+		{Cmd: "c1", Exit: 0}, {Cmd: "c2", Exit: 0}, {Cmd: "c3", Exit: 1},
+	}}
+	cfg := flowCfgA([]mtt.Command{rbCmd("c1", "r1"), rbCmd("c2", "r2"), {Run: "c3"}})
+	tr := NewTransitioner(store, cfg, runner, testClock)
+
+	_, err := tr.Transition("t1", "in_progress", TransitionOptions{})
+	if !errors.Is(err, ErrBlocked) {
+		t.Fatalf("err = %v, want ErrBlocked", err)
+	}
+	if len(runner.compCmds) != 2 || runner.compCmds[0].Run != "r2" || runner.compCmds[1].Run != "r1" {
+		t.Fatalf("compensated %+v, want [r2 r1] (reverse over succeeded)", runner.compCmds)
+	}
+	reloaded, _ := store.Get("t1")
+	if reloaded.Status != "tbd" || len(reloaded.History) != 0 {
+		t.Fatalf("task changed on a blocked+compensated transition: %+v", reloaded)
+	}
+	if !strings.Contains(err.Error(), "compensated 2 commands") {
+		t.Fatalf("block error missing compensation summary: %v", err)
+	}
+}
+
+func TestTransitionFirstCommandFailNoCompensation(t *testing.T) {
+	store := newMemStore(baseTask())
+	runner := &fakeRunner{checks: []mtt.Check{{Cmd: "c1", Exit: 1}}}
+	cfg := flowCfgA([]mtt.Command{rbCmd("c1", "r1")})
+	tr := NewTransitioner(store, cfg, runner, testClock)
+
+	if _, err := tr.Transition("t1", "in_progress", TransitionOptions{}); !errors.Is(err, ErrBlocked) {
+		t.Fatalf("err = %v, want ErrBlocked", err)
+	}
+	if runner.compCmds != nil {
+		t.Fatalf("compensated %+v, want none (first command failed)", runner.compCmds)
+	}
+}
+
+func TestTransitionOperationalErrorCompensates(t *testing.T) {
+	store := newMemStore(baseTask())
+	// c1 ok, c2 operational failure (recorded last as -1 per the Runner CONTRACT).
+	runner := &fakeRunner{
+		checks: []mtt.Check{{Cmd: "c1", Exit: 0}, {Cmd: "c2", Exit: -1}},
+		err:    errors.New(`command "c2" timed out`),
+	}
+	cfg := flowCfgA([]mtt.Command{rbCmd("c1", "r1"), rbCmd("c2", "r2")})
+	tr := NewTransitioner(store, cfg, runner, testClock)
+
+	_, err := tr.Transition("t1", "in_progress", TransitionOptions{})
+	if !errors.Is(err, ErrBlocked) {
+		t.Fatalf("err = %v, want ErrBlocked", err)
+	}
+	if len(runner.compCmds) != 1 || runner.compCmds[0].Run != "r1" {
+		t.Fatalf("compensated %+v, want [r1] (succeeded-before-failure only)", runner.compCmds)
+	}
+}
+
+func TestTransitionBestEffortCompensatorFailureKeepsBlocked(t *testing.T) {
+	store := newMemStore(baseTask())
+	runner := &fakeRunner{
+		checks:     []mtt.Check{{Cmd: "c1", Exit: 0}, {Cmd: "c2", Exit: 1}},
+		compChecks: []mtt.Check{{Cmd: "r1", Exit: 1}}, // the compensator itself fails
+	}
+	cfg := flowCfgA([]mtt.Command{rbCmd("c1", "r1"), {Run: "c2"}})
+	tr := NewTransitioner(store, cfg, runner, testClock)
+
+	_, err := tr.Transition("t1", "in_progress", TransitionOptions{})
+	if !errors.Is(err, ErrBlocked) {
+		t.Fatalf("a failed compensator must not change the outcome; err = %v", err)
+	}
+	if !strings.Contains(err.Error(), "compensated 1 command (1 failed)") {
+		t.Fatalf("summary should report the failed compensator: %v", err)
 	}
 }
