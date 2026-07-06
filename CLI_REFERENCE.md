@@ -67,12 +67,17 @@ command). It is an execution/adapter setting (kept out of the pure domain), defa
 and is overridable via `config.local.yaml`. A command may override it with its own **per-command timeout**
 (see "Transition commands" below); the global is the fallback.
 
-**Transition commands (structured — session 007).** A transition's `commands` is a list where each entry is
-either a **bare string** (the command) or a **map** `{run, timeout}`:
+**Transition commands (structured — session 007; `rollback` — session 008).** A transition's `commands` is a
+list where each entry is either a **bare string** (the command) or a **map** `{run, timeout, rollback}`:
 
 ```yaml
 transitions:
-  - {from: tbd, to: in_progress, commands: ["git checkout -b task/{{.ID}}"]}
+  - from: tbd
+    to: in_progress
+    commands:
+      - run: git checkout -b task/{{.ID}}
+        rollback: git branch -D task/{{.ID}}  # undo THIS command if a later one fails
+      - make test                             # a later gate; if it fails, the branch is removed
   - from: in_progress
     to: done
     commands:
@@ -85,7 +90,16 @@ transitions:
   (title/description) is never interpolated; a stray `{{.Title}}` is an error. The expanded command is what
   runs and what the transition `history` records.
 - **`timeout`** (a Go duration like `30s`, `2m`) bounds that command, overriding `command_timeout` for it.
-- `mtt types` prints a command as `$ <run>` and appends `(timeout <d>)` when it carries a per-command timeout.
+- **`rollback`** (session 008) is a **compensator** for that command — itself a scalar or `{run, timeout}`
+  (same placeholders). **Intra-pipeline compensation:** when a **later** command in the same pipeline fails,
+  the already-succeeded commands' rollbacks run in **reverse order** (undo the branch a first command created,
+  …). It is **best-effort** (all compensators run, continuing past a failed one) and **never changes the
+  outcome** — the transition is still **blocked** (exit `3`), the task stays put, and **no history** is
+  written (the task file is untouched). A failing command's own rollback is **not** run. The gate prints a
+  live `↩ compensating (N)` phase and the block message appends `compensated N commands`. (Cross-edge /
+  `--atomic` compensation across several transitions is not built yet.)
+- `mtt types` prints a command as `$ <run>` (`(timeout <d>)` when set) and, on the next line, `↩ <rollback>`
+  when the command declares a compensator.
 
 **`author`** (top-level, typically in the gitignored `config.local.yaml`) is the durable default for the
 history `by` field — "who is acting" — used when neither `--by` nor `MTT_BY` is set (precedence

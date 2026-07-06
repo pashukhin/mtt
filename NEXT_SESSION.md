@@ -4,7 +4,15 @@ A living handoff doc. Update it at the end of each session (what's done / what's
 
 ## Where we are
 
-- **Phase 0 (scaffold) + sessions 001–006 + 006.5 + 006.7 + 007 are DONE** (version `0.7.0-dev`, `make check` green).
+- **Phase 0 (scaffold) + sessions 001–006 + 006.5 + 006.7 + 007 + 008 are DONE** (version `0.8.0-dev`, `make check` green).
+  **Session 008 (rollback/compensation)** shipped an additive per-command `pkg/mtt.Command.Rollback *Command`
+  (a **leaf** compensator; `Valid()` rejects a nested rollback), recursive `ymlCommand.rollback` (scalar|map) +
+  `toDomain` deep-copy, **eager** rollback expansion (`expandOne`/`expandTemplate` — a bad rollback template is
+  exit 1 before any side effect), the `core.Runner` port method **`Compensate`** (best-effort, labeled
+  `↩ compensating` phase in the exec adapter), and `core.Transitioner` compensation on a block — the
+  succeeded-prefix rollbacks run **in reverse** (single `failIdx` source), the outcome stays `ErrBlocked`
+  (exit 3), the task is **unchanged**, **no history**, and the block error carries a `compensated N …` summary;
+  `mtt types` shows `↩ <rollback>`. Next: **s008.5 dogfood enablers** (`mtt rm`, `--depends-on`, `make install`).
   **Session 007 (structured commands)** shipped the `pkg/mtt.Command` value object (`{Run, Timeout}`;
   `Transition.Commands` is now `[]Command`), **placeholder expansion** on `run` (`.ID`/`.Type`/`.From`/`.To`
   via `text/template` in `core.Transitioner` — a self-enforcing shape-safe whitelist; `pkg/mtt` stays
@@ -138,16 +146,50 @@ resolved graph, and open gaps. Two decisions locked there that shape s005:
   at its boundary (`toDomain` fails fast on a corrupt empty `id`/`type`/`status`). s005 is written against the
   typed contract. Constructors reject empty, no transform; `Ref.ID` stays `string`; `NoteSlug` deferred (KB).
 
-## Next task — session 008 (rollback / compensation)
+## Next task — session 008.5 (dogfood enablers, chore)
 
-> **s007 (structured commands) is SHIPPED** — see "Where we are" and "Carry-over lessons (007)" below; the spec
-> is `docs/superpowers/specs/2026-07-06-session-007-structured-commands-design.md` and the plan is
-> `docs/superpowers/plans/2026-07-06-session-007-structured-commands.md`. **Next up is s008
-> rollback/compensation** (e4_t10): a transition may declare reverse-order compensating commands run over the
-> already-succeeded commands when a later command in the same pipeline fails (undo a created branch, …). The
-> `Command` VO gains an additive `Rollback` field; the executor's abort path is the hook. See DESIGN.md →
-> "Seam (deferred): rollback / compensation" and TASKS.md → e4_t10. The blocks below are the completed s007 and
-> s006.7 carry-over lessons; the s006.7 brief is kept for reference.
+> **s008 (rollback/compensation) is SHIPPED** — see "Where we are" and "Carry-over lessons (008)" below; the
+> spec is `docs/superpowers/specs/2026-07-06-session-008-rollback-design.md` and the plan is
+> `docs/superpowers/plans/2026-07-06-session-008-rollback.md`. **Next up is s008.5 dogfood enablers** (e5_t1):
+> `mtt rm <id>` (hard-delete, distinct from `cancel`), `--depends-on` on `add`, and packaging (`make install`
+> → `go install ./cmd/mtt` + a smoke test). See sessions/README.md (row 008.5) and TASKS.md → e5_t1. Then
+> **s008.7 tags**, **s008.9 batch & pipeline**, **s009 dogfood**. `advance`/`start`/`done` + modes +
+> roles-on-edges stay **PARKED** (single-edge `status` is the norm).
+
+### Carry-over lessons (008 — rollback / compensation)
+- **Additive VO field with a self-referential pointer + a leaf invariant.** A per-command compensator that is
+  itself a structured command is `Rollback *Command` (a pointer breaks the infinite-size struct). Keep it a
+  **leaf** (`rollback.Rollback == nil`) and enforce that in `Valid()` — the recursion (`expandOne`,
+  `ymlCommand.UnmarshalYAML`, `toDomain`) then terminates at one level, and the config-time check catches
+  nonsense. Struct comparability survives (pointers are comparable), so existing `cmd == mtt.Command{…}` tests
+  keep compiling.
+- **Recursive DTO for free via `*ymlCommand`.** Making the `rollback` YAML field a `*ymlCommand` reuses the
+  s007 scalar-or-`{run,timeout}` `UnmarshalYAML` for the compensator automatically; a recursive
+  `ymlCommand.toDomain()` **deep-copies** it (a fresh `*mtt.Command`, never aliasing the DTO pointer — assert
+  this with a mutate-the-DTO test).
+- **Compensation is core policy; execution + the labeled phase are the adapter's.** `core.Transitioner` decides
+  *what* to compensate (which succeeded, reversed); the exec `Runner.Compensate` runs it **best-effort** and
+  owns the `↩ compensating` progress header (core stays free of I/O). One new port method beat a core-side
+  `Run`-per-command loop precisely because the header needs the progress writer. Best-effort never changes the
+  outcome — still `ErrBlocked` (exit 3), no new code.
+- **Derive "which command failed" from a single source.** Compute an explicit `failIdx` (`firstFailure` index
+  for a non-zero check; `len(checks)-1` for an operational error) and compensate `expanded[:failIdx]` in
+  reverse — do **not** re-infer it as "the last check" at one site and "the first non-zero" at another (they
+  coincide only because the exec runner stops at the first non-zero; a divergent Runner would misclassify). The
+  failed command's own rollback is then structurally never run.
+- **`blocked → no history` is the reconciliation for compensation audit.** A blocked transition did not happen
+  (no `from→to`), so `Task.History` (a *transition* journal) gets nothing and the task file is untouched;
+  compensation is a side-effect event surfaced only live (progress) + in the block summary. A durable
+  side-effect audit stays the parked edit-audit slice.
+- **Document the `Runner.Run` operational-failure contract** (the failing command's `Check` is the last
+  element, `Exit -1`) since compensation math depends on it; make the test fake replicate it.
+- **e2e proves the mechanism, not git.** Rollback is for **arbitrary** commands; the acceptance e2e uses generic
+  POSIX `touch`/`rm`/`false` (no `[exec:git]` guard) and a multi-command reverse compensation — precise
+  reverse-order / best-effort / succeeded-only / no-history are **unit** tests (the s006/s007 split). The full
+  swapped config must be a valid flow (`mtt add` runs `Config.Validate`).
+- **Validation runs on `add`/`types`, not `Load`/the gate path** — the pre-existing s006/s007 status quo. Don't
+  claim a domain invariant is "enforced at Load"; a config-time invariant only bites where `Config.Validate` is
+  actually called.
 
 ### Carry-over lessons (007 — structured commands)
 - **Domain-vs-policy split for a per-edge property.** The s006 rule "execution policy (`command_timeout`) rides

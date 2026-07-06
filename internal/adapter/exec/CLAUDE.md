@@ -10,7 +10,13 @@ transition's `commands` as gates.
   `cmd.Timeout` when set, else the constructor `timeout` (the adapter global `command_timeout`) as a
   **fallback** (`context.WithTimeout`) — so a tight per-command timeout fails fast independent of the global
   (s007). Each `mtt.Command.Run` is **already expanded** by `core` (this adapter does not template); records a
-  `mtt.Check{Cmd: cmd.Run, Exit}` per executed command (the expanded command — truthful audit).
+  `mtt.Check{Cmd: cmd.Run, Exit}` per executed command (the expanded command — truthful audit). On an
+  operational failure the failing command's `Check` is the **last** element (`Exit -1`) — a port CONTRACT
+  `core` compensation relies on.
+- `Compensate(commands []mtt.Command) []mtt.Check` (s008) — runs already-expanded rollbacks **best-effort**:
+  in order, **never stopping**, **never returning an error** (operational failure → `Exit -1`); prints a
+  labeled `↩ compensating (N command[s])` header then the same `▶`/`✓`/`✗` per-command lines. `runReport` (the
+  per-command run+report+timing) is shared by `Run` and `Compensate` (DRY).
 - **Two output streams, separate concerns.** `progress` (always) gets the live pipeline lines
   `▶ <cmd>` / `✓|✗ <cmd> (exit N, <elapsed>)` — per-command wall-clock timing, display-only (not persisted).
   `cmdOut` gets each command's own stdout/stderr (the CLI passes `io.Discard` by default, stderr with `-v`,

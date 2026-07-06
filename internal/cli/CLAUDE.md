@@ -77,3 +77,10 @@ Structured commands (session 007): no CLI wiring change — the runner is still 
 settings.CommandTimeout, …)` (the global is now the **per-command fallback**), and `core.Transitioner`
 expands placeholders before the gate. The one CLI touch is `mtt types` (`formatTypes`): a command renders as
 `$ <run>` plus `  (timeout <d>)` when the command carries a per-command timeout.
+
+Rollback / compensation (session 008): still no wiring change — `core.Transitioner` (via `Runner.Compensate`,
+implemented by the same `exec.Runner`) runs a blocked gate's compensators; the `↩ compensating (N)` phase and
+per-compensator `▶`/`✓`/`✗` lines come from the runner on the existing stderr progress writer, and the block
+error already carries the `compensated N …` summary (surfaced by `Execute` → stderr, exit 3). The one CLI touch
+is `mtt types` (`writeTypeBlock`): under a command, a `↩ <rollback.Run>` line (+ `  (timeout <d>)`) when the
+command declares a compensator.
