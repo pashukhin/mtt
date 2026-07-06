@@ -83,3 +83,17 @@ func TestTypeByName(t *testing.T) {
 		t.Fatal("ghost should not resolve")
 	}
 }
+
+func TestFindTransition(t *testing.T) {
+	ty := Type{Flow: Flow{Transitions: []Transition{
+		{From: "tbd", To: "wip", Current: CurrentSet},
+		{From: "wip", To: "done", Current: CurrentClear},
+	}}}
+	e, ok := ty.FindTransition("tbd", "wip")
+	if !ok || e.Current != CurrentSet {
+		t.Fatalf("FindTransition(tbd,wip) = (%+v,%v), want the set edge", e, ok)
+	}
+	if _, ok := ty.FindTransition("tbd", "done"); ok {
+		t.Fatal("FindTransition(tbd,done) = ok, want false (no such edge)")
+	}
+}

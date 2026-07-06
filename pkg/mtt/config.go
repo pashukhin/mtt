@@ -104,6 +104,18 @@ func (t Type) InitialStatus() (Status, bool) {
 	return first, found
 }
 
+// FindTransition returns the edge from -> to in t's flow, if any. The single
+// pure edge lookup, shared by core (the gate) and the CLI (reading an edge's
+// current action after a move).
+func (t Type) FindTransition(from, to StatusName) (Transition, bool) {
+	for _, e := range t.Transitions {
+		if e.From == from && e.To == to {
+			return e, true
+		}
+	}
+	return Transition{}, false
+}
+
 // TypeByName returns the type with the given name, or false when absent.
 func (c Config) TypeByName(name TypeName) (Type, bool) {
 	for _, t := range c.Types {
