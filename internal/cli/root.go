@@ -58,12 +58,59 @@ func runSugar(cmd *cobra.Command, args []string) error {
 	if len(args) == 0 {
 		return cmd.Help()
 	}
+	if len(args) == 1 {
+		if routed, err := trySugarCurrent(cmd, args[0]); routed {
+			return err
+		}
+		return fmt.Errorf("unknown command %q for %q", args[0], cmd.CommandPath())
+	}
 	if len(args) == 2 {
 		if routed, err := trySugar(cmd, args[0], args[1]); routed {
 			return err
 		}
 	}
 	return fmt.Errorf("unknown command %q for %q", args[0], cmd.CommandPath())
+}
+
+// trySugarCurrent classifies `mtt <status>` (1 arg) as a status move on the
+// current task. It routes when a current task is set and arg0 is a status in its
+// type flow; when no current is set but arg0 is a plausible status name, it claims
+// the command with an actionable error; otherwise it declines (-> unknown command).
+func trySugarCurrent(cmd *cobra.Command, statusArg string) (bool, error) {
+	root, err := projectRoot(cmd)
+	if err != nil {
+		return false, nil
+	}
+	cfg, settings, err := yaml.Load(root)
+	if err != nil {
+		return false, nil
+	}
+	id, ok, err := yaml.NewCurrent(root).Current()
+	if err != nil {
+		return false, nil
+	}
+	if !ok {
+		if statusInAnyFlow(cfg, statusArg) {
+			return true, errors.New("no current task set; run `mtt use <id>` or give an id")
+		}
+		return false, nil
+	}
+	task, err := yaml.NewTaskStore(root).Get(id)
+	if err != nil {
+		return true, fmt.Errorf("current task %q no longer exists; run `mtt use <id>` or `mtt use --clear`", id)
+	}
+	typ, ok := cfg.TypeByName(task.Type)
+	if !ok {
+		return false, nil
+	}
+	to, err := mtt.NewStatusName(statusArg)
+	if err != nil {
+		return false, nil
+	}
+	if _, ok := typ.StatusKind(to); !ok {
+		return false, nil
+	}
+	return true, runTransition(cmd, root, cfg, settings, id, to, false)
 }
 
 // trySugar classifies `<arg0> <arg1>` as a status move. It routes only when the
