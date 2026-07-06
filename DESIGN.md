@@ -662,6 +662,13 @@ after dogfood we move mtt's development onto mtt itself. See sessions/README.md 
   title/description on `add`/`edit` (terser than repeated `--tag`). Open design (s008.7 brainstorm):
   derived-on-read (tags = explicit ∪ text-hashtags, single source, no staleness) vs extract-to-field; scan
   title reliably, description cautiously (‌`#` is common in code/prose); the token rule + case normalization.
+- **batch & pipeline — scheduled s008.9** (mtt as a Unix-composable CLI): a reusable **task-set selector**
+  shared by every set-operating command — explicit IDs ∪ a `--filter` (the `list` predicates over
+  `Select`/`Match`) ∪ **stdin `-`** (IDs one per line) — plus an **`--ids`** output on `list`/`ready`, so
+  pipelines compose: `mtt list --tag x --ids | mtt tag rm x -`. First applied to `tag add/rm` and `rm` (no
+  gates). Open design (s008.9 brainstorm): sources mutually exclusive; a `--dry-run` guard + "affected N"
+  summary for bulk mutations; per-item best-effort with a report and a non-zero exit on any failure. Bulk
+  `status`/verbs/`edit`/`dep` are later (gates + partial-success + atomicity).
 - later — **boards / views**: a query/view over tags/status/type (relates to `list` and `mtt-ui`); the backlog is such a view.
 - later — **durable, git-independent audit of edits**: `edit` today only bumps `updated`, with git as the
   de facto history; a change-log or field versioning (additive, non-breaking) would make edit history

@@ -154,7 +154,8 @@ resolved graph, and open gaps. Two decisions locked there that shape s005:
   `ResolvedFlow` stay as T2 intent.
 - **After 006.5 → s007 structured commands** (placeholders + per-command timeout — the "work in task terms"
   enabler; `Transition.Commands []string` → a `Command` value object, a domain-shape change), then s008
-  rollback, s008.5 dogfood-enablers chore, s008.7 tags (+`#hashtags`), then dogfood (s009). See the roadmap.
+  rollback, s008.5 dogfood-enablers chore, s008.7 tags (+`#hashtags`), s008.9 batch & pipeline (task-set
+  selector + `--ids` + stdin), then dogfood (s009). See the roadmap.
 
 ### Open design slice to schedule (not session 006's scope, but don't lose it)
 - **Durable, git-independent audit of edits** + **the subject-identity (`By`) source.** `edit` today only

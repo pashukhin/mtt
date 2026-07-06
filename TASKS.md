@@ -160,6 +160,15 @@ comments (which enrich a full self-host but don't enable it). See sessions/READM
       single source, no staleness) vs extract-to-field (simpler, but stale on later edits); (b) which fields
       to scan — title reliably, description cautiously/opt-in (‌`#` is common in prose/code: `#!`, `#include`,
       `##` headings, URL anchors); (c) the token rule + case normalization. `boards/views` over tags stay Later.
+- [ ] e5_t1c — **batch & pipeline (s008.9)** — makes mtt Unix-composable (big for agents + backlog migration):
+      a reusable **task-set selector** every set-operating command shares — explicit IDs ∪ a `--filter` (reuse
+      the `list` filters `--status/--type/--kind/--parent/--tag/--ready` over `Select`/`Match`) ∪ **stdin `-`**
+      (IDs one per line) — plus an **`--ids`** output mode on `list`/`ready` (one ID per line, for pipes). Apply
+      first to `tag add/rm` and `rm` (no gates → safe). E.g. `mtt list --tag x --ids | mtt tag rm x -`.
+      **Brainstorm decisions:** sources mutually exclusive (no confusing union); `--dry-run` guard for bulk
+      mutations (esp. `rm`) + an "affected N" summary; per-item best-effort with a per-item report and a
+      non-zero exit if any failed (git-style). Bulk `status`/verbs/`edit`/`dep` are **later** (gates +
+      partial-success + atomicity are trickier).
 - [ ] e5_t2 — **dogfooding (s009)**: `mtt init` this repo, a config whose gates are task-aware (branch on the
       `→ in_progress` edge via a placeholder, `make check` on `→ done`), migrate the backlog onto mtt
 - [ ] e5_t3 — references (**s010**): `mtt ref add/rm/list`, backlinks; resolve `task`/`comment` refs (link a
@@ -195,7 +204,8 @@ comments (which enrich a full self-host but don't enable it). See sessions/READM
 - **now scheduled (regrouped 2026-07-05):** attribution + verb sugar (`--why`/`--who` + `mtt <status> <id>`)
   → **e4_t8 / s006.5**; structured commands (placeholders + per-command timeout) → **e4_t9 / s007**;
   rollback/compensation → **e4_t10 / s008**; dogfood enablers (`mtt rm`, `--depends-on`) + packaging →
-  **e5_t1 / s008.5**; **tags** (+`#hashtags`) → **e5_t1b / s008.7**; actor profiles → **e5_t5 / s012**. `advance`/`start`/`done`/`cancel` + modes +
+  **e5_t1 / s008.5**; **tags** (+`#hashtags`) → **e5_t1b / s008.7**; **batch & pipeline** (task-set selector +
+  `--ids` + stdin) → **e5_t1c / s008.9**; actor profiles → **e5_t5 / s012**. `advance`/`start`/`done`/`cancel` + modes +
   roles-on-edges are **parked** (on-demand — see e4_t5). Design detail: DESIGN.md → "Advancing through the
   flow" (parked), "Seam (deferred): structured commands", "Direction (deferred): actor profiles", rollback seam.
 - later — **`cancelled`-blocker semantics**: a `cancelled` (abandoned) `depends_on` currently unblocks its
