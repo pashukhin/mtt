@@ -4,7 +4,13 @@ A living handoff doc. Update it at the end of each session (what's done / what's
 
 ## Where we are
 
-- **Phase 0 (scaffold) + sessions 001–006 + 006.5 are DONE** (version `0.6.5-dev`, `make check` green).
+- **Phase 0 (scaffold) + sessions 001–006 + 006.5 + 006.7 are DONE** (version `0.6.7-dev`, `make check` green).
+  **Session 006.7 (current task / working context)** shipped `mtt use [<id>] [--clear]` (a personal
+  git-`HEAD`-for-tasks pointer in `config.local.yaml`), the additive `pkg/mtt.Transition.Current` (`set|clear`)
+  rule + the `CurrentStore` capability port (`yaml.NewCurrent` writes `config.local` via a comment-preserving
+  `yaml.Node`; the CLI applies set/clear after a move — `core.Transitioner` untouched), the pure
+  `Type.FindTransition` primitive, and **omitted-id resolution** to the current task for
+  `status`/`mtt <status>`/`show`/`edit` only (never list/tree/dep/ready). Next: **s007 structured commands**.
   **Session 006.5 (attribution + verb sugar)** shipped `--why` (durable reason; `HistoryEntry.Why` + DTO +
   `show`), `--who` (mutually-exclusive alias of `--by`), the `mtt <status> <id>` **verb sugar** (fallback-routing
   in `root.RunE` — reuses `core.Transitioner`; unknown arg0 → exit 1; real command wins a clash), and
@@ -125,7 +131,17 @@ resolved graph, and open gaps. Two decisions locked there that shape s005:
   at its boundary (`toDomain` fails fast on a corrupt empty `id`/`type`/`status`). s005 is written against the
   typed contract. Constructors reject empty, no transform; `Ref.ID` stays `string`; `NoteSlug` deferred (KB).
 
-## Next task — session 006.7 (current task / working context)
+## Next task — session 007 (structured commands)
+
+> **s006.7 (current task) is SHIPPED** — see the summary in "Where we are" and "Carry-over lessons (006.7)"
+> above; the design spec is `docs/superpowers/specs/2026-07-06-session-006.7-current-task-design.md` and the
+> plan is `docs/superpowers/plans/2026-07-06-session-006.7-current-task.md`. **Next up is s007 structured
+> commands** (evolve `Transition.Commands` `[]string` → a `Command` value object `{run, timeout?}` with
+> placeholder expansion on `run` + per-command timeout — the "agent works in task terms" enabler; a domain-shape
+> change in `pkg/mtt`; see TASKS.md → e4_t9 and DESIGN.md → "Seam (deferred): structured commands"). The block
+> below is the (now-completed) s006.7 brief, kept for reference until the s007 brief replaces it.
+
+### (Completed) session 006.7 brief — current task / working context
 
 - **Create `sessions/006.7_current_task.md` from `sessions/000_template.md`** (design-spec + plan before
   code). Branch `feat/s006.7-current-task`. Refine the plan (superpowers brainstorming/planning), work
@@ -148,6 +164,39 @@ resolved graph, and open gaps. Two decisions locked there that shape s005:
 - **After 006.7 → s007 structured commands** (placeholders + per-command timeout — the "work in task terms"
   enabler; `Transition.Commands []string` → a `Command` value object, a domain-shape change), s008 rollback,
   s008.5 dogfood-enablers chore, s008.7 tags (+`#hashtags`), s008.9 batch & pipeline, then dogfood (s009).
+
+### Carry-over lessons (006.7 — current task / working context)
+- **A capability port is justified when the data is non-embeddable — that's the GAP #1 test, read the other
+  way.** `depends_on`/`history` embed in `Task` and ride `Update`, so YAGNI the port (s005). `current` is a
+  personal, gitignored, single-value pointer — *not* task state — so even YAML cannot embed it; it needs a
+  separate store. That non-embeddability is exactly what earns `CurrentStore` a port **now** (unlike the parked
+  `DependencyStore`). Use "can the reference adapter embed this in the aggregate?" as the port-vs-field test.
+- **Interpreting a declared flow effect is dispatch, not policy — apply it at the composition root.** The
+  set/clear RULE is domain data (`Transition.Current`); *applying* it (`set`→set, `clear`→clear) makes no
+  decision, so the CLI reads the edge (via `Type.FindTransition`) and calls the port after a successful move —
+  `core.Transitioner` stays a pure gate. Contrast the gate itself (non-zero → blocked, no history), which *is*
+  policy and rightly lives in core. Accepted seam: when the parked `advance` unparks and needs the same, extract
+  a shared core apply-edge-effects step (revisit-at-the-second-caller, like DepGraph/Index).
+- **Round-trip a human-edited config file with `yaml.Node`, not a struct decode.** `config.local.yaml` carries
+  `author` + comments a user wrote. `NewCurrent` reads/mutates/writes only the top-level `current:` key through
+  a `yaml.Node` (upsert/delete on the root mapping's `Content`), so comments and other keys survive. A struct
+  decode+re-encode would silently drop them. Keep it independent of `Load` (which ignores the unknown key
+  non-strictly) — one object owns the pointer (SRP).
+- **New value object → mirror `StatusKind`, not a smart constructor.** `CurrentAction` ships as
+  `type + consts + Valid()`, validated in `Config.Validate`/`validateFlow`, and cast in `toDomain` — no
+  `NewCurrentAction`, no `toDomain` signature churn. The spec suggested a constructor; the codebase idiom
+  (`StatusKind`) is cast-then-Validate. Follow the idiom; note the deviation.
+- **Defer discovery scaffolding until a consumer exists.** `CapCurrent`/`Capabilities()` were dropped from scope:
+  no `Capability` vocabulary exists in code yet, `mtt caps` (e4_t6) is unstarted, and CLI-applies (option ii)
+  never type-asserts for the capability — so the const would be dead surface. Ship the port; fold `CapCurrent`
+  into `mtt caps`. Guard the port with `var _ mtt.CurrentStore = (*Current)(nil)`.
+- **Default type needs `--no-parent` in tests.** The `default` template's default type (`task`) has
+  `parents: [epic]`, so `mtt add A` in a fresh default project fails placement — unit/e2e that just want a task
+  pass `add A --no-parent` (or ship a single-root-type `-- local.yaml --` like the e2e does).
+- **Omitted-id resolution is a shared pre-step, kept off set/bulk verbs.** `resolveTaskID(root, explicit)`
+  (explicit id > current; stale/absent → actionable error) is called by `status`/sugar/`show`/`edit` **before**
+  the usecase; `list`/`tree`/`dep`/`ready` never call it. The 1-arg sugar (`mtt done`) resolves current first,
+  then classifies arg0 against *that* task's flow — mirroring the s006.5 2-arg sugar shape.
 
 ### Carry-over lessons (006.5 — attribution + verb sugar)
 - **Verb sugar via `root.RunE` fallback, NOT command registration.** Setting `root.Args = cobra.ArbitraryArgs`

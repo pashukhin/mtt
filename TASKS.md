@@ -136,16 +136,22 @@ Single-edge `mtt status` shipped in **s006**; the meta-walk (`advance`/`start`/`
       **tighten** — captured pre-overlay + OR-combined) validated in `core.Transitioner` **before the gate**
       (fail fast; `--no-run` does not bypass), aggregating all missing fields into one `ErrMissingAttribution`
       → exit **2**. `-v`/`--log-file` moved to root-persistent; `--no-run` stays local to `mtt status`.
-- [ ] e4_t8a — **current task / working context (s006.7)** — kills id-repetition (git-`HEAD`-for-tasks):
-      a `current` record in `config.local.yaml` (personal, gitignored — the **value**), set/cleared by a
-      **transition property** (the committed flow declares the **rule** — a new additive `pkg/mtt.Transition`
-      field, e.g. `current: set|clear`; name-agnostic; topology-default set-on-→active / clear-on-→terminal is
-      a brainstorm option). An **omitted id** resolves to `current` **only for single-task direct verbs**
-      (status/`mtt <status>`/show/edit/tag add·rm/…) — never for filter/list/stdin/bulk (resolution order:
-      explicit id > filter/stdin > current). Companion `mtt use <id>` (git-checkout-like set) + a way to show
-      the current task. **Caveat:** a shared checkout with multiple agents = one `config.local` = one
-      `current` → collision; per-agent current ties to the subagent-identity think-item (fine for solo /
-      one-agent-per-checkout). Composes with the s008.9 selector (its "no source" single-verb case = current).
+- [x] e4_t8a — **current task / working context (s006.7)** — shipped: kills id-repetition (git-`HEAD`-for-tasks).
+      A `current` value in `config.local.yaml` (personal, gitignored), moved by a **transition property** —
+      the additive `pkg/mtt.Transition.Current` field (`set|clear`, `CurrentAction` value object; validated in
+      `Config.Validate`; default/`coding` templates set on →`in_progress`, clear on →`done`, leaving
+      →`cancelled` alone). The pointer is a **capability port** `mtt.CurrentStore` (justified now — `current`
+      is **non-embeddable**, the GAP #1 case that earns a port even for YAML; `yaml.NewCurrent` writes the
+      `current:` key of `config.local` via a comment-preserving `yaml.Node`); an external adapter maps it to a
+      native assignee. The **CLI applies** set/clear after a move (reading the edge via the new pure primitive
+      `Type.FindTransition`); `core.Transitioner` untouched. `mtt use [<id>] [--clear]` (set/show/clear). An
+      **omitted id** resolves to `current` for `status`/`mtt <status>`/`show`/`edit` only (order: explicit id >
+      current; stale/absent → actionable error); never for `list`/`tree`/`dep`/`ready`. `CapCurrent` +
+      `Capabilities()` deferred to `mtt caps` (e4_t6). **Later (think):** separate `mtt current`/`use` commands
+      (ergonomic clarity); show status/transition `description` on a move (in-flow agent reminder); resolve
+      `current` for **all** single-task ops incl. reads (`tree <id>`, `dep list`); per-agent current
+      (subagent-identity); multi-assignee providers ("my current" when several assigned); the `advance` reuse
+      seam (extract a shared core apply-edge-effects step when the parked multi-edge walk unparks).
 - [ ] e4_t9 — **structured commands (s007)**: evolve `Transition.Commands` `[]string` → a `Command`
       value object (`{run, timeout?}`) with **placeholder** expansion on `run` (`.ID`/`.Type`/`.From`/`.To`;
       shell-quote/restrict — injection caveat) + **per-command timeout** overriding `command_timeout`.

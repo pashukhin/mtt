@@ -124,7 +124,7 @@ adapter mints the ID — a flat, per-prefix ID such as `e1` or `t17` — and pri
 A non-root type given neither `--parent` nor `--no-parent` errors and tells you how to proceed. A missing
 parent, or a parent whose type the child may not sit under, errors with guidance.
 
-### `mtt show <id> [flags]` — show a task  *(phase 1, implemented; lineage in session 004)*
+### `mtt show [<id>] [flags]` — show a task  *(phase 1, implemented; lineage in session 004; omitted id → current in 006.7)*
 Shows a task: id, type, status, title, the **lineage** breadcrumb, a **children** summary, timestamps, and
 description. The lineage is a "you are here" path from the root **down to and including the task**
 (`lineage:  e1 › t1 › s1`), shown only when the task has a parent; a root task shows none. The children line
@@ -147,7 +147,7 @@ Prints tasks in a stable order. Filters combine with AND.
 - `--sort <created|updated>` — ordering key; default `created`, both descending, tie-broken by ID.
   *(implemented)*
 
-### `mtt edit <id> [flags]` — edit non-flow fields  *(phase 1, implemented in session 003)*
+### `mtt edit [<id>] [flags]` — edit non-flow fields  *(phase 1, implemented in session 003; omitted id → current in 006.7)*
 Changes title and/or description. **Status is not editable here** — status changes go through `status` /
 `advance` so the flow is enforced. Re-parenting/re-typing are not simple edits (they would re-mint the ID
 in the YAML adapter — see Notes).
@@ -173,7 +173,7 @@ surfaced as a root, never dropped.
 
 ## Flow (status changes)
 
-### `mtt status <id> <status> [flags]` — single transition  *(session 006, implemented)*
+### `mtt status [<id>] <status> [flags]` — single transition  *(session 006, implemented; omitted id in 006.7)*
 Moves the task across **one** edge to `<status>`, validating it against the type's `transitions` and
 running that edge's `commands` (gate: all exit `0`, else the move is **blocked** — exit `3` — and the task
 is left unchanged, no history). On success it appends a `history` entry (`from→to`, `at`, `by`/`role`/`why`
@@ -198,6 +198,25 @@ codes, and `--who`/`--why`). A real command always wins a name clash (e.g. there
 `list`); anything that does not classify as a status move is an `unknown command` (exit `1`). The sugar takes
 no gate-control flags (`--no-run`/`-v`/`--log-file` remain on `mtt status`); it is forward-compatible — its
 semantics can grow single-edge → `advance` later without a surface change.
+
+### `mtt use [<id>] [--clear]` — the current task (working context)  *(session 006.7, implemented)*
+git-`HEAD`-for-tasks: a personal **current task** pointer (in `config.local.yaml`, gitignored) so you stop
+repeating the id.
+- `mtt use <id>` — set the current task (the id must exist). Prints `current: <id>` (or the task with `--json`).
+- `mtt use` — show the current task as one line (or `no current task`).
+- `mtt use --clear` — clear the pointer (prints `current cleared`).
+
+**Omitted-id resolution:** when you leave off the id on a **single-task direct verb** — `mtt status <status>`,
+the sugar `mtt <status>` (e.g. `mtt done`), `mtt show`, `mtt edit` — mtt uses the current task. Order is
+**explicit id > current**; a stale or unset current gives an actionable error. It is **never** applied to
+`list`/`tree`/`dep`/`ready` (set/filter operations). So a full loop reads: `mtt use t1` → `mtt in_progress` →
+… → `mtt done` (no id repeated).
+
+**Moving the pointer via the flow:** a committed transition can carry `current: set` (take-into-work) or
+`current: clear` (release); mtt applies it after the move. The default/`coding` templates `set` on
+`→ in_progress` and `clear` on `→ done` (leaving `→ cancelled` alone), so `mtt in_progress t1` makes `t1`
+current and `mtt done` clears it. (Storing the pointer is a capability: the YAML adapter writes `config.local`;
+an external adapter may map it to a native assignee.)
 
 ### `mtt advance <id> --to <status> [flags]` — walk to a target status  *(phase 3)*
 Meta-command: walks the task through a chain of transitions to `--to <status>`, running edge gates along

@@ -61,3 +61,14 @@ arg0 is a status in that task's type flow (`Type.StatusKind`); any classificatio
 (exit 1); `mtt` with no args → help. `--who`/`--why`/`-v`/`--verbose`/`--log-file` are **root-persistent** (the
 sugar inherits output control); `--no-run` stays **local to `mtt status`** (the sugar cannot bypass the gate).
 `mtt show` renders the reason as `why "…"` in the history line.
+
+Current task / working context (session 006.7): `mtt use [<id>] [--clear]` sets (`use <id>`, validates existence),
+shows (`use` → one `taskLine`, else `no current task`), or clears (`use --clear`) the personal current pointer
+via `yaml.NewCurrent(root)` (the `mtt.CurrentStore` port). `resolveTaskID(root, explicit)` (in `resolve.go`)
+resolves an **omitted id** to the current task for single-task verbs only — `status` (now 1-or-2 args), the
+`mtt <status>` sugar (1-arg `trySugarCurrent` on the current task; falls through to `unknown command`, or a
+helpful "no current task" when arg0 is a plausible status), `show`, and `edit` (all `MaximumNArgs(1)`); **never**
+for `list`/`tree`/`dep`/`ready`. Order: explicit id > current; a stale/absent current gives an actionable
+error (validated at the point of use). `applyCurrent(root, cfg, task, id)` (in `status.go`) moves the pointer
+after a successful `runTransition` by reading the traversed edge's `Current` via `Type.FindTransition` —
+`core.Transitioner` is untouched (the CLI applies the flow-declared set/clear).

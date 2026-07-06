@@ -62,6 +62,17 @@ const (
 	KindTerminal StatusKind = "terminal" // ≥1 incoming, no outgoing
 )
 
+// CurrentAction is what a transition does to the personal "current task" pointer
+// when traversed — a closed value object (like StatusKind). Empty = no effect.
+// [shipped s006.7]
+type CurrentAction string
+
+// The current-pointer actions; empty is the default (leave the pointer alone).
+const (
+	CurrentSet   CurrentAction = "set"   // take-into-work: the task becomes current
+	CurrentClear CurrentAction = "clear" // release: the pointer is cleared
+)
+
 // RefKind is the closed vocabulary of reference targets. [T1 field / T2–T3 resolution]
 type RefKind string
 
@@ -84,6 +95,10 @@ const (
 	CapComments     Capability = "comments"     // CommentStore
 	CapSearch       Capability = "search"       // SearchStore
 	CapKnowledge    Capability = "knowledge"    // KnowledgeStore
+	// CapCurrent (CurrentStore) is shipped as a port in s006.7, but the Capability
+	// vocabulary + Capabilities() reporter land with `mtt caps` (e4_t6) — no
+	// discovery consumer exists yet (the CLI wires the concrete adapter). [s006.7 port / e4_t6 discovery]
+	CapCurrent Capability = "current" // CurrentStore
 )
 
 // ---------------------------------------------------------------------------
@@ -171,6 +186,7 @@ type Transition struct {
 	To          StatusName
 	Description string
 	Commands    []string
+	Current     CurrentAction // set|clear the personal current pointer when traversed [shipped s006.7]
 }
 
 // Task is a single unit of work. Field order == on-disk order (deterministic
@@ -295,6 +311,21 @@ type HistoryStore interface {
 type CommentStore interface {
 	AddComment(taskID TaskID, c Comment, replyTo int) (Comment, error)
 	Comments(taskID TaskID) ([]Comment, error)
+}
+
+// CurrentStore is the personal "current task" pointer — git-HEAD-for-tasks. A
+// capability (not a Task field): it is a per-user, non-committed, single-value
+// pointer, so even the YAML reference adapter cannot embed it in the Task — it
+// stores it in config.local. This is precisely the GAP #1 case that JUSTIFIES a
+// port even for YAML (unlike DependencyStore, which YAML embeds). An external
+// adapter maps it to a native assignee, or returns ErrUnsupported. The RULE for
+// moving it is Transition.Current (committed flow); the CLI applies set/clear
+// after a successful transition (core.Transitioner is untouched — option ii).
+// [shipped s006.7]
+type CurrentStore interface {
+	Current() (TaskID, bool, error) // ok=false when unset (not an error)
+	SetCurrent(id TaskID) error
+	ClearCurrent() error
 }
 
 // SearchStore is optional full-text search over tasks (and the KB). No RAG; an
@@ -466,8 +497,9 @@ type Runner interface {
 // current status → to against the type's transitions, gate on the edge's Commands
 // via Runner (ErrBlocked on a non-zero exit; the task is left unchanged), append
 // a HistoryEntry, persist via TaskStore.Update. No new port — history rides
-// Task.History (GAP #1 rule). A single-edge lookup, NOT ResolvedFlow (that earns
-// its keep in s007's multi-edge Advancer). Sentinels ErrBlocked /
+// Task.History (GAP #1 rule). A single-edge lookup via the shared pure primitive
+// Type.FindTransition (s006.7; the CLI reuses it to read an edge's Current after a
+// move), NOT ResolvedFlow (that earns its keep in s007's multi-edge Advancer). Sentinels ErrBlocked /
 // ErrInvalidTransition live in core (flow is core policy); the CLI maps them to
 // exit codes 3 / 6. [shipped s006]
 type Transitioner interface {

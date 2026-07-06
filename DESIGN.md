@@ -441,16 +441,29 @@ Commands come from config (trusted, like a Makefile/git hooks), not from the net
 > via plain `git` while `in_progress`; this is the completeness polish, not the minimum. Revisit once
 > structured commands land (it is blocked on them regardless). See TASKS.md → Later.
 
-> **Working context: the current task (scheduled s006.7).** git's current-branch, for tasks — kills
+> **Working context: the current task (shipped s006.7).** git's current-branch, for tasks — kills
 > id-repetition. The **value** lives in `config.local.yaml` (`current: t17`, personal/gitignored); the
-> **rule** for setting/clearing it is a **transition property** in the committed flow (a new additive
-> `Transition` field, e.g. `current: set|clear` — name-agnostic; a topology default set-on-→active /
-> clear-on-→terminal is an option). An **omitted id** resolves to the current task **only for single-task
-> direct verbs** (status / `mtt <status>` / show / edit / tag) — never for filter/list/stdin/bulk (resolution
-> order: explicit id > filter/stdin > current). Companion `mtt use <id>` sets it without a transition.
-> **Caveat:** a shared checkout with multiple agents has one `config.local` = one `current` → collision;
-> per-agent current ties to the subagent-identity question (fine for solo / one-agent-per-checkout). Composes
-> with the s008.9 selector (its "no source" single-verb case = current). See TASKS.md → e4_t8a.
+> **rule** for setting/clearing it is a **transition property** in the committed flow — the additive
+> `Transition.Current` field (`set`|`clear`, a `CurrentAction` value object; name-agnostic; the default
+> templates set on take-into-work / clear on →`done`, but leave →`cancelled` alone). An **omitted id**
+> resolves to the current task **only for single-task direct verbs** (`status` / `mtt <status>` / `show` /
+> `edit`) — never for `list`/`tree`/`dep`/`ready`/filter/stdin/bulk (resolution order: explicit id > current;
+> the s008.9 filter/stdin tier slots between them later). Companion `mtt use [<id>] [--clear]` sets/shows/clears
+> it without a transition. **Two design decisions (brainstormed):** (1) the pointer is a **capability port**
+> (`mtt.CurrentStore`), not a CLI helper — "take into work" is a capability a real provider may own (an
+> assignee), so YAML backs it via `config.local` while an external adapter maps it to its native feature or
+> returns `ErrUnsupported`. Unlike the parked `DependencyStore`, a port is justified **now**: `current` is
+> **non-embeddable** (personal, single-value, not task state), so even YAML needs a separate store — the GAP #1
+> case that earns the port. (2) The **CLI applies** set/clear after a successful transition (reading the edge's
+> `Current` via the shared `Type.FindTransition` primitive); `core.Transitioner` is untouched — interpreting a
+> declared edge effect is mechanical dispatch, not policy, so it lives at the composition root. **Caveat:** a
+> shared checkout with multiple agents has one `config.local` = one `current` → collision; per-agent current
+> ties to the subagent-identity question (fine for solo / one-agent-per-checkout). **Backlog (think):** separate
+> `mtt current`/`use` commands for ergonomic clarity; show the status/transition `description` on a move (an
+> in-flow reminder for the agent); resolve current for **all** single-task ops incl. reads (`tree <id>`,
+> `dep list`); multi-assignee providers ("my current" when several are assigned); the `advance` reuse seam
+> (extract a shared core apply-edge-effects step when the parked multi-edge walk unparks). `CapCurrent` +
+> `Capabilities()` land with `mtt caps` (e4_t6). See TASKS.md → e4_t8a.
 
 ### Advancing through the flow: `advance` / `start` / `done`
 
