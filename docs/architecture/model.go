@@ -75,13 +75,17 @@ const (
 
 // Command is one gate step of a transition: a shell command (Run, a raw
 // template) with an optional per-command timeout overriding the adapter's global
-// command_timeout (zero = fall back). core expands Run's placeholders
-// (.ID/.Type/.From/.To — shape-safe whitelist) before the runner runs it;
+// command_timeout (zero = fall back) and an optional compensator (Rollback) run
+// in reverse over the already-succeeded commands when a later command in the same
+// pipeline fails (s008). core expands Run/Rollback.Run placeholders
+// (.ID/.Type/.From/.To — shape-safe whitelist) before the runner runs them;
 // pkg/mtt stays template-agnostic. Valid() = non-empty Run + non-negative
-// Timeout. [shipped s007]
+// Timeout + (if present) a well-formed LEAF Rollback (its own Rollback == nil).
+// [Command s007; Rollback s008]
 type Command struct {
-	Run     string
-	Timeout time.Duration
+	Run      string
+	Timeout  time.Duration
+	Rollback *Command // optional compensator for THIS command; nil = none [s008]
 }
 
 // RefKind is the closed vocabulary of reference targets. [T1 field / T2–T3 resolution]
@@ -503,8 +507,14 @@ var NewDependencyEditor func(store TaskStore, now func() time.Time) DependencyEd
 // Check), not a Go error; the error signals an operational failure (launch /
 // timeout). Each Command's Run is ALREADY EXPANDED by core at this boundary; the
 // adapter resolves the effective timeout (per-command, else the global). [shipped s006; VO s007]
+// CONTRACT (compensation relies on it): on an operational failure Run returns the
+// failing command's Check as the LAST element (Exit -1). Compensate (s008) runs
+// the already-expanded rollbacks best-effort — in order, NEVER stopping, NEVER
+// erroring (an operational failure is recorded as Exit -1); core passes the
+// reversed, succeeded-only rollbacks when a gate blocks.
 type Runner interface {
 	Run(commands []Command) ([]Check, error)
+	Compensate(commands []Command) []Check // best-effort intra-pipeline compensation [s008]
 }
 
 // Transitioner applies a SINGLE flow edge (mtt status <id> <new>): validate the

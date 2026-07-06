@@ -33,7 +33,7 @@ sliced so **every session delivers something usable**. Order/size may be refined
 | 006.5 ✅ | attribution + verb sugar | `--why` (+ history field), `--who` (alias of `--by`), `mtt <status> <id>`, required-attribution (exit 2) | `mtt done t1`; `show` prints who/why; `require:{who,why}` blocks pre-gate |
 | 006.7 ✅ | **current task** (working context) | `current` in `config.local` (capability port `CurrentStore`), set/clear via `Transition.Current`; omitted id → current for `status`/sugar/`show`/`edit`; `mtt use [<id>] [--clear]` | `mtt done` / `mtt show` act on the current task; edge sets/clears the pointer |
 | 007 ✅ | **structured commands** | placeholders + per-command timeout in transition commands (`Command` VO) | `in_progress t1` creates a `task/t1` branch; a slow gate fails fast on its per-command timeout |
-| 008 | **rollback** | reverse-order compensating commands on a failed pipeline | a late gate failure undoes prior side effects |
+| 008 ✅ | **rollback** | per-command `rollback:` — reverse-order compensation on a failed pipeline (best-effort; blocked stays exit 3, no history) | a late gate failure undoes prior side effects; `↩ compensating` |
 | 008.5 | dogfood enablers (chore) | `mtt rm`, `--depends-on` on `add`, packaging (`make install`) | delete a task; `add --depends-on`; `go install ./cmd/mtt` |
 | 008.7 | **tags** | `mtt add --tag`, `tag add/rm`, `list/tree --tag`; `#hashtags` in title/description | tag a task; filter by tag; `add "fix #auth"` tags it |
 | 008.9 | **batch & pipeline** | task-set selector (IDs ∪ `--filter` ∪ stdin `-`) + `--ids` output; bulk `tag add/rm`, `rm` | `list --tag x --ids \| tag rm x -`; `tag add y --status tbd` |

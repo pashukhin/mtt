@@ -1,6 +1,6 @@
 # 008 — Rollback / compensation
 
-Status: in progress   ·   Branch: `feat/s008-rollback`
+Status: done   ·   Branch: `feat/s008-rollback`
 
 ## Target
 
@@ -72,4 +72,42 @@ behavior-preserving-slices lesson):
 
 ## Done (fill during/after the session)
 
-<What was actually built; deviations from the plan; follow-ups spun out into later sessions.>
+Shipped (all test-first, `make check` + acceptance e2e green), version `0.7.0-dev` → `0.8.0-dev`. Spec:
+[../docs/superpowers/specs/2026-07-06-session-008-rollback-design.md](../docs/superpowers/specs/2026-07-06-session-008-rollback-design.md);
+plan: [../docs/superpowers/plans/2026-07-06-session-008-rollback.md](../docs/superpowers/plans/2026-07-06-session-008-rollback.md).
+
+- **`pkg/mtt`**: additive `Command.Rollback *Command` (`command.go`) — an optional per-command compensator;
+  `Valid()` now also validates a **leaf** rollback (non-empty run, non-negative timeout, its own `Rollback ==
+  nil`), so `Config.Validate` rejects a second-level `rollback.rollback` (on `add`/`types`).
+- **`internal/adapter/yaml`**: `ymlCommand.Rollback *ymlCommand` — the `rollback` field is itself a scalar or
+  `{run, timeout}`, decoded through the same recursive `UnmarshalYAML`; a new recursive `ymlCommand.toDomain()`
+  **deep-copies** the rollback (a fresh `*mtt.Command`, not the DTO pointer).
+- **`internal/core`**: `expandCommands` refactored to `expandOne`/`expandTemplate` — expands `Run` **and**
+  `Rollback.Run` **eagerly** (same `cmdContext`, pre-move `.From`), so a malformed rollback template aborts as
+  exit 1 before any side effect. The `Runner` port gained **`Compensate([]mtt.Command) []mtt.Check`** (with a
+  documented `Run` CONTRACT: operational failure records the failing `Check` last). `Transitioner` computes the
+  compensation plan from a **single failure index** (`firstFailure` for a non-zero check; `len(checks)-1` for an
+  operational error) and runs the **succeeded-prefix** rollbacks **in reverse** (`rollbacksBefore`) via
+  `Compensate`; the block error carries a `compSummary` (`compensated N …`). Outcome unchanged: `ErrBlocked`
+  (exit 3), task untouched, **no history**.
+- **`internal/adapter/exec`**: best-effort `Compensate` (prints `↩ compensating (N)` + per-command lines, never
+  stops, operational failure → `Exit -1`); `runReport` extracted and shared with `Run` (DRY).
+- **`internal/cli`**: `mtt types` renders `↩ <rollback>` (+ its own `(timeout <d>)`); no other wiring change —
+  the compensation phase and block summary flow through the existing progress/error paths (stderr, exit 3).
+- **Tests**: unit — `Command.Valid` (leaf), `Config.Validate` (nested rollback), `ymlCommand` rollback
+  scalar/map + `toDomain` deep-copy, `expandCommands` rollback (+ malformed → exit-1, nil-stays-nil),
+  `Transitioner` (reverse over succeeded, first-fail → none, operational-error path, best-effort compensator
+  failure keeps `ErrBlocked` + no history), `exec.Compensate` (best-effort/empty/per-command-timeout),
+  `mtt types` `↩`. e2e — `rollback.txt` (generic `touch`/`rm`/`false`, no git guard): a blocked `in_progress`
+  removes both sentinels, shows `↩ compensating (2 commands)` + `compensated 2 commands`, task stays `tbd`.
+
+**Deviations / notes:**
+- The spec's "enforced at Load" claim was corrected during the subagent review — `Config.Validate` runs on
+  `add`/`types`, not `yaml.Load` nor the gate path (the s006/s007 status quo); a stray second-level rollback on
+  the gate path is harmlessly ignored at runtime (`expandOne` recurses, `rollbacksBefore` reads one level).
+- Succeeded/failed derivation was hardened to a single `failIdx` source (subagent Issue 2), so the failed
+  command's rollback is never run even if a future Runner does not stop at the first non-zero.
+- `Runner.Compensate` (one new port method) was chosen over a core-side `Run`-per-command loop so the labeled
+  `↩ compensating` phase lives with the progress writer (the exec adapter) while core still computes the plan.
+
+**Next:** s008.5 dogfood enablers (`mtt rm`, `--depends-on` on `add`, packaging `make install`).

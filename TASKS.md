@@ -37,7 +37,8 @@ the architectural axis. They map many-to-one, not one-to-one. Current position:
   `internal/adapter/exec` + fake, `core.Transitioner`, `mtt status <id> <new>` (gate on `commands`, exit
   codes 3/6, append `history`, `--role`/`--by`), config-driven `command_timeout`, `mtt show` history. Then
   **s006.5** attribution+sugar (e4_t8), **s006.7** current task (e4_t8a), **s007** structured commands (e4_t9:
-  the `Command` VO with placeholders + per-command timeout). Next: **s008** rollback/compensation (e4_t10).
+  the `Command` VO with placeholders + per-command timeout), **s008** rollback/compensation (e4_t10: per-command
+  `Command.Rollback`, reverse-over-succeeded, best-effort, exit 3 preserved). Next: **s008.5** dogfood enablers.
   The `advance`/`start`/`done` meta-walk (e4_t5) stays **PARKED** (single-edge is the norm).
 
 Two decisions from the domain-model snapshot ([docs/architecture/model.go](docs/architecture/model.go)):
@@ -161,8 +162,12 @@ Single-edge `mtt status` shipped in **s006**; the meta-walk (`advance`/`start`/`
       takes `[]mtt.Command` (Run expanded at the boundary; `Check.Cmd` records the expanded command). An
       expansion error is exit 1 (not `ErrBlocked`). The enabler for "the agent works in task terms" (task-aware
       transitions, e.g. `git checkout -b task/{{.ID}}`). `rollback?` stays additive → s008 (e4_t10)
-- [ ] e4_t10 — **rollback/compensation (s008)**: reverse-order compensating commands on a failed pipeline
-      or (later) an `--atomic`/multi-step abort after side effects; the executor's abort path is the hook
+- [x] e4_t10 — **rollback/compensation (s008)** — shipped: additive per-command `Command.Rollback *Command`
+      (a leaf compensator); on an **intra-pipeline** failure `core.Transitioner` runs the succeeded commands'
+      rollbacks in **reverse** via the exec `Runner.Compensate` (best-effort) — outcome stays `ErrBlocked`
+      (exit 3), task unchanged, **no history**; rollbacks expanded eagerly (bad rollback template → exit 1
+      before side effects); `mtt types` shows `↩ <rollback>`. **Later:** `--atomic`/multi-step abort across
+      several edges (still parked); second-level compensation rejected by `Valid()`
 
 ## e5 — Phase 4: dogfood → references → comments → profiles (regrouped 2026-07-05)  `[ ]`
 

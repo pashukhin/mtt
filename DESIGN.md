@@ -412,11 +412,25 @@ Commands come from config (trusted, like a Makefile/git hooks), not from the net
 > fails after a side effect, we don't commit the transition, but the side effect already happened — that's
 > on the ordering of commands. A two-phase model (checks → actions) is introduced only if needed.
 
-> **Seam (deferred): rollback / compensation.** A transition may optionally declare compensating commands
-> (e.g. `rollback:` / `on_failure:`) run in **reverse order** over the already-succeeded commands when a
-> later command in the same pipeline fails (intra-pipeline compensation), and when an `--atomic` or
-> multi-step `advance` aborts after side effects — to undo what a partially-applied transition did (delete
-> the created branch, …). Not built now; the executor's abort path is the hook. Additive in config.
+> **Shipped (s008): rollback / compensation (intra-pipeline).** A gate command may declare a `rollback:`
+> compensator (a scalar or `{run, timeout}`, itself placeholder-expanded); when a **later** command in the
+> same pipeline fails, the already-succeeded commands' rollbacks run in **reverse order** — undoing what the
+> partial gate did (e.g. `git checkout -b task/{{.ID}}` with `rollback: git branch -D task/{{.ID}}`). The
+> `Command` VO gained an additive `Rollback *Command` (a **leaf** — its own rollback must be nil). Decisions:
+> **(1)** the compensator is **per-command** (`Command.Rollback`), not per-transition — it maps 1:1 to
+> "reverse over the succeeded"; **(2)** `core.Transitioner` computes the plan (which succeeded — from a single
+> failure index — reversed) and the exec **`Runner.Compensate`** executes it; **(3)** compensation is
+> **best-effort** (run all, continue past a failed compensator) and **never masks the gate failure** — the
+> outcome stays `ErrBlocked` (exit 3); **(4)** **no `history`** on a blocked+compensated transition (the task
+> file is untouched — a `HistoryEntry` is a transition record, compensation is a side-effect event); **(5)**
+> rollbacks are expanded **eagerly** with the forward commands (a malformed rollback template is exit 1 before
+> any side effect). The failing command's own rollback is never run. The gate prints a live
+> `↩ compensating (N)` phase and the block error carries a `compensated N …` summary. See sessions/008 and
+> TASKS.md → e4_t10.
+>
+> **Still parked:** compensation across **several** edges (an `--atomic` / multi-step `advance` abort after
+> side effects) — s008 is **intra-pipeline** only (one edge's pipeline); and second-level compensation
+> (a compensator's compensator, rejected by `Valid()`).
 
 > **Shipped (s007): structured commands.** `Transition.Commands` evolved from `[]string` into a `Command`
 > value object `{run, timeout?}` (a pure `pkg/mtt` VO; `rollback?` is additive, deferred to s008). Two
