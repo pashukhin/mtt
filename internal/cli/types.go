@@ -21,7 +21,7 @@ func newTypesCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			cfg, prefixes, err := yaml.Load(root)
+			cfg, settings, err := yaml.Load(root)
 			if err != nil {
 				return err
 			}
@@ -32,7 +32,7 @@ func newTypesCmd() *cobra.Command {
 			if len(args) == 1 {
 				filter = args[0]
 			}
-			out, err := formatTypes(cfg, prefixes, filter)
+			out, err := formatTypes(cfg, settings.Prefixes, filter)
 			if err != nil {
 				return err
 			}

@@ -84,6 +84,30 @@ func formatTask(t mtt.Task, ancestors, children []mtt.Task) string {
 	}
 	fmt.Fprintf(&b, "  created:  %s\n", t.Created.UTC().Format(time.RFC3339))
 	fmt.Fprintf(&b, "  updated:  %s\n", t.Updated.UTC().Format(time.RFC3339))
+	if len(t.History) > 0 {
+		b.WriteString("  history:\n")
+		for _, h := range t.History {
+			line := fmt.Sprintf("    %s  %s → %s", h.At.UTC().Format(time.RFC3339), h.From, h.To)
+			var who []string
+			if h.By != "" {
+				who = append(who, "by "+h.By)
+			}
+			if h.Role != "" {
+				who = append(who, "role "+h.Role)
+			}
+			if len(who) > 0 {
+				line += "  (" + strings.Join(who, ", ") + ")"
+			}
+			fmt.Fprintln(&b, line)
+			if len(h.Checks) > 0 {
+				parts := make([]string, len(h.Checks))
+				for i, c := range h.Checks {
+					parts[i] = fmt.Sprintf("%s(%d)", c.Cmd, c.Exit)
+				}
+				fmt.Fprintf(&b, "      checks: %s\n", strings.Join(parts, " "))
+			}
+		}
+	}
 	if t.Description != "" {
 		fmt.Fprintf(&b, "\n  %s\n", t.Description)
 	}

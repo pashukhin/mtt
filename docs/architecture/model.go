@@ -212,12 +212,15 @@ type Comment struct {
 	Replies []Comment
 }
 
-// HistoryEntry is one append-only transition record. Role is the roles seam
-// (reserved now; routing resolved in T2). By is the subject-identity seam. [T2]
+// HistoryEntry is one append-only transition record. By is the subject-identity
+// (--who/--by > MTT_BY > config.local author). Role is a dumb attribution string
+// (no routing built — near-RBAC, parked). Why is a durable free-text reason
+// (--why), added in s006.5. [T2]
 type HistoryEntry struct {
 	At     time.Time
 	By     string
 	Role   string
+	Why    string // free-text reason (--why); added s006.5
 	From   StatusName
 	To     StatusName
 	Checks []Check
@@ -444,11 +447,39 @@ var NewDependencyEditor func(store TaskStore, now func() time.Time) DependencyEd
 
 // Runner executes a transition's Commands and reports each result. It is defined
 // in CORE (only core uses it), implemented in internal/adapter/exec, faked in
-// tests. Commands run in order in the project root with a per-command timeout,
-// aborting on the first non-zero exit. [T2]
+// tests. Commands run in order with cwd = project root (held by the exec adapter,
+// NOT passed here — keeps core free of filesystem paths) and a per-command
+// timeout, aborting on the first non-zero exit. A non-zero exit is DATA (a
+// Check), not a Go error; the error signals an operational failure (launch /
+// timeout). [shipped s006]
 type Runner interface {
-	Run(commands []string, dir string) ([]Check, error)
+	Run(commands []string) ([]Check, error)
 }
+
+// Transitioner applies a SINGLE flow edge (mtt status <id> <new>): validate the
+// current status → to against the type's transitions, gate on the edge's Commands
+// via Runner (ErrBlocked on a non-zero exit; the task is left unchanged), append
+// a HistoryEntry, persist via TaskStore.Update. No new port — history rides
+// Task.History (GAP #1 rule). A single-edge lookup, NOT ResolvedFlow (that earns
+// its keep in s007's multi-edge Advancer). Sentinels ErrBlocked /
+// ErrInvalidTransition live in core (flow is core policy); the CLI maps them to
+// exit codes 3 / 6. [shipped s006]
+type Transitioner interface {
+	Transition(id TaskID, to StatusName, opts TransitionOptions) (Task, error)
+}
+
+// TransitionOptions carry the roles seam (Role, from --role/MTT_ROLE), the
+// subject-identity By (from --by > MTT_BY > config.local `author` — GAP #5
+// resolved), and NoRun (bypass the gate). [shipped s006]
+type TransitionOptions struct {
+	Role  string
+	By    string
+	NoRun bool
+}
+
+// NewTransitioner wires the single-edge usecase (store for load/persist, config
+// for the flow, Runner for the gate, injected clock for history). [shipped s006]
+var NewTransitioner func(store TaskStore, cfg Config, runner Runner, now func() time.Time) Transitioner
 
 // AdvanceMode selects how far a walk proceeds. [T2]
 type AdvanceMode string
@@ -470,7 +501,11 @@ type AdvanceOptions struct {
 // Advancer is the meta-command behind start/done/cancel: it walks a task through
 // the flow to a target status, running each edge's gates (via Runner) and
 // appending History. start = --to <first active>, done = --to <terminal>. The
-// resolver is parameterized by Role (today one implicit role). [T2]
+// resolver is parameterized by Role (today one implicit role).
+// PARKED (2026-07-05, on-demand): single-edge `mtt status` is the norm; the
+// multi-edge walk, the verbs, the modes, and roles-on-edges surface only when a
+// flow actually branches. The ergonomic `mtt <status> <id>` sugar (s006.5) is a
+// single-edge move via CLI fallback-routing, forward-compatible to this. [T2]
 type Advancer interface {
 	Advance(id TaskID, toStatus StatusName, opts AdvanceOptions) (Task, error)
 }
@@ -560,9 +595,11 @@ type ResolvedEdge struct {
 //     set type. A slice is simplest and forward-compatible; confirm.
 //
 //  5. Subject identity (By) source. Who is "acting", for history attribution —
-//     likely a .mtt/config.local.yaml field, distinct from --role ("what hat").
-//     Reserved in HistoryEntry; the source is unspecified. Pairs with a durable,
-//     git-independent edit-audit trail (both deferred).
+//     distinct from --role ("what hat"). RESOLVED (s006): By is written from
+//     --by > MTT_BY > the config.local.yaml `author` field (the durable personal
+//     default; surfaced via the adapter Settings.Author). role stays flag/env only
+//     (per-invocation). A git-independent edit-audit trail (queryable edit history
+//     beyond transitions) stays deferred (a dedicated slice).
 //
 //  6. Resolved-graph generality. Index (Parent edge) and ResolvedFlow (transition
 //     edge) and the dependency graph (DependsOn edge) are three instances of one

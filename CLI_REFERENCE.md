@@ -32,7 +32,10 @@ Run `mtt help [command]` or `mtt <command> -h` for built-in help.
 |---|---|---|
 | `--json` | — | Emit machine-readable JSON instead of human text. On a mutation, prints the resulting object; on a query, prints the result set. Off by default. Intended for agents. **Implemented (session 003)** on `show`/`list`/`edit`. |
 | `--dir <path>` | `MTT_DIR` | Project root that holds `.mtt/`. Default: the nearest ancestor of the current directory that contains `.mtt/`. **Implemented (session 003)**: `--dir`/`MTT_DIR` is an explicit root (must itself contain `.mtt/`, no upward walk); omitted, falls back to ancestor discovery. |
-| `--role <role>` | `MTT_ROLE` | The acting role (e.g. `implementer`, `reviewer`). Recorded into a task's transition `history`. A reserved seam — it does not change routing yet (see DESIGN → Roles). *(pending — lands with flow enforcement, phase 3)* |
+| `--role <role>` | `MTT_ROLE` | The acting role (e.g. `implementer`, `reviewer`). Recorded into a task's transition `history`. A reserved seam — it does not change routing yet (see DESIGN → Roles). **Implemented (session 006)** — recorded, not enforced. |
+| `--by <subject>` | `MTT_BY` | The acting subject ("who"), recorded into transition `history`. Distinct from `--role` ("what hat"). Falls back to `MTT_BY`, then the `config.local.yaml` `author` (the durable personal default). **Implemented (session 006)**. |
+| `--who <subject>` | `MTT_BY` | Symmetric alias of `--by` (reads as a pair with `--why`). *(pending — session 006.5)* |
+| `--why <text>` | — | A durable free-text reason for the transition, recorded into `history`. *(pending — session 006.5)* |
 | `-q, --quiet` | — | Suppress non-essential output (still prints errors and requested data). *(pending)* |
 | `--no-color` | `NO_COLOR` | Disable ANSI color in human output. *(pending)* |
 | `-h, --help` | — | Help for the command. |
@@ -56,6 +59,19 @@ mtt merges config layers, later overriding earlier: built-in defaults → option
 `.mtt/config.local.yaml` (personal connection params & local prefs) → env / CLI flags. Put credentials for
 external backends in the local overlay or env vars, **never** in the committed config. See
 [DESIGN.md](DESIGN.md) → Configuration.
+
+**`command_timeout`** (top-level, e.g. `command_timeout: 5m`) bounds each transition gate command (per
+command). It is an execution/adapter setting (kept out of the pure domain), defaults to `5m` when absent,
+and is overridable via `config.local.yaml`.
+
+**`author`** (top-level, typically in the gitignored `config.local.yaml`) is the durable default for the
+history `by` field — "who is acting" — used when neither `--by` nor `MTT_BY` is set (precedence
+`--by` > `MTT_BY` > `author`). Personal, so it belongs in the local overlay, not the committed config.
+
+**`require`** (top-level, in the **committed** config, e.g. `require: {who: true, why: true}`) makes
+`--who`/`--why` mandatory on a status change — validated **before** the gate runs and not bypassed by
+`--no-run`/`--force`; `config.local` may only **tighten** it. A violation aggregates all missing fields into
+one usage error (exit `2`). *(pending — session 006.5)*
 
 ---
 
@@ -155,10 +171,20 @@ surfaced as a root, never dropped.
 
 ## Flow (status changes)
 
-### `mtt status <id> <status> [flags]` — single transition  *(phase 3)*
+### `mtt status <id> <status> [flags]` — single transition  *(session 006, implemented)*
 Moves the task across **one** edge to `<status>`, validating it against the type's `transitions` and
-running that edge's `commands` (gate). Fails if the transition isn't allowed or a gate returns non-zero.
-Accepts the transition flags (`--no-run`, `--force`).
+running that edge's `commands` (gate: all exit `0`, else the move is **blocked** — exit `3` — and the task
+is left unchanged, no history). On success it appends a `history` entry (`from→to`, `at`, `by`/`role` from
+`--by`/`--role`, `checks`) and prints `t1: tbd → in_progress` (plus a line per check), or the task object
+with `--json`. A transition not in the flow exits `6`.
+
+The gate reports **live pipeline progress** to stderr (`▶ <cmd>` / `✓|✗ <cmd> (exit N, <elapsed>)`) as each
+command runs; the commands' own output is hidden by default.
+
+- `--no-run` — skip the edge's `commands` (bypass the gate). *(implemented)*
+- `-v`, `--verbose` — stream each gate command's stdout/stderr to stderr. *(implemented)*
+- `--log-file <path>` — write the gate commands' output to a file (with `-v`, to both). *(implemented)*
+- `--force` — *(not yet — lands with the advance family, s007)*
 
 ### `mtt advance <id> --to <status> [flags]` — walk to a target status  *(phase 3)*
 Meta-command: walks the task through a chain of transitions to `--to <status>`, running edge gates along
@@ -314,9 +340,10 @@ Distinct codes let agents branch on the outcome without parsing text.
 | `5` | Unsupported — the active adapter lacks the required capability (`ErrUnsupported`) |
 | `6` | Invalid transition — not allowed by the type's flow |
 
-This richer taxonomy is still **proposed**: session 003 keeps a single generic failure code (`1`) for every
-error path; codes `2`–`6` land alongside the behaviors they distinguish (usage validation, flow, capability
-gates, …).
+Codes `3` (gate blocked) and `6` (invalid transition) are **implemented (session 006)** on `mtt status`
+(`Execute()` maps `core.ErrBlocked`→3, `core.ErrInvalidTransition`→6); code `2` (usage) lands with
+required-attribution (session 006.5). The remaining codes (`4`, `5`) are still **proposed** and land
+alongside the behaviors they distinguish (capability gates, …); other error paths keep the generic `1`.
 
 ---
 
@@ -326,6 +353,7 @@ gates, …).
 |---|---|
 | `MTT_DIR` | Project root containing `.mtt/` (same as `--dir`). |
 | `MTT_ROLE` | Acting role recorded in history (same as `--role`). |
+| `MTT_BY` | Acting subject recorded in history (same as `--by`). |
 | `NO_COLOR` | Disable colored output. |
 
 ---

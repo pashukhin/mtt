@@ -8,6 +8,25 @@ import (
 	"github.com/pashukhin/mtt/pkg/mtt"
 )
 
+func TestFormatTaskRendersHistory(t *testing.T) {
+	task := mtt.Task{
+		ID: "t1", Type: "task", Title: "A", Status: "in_progress",
+		Created: time.Date(2026, 7, 5, 12, 0, 0, 0, time.UTC),
+		Updated: time.Date(2026, 7, 5, 12, 0, 0, 0, time.UTC),
+		History: []mtt.HistoryEntry{{
+			At: time.Date(2026, 7, 5, 12, 0, 0, 0, time.UTC),
+			By: "grisha", Role: "impl", From: "tbd", To: "in_progress",
+			Checks: []mtt.Check{{Cmd: "make lint", Exit: 0}},
+		}},
+	}
+	out := formatTask(task, nil, nil)
+	for _, want := range []string{"history:", "tbd → in_progress", "by grisha", "role impl", "make lint(0)"} {
+		if !strings.Contains(out, want) {
+			t.Fatalf("formatTask output missing %q:\n%s", want, out)
+		}
+	}
+}
+
 func TestFormatTask(t *testing.T) {
 	ts := time.Date(2026, 7, 4, 9, 20, 0, 0, time.UTC)
 	// a nested task with ancestors and children: lineage is the full root-to-self

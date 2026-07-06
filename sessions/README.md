@@ -26,12 +26,17 @@ sliced so **every session delivers something usable**. Order/size may be refined
 | 004 ✅ | hierarchy | `mtt add --parent`, `mtt tree`, `show` lineage | epic→task→subtask; tree renders |
 | 004.5 ✅ | typed-id retrofit (chore) | — (internal: `TaskID`/`TypeName`/`StatusName`) | `make check` green; no behaviour change |
 | 005 ✅ | dependencies | `mtt dep add/rm/list` (`--tree`/`--cycles`), `mtt ready`, `list --ready` | dep blocks ready; cycle rejected |
-| 006 | **flow gate (killer)** | `mtt status <id> <new>` runs & gates commands | failing gate blocks transition; history written |
-| 007 | **advance** | `mtt start`/`done`/`cancel` + modes | `mtt done` walks tbd→…→done, blocks on red gate |
-| 008 | references | `mtt ref add/rm/list`, backlinks | ref resolves; dangling flagged |
-| 009 | comments | `mtt comment add/list` (tree) | nested comments render in `show` |
-| 010 | coding template + dogfood | `mtt init --template coding`; self-host | migrate this backlog onto mtt |
-| 011+ | KB/search, Gantt, `mtt-ui`, external adapters | later phases (see DESIGN.md) | |
+| 006 ✅ | **flow gate (killer)** | `mtt status <id> <new>` runs & gates commands | failing gate blocks transition; history written |
+| 006.5 | attribution + verb sugar | `--why` (+ history field), `--who` (alias of `--by`), `mtt <status> <id>` | `mtt done t1`; `show` prints who/why |
+| 007 | **structured commands** | placeholders + per-command timeout in transition commands | `status … in_progress` creates a `task/<id>` branch; a slow gate fails fast |
+| 008 | **rollback** | reverse-order compensating commands on a failed pipeline | a late gate failure undoes prior side effects |
+| 008.5 | dogfood enablers (chore) | `mtt rm`, `--depends-on` on `add`, packaging (`make install`) | delete a task; `add --depends-on`; `go install ./cmd/mtt` |
+| 009 | **dogfood** | self-host: `mtt init` this repo, task-aware gates, migrate the backlog | mtt tracks its own tasks; `done` gated on `make check` |
+| 010 | references | `mtt ref add/rm/list`, backlinks | ref resolves; task↔PR/spec link |
+| 011 | comments | `mtt comment add/list` (tree) | nested comments render in `show` |
+| 012 | actor profiles | `mtt profile …`; default profile = the coding agent | `by`/`role` from the default profile |
+| 013+ | Graphviz flow export, coding template demo, KB/search, Gantt, `mtt-ui`, external adapters | later phases (see DESIGN.md) | |
+| parked | **advance** / `start` / `done` / `cancel` + modes (`--stop`/`--atomic`/`--force`) + roles-on-edges | on-demand — surfaces only when a flow actually branches (single-edge `status` is the norm) | |
 
 **Decisions carried from the domain-model snapshot** ([../docs/architecture/model.go](../docs/architecture/model.go)):
 
@@ -41,9 +46,28 @@ sliced so **every session delivers something usable**. Order/size may be refined
 - **005 adds no new port.** `depends_on` rides on the `Task` field + `TaskStore.Update` (as `parent` did in
   004); `DependencyStore` is only for external adapters that cannot embed. 005 = core `DependencyEditor` +
   `Ready` + cycle-check.
-- **Packaging** (`make install` → `go install ./cmd/mtt`) is a separate small chore, best landed near **006**
-  — that is when status transitions make mtt a real tracker worth dogfooding. Full release tooling
-  (goreleaser, tagged binaries) is later.
+- **Packaging** (`make install` → `go install ./cmd/mtt`) folds into the **009.5** dogfood-enablers chore
+  (alongside `mtt rm` and `--depends-on` on `add`). Full release tooling (goreleaser, tagged binaries) is later.
+
+**Roadmap regrouped (2026-07-05, after s006).** Two moves:
+
+1. Dogfooding "the agent works in task terms, with all shell orchestration living in flow transitions" has a
+   hard prerequisite: **command placeholders** (a transition can't create a per-task branch —
+   `git checkout -b task/{{.ID}}` — without them), plus per-command timeout and rollback. So **structured
+   commands** + **rollback** were pulled up from the backlog, and **dogfood** moved *earlier* — ahead of
+   references/comments, which enrich a full self-host but don't enable it.
+2. **`advance` was parked** (and with it `start`/`done`/`cancel`, the modes, and roles-on-edges). Rationale:
+   most status transitions are exactly **one edge**, so single-edge `mtt status` is the norm and a multi-edge
+   walk solves a problem we don't have yet; role-tagged edges are near-RBAC and premature (identity/role may
+   later come from an external provider). advance surfaces **on-demand**, when a flow actually branches. That
+   makes **structured commands** the real next rock, preceded by a tiny **006.5** attribution+sugar slice:
+   `--why` (a durable free-text reason recorded in history — "who + why moved the task"), `--who` (a symmetric
+   alias of `--by`), and the `mtt <status> <id>` verb sugar (via fallback-routing on an unknown first arg, not
+   dynamic command registration; single-edge, forward-compatible to advance later without a surface change).
+
+The `coding` template demo (branch + gated DoD) only becomes fully powered once structured commands land, so
+it sits in the later-phases bucket. **actor profiles** (default profile = the coding agent) pair with
+instructing the agent to work in task terms.
 
 **Cross-cutting — global flags** (root persistent flags; see [../CLI_REFERENCE.md](../CLI_REFERENCE.md) →
 "Global flags"). Not a session of their own — land early so new commands **inherit** them instead of

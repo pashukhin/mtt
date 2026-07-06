@@ -1,0 +1,54 @@
+# mtt status: single gated flow transition
+exec mtt init
+# install a single-type flow with gate commands (task is a root default type)
+cp gated.yaml .mtt/config.yaml
+exec mtt add 'A'
+stdout 'created t1'
+
+# green gate: tbd -> in_progress runs `echo $((3+4))`, moves, records history.
+# pipeline progress goes to stderr; command output is redirected to a file.
+exec mtt status t1 in_progress --log-file build.log
+stdout 't1: tbd → in_progress'
+stderr '\(exit 0,'
+grep '7' build.log
+exec mtt show t1
+stdout '\[in_progress\]'
+stdout 'history:'
+stdout 'tbd → in_progress'
+
+# red gate: in_progress -> done runs `false` -> blocked; task stays put.
+# the failing command's progress line is on stderr.
+! exec mtt status t1 done
+stderr 'blocked'
+stderr '\(exit 1,'
+exec mtt show t1
+stdout '\[in_progress\]'
+
+# --no-run bypasses the gate
+exec mtt status t1 done --no-run
+stdout 't1: in_progress → done'
+
+# invalid transition: done is terminal (no outgoing edge)
+! exec mtt status t1 cancelled
+stderr 'not allowed'
+
+-- gated.yaml --
+version: 1
+project:
+  name: demo
+command_timeout: 5m
+types:
+  - name: task
+    prefix: t
+    default: true
+    parents: []
+    statuses:
+      - {name: tbd, kind: initial}
+      - {name: in_progress, kind: active}
+      - {name: done, kind: terminal}
+      - {name: cancelled, kind: terminal}
+    transitions:
+      - {from: tbd, to: in_progress, commands: ["echo $((3+4))"]}
+      - {from: tbd, to: cancelled}
+      - {from: in_progress, to: done, commands: ["false"]}
+      - {from: in_progress, to: cancelled}

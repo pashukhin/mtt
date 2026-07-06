@@ -25,11 +25,11 @@ func NewTaskStore(root string) *Store { return &Store{root: root} }
 // Create mints a flat per-prefix ID for the logical task, persists it atomically,
 // and returns the stored task.
 func (s *Store) Create(t mtt.Task) (mtt.Task, error) {
-	_, prefixes, err := Load(s.root)
+	_, settings, err := Load(s.root)
 	if err != nil {
 		return mtt.Task{}, err
 	}
-	prefix := prefixes[string(t.Type)]
+	prefix := settings.Prefixes[string(t.Type)]
 	if prefix == "" {
 		return mtt.Task{}, fmt.Errorf("type %q: no prefix (unknown or prefixless type)", t.Type)
 	}

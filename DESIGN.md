@@ -378,21 +378,53 @@ Commands run in order, aborting on the first non-zero; the working directory is 
 per-command timeout; the escape hatch `--no-run` forces the transition without commands (for emergencies).
 Commands come from config (trusted, like a Makefile/git hooks), not from the network.
 
+> **Shipped (s006, `mtt status <id> <new>`):** a **single** gated edge. `Runner.Run(commands)` takes no
+> `dir` — the `exec` adapter is constructed with `cwd = project root` (core stays free of filesystem paths).
+> A non-zero exit is **data** (a `Check`), not a Go error; a blocked gate leaves the task unchanged and
+> writes no `history`. The per-command timeout is config-driven (`command_timeout`, default `5m`, an
+> adapter-level setting). Core sentinels `ErrBlocked`/`ErrInvalidTransition` map to exit codes `3`/`6`. A
+> single-edge lookup in `Type.Transitions` suffices (no `ResolvedFlow` yet — it earns its keep in s007's
+> multi-edge `advance`). The `advance`/`start`/`done` meta-walk and modes are s007. The gate prints **live
+> pipeline progress** to stderr (`▶`/`✓`/`✗` + per-command timing); the commands' own output is hidden by
+> default, streamed with `-v`, and/or written with `--log-file`. `by` resolves `--by` > `MTT_BY` >
+> `config.local.yaml` `author` (the durable personal default; `role` stays flag/env only).
+
 > Caveat (for planning): commands with side effects (creating a branch) go **after** the checks; if one
 > fails after a side effect, we don't commit the transition, but the side effect already happened — that's
 > on the ordering of commands. A two-phase model (checks → actions) is introduced only if needed.
 
 > **Seam (deferred): rollback / compensation.** A transition may optionally declare compensating commands
-> (e.g. `rollback:` / `on_failure:`) run when an `--atomic` or multi-step `advance` aborts after side
-> effects — to undo what a partially-applied transition did (delete the created branch, …). Not built now;
-> the executor's abort path is the hook. Additive in config, so deferrable.
+> (e.g. `rollback:` / `on_failure:`) run in **reverse order** over the already-succeeded commands when a
+> later command in the same pipeline fails (intra-pipeline compensation), and when an `--atomic` or
+> multi-step `advance` aborts after side effects — to undo what a partially-applied transition did (delete
+> the created branch, …). Not built now; the executor's abort path is the hook. Additive in config.
+
+> **Seam (deferred): structured commands.** Three wanted features — a **per-command timeout** overriding
+> the global `command_timeout` (fail fast when a fast command overruns), the `rollback` above, and
+> **placeholders** in a command (`git checkout -b task/{{.ID}}` on `tbd → in_progress`) — converge on
+> evolving `Transition.Commands` from `[]string` into a `Command` value object (`{run, timeout?, rollback?}`)
+> with placeholder expansion on `run`. Additive/back-compatible (a bare string ⇒ `{run: …}`), but a
+> **domain-shape change** — one deliberate slice. **Placeholder caveat:** substituted values reach `sh -c`,
+> so restrict to shape-safe fields (`id`/`type`/`status`) or shell-quote arbitrary ones (`title`) — never
+> interpolate raw text unquoted. See TASKS.md → Later.
 
 ### Advancing through the flow: `advance` / `start` / `done`
 
+> **PARKED (2026-07-05, on-demand).** `advance` and the verbs `start`/`done`/`cancel`, the modes
+> (`--stop`/`--atomic`/`--force`), and **roles-on-edges** are **deferred** — most status transitions are
+> exactly **one edge**, so single-edge `mtt status` is the norm and a multi-edge walk solves a problem we
+> don't have yet; role-tagged edges are near-RBAC and premature (identity/role may later come from an
+> external provider). This subsection is the **design intent** for when a flow actually branches; nothing
+> here is built until then. The ergonomic win is delivered earlier and cheaply by the `mtt <status> <id>`
+> **verb sugar** (s006.5) — a single-edge move via fallback-routing on an unknown first arg (not dynamic
+> command registration), forward-compatible: its semantics can grow single-edge → `advance` later without a
+> surface change. Attribution is `--who`/`--by` (who) + `--why` (a durable free-text reason recorded in
+> `history`). Design below is preserved as the target semantics.
+
 `start`/`done` are not a single transition but a **meta-command**: the primitive `advance <task> --to
 <status>` walks the task through a chain of transitions to a target status, running the edge gates along the
-way. `start` = `--to in_progress`, `done` = `--to done` (built-in aliases). **We do not build a config
-command DSL** — modes are flags.
+way. `start` = `--to <active>`, `done` = `--to <terminal>` (built-in aliases, resolved by category, not by
+literal names). **We do not build a config command DSL** — modes are flags.
 
 Traversal semantics (predictability over cleverness):
 
@@ -431,6 +463,24 @@ agent, `done` means something different than for an implementer (e.g. the implem
 Guardrails (to keep it from ballooning): roles are **semantic routing** (what a verb means for a role),
 **not** RBAC/enforcement (agents are cooperative — we route, we don't police). Role names come from config,
 never hardcoded (like types/statuses).
+
+> **Direction (deferred): actor profiles.** The `roles` section is expected to grow into named **profiles**
+> that pair an identity with a role — `(by, role)`, e.g. `(coding-agent, implementer)` / `(Alice, reviewer)`
+> — with exactly one marked `default: true`, applied when neither `--profile` nor `--by`/`--role` is given.
+> Since mtt is used mostly by **coding agents** sharing the repo config with a human, the agent's profile is
+> the ergonomic default and the human overrides. `mtt profile add/list/rm` manages **only** the personal
+> `config.local.yaml` profiles (shared project profiles, if any, are read-only to the command). This
+> **subsumes the s006 `author` seam** (`author` = the default profile's `by`) and is forward-compatible. See
+> TASKS.md → Later.
+>
+> **Hard precondition (the real question): subagent identity.** Roles/RBAC are pointless unless we can
+> distinguish subagents acting with **different** roles under multi-agent access — that is what RBAC hinges
+> on. Until there is an identity mechanism (per-agent `config.local`, an env/handshake/token, or a
+> provider-supplied identity), `by`/`role` are self-declared strings and profiles are just ergonomic
+> defaults, not enforcement. Decide subagent identity **before** reviving roles. Meanwhile attribution is
+> release-complete without any of this: `--who`/`--why` (free text) + a project-global `require: {who, why}`
+> config (an execution/adapter setting, like `command_timeout`; `config.local` may only tighten) validated
+> before the gate, aggregating all missing fields into one usage error (exit 2). Roles/profiles stay parked.
 
 `mtt init` writes `.mtt/config.yaml` with example types `epic`/`task`/`subtask` and a linear flow
 (`initial → active → terminal`, plus a second terminal for cancellation). Those names are the **template's**,
@@ -518,9 +568,11 @@ requires no public-API diff), as a ready-made demo of the enforcement value.
 > **Deferred design question — `cancelled` blocker semantics.** A `terminal` blocker unblocks its dependent,
 > and `cancelled` is a terminal `kind`, so a task whose blockers are `done` **and** `cancelled` is formally
 > ready — yet a *cancelled* (abandoned, not completed) blocker arguably means the dependent needs
-> re-evaluation, not silent unblocking. Current behaviour keeps terminal-by-`kind` (cancelled unblocks);
-> revisiting this (a succeeded-vs-abandoned distinction, a hard/soft edge, or a warning on `ready`) is
-> deferred to flow enforcement (s006), where terminal statuses first become reachable. See TASKS.md → Later.
+> re-evaluation, not silent unblocking. **Revisited in s006** (terminals are now reachable via `mtt status`):
+> the decision is to **keep** terminal-by-`kind` (cancelled unblocks) — a proper fix (a
+> succeeded-vs-abandoned distinction, a hard/soft edge) needs new domain modelling that a flow-gate session
+> should not smuggle in, and would risk the name-agnostic principle. s006 adds an e2e (`cancel_unblock`)
+> demonstrating the current semantics with a reachable state; the deeper fix stays deferred. See TASKS.md → Later.
 
 ## Flow versioning and task history
 
@@ -583,8 +635,8 @@ has a text/ASCII Gantt. The latest phase.
 | 0 | Scaffold: repo, module, AGENTS/DESIGN, CLI skeleton, gate, CI | ✅ done |
 | 1 | `pkg/mtt` **pure** contract (domain types + `TaskStore` port); config+types (**structural** invariants: `kind` by topology, ≥1 of each, no name literals), `mtt init`; the YAML adapter **mints IDs** flat per-prefix (`e1`/`t17`/`s3`); core usecases + `add/list/show/edit/close` | 🔄 s001–003 (`close` → phase 3; optional capability interfaces deferred, see [architecture snapshot](docs/architecture/model.go)) |
 | 2 | Hierarchy (by `parents` from config); dependencies; `ready`; cycle detection | 🔄 hierarchy done (s004); dependencies/`ready`/cycles → s005 |
-| 3 | Flow enforcement: transition validation + running `commands` (the `Runner` port), gating on exit codes; `mtt start/done/status` | |
-| 4 | Comments (tree) | |
+| 3 | Flow enforcement: transition validation + running `commands` (the `Runner` port), gating on exit codes; `mtt status`; **attribution + verb sugar**; **structured commands** (placeholders + per-command timeout) + **rollback** | 🔄 single-edge `mtt status` shipped (s006); attribution+sugar (`--why`/`--who`, `mtt <status> <id>`) → s006.5; structured commands (the "work in task terms" enabler) → s007; rollback → s008. **`advance`/`start`/`done`/`cancel` + modes + roles-on-edges are PARKED** (on-demand — single-edge `status` is the norm) |
+| 4 | **Dogfood** (pulled ahead — s009, after flow orchestration is complete), then references (s010), comments (s011), actor profiles (s012) | |
 | — | **⬆ agent-facing MVP — fully usable** | |
 | 5 | `KnowledgeStore` port + YAML KB adapter; text search | |
 | 6 | Text/ASCII Gantt in the CLI; richer list/query | |
@@ -595,7 +647,11 @@ Positioning priorities: phase 3 (flow) and **adaptivity** (external backends, ph
 `mtt-ui` (phase 7) is a nice optional default, not the main argument. Dependencies (phase 2) stay
 **simple**; the knowledge base (phase 5) is low priority (beads already has an analog), done only if cheap.
 
-Dogfooding: until phase 4 the plan is kept here; after that we move mtt's development onto mtt itself.
+Dogfooding: **pulled ahead** (s010, once flow orchestration — advance + structured commands — is complete),
+before references/comments, since those enrich a full self-host but don't enable it. "The agent works in task
+terms, with shell orchestration living in flow transitions" hinges on **command placeholders** (s008): a
+transition can't create a per-task branch without them. Until then the plan is kept in this repo's docs;
+after dogfood we move mtt's development onto mtt itself. See sessions/README.md → "Roadmap regrouped".
 
 **Later (backlog):**
 

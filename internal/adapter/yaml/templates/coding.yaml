@@ -1,6 +1,7 @@
 version: 1
 project:
   name: {{.Name}}
+command_timeout: 5m
 types:
   - name: feature
     description: A new capability. DoD — a branch and a green gate.
