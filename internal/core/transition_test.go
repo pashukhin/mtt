@@ -172,6 +172,60 @@ func TestTransitionNoRunDoesNotBypassAttribution(t *testing.T) {
 	}
 }
 
+func TestTransitionExpandsPlaceholders(t *testing.T) {
+	store := newMemStore(baseTask()) // t1, type task, status tbd
+	runner := &fakeRunner{checks: []mtt.Check{{Cmd: "git checkout -b task/t1", Exit: 0}}}
+	tr := NewTransitioner(store, flowCfg([]string{"git checkout -b task/{{.ID}}"}, nil), runner, testClock)
+
+	if _, err := tr.Transition("t1", "in_progress", TransitionOptions{}); err != nil {
+		t.Fatalf("Transition: %v", err)
+	}
+	if len(runner.gotCmds) != 1 || runner.gotCmds[0].Run != "git checkout -b task/t1" {
+		t.Fatalf("runner got %+v, want expanded 'git checkout -b task/t1'", runner.gotCmds)
+	}
+}
+
+func TestTransitionExpandsFromTo(t *testing.T) {
+	store := newMemStore(baseTask())
+	runner := &fakeRunner{}
+	tr := NewTransitioner(store, flowCfg([]string{"echo {{.From}} {{.To}}"}, nil), runner, testClock)
+
+	if _, err := tr.Transition("t1", "in_progress", TransitionOptions{}); err != nil {
+		t.Fatalf("Transition: %v", err)
+	}
+	if runner.gotCmds[0].Run != "echo tbd in_progress" {
+		t.Fatalf("expanded = %q, want 'echo tbd in_progress' (From = pre-move status)", runner.gotCmds[0].Run)
+	}
+}
+
+func TestTransitionUnknownPlaceholderErrors(t *testing.T) {
+	store := newMemStore(baseTask())
+	tr := NewTransitioner(store, flowCfg([]string{"echo {{.Title}}"}, nil), &fakeRunner{}, testClock)
+
+	_, err := tr.Transition("t1", "in_progress", TransitionOptions{})
+	if err == nil || errors.Is(err, ErrBlocked) {
+		t.Fatalf("want a plain expansion error (not ErrBlocked), got %v", err)
+	}
+	reloaded, _ := store.Get("t1")
+	if reloaded.Status != "tbd" || len(reloaded.History) != 0 {
+		t.Fatalf("task changed on an expansion error: %+v", reloaded)
+	}
+}
+
+func TestTransitionNoRunSkipsExpansion(t *testing.T) {
+	store := newMemStore(baseTask())
+	// A template that would fail expansion; --no-run must skip expansion + gate.
+	tr := NewTransitioner(store, flowCfg([]string{"echo {{.Title}}"}, nil), &fakeRunner{}, testClock)
+
+	got, err := tr.Transition("t1", "in_progress", TransitionOptions{NoRun: true})
+	if err != nil {
+		t.Fatalf("--no-run must skip expansion; err = %v", err)
+	}
+	if got.Status != "in_progress" {
+		t.Fatalf("status = %q, want in_progress", got.Status)
+	}
+}
+
 func TestTransitionNoRunBypassesRunner(t *testing.T) {
 	store := newMemStore(baseTask())
 	runner := &fakeRunner{err: errors.New("must not be called")}
