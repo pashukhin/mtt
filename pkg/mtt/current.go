@@ -20,3 +20,14 @@ func (a CurrentAction) Valid() bool {
 		return false
 	}
 }
+
+// CurrentStore is the optional "current task" pointer: which single task this
+// working copy is focused on (git-HEAD-for-tasks). It is a capability, not a Task
+// field — a provider may back it natively (an assignee) rather than a local
+// pointer, so it cannot ride TaskStore.Update. The YAML adapter stores it in
+// config.local. Unset is (_, false, nil), never an error.
+type CurrentStore interface {
+	Current() (TaskID, bool, error)
+	SetCurrent(id TaskID) error
+	ClearCurrent() error
+}
