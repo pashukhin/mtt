@@ -418,14 +418,23 @@ Commands come from config (trusted, like a Makefile/git hooks), not from the net
 > multi-step `advance` aborts after side effects — to undo what a partially-applied transition did (delete
 > the created branch, …). Not built now; the executor's abort path is the hook. Additive in config.
 
-> **Seam (deferred): structured commands.** Three wanted features — a **per-command timeout** overriding
-> the global `command_timeout` (fail fast when a fast command overruns), the `rollback` above, and
-> **placeholders** in a command (`git checkout -b task/{{.ID}}` on `tbd → in_progress`) — converge on
-> evolving `Transition.Commands` from `[]string` into a `Command` value object (`{run, timeout?, rollback?}`)
-> with placeholder expansion on `run`. Additive/back-compatible (a bare string ⇒ `{run: …}`), but a
-> **domain-shape change** — one deliberate slice. **Placeholder caveat:** substituted values reach `sh -c`,
-> so restrict to shape-safe fields (`id`/`type`/`status`) or shell-quote arbitrary ones (`title`) — never
-> interpolate raw text unquoted. See TASKS.md → Later.
+> **Shipped (s007): structured commands.** `Transition.Commands` evolved from `[]string` into a `Command`
+> value object `{run, timeout?}` (a pure `pkg/mtt` VO; `rollback?` is additive, deferred to s008). Two
+> capabilities land: (1) **placeholder expansion** of `run` — `.ID`/`.Type`/`.From`/`.To` (e.g.
+> `git checkout -b task/{{.ID}}` on `tbd → in_progress`); (2) a **per-command timeout** overriding the global
+> `command_timeout` (fail fast when a fast command overruns). **Back-compat:** a bare YAML scalar ⇒ `{run: …}`
+> (a custom `UnmarshalYAML` on the DTO accepts a scalar **or** a `{run, timeout}` map); both collapse to one
+> `Command` at the adapter boundary — nothing above it branches on the form. Four decisions (brainstormed):
+> **(1)** the per-command timeout lives in the **domain VO** (an authored property of a flow edge, inseparable
+> from `run`), while the global `command_timeout` stays adapter **execution policy** (`Settings`) — the runner
+> resolves per-command-else-global; **(2)** expansion happens in **`core.Transitioner`** (it holds task+edge),
+> so `pkg/mtt` stays **template-agnostic** (stores the raw template, core expands before `runner.Run`) and the
+> exec adapter stays dumb; **(3)** injection defense is a **structural whitelist** — `text/template` over a
+> struct exposing only the four shape-safe fields, so free text (`title`) is never interpolated and a stray
+> `{{.Title}}` is a template error (no shell-quoting needed; if a free-text field is ever exposed it MUST be
+> quoted — a documented seam); **(4)** `Runner.Run` takes `[]Command` (Run already expanded; `Check.Cmd`
+> records the expanded command for a truthful audit). An expansion error aborts the transition as a plain
+> error (exit 1), distinct from a gate block (`ErrBlocked`, exit 3). See sessions/007 and TASKS.md → e4_t9.
 
 > **Seam (deferred, think): node-level status actions.** Today executable pipelines hang only on **edges**
 > (transitions — they change status and gate). But "commit intermediate work / build / run checks **while

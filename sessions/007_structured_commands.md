@@ -49,17 +49,53 @@ tight timeout.
 ## Plan (refine at session start — test-first; brainstorm → writing-plans)
 
 Authoritative spec:
-[../docs/superpowers/specs/2026-07-06-session-007-structured-commands-design.md](../docs/superpowers/specs/2026-07-06-session-007-structured-commands-design.md).
+[../docs/superpowers/specs/2026-07-06-session-007-structured-commands-design.md](../docs/superpowers/specs/2026-07-06-session-007-structured-commands-design.md);
+plan:
+[../docs/superpowers/plans/2026-07-06-session-007-structured-commands.md](../docs/superpowers/plans/2026-07-06-session-007-structured-commands.md).
 
-- [ ] Brainstorm the open questions — resolve in the spec.
-- [ ] `pkg/mtt`: `Command` VO + `Valid()`; `Transition.Commands []Command`; `Config.Validate` on commands.
-- [ ] `adapter/yaml`: `ymlCommand` custom `UnmarshalYAML` (scalar|map) + duration parse; DTO mapping.
-- [ ] `core`: placeholder expansion (`text/template`, shape-safe fields only); `Runner.Run([]mtt.Command)`.
-- [ ] `adapter/exec`: per-command timeout with global fallback; update fake.
-- [ ] e2e `structured_commands.txt`; unit tests per the spec.
-- [ ] Docs: DESIGN.md/.ru, CLI_REFERENCE.md/.ru, CLAUDE.md ×N, model.go, TASKS.md, sessions/README.md,
+- [x] Brainstorm the open questions — resolved in the spec (four decisions locked; independent subagent review).
+- [x] `pkg/mtt`: `Command` VO + `Valid()`; `Transition.Commands []Command`; `Config.Validate` on commands.
+- [x] `adapter/yaml`: `ymlCommand` custom `UnmarshalYAML` (scalar|map) + duration parse; DTO mapping.
+- [x] `core`: placeholder expansion (`text/template`, shape-safe fields only); `Runner.Run([]mtt.Command)`.
+- [x] `adapter/exec`: per-command timeout with global fallback; update fake.
+- [x] e2e `structured_commands.txt`; unit tests per the spec.
+- [x] Docs: DESIGN.md/.ru, CLI_REFERENCE.md/.ru, CLAUDE.md ×5, model.go, TASKS.md, sessions/README.md,
       NEXT_SESSION.md; bump `0.6.7-dev` → `0.7.0-dev`.
 
 ## Done (fill during/after the session)
 
-<pending>
+Shipped (all test-first, `make check` green), version `0.6.7-dev` → `0.7.0-dev`:
+
+- **`pkg/mtt`**: the `Command` value object (`{Run string, Timeout time.Duration}`, `command.go`) — `Run` holds
+  a **raw template** (domain is template-agnostic), `Timeout` an optional per-command override; `Valid()`
+  (non-empty run, non-negative timeout) checked in `Config.Validate`. `Transition.Commands` is now `[]Command`.
+- **`internal/adapter/yaml`**: `ymlCommand.UnmarshalYAML` accepts a bare scalar **or** a `{run, timeout}` map
+  (back-compat), decoding the map branch into a string-`Timeout` alias then `time.ParseDuration` (bad duration →
+  `Load` error; `toDomain` stays error-free). No `MarshalYAML` (config is never marshaled).
+- **`internal/core`**: `expandCommands` (`expand.go`) renders each `Command.Run` via `text/template` over
+  `cmdContext{ID, Type, From, To}` — a self-enforcing shape-safe whitelist; `Transitioner` expands before the
+  gate using the **pre-move** status for `.From` (expansion error → plain error, exit 1, not `ErrBlocked`).
+  `Runner.Run([]mtt.Command)` (Run expanded at the boundary).
+- **`internal/adapter/exec`**: the `Runner` resolves the effective timeout per command
+  (`cmd.Timeout` else the constructor global) — a tight per-command timeout fails fast independent of the
+  global; `Check.Cmd` records the expanded command.
+- **`internal/cli`**: `mtt types` renders `$ <run>` + `(timeout <d>)`; no other CLI wiring change (the runner
+  still gets `settings.CommandTimeout` — now the fallback).
+- **Tests**: unit — `Command.Valid`; `Config.Validate` rejects a bad command; `ymlCommand` scalar/map/bad-duration
+  + mixed-list `toDomain`; `expandCommands` (substitution, all fields, unknown-field/malformed errors);
+  `Transitioner` (expands, pre-move `.From`, unknown-placeholder aborts without change, `--no-run` skips
+  expansion); exec per-command-timeout override + global fallback; `mtt types` timeout annotation. e2e —
+  `structured_commands.txt` (`git checkout -b task/{{.ID}}` creates `task/t1` asserted via `git symbolic-ref`;
+  a 100ms per-command timeout blocks a `sleep 1` gate under a 5m global; a bare-string edge still gates; `mtt
+  types` shows the timeout; guarded by `[!exec:git] skip`).
+
+**Deviations / notes:**
+- `Command` ships without a smart constructor — a plain VO with `Valid()` checked in `Config.Validate` (the
+  `StatusKind`/`CurrentAction` idiom), so `toDomain` needs no error path; the DTO's `UnmarshalYAML` parses the
+  duration and carries the error.
+- `rollback?` deliberately **not** added — s008 adds it as a new optional field (additive).
+- e2e uses `sleep 1` (not `sleep 5`): the per-command timeout kills at 100ms, but `exec.CommandContext` blocks
+  `Run()` until the orphaned `sleep` closes the inherited output pipe (same as the existing `TestRunTimeout`),
+  so a shorter sleep keeps the e2e ~1s. The timeout still fires (the move blocks, exit 3).
+
+**Next:** s008 rollback/compensation (reverse-order compensating commands; the `Command` VO gains `Rollback`).
