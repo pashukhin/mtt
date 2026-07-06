@@ -54,6 +54,7 @@ type ymlTransition struct {
 	To          string   `yaml:"to"`
 	Description string   `yaml:"description"`
 	Commands    []string `yaml:"commands"`
+	Current     string   `yaml:"current,omitempty"`
 }
 
 // toDomain maps the DTO to the pure domain Config and the adapter-owned
@@ -67,7 +68,7 @@ func (yc ymlConfig) toDomain() (mtt.Config, map[string]string) {
 			t.Statuses = append(t.Statuses, mtt.Status{Name: mtt.StatusName(ys.Name), Kind: mtt.StatusKind(ys.Kind), Description: ys.Description})
 		}
 		for _, yr := range yt.Transitions {
-			t.Transitions = append(t.Transitions, mtt.Transition{From: mtt.StatusName(yr.From), To: mtt.StatusName(yr.To), Description: yr.Description, Commands: yr.Commands})
+			t.Transitions = append(t.Transitions, mtt.Transition{From: mtt.StatusName(yr.From), To: mtt.StatusName(yr.To), Description: yr.Description, Commands: yr.Commands, Current: mtt.CurrentAction(yr.Current)})
 		}
 		cfg.Types = append(cfg.Types, t)
 		prefixes[yt.Name] = yt.Prefix

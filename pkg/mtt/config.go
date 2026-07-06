@@ -49,6 +49,7 @@ type Transition struct {
 	To          StatusName
 	Description string
 	Commands    []string
+	Current     CurrentAction // set|clear the personal current pointer when traversed (empty = no effect)
 }
 
 // DefaultType returns the type marked default, or the first type when none is

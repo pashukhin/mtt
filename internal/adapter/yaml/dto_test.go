@@ -63,3 +63,24 @@ func TestCheckPrefixes(t *testing.T) {
 		t.Fatalf("missing default not reported: %v", err)
 	}
 }
+
+func TestToDomainTransitionCurrent(t *testing.T) {
+	yc := ymlConfig{Types: []ymlType{{
+		Name: "task", Prefix: "t", Default: true,
+		Statuses: []ymlStatus{
+			{Name: "tbd", Kind: "initial"}, {Name: "wip", Kind: "active"}, {Name: "done", Kind: "terminal"},
+		},
+		Transitions: []ymlTransition{
+			{From: "tbd", To: "wip", Current: "set"},
+			{From: "wip", To: "done", Current: "clear"},
+		},
+	}}}
+	cfg, _ := yc.toDomain()
+	trs := cfg.Types[0].Transitions
+	if trs[0].Current != mtt.CurrentSet {
+		t.Errorf("edge tbd->wip Current = %q, want set", trs[0].Current)
+	}
+	if trs[1].Current != mtt.CurrentClear {
+		t.Errorf("edge wip->done Current = %q, want clear", trs[1].Current)
+	}
+}
