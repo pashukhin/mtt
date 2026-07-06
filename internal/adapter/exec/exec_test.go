@@ -6,10 +6,12 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/pashukhin/mtt/pkg/mtt"
 )
 
 func TestRunAllPass(t *testing.T) {
-	checks, err := NewRunner(t.TempDir(), time.Minute, io.Discard, io.Discard).Run([]string{"true", "true"})
+	checks, err := NewRunner(t.TempDir(), time.Minute, io.Discard, io.Discard).Run([]mtt.Command{{Run: "true"}, {Run: "true"}})
 	if err != nil {
 		t.Fatalf("Run: %v", err)
 	}
@@ -19,7 +21,7 @@ func TestRunAllPass(t *testing.T) {
 }
 
 func TestRunStopsAtFirstNonZero(t *testing.T) {
-	checks, err := NewRunner(t.TempDir(), time.Minute, io.Discard, io.Discard).Run([]string{"true", "false", "true"})
+	checks, err := NewRunner(t.TempDir(), time.Minute, io.Discard, io.Discard).Run([]mtt.Command{{Run: "true"}, {Run: "false"}, {Run: "true"}})
 	if err != nil {
 		t.Fatalf("Run: %v (non-zero exit is data, not an error)", err)
 	}
@@ -35,7 +37,7 @@ func TestRunStopsAtFirstNonZero(t *testing.T) {
 }
 
 func TestRunTimeout(t *testing.T) {
-	_, err := NewRunner(t.TempDir(), time.Millisecond, io.Discard, io.Discard).Run([]string{"sleep 1"})
+	_, err := NewRunner(t.TempDir(), time.Millisecond, io.Discard, io.Discard).Run([]mtt.Command{{Run: "sleep 1"}})
 	if err == nil {
 		t.Fatalf("want a timeout error, got nil")
 	}
@@ -45,7 +47,7 @@ func TestRunStreamsProgressAndSeparatesOutput(t *testing.T) {
 	// The command text ("echo $((3+4))") deliberately does not contain its output
 	// ("7"), so we can assert the two streams stay separate.
 	var prog, out bytes.Buffer
-	checks, err := NewRunner(t.TempDir(), time.Minute, &prog, &out).Run([]string{"echo $((3+4))", "true"})
+	checks, err := NewRunner(t.TempDir(), time.Minute, &prog, &out).Run([]mtt.Command{{Run: "echo $((3+4))"}, {Run: "true"}})
 	if err != nil {
 		t.Fatalf("Run: %v", err)
 	}
@@ -70,7 +72,7 @@ func TestRunStreamsProgressAndSeparatesOutput(t *testing.T) {
 
 func TestRunProgressMarksFailure(t *testing.T) {
 	var prog bytes.Buffer
-	_, err := NewRunner(t.TempDir(), time.Minute, &prog, io.Discard).Run([]string{"false"})
+	_, err := NewRunner(t.TempDir(), time.Minute, &prog, io.Discard).Run([]mtt.Command{{Run: "false"}})
 	if err != nil {
 		t.Fatalf("Run: %v", err)
 	}

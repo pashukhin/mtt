@@ -44,19 +44,19 @@ func NewRunner(dir string, timeout time.Duration, progress, cmdOut io.Writer) *R
 // reporting live progress. It stops at the first non-zero exit (a Check, not an
 // error). An operational failure (launch error or timeout) returns the checks so
 // far plus a non-nil error.
-func (r *Runner) Run(commands []string) ([]mtt.Check, error) {
+func (r *Runner) Run(commands []mtt.Command) ([]mtt.Check, error) {
 	checks := make([]mtt.Check, 0, len(commands))
 	for _, cmd := range commands {
-		_, _ = fmt.Fprintf(r.progress, "▶ %s\n", cmd)
+		_, _ = fmt.Fprintf(r.progress, "▶ %s\n", cmd.Run)
 		start := time.Now()
-		exit, err := r.runOne(cmd)
+		exit, err := r.runOne(cmd.Run)
 		elapsed := time.Since(start).Round(time.Millisecond)
 		mark := "✓"
 		if exit != 0 || err != nil {
 			mark = "✗"
 		}
-		_, _ = fmt.Fprintf(r.progress, "%s %s (exit %d, %s)\n", mark, cmd, exit, elapsed)
-		checks = append(checks, mtt.Check{Cmd: cmd, Exit: exit})
+		_, _ = fmt.Fprintf(r.progress, "%s %s (exit %d, %s)\n", mark, cmd.Run, exit, elapsed)
+		checks = append(checks, mtt.Check{Cmd: cmd.Run, Exit: exit})
 		if err != nil {
 			return checks, err
 		}

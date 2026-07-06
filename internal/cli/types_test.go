@@ -17,7 +17,7 @@ func TestFormatTypes(t *testing.T) {
 			},
 			Transitions: []mtt.Transition{
 				{From: "tbd", To: "doing"},
-				{From: "doing", To: "done", Description: "gate", Commands: []string{"make test"}},
+				{From: "doing", To: "done", Description: "gate", Commands: []mtt.Command{{Run: "make test"}}},
 			},
 		},
 	}}}

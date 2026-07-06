@@ -68,7 +68,11 @@ func (yc ymlConfig) toDomain() (mtt.Config, map[string]string) {
 			t.Statuses = append(t.Statuses, mtt.Status{Name: mtt.StatusName(ys.Name), Kind: mtt.StatusKind(ys.Kind), Description: ys.Description})
 		}
 		for _, yr := range yt.Transitions {
-			t.Transitions = append(t.Transitions, mtt.Transition{From: mtt.StatusName(yr.From), To: mtt.StatusName(yr.To), Description: yr.Description, Commands: yr.Commands, Current: mtt.CurrentAction(yr.Current)})
+			cmds := make([]mtt.Command, 0, len(yr.Commands))
+			for _, run := range yr.Commands {
+				cmds = append(cmds, mtt.Command{Run: run})
+			}
+			t.Transitions = append(t.Transitions, mtt.Transition{From: mtt.StatusName(yr.From), To: mtt.StatusName(yr.To), Description: yr.Description, Commands: cmds, Current: mtt.CurrentAction(yr.Current)})
 		}
 		cfg.Types = append(cfg.Types, t)
 		prefixes[yt.Name] = yt.Prefix

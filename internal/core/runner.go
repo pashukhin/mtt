@@ -10,9 +10,10 @@ import (
 // defined here (only core uses it), implemented in internal/adapter/exec, and
 // faked in tests. A non-zero exit is DATA (recorded in a Check), not a Go error;
 // the returned error signals an operational failure (a command could not launch
-// or timed out).
+// or timed out). At this boundary each Command's Run is ALREADY EXPANDED by core
+// (see expand.go); the runner only runs and reports.
 type Runner interface {
-	Run(commands []string) ([]mtt.Check, error)
+	Run(commands []mtt.Command) ([]mtt.Check, error)
 }
 
 // ErrBlocked is returned when a transition's gate does not pass (a command exited
