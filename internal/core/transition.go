@@ -63,9 +63,19 @@ func (tr *Transitioner) Transition(id mtt.TaskID, to mtt.StatusName, opts Transi
 	if missing := missingAttribution(opts); len(missing) > 0 {
 		return mtt.Task{}, fmt.Errorf("%w: %s", ErrMissingAttribution, strings.Join(missing, ", "))
 	}
+	from := t.Status
 	var checks []mtt.Check
 	if !opts.NoRun {
-		checks, err = tr.runner.Run(edge.Commands)
+		expanded, eerr := expandCommands(edge.Commands, cmdContext{
+			ID:   string(t.ID),
+			Type: string(t.Type),
+			From: string(from),
+			To:   string(to),
+		})
+		if eerr != nil {
+			return mtt.Task{}, fmt.Errorf("expand commands for %s (%s->%s): %w", id, from, to, eerr)
+		}
+		checks, err = tr.runner.Run(expanded)
 		if err != nil {
 			return mtt.Task{}, fmt.Errorf("%w: %v", ErrBlocked, err)
 		}
@@ -73,7 +83,6 @@ func (tr *Transitioner) Transition(id mtt.TaskID, to mtt.StatusName, opts Transi
 			return mtt.Task{}, fmt.Errorf("%w: command %q exited %d", ErrBlocked, c.Cmd, c.Exit)
 		}
 	}
-	from := t.Status
 	ts := tr.now().UTC().Truncate(time.Second)
 	t.Status = to
 	t.History = append(t.History, mtt.HistoryEntry{
