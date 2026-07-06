@@ -14,9 +14,9 @@ types:
       - {name: done,        kind: terminal}
       - {name: cancelled,   kind: terminal}
     transitions:
-      - {from: tbd,         to: in_progress, description: "create a feature branch"}
+      - {from: tbd,         to: in_progress, description: "create a feature branch", current: set}
       - {from: tbd,         to: cancelled}
-      - {from: in_progress, to: done, description: "quality gate", commands: ["make lint", "make test"]}
+      - {from: in_progress, to: done, description: "quality gate", commands: ["make lint", "make test"], current: clear}
       - {from: in_progress, to: cancelled}
   - name: bugfix
     description: A fix. DoD — a failing test first, then green.
@@ -28,9 +28,9 @@ types:
       - {name: done,        kind: terminal}
       - {name: cancelled,   kind: terminal}
     transitions:
-      - {from: tbd,         to: in_progress, description: "write a failing test that reproduces the bug", commands: ["! make test"]}
+      - {from: tbd,         to: in_progress, description: "write a failing test that reproduces the bug", commands: ["! make test"], current: set}
       - {from: tbd,         to: cancelled}
-      - {from: in_progress, to: done, description: "quality gate", commands: ["make lint", "make test"]}
+      - {from: in_progress, to: done, description: "quality gate", commands: ["make lint", "make test"], current: clear}
       - {from: in_progress, to: cancelled}
   - name: refactor
     description: A behavior-preserving change. DoD — no public-API diff, then green.
@@ -42,7 +42,7 @@ types:
       - {name: done,        kind: terminal}
       - {name: cancelled,   kind: terminal}
     transitions:
-      - {from: tbd,         to: in_progress, description: "create a branch"}
+      - {from: tbd,         to: in_progress, description: "create a branch", current: set}
       - {from: tbd,         to: cancelled}
-      - {from: in_progress, to: done, description: "no public-API change + quality gate", commands: ["git diff --exit-code -- pkg/", "make lint", "make test"]}
+      - {from: in_progress, to: done, description: "no public-API change + quality gate", commands: ["git diff --exit-code -- pkg/", "make lint", "make test"], current: clear}
       - {from: in_progress, to: cancelled}

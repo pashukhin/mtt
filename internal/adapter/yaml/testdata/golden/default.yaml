@@ -13,9 +13,9 @@ types:
       - {name: done,        kind: terminal}
       - {name: cancelled,   kind: terminal}
     transitions:
-      - {from: tbd,         to: in_progress}
+      - {from: tbd,         to: in_progress, current: set}
       - {from: tbd,         to: cancelled}
-      - {from: in_progress, to: done, description: "all epic tasks closed"}
+      - {from: in_progress, to: done, description: "all epic tasks closed", current: clear}
       - {from: in_progress, to: cancelled}
   - name: task
     description: A unit of work under an epic.
@@ -28,9 +28,9 @@ types:
       - {name: done,        kind: terminal}
       - {name: cancelled,   kind: terminal}
     transitions:
-      - {from: tbd,         to: in_progress, description: "review the spec, create a branch"}
+      - {from: tbd,         to: in_progress, description: "review the spec, create a branch", current: set}
       - {from: tbd,         to: cancelled}
-      - {from: in_progress, to: done, description: "quality gate"}
+      - {from: in_progress, to: done, description: "quality gate", current: clear}
       - {from: in_progress, to: cancelled}
   - name: subtask
     description: A small step within a task.
@@ -42,7 +42,7 @@ types:
       - {name: done,        kind: terminal}
       - {name: cancelled,   kind: terminal}
     transitions:
-      - {from: tbd,         to: in_progress}
+      - {from: tbd,         to: in_progress, current: set}
       - {from: tbd,         to: cancelled}
-      - {from: in_progress, to: done}
+      - {from: in_progress, to: done, current: clear}
       - {from: in_progress, to: cancelled}
