@@ -25,6 +25,15 @@ type Settings struct {
 	Prefixes       map[string]string
 	CommandTimeout time.Duration
 	Author         string
+	Require        RequireAttribution
+}
+
+// RequireAttribution is the project's required-attribution policy (who/why must
+// be provided on a transition). Committed in config.yaml; config.local may only
+// TIGHTEN (add requirements), never relax.
+type RequireAttribution struct {
+	Who bool
+	Why bool
 }
 
 // Load reads .mtt/config.yaml under root, merges the optional gitignored
@@ -39,6 +48,7 @@ func Load(root string) (mtt.Config, Settings, error) {
 	if err := decodeInto(filepath.Join(root, dirName, configName), &yc, true); err != nil {
 		return mtt.Config{}, Settings{}, err
 	}
+	committedRequire := yc.Require // capture before the local overlay (tighten-only)
 	if err := decodeInto(filepath.Join(root, dirName, localConfigName), &yc, false); err != nil {
 		return mtt.Config{}, Settings{}, err
 	}
@@ -50,7 +60,11 @@ func Load(root string) (mtt.Config, Settings, error) {
 	if err != nil {
 		return mtt.Config{}, Settings{}, err
 	}
-	return cfg, Settings{Prefixes: prefixes, CommandTimeout: timeout, Author: yc.Author}, nil
+	require := RequireAttribution{
+		Who: committedRequire.Who || yc.Require.Who,
+		Why: committedRequire.Why || yc.Require.Why,
+	}
+	return cfg, Settings{Prefixes: prefixes, CommandTimeout: timeout, Author: yc.Author, Require: require}, nil
 }
 
 // parseCommandTimeout parses the command_timeout string; empty yields the

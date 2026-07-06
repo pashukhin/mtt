@@ -18,7 +18,15 @@ type ymlConfig struct {
 	Project        ymlProject `yaml:"project"`
 	CommandTimeout string     `yaml:"command_timeout,omitempty"`
 	Author         string     `yaml:"author,omitempty"`
+	Require        ymlRequire `yaml:"require,omitempty"`
 	Types          []ymlType  `yaml:"types"`
+}
+
+// ymlRequire is the on-disk required-attribution policy (who/why must be given
+// on a transition). Committed in config.yaml; config.local may only tighten.
+type ymlRequire struct {
+	Who bool `yaml:"who,omitempty"`
+	Why bool `yaml:"why,omitempty"`
 }
 
 type ymlProject struct {

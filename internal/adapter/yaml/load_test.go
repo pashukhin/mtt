@@ -102,6 +102,58 @@ func TestLoadCommandTimeoutFromConfig(t *testing.T) {
 	}
 }
 
+func TestLoadRequireParsed(t *testing.T) {
+	root := t.TempDir()
+	if err := Init(root, "default", "demo", false); err != nil {
+		t.Fatalf("init: %v", err)
+	}
+	appendToConfig(t, root, "require:\n  who: true\n  why: true\n")
+	_, s, err := Load(root)
+	if err != nil {
+		t.Fatalf("load: %v", err)
+	}
+	if !s.Require.Who || !s.Require.Why {
+		t.Fatalf("Require = %+v, want both true", s.Require)
+	}
+}
+
+func TestLoadRequireTightenOnly(t *testing.T) {
+	root := t.TempDir()
+	if err := Init(root, "default", "demo", false); err != nil {
+		t.Fatalf("init: %v", err)
+	}
+	// committed requires who; local tries to relax who (must not) and add why (must).
+	appendToConfig(t, root, "require:\n  who: true\n")
+	overlay := filepath.Join(root, dirName, localConfigName)
+	if err := os.WriteFile(overlay, []byte("require:\n  who: false\n  why: true\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	_, s, err := Load(root)
+	if err != nil {
+		t.Fatalf("load: %v", err)
+	}
+	if !s.Require.Who {
+		t.Error("Who must stay true (a committed requirement cannot be relaxed by config.local)")
+	}
+	if !s.Require.Why {
+		t.Error("Why must become true (config.local may tighten)")
+	}
+}
+
+// appendToConfig appends raw YAML to .mtt/config.yaml (a new top-level block).
+func appendToConfig(t *testing.T, root, block string) {
+	t.Helper()
+	path := filepath.Join(root, dirName, configName)
+	f, err := os.OpenFile(path, os.O_APPEND|os.O_WRONLY, 0o644)
+	if err != nil {
+		t.Fatalf("open config: %v", err)
+	}
+	defer func() { _ = f.Close() }()
+	if _, err := f.WriteString("\n" + block); err != nil {
+		t.Fatalf("append config: %v", err)
+	}
+}
+
 // writeConfigWithout rewrites .mtt/config.yaml dropping any line whose key is
 // `key:` at column 0 — a crude way to simulate an absent top-level field.
 func writeConfigWithout(t *testing.T, root, key string) {
