@@ -656,7 +656,12 @@ after dogfood we move mtt's development onto mtt itself. See sessions/README.md 
 **Later (backlog):**
 
 - later — **re-parenting** (`mtt reparent`/`move`): change a task's `parent`; enabled by flat, position-free IDs.
-- later — **tags**: a cross-cutting `[]string` label on tasks (reserved in the model now); filtering lands with `list`.
+- **tags — scheduled s008.7** (pulled forward for backlog management): a cross-cutting `[]string` label
+  (reserved in the model), CRUD (`add --tag`, `tag add/rm` — rides `Task.Tags` + `Update`, no new port) +
+  `list/tree --tag` filtering (a `ListFilter` dimension over `Match`). Plus **`#hashtag` extraction** from
+  title/description on `add`/`edit` (terser than repeated `--tag`). Open design (s008.7 brainstorm):
+  derived-on-read (tags = explicit ∪ text-hashtags, single source, no staleness) vs extract-to-field; scan
+  title reliably, description cautiously (‌`#` is common in code/prose); the token rule + case normalization.
 - later — **boards / views**: a query/view over tags/status/type (relates to `list` and `mtt-ui`); the backlog is such a view.
 - later — **durable, git-independent audit of edits**: `edit` today only bumps `updated`, with git as the
   de facto history; a change-log or field versioning (additive, non-breaking) would make edit history

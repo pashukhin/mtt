@@ -31,6 +31,7 @@ sliced so **every session delivers something usable**. Order/size may be refined
 | 007 | **structured commands** | placeholders + per-command timeout in transition commands | `status … in_progress` creates a `task/<id>` branch; a slow gate fails fast |
 | 008 | **rollback** | reverse-order compensating commands on a failed pipeline | a late gate failure undoes prior side effects |
 | 008.5 | dogfood enablers (chore) | `mtt rm`, `--depends-on` on `add`, packaging (`make install`) | delete a task; `add --depends-on`; `go install ./cmd/mtt` |
+| 008.7 | **tags** | `mtt add --tag`, `tag add/rm`, `list/tree --tag`; `#hashtags` in title/description | tag a task; filter by tag; `add "fix #auth"` tags it |
 | 009 | **dogfood** | self-host: `mtt init` this repo, task-aware gates, migrate the backlog | mtt tracks its own tasks; `done` gated on `make check` |
 | 010 | references | `mtt ref add/rm/list`, backlinks | ref resolves; task↔PR/spec link |
 | 011 | comments | `mtt comment add/list` (tree) | nested comments render in `show` |

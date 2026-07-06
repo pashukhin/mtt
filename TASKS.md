@@ -152,6 +152,14 @@ comments (which enrich a full self-host but don't enable it). See sessions/READM
 
 - [ ] e5_t1 — **dogfood enablers (chore, s008.5)**: `mtt rm <id>` (hard-delete, distinct from `cancel`),
       `--depends-on` on `add`, packaging (`make install` → `go install ./cmd/mtt` + a smoke test)
+- [ ] e5_t1b — **tags (s008.7)** — needed to organize the self-hosted backlog: `mtt add --tag x`,
+      `mtt tag add/rm <id> <tag>` (rides the reserved `Task.Tags` field + `Update`, no new port — like
+      `depends_on`), and a `Tags` dimension in `ListFilter` for `mtt list/tree --tag` (reuses `Match`/`Select`
+      — cheap). Plus **`#hashtag` extraction** from title/description on `add`/`edit` (less verbose than
+      repeated `--tag`). **Brainstorm decisions:** (a) derived-on-read (tags = explicit ∪ parsed-from-text —
+      single source, no staleness) vs extract-to-field (simpler, but stale on later edits); (b) which fields
+      to scan — title reliably, description cautiously/opt-in (‌`#` is common in prose/code: `#!`, `#include`,
+      `##` headings, URL anchors); (c) the token rule + case normalization. `boards/views` over tags stay Later.
 - [ ] e5_t2 — **dogfooding (s009)**: `mtt init` this repo, a config whose gates are task-aware (branch on the
       `→ in_progress` edge via a placeholder, `make check` on `→ done`), migrate the backlog onto mtt
 - [ ] e5_t3 — references (**s010**): `mtt ref add/rm/list`, backlinks; resolve `task`/`comment` refs (link a
@@ -187,14 +195,15 @@ comments (which enrich a full self-host but don't enable it). See sessions/READM
 - **now scheduled (regrouped 2026-07-05):** attribution + verb sugar (`--why`/`--who` + `mtt <status> <id>`)
   → **e4_t8 / s006.5**; structured commands (placeholders + per-command timeout) → **e4_t9 / s007**;
   rollback/compensation → **e4_t10 / s008**; dogfood enablers (`mtt rm`, `--depends-on`) + packaging →
-  **e5_t1 / s008.5**; actor profiles → **e5_t5 / s012**. `advance`/`start`/`done`/`cancel` + modes +
+  **e5_t1 / s008.5**; **tags** (+`#hashtags`) → **e5_t1b / s008.7**; actor profiles → **e5_t5 / s012**. `advance`/`start`/`done`/`cancel` + modes +
   roles-on-edges are **parked** (on-demand — see e4_t5). Design detail: DESIGN.md → "Advancing through the
   flow" (parked), "Seam (deferred): structured commands", "Direction (deferred): actor profiles", rollback seam.
 - later — **`cancelled`-blocker semantics**: a `cancelled` (abandoned) `depends_on` currently unblocks its
   dependent (terminal by `kind`), which may be wrong — the dependent may need re-evaluation. Revisit with
   flow enforcement (s006), when terminal statuses become reachable. See DESIGN.md → "Dependencies".
 - later — **re-parenting** (`mtt reparent`/`move`): change a task's `parent`; enabled by flat, position-free IDs.
-- later — **tags**: a cross-cutting `[]string` label on tasks (reserved in the model now); filtering lands with `list`.
+- **tags** — **scheduled s008.7** (e5_t1b), pulled forward for backlog management (was "later"): CRUD +
+  `list/tree --tag` filter over the reserved `Task.Tags` field, plus `#hashtag` extraction from title/description.
 - later — **boards / views**: a query/view over tags/status/type (relates to `list` and `mtt-ui`); the backlog is such a view.
 - later — **durable, git-independent audit of edits** (a change-log or field versioning for plain `edit`s,
   additive; `history` stays transition-only). (The subject-identity `By` source is now **resolved** — s006
