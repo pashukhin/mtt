@@ -4,7 +4,7 @@ A living handoff doc. Update it at the end of each session (what's done / what's
 
 ## Where we are
 
-- **Phase 0 (scaffold) + sessions 001–006 + 006.5 are DONE** (version `0.7.0-dev`, `make check` green).
+- **Phase 0 (scaffold) + sessions 001–006 + 006.5 are DONE** (version `0.6.5-dev`, `make check` green).
   **Session 006.5 (attribution + verb sugar)** shipped `--why` (durable reason; `HistoryEntry.Why` + DTO +
   `show`), `--who` (mutually-exclusive alias of `--by`), the `mtt <status> <id>` **verb sugar** (fallback-routing
   in `root.RunE` — reuses `core.Transitioner`; unknown arg0 → exit 1; real command wins a clash), and
@@ -267,7 +267,7 @@ resolved graph, and open gaps. Two decisions locked there that shape s005:
 ## Ready-to-paste kickoff prompt (for a new session)
 
 > We're continuing mtt. Sessions 001–006 + **006.5 (attribution + verb sugar)** are merged to `main`, version
-> `0.7.0-dev`, `make check` + CI green. Phase 2 is complete and Phase 3 is underway: s006 shipped the **flow
+> `0.6.5-dev`, `make check` + CI green. Phase 2 is complete and Phase 3 is underway: s006 shipped the **flow
 > gate** (`mtt status <id> <new>`), and s006.5 shipped `--why` (`HistoryEntry.Why` + DTO + `show`), `--who`
 > (mutually-exclusive alias of `--by`), the `mtt <status> <id>` **verb sugar** (fallback-routing in `root.RunE`,
 > reusing `core.Transitioner`; unknown arg0 → exit 1), and **required-attribution** (`require:{who,why}`
