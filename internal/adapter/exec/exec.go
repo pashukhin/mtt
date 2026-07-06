@@ -40,35 +40,68 @@ func NewRunner(dir string, timeout time.Duration, progress, cmdOut io.Writer) *R
 	return &Runner{dir: dir, timeout: timeout, progress: progress, cmdOut: cmdOut}
 }
 
+// runReport runs one command, reports ▶ then ✓|✗ with timing to progress, and
+// returns its Check plus any operational error. Shared by Run and Compensate.
+func (r *Runner) runReport(cmd mtt.Command) (mtt.Check, error) {
+	_, _ = fmt.Fprintf(r.progress, "▶ %s\n", cmd.Run)
+	start := time.Now()
+	timeout := cmd.Timeout
+	if timeout <= 0 {
+		timeout = r.timeout // fall back to the global command_timeout
+	}
+	exit, err := r.runOne(cmd.Run, timeout)
+	elapsed := time.Since(start).Round(time.Millisecond)
+	mark := "✓"
+	if exit != 0 || err != nil {
+		mark = "✗"
+	}
+	_, _ = fmt.Fprintf(r.progress, "%s %s (exit %d, %s)\n", mark, cmd.Run, exit, elapsed)
+	return mtt.Check{Cmd: cmd.Run, Exit: exit}, err
+}
+
 // Run executes commands in order, recording a Check per executed command and
 // reporting live progress. It stops at the first non-zero exit (a Check, not an
 // error). An operational failure (launch error or timeout) returns the checks so
-// far plus a non-nil error.
+// far — with the failing command's Check as the LAST element — plus a non-nil
+// error (core's compensation relies on this ordering).
 func (r *Runner) Run(commands []mtt.Command) ([]mtt.Check, error) {
 	checks := make([]mtt.Check, 0, len(commands))
 	for _, cmd := range commands {
-		_, _ = fmt.Fprintf(r.progress, "▶ %s\n", cmd.Run)
-		start := time.Now()
-		timeout := cmd.Timeout
-		if timeout <= 0 {
-			timeout = r.timeout // fall back to the global command_timeout
-		}
-		exit, err := r.runOne(cmd.Run, timeout)
-		elapsed := time.Since(start).Round(time.Millisecond)
-		mark := "✓"
-		if exit != 0 || err != nil {
-			mark = "✗"
-		}
-		_, _ = fmt.Fprintf(r.progress, "%s %s (exit %d, %s)\n", mark, cmd.Run, exit, elapsed)
-		checks = append(checks, mtt.Check{Cmd: cmd.Run, Exit: exit})
+		ck, err := r.runReport(cmd)
+		checks = append(checks, ck)
 		if err != nil {
 			return checks, err
 		}
-		if exit != 0 {
+		if ck.Exit != 0 {
 			return checks, nil
 		}
 	}
 	return checks, nil
+}
+
+// Compensate runs already-expanded compensators best-effort: in order, NEVER
+// stopping and NEVER returning an error (an operational failure is recorded as
+// Exit -1 by runOne). It prints a labeled compensation phase to progress. core
+// passes the reversed, succeeded-only rollbacks.
+func (r *Runner) Compensate(commands []mtt.Command) []mtt.Check {
+	if len(commands) == 0 {
+		return nil
+	}
+	_, _ = fmt.Fprintf(r.progress, "↩ compensating (%d command%s)\n", len(commands), plural(len(commands)))
+	checks := make([]mtt.Check, 0, len(commands))
+	for _, cmd := range commands {
+		ck, _ := r.runReport(cmd) // best-effort: ignore the operational error, never stop
+		checks = append(checks, ck)
+	}
+	return checks
+}
+
+// plural returns "s" unless n == 1.
+func plural(n int) string {
+	if n == 1 {
+		return ""
+	}
+	return "s"
 }
 
 // runOne runs a single command with the given timeout, streaming its output to

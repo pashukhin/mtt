@@ -98,3 +98,38 @@ func TestRunProgressMarksFailure(t *testing.T) {
 		t.Fatalf("progress missing failure mark:\n%s", prog.String())
 	}
 }
+
+func TestCompensateBestEffortRunsAll(t *testing.T) {
+	var prog bytes.Buffer
+	// The middle compensator fails (exit 1); best-effort must still run the last.
+	checks := NewRunner(t.TempDir(), time.Minute, &prog, io.Discard).
+		Compensate([]mtt.Command{{Run: "true"}, {Run: "false"}, {Run: "true"}})
+	if len(checks) != 3 {
+		t.Fatalf("ran %d compensators, want all 3 (best-effort)", len(checks))
+	}
+	if checks[0].Exit != 0 || checks[1].Exit == 0 || checks[2].Exit != 0 {
+		t.Fatalf("checks = %+v", checks)
+	}
+	if !strings.Contains(prog.String(), "↩ compensating (3 commands)") {
+		t.Fatalf("progress missing the compensation header:\n%s", prog.String())
+	}
+}
+
+func TestCompensateEmptyIsNoOp(t *testing.T) {
+	var prog bytes.Buffer
+	if checks := NewRunner(t.TempDir(), time.Minute, &prog, io.Discard).Compensate(nil); checks != nil {
+		t.Fatalf("checks = %+v, want nil", checks)
+	}
+	if prog.Len() != 0 {
+		t.Fatalf("empty compensation should print nothing:\n%s", prog.String())
+	}
+}
+
+func TestCompensateHonorsPerCommandTimeout(t *testing.T) {
+	// A tight per-command timeout on a compensator fires; best-effort records -1.
+	checks := NewRunner(t.TempDir(), time.Minute, io.Discard, io.Discard).
+		Compensate([]mtt.Command{{Run: "sleep 1", Timeout: 20 * time.Millisecond}})
+	if len(checks) != 1 || checks[0].Exit != -1 {
+		t.Fatalf("checks = %+v, want a single -1 (timed-out) check", checks)
+	}
+}
