@@ -28,9 +28,12 @@ sliced so **every session delivers something usable**. Order/size may be refined
 | 005 ✅ | dependencies | `mtt dep add/rm/list` (`--tree`/`--cycles`), `mtt ready`, `list --ready` | dep blocks ready; cycle rejected |
 | 006 ✅ | **flow gate (killer)** | `mtt status <id> <new>` runs & gates commands | failing gate blocks transition; history written |
 | 006.5 | attribution + verb sugar | `--why` (+ history field), `--who` (alias of `--by`), `mtt <status> <id>` | `mtt done t1`; `show` prints who/why |
+| 006.7 | **current task** (working context) | `current` in `config.local`, set/clear via a transition property; omitted id → current for single-task verbs; `mtt use <id>` | `mtt done` / `mtt show` act on the current task |
 | 007 | **structured commands** | placeholders + per-command timeout in transition commands | `status … in_progress` creates a `task/<id>` branch; a slow gate fails fast |
 | 008 | **rollback** | reverse-order compensating commands on a failed pipeline | a late gate failure undoes prior side effects |
 | 008.5 | dogfood enablers (chore) | `mtt rm`, `--depends-on` on `add`, packaging (`make install`) | delete a task; `add --depends-on`; `go install ./cmd/mtt` |
+| 008.7 | **tags** | `mtt add --tag`, `tag add/rm`, `list/tree --tag`; `#hashtags` in title/description | tag a task; filter by tag; `add "fix #auth"` tags it |
+| 008.9 | **batch & pipeline** | task-set selector (IDs ∪ `--filter` ∪ stdin `-`) + `--ids` output; bulk `tag add/rm`, `rm` | `list --tag x --ids \| tag rm x -`; `tag add y --status tbd` |
 | 009 | **dogfood** | self-host: `mtt init` this repo, task-aware gates, migrate the backlog | mtt tracks its own tasks; `done` gated on `make check` |
 | 010 | references | `mtt ref add/rm/list`, backlinks | ref resolves; task↔PR/spec link |
 | 011 | comments | `mtt comment add/list` (tree) | nested comments render in `show` |

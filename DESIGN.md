@@ -408,6 +408,31 @@ Commands come from config (trusted, like a Makefile/git hooks), not from the net
 > so restrict to shape-safe fields (`id`/`type`/`status`) or shell-quote arbitrary ones (`title`) — never
 > interpolate raw text unquoted. See TASKS.md → Later.
 
+> **Seam (deferred, think): node-level status actions.** Today executable pipelines hang only on **edges**
+> (transitions — they change status and gate). But "commit intermediate work / build / run checks **while
+> staying** in a status" is a node operation with no home (a self-loop transition is a hack — false history,
+> broken topology). Generalize: a status may carry **named, rollback-able action pipelines**, each invoked as
+> a **custom verb** `mtt <action> <id>` on the task's current status. The shared primitive — *a named
+> rollback-able command pipeline* — then hangs on either an **edge** (transition) or a **node** (status), both
+> served by `Runner` + rollback. This completes the "all shell orchestration lives in the flow / agent works
+> purely in task terms" story. **Blocked on** structured commands + rollback (reuses the `Command` VO +
+> compensation) and on the argument-resolution grammar (custom verbs collide with real commands and the
+> status-sugar — e.g. `mtt check` is reserved for ref-checking); a non-transition action's audit ties to the
+> edit-audit slice. **Open question: is it release-needed?** Lean *no* — for a release an agent commits WIP
+> via plain `git` while `in_progress`; this is the completeness polish, not the minimum. Revisit once
+> structured commands land (it is blocked on them regardless). See TASKS.md → Later.
+
+> **Working context: the current task (scheduled s006.7).** git's current-branch, for tasks — kills
+> id-repetition. The **value** lives in `config.local.yaml` (`current: t17`, personal/gitignored); the
+> **rule** for setting/clearing it is a **transition property** in the committed flow (a new additive
+> `Transition` field, e.g. `current: set|clear` — name-agnostic; a topology default set-on-→active /
+> clear-on-→terminal is an option). An **omitted id** resolves to the current task **only for single-task
+> direct verbs** (status / `mtt <status>` / show / edit / tag) — never for filter/list/stdin/bulk (resolution
+> order: explicit id > filter/stdin > current). Companion `mtt use <id>` sets it without a transition.
+> **Caveat:** a shared checkout with multiple agents has one `config.local` = one `current` → collision;
+> per-agent current ties to the subagent-identity question (fine for solo / one-agent-per-checkout). Composes
+> with the s008.9 selector (its "no source" single-verb case = current). See TASKS.md → e4_t8a.
+
 ### Advancing through the flow: `advance` / `start` / `done`
 
 > **PARKED (2026-07-05, on-demand).** `advance` and the verbs `start`/`done`/`cancel`, the modes
@@ -656,7 +681,19 @@ after dogfood we move mtt's development onto mtt itself. See sessions/README.md 
 **Later (backlog):**
 
 - later — **re-parenting** (`mtt reparent`/`move`): change a task's `parent`; enabled by flat, position-free IDs.
-- later — **tags**: a cross-cutting `[]string` label on tasks (reserved in the model now); filtering lands with `list`.
+- **tags — scheduled s008.7** (pulled forward for backlog management): a cross-cutting `[]string` label
+  (reserved in the model), CRUD (`add --tag`, `tag add/rm` — rides `Task.Tags` + `Update`, no new port) +
+  `list/tree --tag` filtering (a `ListFilter` dimension over `Match`). Plus **`#hashtag` extraction** from
+  title/description on `add`/`edit` (terser than repeated `--tag`). Open design (s008.7 brainstorm):
+  derived-on-read (tags = explicit ∪ text-hashtags, single source, no staleness) vs extract-to-field; scan
+  title reliably, description cautiously (‌`#` is common in code/prose); the token rule + case normalization.
+- **batch & pipeline — scheduled s008.9** (mtt as a Unix-composable CLI): a reusable **task-set selector**
+  shared by every set-operating command — explicit IDs ∪ a `--filter` (the `list` predicates over
+  `Select`/`Match`) ∪ **stdin `-`** (IDs one per line) — plus an **`--ids`** output on `list`/`ready`, so
+  pipelines compose: `mtt list --tag x --ids | mtt tag rm x -`. First applied to `tag add/rm` and `rm` (no
+  gates). Open design (s008.9 brainstorm): sources mutually exclusive; a `--dry-run` guard + "affected N"
+  summary for bulk mutations; per-item best-effort with a report and a non-zero exit on any failure. Bulk
+  `status`/verbs/`edit`/`dep` are later (gates + partial-success + atomicity).
 - later — **boards / views**: a query/view over tags/status/type (relates to `list` and `mtt-ui`); the backlog is such a view.
 - later — **durable, git-independent audit of edits**: `edit` today only bumps `updated`, with git as the
   de facto history; a change-log or field versioning (additive, non-breaking) would make edit history
