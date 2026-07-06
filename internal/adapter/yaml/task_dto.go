@@ -47,6 +47,7 @@ type ymlHistoryEntry struct {
 	At     string     `yaml:"at"`
 	By     string     `yaml:"by,omitempty"`
 	Role   string     `yaml:"role,omitempty"`
+	Why    string     `yaml:"why,omitempty"`
 	From   string     `yaml:"from"`
 	To     string     `yaml:"to"`
 	Checks []ymlCheck `yaml:"checks,omitempty"`
@@ -95,7 +96,7 @@ func fromDomainHistory(hs []mtt.HistoryEntry) []ymlHistoryEntry {
 				checks[j] = ymlCheck{Cmd: ch.Cmd, Exit: ch.Exit}
 			}
 		}
-		out[i] = ymlHistoryEntry{At: fmtTime(h.At), By: h.By, Role: h.Role, From: string(h.From), To: string(h.To), Checks: checks}
+		out[i] = ymlHistoryEntry{At: fmtTime(h.At), By: h.By, Role: h.Role, Why: h.Why, From: string(h.From), To: string(h.To), Checks: checks}
 	}
 	return out
 }
@@ -183,7 +184,7 @@ func toDomainHistory(hs []ymlHistoryEntry) ([]mtt.HistoryEntry, error) {
 				checks[j] = mtt.Check{Cmd: ch.Cmd, Exit: ch.Exit}
 			}
 		}
-		out[i] = mtt.HistoryEntry{At: at, By: h.By, Role: h.Role, From: mtt.StatusName(h.From), To: mtt.StatusName(h.To), Checks: checks}
+		out[i] = mtt.HistoryEntry{At: at, By: h.By, Role: h.Role, Why: h.Why, From: mtt.StatusName(h.From), To: mtt.StatusName(h.To), Checks: checks}
 	}
 	return out, nil
 }

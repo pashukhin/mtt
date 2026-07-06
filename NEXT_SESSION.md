@@ -4,7 +4,13 @@ A living handoff doc. Update it at the end of each session (what's done / what's
 
 ## Where we are
 
-- **Phase 0 (scaffold) + sessions 001–006 are DONE** (version `0.6.0-dev`, `make check` green). **Session 006
+- **Phase 0 (scaffold) + sessions 001–006 + 006.5 are DONE** (version `0.7.0-dev`, `make check` green).
+  **Session 006.5 (attribution + verb sugar)** shipped `--why` (durable reason; `HistoryEntry.Why` + DTO +
+  `show`), `--who` (mutually-exclusive alias of `--by`), the `mtt <status> <id>` **verb sugar** (fallback-routing
+  in `root.RunE` — reuses `core.Transitioner`; unknown arg0 → exit 1; real command wins a clash), and
+  **required-attribution** (`require:{who,why}` committed adapter `Settings.Require`, `config.local` tighten-only;
+  validated in `core.Transitioner` before the gate, aggregated `ErrMissingAttribution` → **exit 2**; `--no-run`
+  no-bypass). `-v`/`--log-file` moved to root-persistent. **Session 006
   (flow gate — the killer feature)** shipped `mtt status <id> <new>` — a **single** gated transition: the
   `core.Runner` port (`Run(commands)`, no `dir`) + `internal/adapter/exec` (per-command timeout, cwd=root,
   cross-platform shell seam) + a fake in tests; `core.Transitioner` (single-edge lookup, gate → `ErrBlocked`,
@@ -13,8 +19,9 @@ A living handoff doc. Update it at the end of each session (what's done / what's
   and a `history:` section in `mtt show`. **Session 005 (dependencies)** shipped `mtt dep add/rm/list <id>`
   (`--tree`/`--cycles`), `mtt ready`, and `list --ready` over `core.DependencyEditor` (no new port — the edge
   rides `Task.DependsOn` + `TaskStore.Update`), a conservative `core.Ready`, and a derived `core.DepGraph`.
-  Phase 2 (e3) is complete and Phase 3 (e4) is underway; **next is session 006.5 — attribution + verb sugar**
-  (`--why`/`--who` + `mtt <status> <id>`), then s007 structured commands. **`advance`/`start`/`done` + roles
+  Phase 2 (e3) is complete and Phase 3 (e4) is underway; **next is session 006.7 — current task (working
+  context)** (`current` in `config.local`, set/cleared via a transition property; omitted id → current for
+  single-task verbs; `mtt use <id>`), then s007 structured commands. **`advance`/`start`/`done` + roles
   are PARKED** (on-demand — single-edge `status` is the norm). Session 001
   shipped `mtt init [--template default|coding] [--force] [--name]` and `mtt types [<type>]`. Session 002
   shipped `mtt add [title] [--type] [--no-parent] [--description]` and `mtt show <id>`. Session 003 shipped
@@ -118,46 +125,54 @@ resolved graph, and open gaps. Two decisions locked there that shape s005:
   at its boundary (`toDomain` fails fast on a corrupt empty `id`/`type`/`status`). s005 is written against the
   typed contract. Constructors reject empty, no transform; `Ref.ID` stays `string`; `NoteSlug` deferred (KB).
 
-## Next task — session 006.5 (attribution + verb sugar)
+## Next task — session 006.7 (current task / working context)
 
-- **Create `sessions/006.5_attribution_and_sugar.md` from `sessions/000_template.md`** (mirrors 003–006:
-  design-spec + plan before code). Branch `feat/s006.5-attribution-sugar`. Refine the plan (superpowers
-  brainstorming/planning), work **test-first**; acceptance e2e + `make check` green before the PR.
-- Scope (three small, related pieces — see sessions/README.md → "Roadmap regrouped" and DESIGN.md →
-  "Advancing through the flow"):
-  1. **`--why <text>`** — a durable free-text reason recorded on the transition. Add a `Why` field to
-     `mtt.HistoryEntry` (name `why`; agent-friendly, renameable later) + the YAML DTO (`ymlHistoryEntry`) +
-     render it in `mtt show`'s history section. It rides `Task.History` (no new port). "Who + why moved it."
-  2. **`--who <subject>`** — a symmetric **alias of `--by`** (same target `history.by`; keep `--by`, add
-     `--who` so `--who`/`--why` read as a pair). Precedence unchanged: `--who`/`--by` > `MTT_BY` >
-     config.local `author`.
-  3. **`mtt <status> <id>` verb sugar** — a single-edge status move via **fallback-routing**: the root's
-     `RunE` handles exactly-two-args where arg0 is *not* a registered subcommand and *is* a valid target
-     status for arg1's type → route to the `status` path. NOT dynamic command registration (avoids the
-     config-before-parse problem, namespace pollution, and help clutter). A status colliding with a real
-     command name loses to the command (documented); statuses unusable as tokens (spaces) fall back to
-     `mtt status`. Forward-compatible: the sugar's semantics can grow single-edge → `advance` later with no
-     surface change.
-  4. **Required-attribution** — a project-global `require: {who, why}` in the **committed** `config.yaml`
-     (adapter-level `Settings`, like `command_timeout`; `config.local` may only **tighten**, never relax).
-     Validated **before the gate runs** (fail fast — don't run `make check` only to reject on a missing
-     `why`) and **not** bypassed by `--no-run`/`--force` (attribution is about the record, not the gate). On
-     a violation, **aggregate all missing fields into one error** (the agent fixes them in one shot, not
-     iteratively) and exit **2 (usage)** — realize exit code 2, mirroring how s006 realized 3/6. This makes
-     s006.5 a release-complete attribution slice **with no roles/profiles** (those stay parked).
-- Architecture stays **`cli → core → port ← adapter`**. Reuse `core.Transitioner` (single edge) for the
-  sugar; the `Why` field is the only `pkg/mtt` change (additive). Everything typed; string conversion only at
-  the cli/adapter boundary.
-- **PARKED (do not build):** `advance`/`start`/`done`/`cancel`, modes (`--stop`/`--atomic`/`--force`),
-  roles-on-edges, config verb→status. On-demand only — when a flow actually branches. The `advance` design
-  intent lives in DESIGN.md → "Advancing through the flow" (marked PARKED); `model.go` `Advancer`/
-  `ResolvedFlow` stay as T2 intent.
-- **After 006.5 → s006.7 current task** (working context: `current` in `config.local`, set/clear via a
-  transition property; omitted id → current for single-task verbs), then **s007 structured commands**
-  (placeholders + per-command timeout — the "work in task terms" enabler; `Transition.Commands []string` → a
-  `Command` value object, a domain-shape change), s008 rollback, s008.5 dogfood-enablers chore, s008.7 tags
-  (+`#hashtags`), s008.9 batch & pipeline (task-set selector + `--ids` + stdin), then dogfood (s009). See the
-  roadmap.
+- **Create `sessions/006.7_current_task.md` from `sessions/000_template.md`** (design-spec + plan before
+  code). Branch `feat/s006.7-current-task`. Refine the plan (superpowers brainstorming/planning), work
+  **test-first**; acceptance e2e + `make check` green before the PR. See TASKS.md → **e4_t8a** and DESIGN.md →
+  "Working context: the current task".
+- Scope (kills id-repetition — git-`HEAD`-for-tasks):
+  1. A **`current`** record in `config.local.yaml` (personal, gitignored — the **value**); companion
+     `mtt use <id>` (git-checkout-like set) + a way to show the current task.
+  2. Set/clear driven by a **transition property** in the **committed** flow (the **rule**) — a new additive
+     `pkg/mtt.Transition` field (e.g. `current: set|clear`; name-agnostic; a topology default
+     set-on-→active / clear-on-→terminal is a brainstorm option). This is the s006.7 `pkg/mtt` change.
+  3. An **omitted id** resolves to `current` **only for single-task direct verbs** (status / `mtt <status>` /
+     show / edit / tag) — never for filter/list/stdin/bulk (resolution order: explicit id > filter/stdin >
+     current). Composes with the s008.9 selector (its "no source" single-verb case = current).
+- **Caveat:** a shared checkout with multiple agents = one `config.local` = one `current` → collision;
+  per-agent current ties to the parked subagent-identity think-item (fine for solo / one-agent-per-checkout).
+- Reuse the s006.5 shape: the sugar and `mtt status` both funnel through `runTransition`; an omitted id
+  resolves before that. Everything typed; string conversion only at the cli/adapter boundary.
+- **PARKED (do not build):** `advance`/`start`/`done`/`cancel`, modes, roles-on-edges, config verb→status.
+- **After 006.7 → s007 structured commands** (placeholders + per-command timeout — the "work in task terms"
+  enabler; `Transition.Commands []string` → a `Command` value object, a domain-shape change), s008 rollback,
+  s008.5 dogfood-enablers chore, s008.7 tags (+`#hashtags`), s008.9 batch & pipeline, then dogfood (s009).
+
+### Carry-over lessons (006.5 — attribution + verb sugar)
+- **Verb sugar via `root.RunE` fallback, NOT command registration.** Setting `root.Args = cobra.ArbitraryArgs`
+  + `root.RunE = runSugar` makes cobra call the root for any unknown first arg; real subcommands still dispatch
+  first (so a real command always wins a name clash, for free). `runSugar` classifies via `trySugar` (load
+  project, `Get(arg1)`, `Type.StatusKind(arg0)`); a miss returns `unknown command` (exit 1) — do **not**
+  swallow it into a confusing transition error. `mtt` no-args → `cmd.Help()`. Reuse this shape for s006.7's
+  omitted-id resolution (resolve the id **before** `runTransition`, keep the single shared path).
+- **Attribution/policy enforcement lives in `core.Transitioner`, checked before the gate.** `require:{who,why}`
+  is adapter `Settings` (like `command_timeout`), passed into `TransitionOptions` as bools; the check
+  aggregates missing fields into one `ErrMissingAttribution` (exit 2) **before** `runner.Run`, so `--no-run`
+  can't bypass it and both `status` + sugar get it (they share `runTransition` → `Transitioner`). Put the new
+  exit code in `exitCode(err)` (mirrors 3/6).
+- **`config.local` "tighten-only" = OR with the pre-overlay committed value.** yaml.v3 overlay would let a
+  local `who:false` relax a committed `who:true`; capturing committed `require` **before** `decodeInto(local)`
+  and OR-combining prevents relaxation while still allowing local to add. Reuse for any future
+  committed-vs-local policy where local must not weaken the project rule.
+- **Mutually-exclusive aliases: manual check beat `MarkFlagsMutuallyExclusive`.** With `--who`/`--by`
+  root-persistent and used by two commands (`status` + sugar), a manual `Changed("who") && Changed("by")` →
+  error in the shared `resolveAttribution` is path-uniform and dodges cobra's persistent-flag flag-group
+  cross-command subtleties.
+- **`formatTask` lives in `show.go`, not `format.go`** (`format.go` is only `taskLine`) — grep before editing.
+- **Root-persistent flags only some commands honor is an accepted pattern** (`--json` since s003; `-v`/
+  `--log-file` since s006.5) — moving a gate-output flag up to root is fine; remove the now-duplicate local
+  flag or cobra panics on the redefinition.
 
 ### Open design slice to schedule (not session 006's scope, but don't lose it)
 - **Durable, git-independent audit of edits** + **the subject-identity (`By`) source.** `edit` today only
@@ -251,41 +266,45 @@ resolved graph, and open gaps. Two decisions locked there that shape s005:
 
 ## Ready-to-paste kickoff prompt (for a new session)
 
-> We're continuing mtt. Sessions 001–006 and chore **004.5 (typed-identity retrofit)** are merged to `main`,
-> version `0.6.0-dev`, `make check` + CI green. Phase 2 is complete and Phase 3 is underway: s006 shipped the
-> **flow gate** — `mtt status <id> <new>` (a single gated transition), the `core.Runner` port + `internal/
-> adapter/exec` + a fake, `core.Transitioner` (no new port — history rides `Task.History`), config-driven
-> `command_timeout`, `--role`/`--by`, exit codes 3/6 via `Execute() int`, and `history` in `mtt show`.
+> We're continuing mtt. Sessions 001–006 + **006.5 (attribution + verb sugar)** are merged to `main`, version
+> `0.7.0-dev`, `make check` + CI green. Phase 2 is complete and Phase 3 is underway: s006 shipped the **flow
+> gate** (`mtt status <id> <new>`), and s006.5 shipped `--why` (`HistoryEntry.Why` + DTO + `show`), `--who`
+> (mutually-exclusive alias of `--by`), the `mtt <status> <id>` **verb sugar** (fallback-routing in `root.RunE`,
+> reusing `core.Transitioner`; unknown arg0 → exit 1), and **required-attribution** (`require:{who,why}`
+> committed `Settings.Require`, `config.local` tighten-only; checked in `core.Transitioner` before the gate →
+> `ErrMissingAttribution` exit 2; `--no-run` no-bypass). `-v`/`--log-file` are now root-persistent.
 > Read, in order: CLAUDE.md, AGENTS.md, DESIGN.md, NEXT_SESSION.md, sessions/README.md,
-> `docs/architecture/model.go` (`Runner`/`Transitioner`/`Advancer`/`ResolvedFlow`, GAP #5/#6), TASKS.md,
-> sessions/006_flow_gate.md (shipped `Runner`/`Transitioner`/`Settings` shape) and
-> sessions/005_dependencies.md, CLI_REFERENCE.md. Confirm the superpowers skills are active (else activate per
-> NEXT_SESSION.md).
+> `docs/architecture/model.go` (`Transitioner`/`TransitionOptions`/`ErrMissingAttribution`/`Advancer`), TASKS.md
+> (e4_t8a), sessions/006.5_attribution_and_sugar.md and sessions/006_flow_gate.md, CLI_REFERENCE.md. Confirm the
+> superpowers skills are active (else activate per NEXT_SESSION.md).
 >
-> Do **session 006.5 (attribution + verb sugar)** on branch `feat/s006.5-attribution-sugar` off fresh `main`:
-> first create `sessions/006.5_attribution_and_sugar.md` from `sessions/000_template.md`, then brainstorm →
-> writing-plans, then implement strictly test-first until the acceptance e2e + `make check` are green; branch →
-> PR → CI green → squash into `main`.
+> Do **session 006.7 (current task / working context)** on branch `feat/s006.7-current-task` off fresh `main`:
+> first create `sessions/006.7_current_task.md` from `sessions/000_template.md`, then brainstorm → writing-plans,
+> then implement strictly test-first until the acceptance e2e + `make check` are green; branch → PR → CI green →
+> squash into `main`.
 >
-> Scope (three small related pieces): (1) **`--why <text>`** — a durable free-text reason on the transition;
-> add a `Why` field to `mtt.HistoryEntry` (name `why`) + YAML DTO + render in `mtt show` (rides `Task.History`,
-> no new port). (2) **`--who`** — a symmetric **alias of `--by`** (same `history.by`; precedence `--who`/`--by`
-> > `MTT_BY` > config.local `author`). (3) **`mtt <status> <id>` verb sugar** — a single-edge move via
-> **fallback-routing** (root `RunE` handles two args where arg0 is not a registered subcommand and is a valid
-> target status for arg1's type → route to `status`); NOT dynamic command registration; a real command name
-> wins a clash; forward-compatible (single-edge → advance later, no surface change). Reuse `core.Transitioner`;
-> the `Why` field is the only `pkg/mtt` change. **PARKED — do NOT build:** `advance`/`start`/`done`/`cancel`,
-> modes, roles-on-edges (on-demand, when a flow branches). After 006.5 → s006.7 current task (working
-> context), s007 structured commands (placeholders + per-command timeout), s008 rollback, then dogfood.
-> Everything typed; convert strings only at cli/adapter.
+> Scope (kills id-repetition — git-`HEAD`-for-tasks): (1) a **`current`** record in `config.local.yaml`
+> (personal/gitignored — the value) + `mtt use <id>` (git-checkout-like set) + a way to show it. (2) set/clear
+> driven by a **transition property** in the committed flow (the rule) — a new additive `pkg/mtt.Transition`
+> field (e.g. `current: set|clear`; name-agnostic; topology default set-on-→active/clear-on-→terminal is a
+> brainstorm option) — the only `pkg/mtt` change. (3) an **omitted id** resolves to `current` **only for
+> single-task direct verbs** (status / `mtt <status>` / show / edit / tag) — never for filter/list/stdin/bulk
+> (resolution order: explicit id > filter/stdin > current); resolve the id **before** `runTransition`, keep the
+> shared path. **Caveat:** shared checkout + multiple agents = one `config.local` = one `current` (ties to the
+> parked subagent-identity think-item; fine for solo). **PARKED — do NOT build:** `advance`/`start`/`done`/
+> `cancel`, modes, roles-on-edges, config verb→status. After 006.7 → s007 structured commands, s008 rollback,
+> s008.5 dogfood-enablers, s008.7 tags, s008.9 batch & pipeline, then dogfood. Everything typed; convert strings
+> only at cli/adapter.
 >
-> Heed the "Carry-over lessons" below — esp. s006's: a fake for the driven port + real exec adapter; a non-zero
-> exit is **data**, not a Go error; adapter settings ride the config layer not `pkg/mtt`; exit-code taxonomy in
-> `Execute() int` (and the testscript harness must track its signature); e2e gate configs via a txtar
-> `-- gated.yaml --` `cp`'d over `.mtt/config.yaml`, `mtt add`'s title is positional; single-edge lookup beat
-> `ResolvedFlow` for one edge (reconsider for the walk); CLI stdout via `fmt.Fprint(cmd.OutOrStdout(), …)`;
-> anchored testscript asserts; `golangci unused`; keep each `CLAUDE.md` current; zero-match `--json` = `[]`.
-> Don't lose the **open design slices**: a git-independent **edit-audit** trail beyond transitions (GAP #5's
-> remaining half — `By` source is now resolved via config.local `author`); a real `cancelled`-blocker fix
-> (kept-as-is in s006); packaging (`make install`) chore-PR. Follow
+> Heed the "Carry-over lessons (006.5)" below — esp.: verb sugar via `root.RunE` fallback (not command
+> registration), classify then `unknown command` on a miss; policy enforcement in `core.Transitioner` before the
+> gate, new exit code in `exitCode(err)`; `config.local` tighten-only = OR with the pre-overlay committed value;
+> mutually-exclusive aliases via a manual `Changed()` check; `formatTask` lives in `show.go`; root-persistent
+> flags only some commands honor is an accepted pattern (remove the now-duplicate local flag or cobra panics).
+> And s006's: a fake for the driven port + real exec adapter; non-zero exit is **data**; adapter settings ride
+> the config layer not `pkg/mtt`; e2e gate configs via a txtar `-- gated.yaml --` `cp`'d over `.mtt/config.yaml`,
+> `mtt add`'s title is positional; CLI stdout via `fmt.Fprint(cmd.OutOrStdout(), …)`; anchored testscript
+> asserts; `golangci unused`; keep each `CLAUDE.md` current; zero-match `--json` = `[]`. Don't lose the **open
+> design slices**: a git-independent **edit-audit** trail; a real `cancelled`-blocker fix; packaging
+> (`make install`) chore-PR; **dangerous ops must mandate `--who`/`--why`** (s006.5 think-item). Follow
 > SOLID/DRY/KISS/TDD/DDD/clean-architecture and the AGENTS.md self-check.

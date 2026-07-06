@@ -389,6 +389,25 @@ Commands come from config (trusted, like a Makefile/git hooks), not from the net
 > default, streamed with `-v`, and/or written with `--log-file`. `by` resolves `--by` > `MTT_BY` >
 > `config.local.yaml` `author` (the durable personal default; `role` stays flag/env only).
 
+> **Shipped (s006.5, attribution + verb sugar):** `--why` records a durable free-text reason on the
+> transition (`HistoryEntry.Why` — the only `pkg/mtt` change — rendered by `mtt show`); `--who` is a
+> symmetric alias of `--by` (mutually exclusive; same `history.by`). **Verb sugar** `mtt <status> <id>` is a
+> single-edge move via CLI **fallback-routing** (`root.RunE`: exactly-2-args where arg0 is not a registered
+> command, arg1 is an existing task, and arg0 is a status in that task's type flow → route to the `status`
+> path reusing `core.Transitioner`; a real command wins a name clash; anything else is `unknown command`,
+> exit 1) — forward-compatible to `advance` later without a surface change. **Required-attribution:** a
+> project-global `require: {who, why}` in the committed config (adapter `Settings.Require`, like
+> `command_timeout`; `config.local` may only **tighten** it — captured before the local overlay and
+> OR-combined) is validated in `core.Transitioner` **before** the gate (fail fast; `--no-run` does not bypass
+> it), aggregating all missing fields into one `ErrMissingAttribution` → exit `2`. `-v`/`--log-file` became
+> root-persistent; `--no-run` stays local to `mtt status` (the sugar cannot bypass the gate).
+
+> **Deferred (backlog): dangerous ops must mandate `--who`/`--why`.** Flow-bypassing / risk actions —
+> `--no-run` over a transition whose edge has a **non-empty** command list (skipping a real gate), and later
+> `--force` / atomic aborts after side effects — should **force** attribution regardless of the project
+> `require` setting (you may skip the gate, but you must sign for it). Independent of the global `require`
+> knob; ties into the s007+ structured-commands / rollback risk surface. Not built now.
+
 > Caveat (for planning): commands with side effects (creating a branch) go **after** the checks; if one
 > fails after a side effect, we don't commit the transition, but the side effect already happened — that's
 > on the ordering of commands. A two-phase model (checks → actions) is introduced only if needed.
@@ -660,7 +679,7 @@ has a text/ASCII Gantt. The latest phase.
 | 0 | Scaffold: repo, module, AGENTS/DESIGN, CLI skeleton, gate, CI | ✅ done |
 | 1 | `pkg/mtt` **pure** contract (domain types + `TaskStore` port); config+types (**structural** invariants: `kind` by topology, ≥1 of each, no name literals), `mtt init`; the YAML adapter **mints IDs** flat per-prefix (`e1`/`t17`/`s3`); core usecases + `add/list/show/edit/close` | 🔄 s001–003 (`close` → phase 3; optional capability interfaces deferred, see [architecture snapshot](docs/architecture/model.go)) |
 | 2 | Hierarchy (by `parents` from config); dependencies; `ready`; cycle detection | 🔄 hierarchy done (s004); dependencies/`ready`/cycles → s005 |
-| 3 | Flow enforcement: transition validation + running `commands` (the `Runner` port), gating on exit codes; `mtt status`; **attribution + verb sugar**; **structured commands** (placeholders + per-command timeout) + **rollback** | 🔄 single-edge `mtt status` shipped (s006); attribution+sugar (`--why`/`--who`, `mtt <status> <id>`) → s006.5; structured commands (the "work in task terms" enabler) → s007; rollback → s008. **`advance`/`start`/`done`/`cancel` + modes + roles-on-edges are PARKED** (on-demand — single-edge `status` is the norm) |
+| 3 | Flow enforcement: transition validation + running `commands` (the `Runner` port), gating on exit codes; `mtt status`; **attribution + verb sugar**; **structured commands** (placeholders + per-command timeout) + **rollback** | 🔄 single-edge `mtt status` shipped (s006); attribution+sugar (`--why`/`--who`, `mtt <status> <id>`, required-attribution → exit 2) shipped (s006.5); structured commands (the "work in task terms" enabler) → s007; rollback → s008. **`advance`/`start`/`done`/`cancel` + modes + roles-on-edges are PARKED** (on-demand — single-edge `status` is the norm) |
 | 4 | **Dogfood** (pulled ahead — s009, after flow orchestration is complete), then references (s010), comments (s011), actor profiles (s012) | |
 | — | **⬆ agent-facing MVP — fully usable** | |
 | 5 | `KnowledgeStore` port + YAML KB adapter; text search | |

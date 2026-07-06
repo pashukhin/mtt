@@ -22,3 +22,8 @@ var ErrBlocked = errors.New("mtt: transition blocked by a failed gate")
 // ErrInvalidTransition is returned when the requested edge is not in the type's
 // flow (no transition from the current status to the target).
 var ErrInvalidTransition = errors.New("mtt: transition not allowed by the flow")
+
+// ErrMissingAttribution is returned when the project's require:{who,why} policy
+// is unmet on a transition. It is checked before the gate runs (fail fast) and
+// aggregates all missing fields; the CLI maps it to exit code 2.
+var ErrMissingAttribution = errors.New("mtt: missing required attribution")

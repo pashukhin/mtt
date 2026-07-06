@@ -337,6 +337,12 @@ var ErrUnsupported = errors.New("mtt: capability not supported by this backend")
 // agent is the escape hatch if real concurrency appears. [T1 seam]
 var ErrConflict = errors.New("mtt: write conflict")
 
+// ErrMissingAttribution is returned when the project's require:{who,why} policy
+// is unmet on a transition — checked before the gate (fail fast), aggregating all
+// missing fields; the CLI maps it to exit code 2. Lives in core (attribution is
+// core policy, like ErrBlocked). [shipped s006.5]
+var ErrMissingAttribution = errors.New("mtt: missing required attribution")
+
 // ---------------------------------------------------------------------------
 // 7. CORE — usecase logic. Depends ONLY on the domain contract above, never on an
 //    adapter. Split by mutation vs pure read: mutations are usecase structs with
@@ -469,12 +475,17 @@ type Transitioner interface {
 }
 
 // TransitionOptions carry the roles seam (Role, from --role/MTT_ROLE), the
-// subject-identity By (from --by > MTT_BY > config.local `author` — GAP #5
-// resolved), and NoRun (bypass the gate). [shipped s006]
+// subject-identity By (from --who/--by > MTT_BY > config.local `author` — GAP #5
+// resolved), the durable reason Why (from --why), NoRun (bypass the gate), and
+// the project's required-attribution policy RequireWho/RequireWhy (checked before
+// the gate — fail fast; NoRun does not bypass it). [shipped s006; Why/Require s006.5]
 type TransitionOptions struct {
-	Role  string
-	By    string
-	NoRun bool
+	Role       string
+	By         string
+	Why        string
+	NoRun      bool
+	RequireWho bool
+	RequireWhy bool
 }
 
 // NewTransitioner wires the single-edge usecase (store for load/persist, config

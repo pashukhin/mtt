@@ -10,12 +10,17 @@ import (
 )
 
 // TransitionOptions carry the non-flow inputs to a transition: the roles seam
-// (Role) and the subject-identity seam (By), both recorded into history, and
-// NoRun to bypass the edge's command gate.
+// (Role), the subject-identity seam (By) and the durable reason (Why), all
+// recorded into history; NoRun to bypass the edge's command gate; and the
+// project's required-attribution policy (RequireWho/RequireWhy) checked before
+// the gate (fail fast; NoRun does not bypass it).
 type TransitionOptions struct {
-	Role  string
-	By    string
-	NoRun bool
+	Role       string
+	By         string
+	Why        string
+	NoRun      bool
+	RequireWho bool
+	RequireWhy bool
 }
 
 // Transitioner applies a SINGLE flow edge: validate id's current status → to
@@ -55,6 +60,9 @@ func (tr *Transitioner) Transition(id mtt.TaskID, to mtt.StatusName, opts Transi
 		return mtt.Task{}, fmt.Errorf("%w: %s cannot move %s → %s (allowed from %s: %s)",
 			ErrInvalidTransition, id, t.Status, to, t.Status, strings.Join(allowedTargets(typ, t.Status), ", "))
 	}
+	if missing := missingAttribution(opts); len(missing) > 0 {
+		return mtt.Task{}, fmt.Errorf("%w: %s", ErrMissingAttribution, strings.Join(missing, ", "))
+	}
 	var checks []mtt.Check
 	if !opts.NoRun {
 		checks, err = tr.runner.Run(edge.Commands)
@@ -69,7 +77,7 @@ func (tr *Transitioner) Transition(id mtt.TaskID, to mtt.StatusName, opts Transi
 	ts := tr.now().UTC().Truncate(time.Second)
 	t.Status = to
 	t.History = append(t.History, mtt.HistoryEntry{
-		At: ts, By: opts.By, Role: opts.Role, From: from, To: to, Checks: checks,
+		At: ts, By: opts.By, Role: opts.Role, Why: opts.Why, From: from, To: to, Checks: checks,
 	})
 	t.Updated = ts
 	return tr.store.Update(t)
@@ -95,6 +103,19 @@ func allowedTargets(typ mtt.Type, from mtt.StatusName) []string {
 		}
 	}
 	return out
+}
+
+// missingAttribution reports which required attribution fields (who/why) are
+// absent, aggregated so the caller can fix them all in one shot.
+func missingAttribution(opts TransitionOptions) []string {
+	var missing []string
+	if opts.RequireWho && opts.By == "" {
+		missing = append(missing, "who")
+	}
+	if opts.RequireWhy && opts.Why == "" {
+		missing = append(missing, "why")
+	}
+	return missing
 }
 
 // firstFailure returns the first non-zero check, if any.

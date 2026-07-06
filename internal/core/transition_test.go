@@ -2,6 +2,7 @@ package core
 
 import (
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -107,6 +108,55 @@ func TestTransitionInvalidEdge(t *testing.T) {
 	_, err := tr.Transition("t1", "done", TransitionOptions{}) // tbd → done not allowed
 	if !errors.Is(err, ErrInvalidTransition) {
 		t.Fatalf("err = %v, want ErrInvalidTransition", err)
+	}
+}
+
+func TestTransitionWritesWhy(t *testing.T) {
+	store := newMemStore(baseTask())
+	tr := NewTransitioner(store, flowCfg(nil, nil), &fakeRunner{}, testClock)
+
+	got, err := tr.Transition("t1", "in_progress", TransitionOptions{By: "alice", Why: "start work"})
+	if err != nil {
+		t.Fatalf("Transition: %v", err)
+	}
+	if got.History[len(got.History)-1].Why != "start work" {
+		t.Fatalf("history Why = %q, want %q", got.History[len(got.History)-1].Why, "start work")
+	}
+}
+
+func TestTransitionMissingAttributionAggregates(t *testing.T) {
+	store := newMemStore(baseTask())
+	tr := NewTransitioner(store, flowCfg(nil, nil), &fakeRunner{}, testClock)
+
+	_, err := tr.Transition("t1", "in_progress", TransitionOptions{RequireWho: true, RequireWhy: true})
+	if !errors.Is(err, ErrMissingAttribution) {
+		t.Fatalf("err = %v, want ErrMissingAttribution", err)
+	}
+	if !strings.Contains(err.Error(), "who") || !strings.Contains(err.Error(), "why") {
+		t.Fatalf("error must name both missing fields, got: %v", err)
+	}
+}
+
+func TestTransitionMissingAttributionSkipsGate(t *testing.T) {
+	store := newMemStore(baseTask())
+	runner := &fakeRunner{} // gate has commands; must NOT be reached
+	tr := NewTransitioner(store, flowCfg([]string{"make test"}, nil), runner, testClock)
+
+	if _, err := tr.Transition("t1", "in_progress", TransitionOptions{RequireWho: true}); !errors.Is(err, ErrMissingAttribution) {
+		t.Fatalf("err = %v, want ErrMissingAttribution", err)
+	}
+	if runner.called {
+		t.Fatal("gate ran; attribution must be checked before the gate (fail fast)")
+	}
+}
+
+func TestTransitionNoRunDoesNotBypassAttribution(t *testing.T) {
+	store := newMemStore(baseTask())
+	tr := NewTransitioner(store, flowCfg(nil, nil), &fakeRunner{}, testClock)
+
+	_, err := tr.Transition("t1", "in_progress", TransitionOptions{NoRun: true, RequireWhy: true})
+	if !errors.Is(err, ErrMissingAttribution) {
+		t.Fatalf("--no-run must not bypass attribution; err = %v", err)
 	}
 }
 
