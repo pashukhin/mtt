@@ -521,6 +521,12 @@ Guardrails (to keep it from ballooning): roles are **semantic routing** (what a 
 **not** RBAC/enforcement (agents are cooperative — we route, we don't police). Role names come from config,
 never hardcoded (like types/statuses).
 
+> **Ties to the current task (think, s006.7).** "Take into work" (`Transition.Current: set`) is a
+> **role-contextual** action — `current` is a lightweight single-value form of assignee, and "mine" is
+> per-actor/per-role. What shipped (one global `config.local` pointer) is a *degenerate single-role projection*;
+> when roles unpark, `current` likely becomes per-actor and `Transition.Current` may become role-conditioned.
+> Decide it **with** subagent-identity, not before. See TASKS.md → Later ("`current` vs roles").
+
 > **Direction (deferred): actor profiles.** The `roles` section is expected to grow into named **profiles**
 > that pair an identity with a role — `(by, role)`, e.g. `(coding-agent, implementer)` / `(Alice, reviewer)`
 > — with exactly one marked `default: true`, applied when neither `--profile` nor `--by`/`--role` is given.

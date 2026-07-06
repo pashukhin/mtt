@@ -238,6 +238,20 @@ comments (which enrich a full self-host but don't enable it). See sessions/READM
   **multi-assignee providers** — what "my current" means when an external backend allows several assignees
   (team work); YAML is single-valued, decide with the first external adapter. See DESIGN.md → "Working context:
   the current task".
+- later (think) — **`current` vs roles: is "take into work" role-contextual?** (surfaced s006.7). Yes —
+  `current` is a lightweight single-value form of **assignee** ("the task *I* am actively working"), and "I" is
+  an actor/role: an *implementer* taking `tbd→in_progress` claims *their* current, whereas a *reviewer* moving
+  `→review` claims *theirs* (different semantics on the same task). **What follows from roles being PARKED
+  (e4_t5 / e5_t5):** what shipped — one global `config.local` pointer, role-agnostic — is a **degenerate
+  single-role projection** of a per-actor concept (the correct default for solo / one-agent-per-checkout).
+  When roles unpark, `current` likely generalizes to a **per-actor / per-role** pointer (keyed by identity),
+  and `Transition.Current` may become **role-conditioned** (which role's current does an edge move? — composes
+  with the parked roles-on-edges). This is the same need as [per-agent current] (subagent-identity item) and
+  [multi-assignee providers] (a provider's assignee *is* role-scoped ownership). **Do NOT build role-conditioning
+  now:** unconditional set/clear is the right single-role default and the design is forward-compatible (the
+  field is name-agnostic; role-conditioning + a `SetCurrent(id, actor)` port param are additive). **Decide when
+  roles unpark** — this is a precondition to consider *with* subagent-identity, not before. See DESIGN.md →
+  "Roles — a seam" and "Working context: the current task".
 - later (think) — **show the status/transition `description` on a successful move**: an in-flow reminder for the
   agent ("what this transition is for") printed after `mtt status`/sugar. A read-side nicety from the s006.7
   brainstorm; cheap, but decide the output shape (stdout vs stderr, interaction with `--quiet`).
