@@ -1,0 +1,61 @@
+# mtt current task / working context
+exec mtt init
+# a single root type whose edges set/clear the current pointer (no gates, no require)
+cp local.yaml .mtt/config.yaml
+exec mtt add 'A'
+stdout 'created t1'
+exec mtt add 'B'
+stdout 'created t2'
+
+# explicit set + show
+exec mtt use t1
+stdout 'current: t1'
+exec mtt use
+stdout 't1  task  \[tbd\]'
+exec mtt show
+stdout 't1  task  \[tbd\]'
+
+# clear, then let the take-into-work edge set current
+exec mtt use --clear
+stdout 'current cleared'
+exec mtt use
+stdout 'no current task'
+exec mtt in_progress t1 --who a --why w
+stdout 't1: tbd → in_progress'
+exec mtt use
+stdout 't1  task  \[in_progress\]'
+
+# omitted-id verb on current + the ->done edge clears the pointer
+exec mtt done
+stdout 't1: in_progress → done'
+exec mtt use
+stdout 'no current task'
+
+# no current -> a bare verb errors helpfully; a nonsense arg is unknown command
+! exec mtt done
+stderr 'no current task'
+! exec mtt bogus
+stderr 'unknown command'
+
+# explicit independence
+exec mtt use t2
+stdout 'current: t2'
+exec mtt show
+stdout 't2  task  \[tbd\]'
+
+-- local.yaml --
+version: 1
+project:
+  name: demo
+types:
+  - name: task
+    prefix: t
+    default: true
+    parents: []
+    statuses:
+      - {name: tbd, kind: initial}
+      - {name: in_progress, kind: active}
+      - {name: done, kind: terminal}
+    transitions:
+      - {from: tbd, to: in_progress, current: set}
+      - {from: in_progress, to: done, current: clear}
