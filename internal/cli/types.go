@@ -100,6 +100,13 @@ func writeTypeBlock(b *strings.Builder, t mtt.Type, prefix string) {
 			} else {
 				fmt.Fprintf(b, "        $ %s\n", c.Run)
 			}
+			if c.Rollback != nil {
+				if c.Rollback.Timeout > 0 {
+					fmt.Fprintf(b, "        ↩ %s  (timeout %s)\n", c.Rollback.Run, c.Rollback.Timeout)
+				} else {
+					fmt.Fprintf(b, "        ↩ %s\n", c.Rollback.Run)
+				}
+			}
 		}
 	}
 	b.WriteString("\n")
