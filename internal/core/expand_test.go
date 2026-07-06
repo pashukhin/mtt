@@ -43,3 +43,40 @@ func TestExpandCommandsMalformed(t *testing.T) {
 		t.Fatal("want a parse error for a malformed template")
 	}
 }
+
+func TestExpandCommandsExpandsRollback(t *testing.T) {
+	ctx := cmdContext{ID: "t1", Type: "task", From: "tbd", To: "in_progress"}
+	out, err := expandCommands([]mtt.Command{{
+		Run:      "git checkout -b task/{{.ID}}",
+		Rollback: &mtt.Command{Run: "git branch -D task/{{.ID}}", Timeout: 5 * time.Second},
+	}}, ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if out[0].Rollback == nil || out[0].Rollback.Run != "git branch -D task/t1" {
+		t.Fatalf("rollback run = %+v, want git branch -D task/t1", out[0].Rollback)
+	}
+	if out[0].Rollback.Timeout != 5*time.Second {
+		t.Fatalf("rollback timeout dropped: %v", out[0].Rollback.Timeout)
+	}
+}
+
+func TestExpandCommandsMalformedRollback(t *testing.T) {
+	_, err := expandCommands([]mtt.Command{{
+		Run:      "true",
+		Rollback: &mtt.Command{Run: "echo {{.Title}}"}, // unexposed field → error up-front
+	}}, cmdContext{ID: "t1"})
+	if err == nil {
+		t.Fatal("want an error for a malformed rollback template (before any run)")
+	}
+}
+
+func TestExpandCommandsNilRollbackStaysNil(t *testing.T) {
+	out, err := expandCommands([]mtt.Command{{Run: "true"}}, cmdContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if out[0].Rollback != nil {
+		t.Fatal("nil rollback became non-nil")
+	}
+}
