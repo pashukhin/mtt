@@ -70,6 +70,11 @@ func TestValidateErrors(t *testing.T) {
 			c.Types[0].Transitions = append(c.Types[0].Transitions, Transition{From: "tbd2", To: "doing"})
 		}, "default statuses"},
 		{"default on non-initial", func(c *Config) { c.Types[0].Statuses[1].Default = true }, "default status must be initial"},
+		{"nested rollback", func(c *Config) {
+			c.Types[0].Transitions[0].Commands = []Command{
+				{Run: "a", Rollback: &Command{Run: "b", Rollback: &Command{Run: "c"}}}, // second-level rollback is invalid
+			}
+		}, "bad rollback"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
