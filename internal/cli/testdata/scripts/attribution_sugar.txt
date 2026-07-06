@@ -1,0 +1,72 @@
+# mtt attribution + verb sugar
+exec mtt init
+# single root type with green gates (task is a root default type)
+cp gated.yaml .mtt/config.yaml
+exec mtt add 'A'
+stdout 'created t1'
+
+# verb sugar: `mtt <status> <id>` moves one edge and records who/why
+exec mtt in_progress t1 --who alice --why 'start work'
+stdout 't1: tbd → in_progress'
+
+# show renders the subject and the durable reason
+exec mtt show t1
+stdout 'by alice'
+stdout 'start work'
+
+# unknown first arg is not sugar -> unknown command
+! exec mtt bogus t1
+stderr 'unknown command'
+
+# --- required attribution: switch to a config that requires who+why ---
+cp required.yaml .mtt/config.yaml
+
+# missing both -> blocked before the gate, one error naming both fields
+! exec mtt status t1 done
+stderr 'missing required attribution'
+stderr 'who'
+stderr 'why'
+
+# --no-run does NOT bypass attribution
+! exec mtt status t1 done --no-run
+stderr 'missing required attribution'
+
+# providing who + why succeeds through the green gate (via the sugar)
+exec mtt done t1 --who alice --why 'ship it'
+stdout 't1: in_progress → done'
+
+-- gated.yaml --
+version: 1
+project:
+  name: demo
+types:
+  - name: task
+    prefix: t
+    default: true
+    parents: []
+    statuses:
+      - {name: tbd, kind: initial}
+      - {name: in_progress, kind: active}
+      - {name: done, kind: terminal}
+    transitions:
+      - {from: tbd, to: in_progress, commands: ["true"]}
+      - {from: in_progress, to: done, commands: ["true"]}
+-- required.yaml --
+version: 1
+project:
+  name: demo
+require:
+  who: true
+  why: true
+types:
+  - name: task
+    prefix: t
+    default: true
+    parents: []
+    statuses:
+      - {name: tbd, kind: initial}
+      - {name: in_progress, kind: active}
+      - {name: done, kind: terminal}
+    transitions:
+      - {from: tbd, to: in_progress, commands: ["true"]}
+      - {from: in_progress, to: done, commands: ["true"]}
