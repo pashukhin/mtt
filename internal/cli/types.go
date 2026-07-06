@@ -95,7 +95,11 @@ func writeTypeBlock(b *strings.Builder, t mtt.Type, prefix string) {
 		}
 		b.WriteString("\n")
 		for _, c := range tr.Commands {
-			fmt.Fprintf(b, "        $ %s\n", c.Run)
+			if c.Timeout > 0 {
+				fmt.Fprintf(b, "        $ %s  (timeout %s)\n", c.Run, c.Timeout)
+			} else {
+				fmt.Fprintf(b, "        $ %s\n", c.Run)
+			}
 		}
 	}
 	b.WriteString("\n")
