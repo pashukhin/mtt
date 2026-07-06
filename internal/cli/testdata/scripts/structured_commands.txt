@@ -1,0 +1,59 @@
+# s007 structured commands: placeholder branch creation on take-into-work +
+# per-command timeout fail-fast + scalar back-compat.
+[!exec:git] skip
+
+exec git init
+
+exec mtt init
+cp gated.yaml .mtt/config.yaml
+
+exec mtt add 'implement feature'
+stdout 'created t1'
+
+# mtt types surfaces the per-command timeout on the done edge.
+exec mtt types
+stdout 'timeout 100ms'
+
+# take into work: the tbd -> in_progress gate runs `git checkout -b task/{{.ID}}`.
+exec mtt in_progress t1
+stdout 't1: tbd → in_progress'
+
+# the branch task/t1 was created. On a fresh repo with no commits the branch is
+# UNBORN, so `git branch --list` would be empty — assert the current branch.
+exec git symbolic-ref --short HEAD
+stdout 'task/t1'
+
+# the in_progress -> done gate is `sleep 1` bounded by a tight 100ms per-command
+# timeout under a 5m global: it must fail fast and block (exit non-zero); the task
+# stays in_progress.
+! exec mtt done t1
+stderr 'blocked'
+exec mtt show t1
+stdout '\[in_progress\]'
+
+# back-compat: a bare-string command edge (tbd -> cancelled: ["true"]) still gates.
+exec mtt add 'scrap this'
+stdout 'created t2'
+exec mtt cancelled t2
+stdout 't2: tbd → cancelled'
+
+-- gated.yaml --
+version: 1
+project:
+  name: demo
+command_timeout: 5m
+types:
+  - name: task
+    prefix: t
+    parents: []
+    default: true
+    statuses:
+      - {name: tbd,         kind: initial}
+      - {name: in_progress, kind: active}
+      - {name: done,        kind: terminal}
+      - {name: cancelled,   kind: terminal}
+    transitions:
+      - {from: tbd,         to: in_progress, commands: ["git checkout -b task/{{.ID}}"]}
+      - {from: tbd,         to: cancelled,   commands: ["true"]}
+      - {from: in_progress, to: done,        commands: [{run: "sleep 1", timeout: 100ms}]}
+      - {from: in_progress, to: cancelled}
