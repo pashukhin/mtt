@@ -15,13 +15,25 @@ type fakeRunner struct {
 	checks  []mtt.Check
 	err     error
 	called  bool
-	gotCmds []string
+	gotCmds []mtt.Command
 }
 
-func (f *fakeRunner) Run(commands []string) ([]mtt.Check, error) {
+func (f *fakeRunner) Run(commands []mtt.Command) ([]mtt.Check, error) {
 	f.called = true
 	f.gotCmds = commands
 	return f.checks, f.err
+}
+
+// strCmds wraps bare command strings as Commands (no per-command timeout).
+func strCmds(ss []string) []mtt.Command {
+	if ss == nil {
+		return nil
+	}
+	out := make([]mtt.Command, len(ss))
+	for i, s := range ss {
+		out[i] = mtt.Command{Run: s}
+	}
+	return out
 }
 
 // flowCfg is a one-type config: tbd →(a)→ in_progress →(b)→ done, plus cancelled.
@@ -39,9 +51,9 @@ func flowCfg(cmdsA, cmdsB []string) mtt.Config {
 					{Name: "cancelled", Kind: mtt.KindTerminal},
 				},
 				Transitions: []mtt.Transition{
-					{From: "tbd", To: "in_progress", Commands: cmdsA},
+					{From: "tbd", To: "in_progress", Commands: strCmds(cmdsA)},
 					{From: "tbd", To: "cancelled"},
-					{From: "in_progress", To: "done", Commands: cmdsB},
+					{From: "in_progress", To: "done", Commands: strCmds(cmdsB)},
 					{From: "in_progress", To: "cancelled"},
 				},
 			},

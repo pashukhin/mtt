@@ -48,7 +48,7 @@ type Transition struct {
 	From        StatusName
 	To          StatusName
 	Description string
-	Commands    []string
+	Commands    []Command
 	Current     CurrentAction // set|clear the personal current pointer when traversed (empty = no effect)
 }
 
