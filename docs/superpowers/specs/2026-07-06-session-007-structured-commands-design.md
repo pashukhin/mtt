@@ -123,6 +123,13 @@ func (yc *ymlCommand) UnmarshalYAML(value *yaml.Node) error {
 - Back-compat is at the **element** level: `commands: ["make lint", "make test"]` decodes each scalar element
   through `UnmarshalYAML` → `{Run: "make lint"}`. A map element `{run: "...", timeout: 30s}` decodes to
   `{Run, Timeout}`. Mixed lists work. Absent `commands` ⇒ nil.
+- **The scalar form is a serialization convenience only — both forms collapse to the same `mtt.Command` at
+  this boundary.** A bare string is the degenerate structured command: only `Run` is set; everything else
+  takes its default — `Timeout == 0` means **fall back** to the global `command_timeout` (resolved in the exec
+  runner, §4), *not* a zero timeout; a future `Rollback` (s008) defaults to empty (no compensation). Nothing
+  above the adapter branches on string-vs-map: `core`, `exec`, history, and `mtt types` see only `[]Command`,
+  and placeholder expansion applies uniformly to a scalar command's `Run` too. So the full form is never
+  mandatory — write a bare string whenever there is no per-command timeout (or later, rollback).
 - Parsing the duration in `UnmarshalYAML` (which already must exist for scalar-or-map) means the error
   surfaces at YAML-unmarshal time inside `Load` — the same layer as the global `parseCommandTimeout` — and
   keeps `toDomain` error-free.
