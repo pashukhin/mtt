@@ -35,8 +35,10 @@ the architectural axis. They map many-to-one, not one-to-one. Current position:
   `list --ready`).
 - **Phase 3 (e4)** — `[~]` single-edge flow enforcement shipped in **s006**: the `Runner` port +
   `internal/adapter/exec` + fake, `core.Transitioner`, `mtt status <id> <new>` (gate on `commands`, exit
-  codes 3/6, append `history`, `--role`/`--by`), config-driven `command_timeout`, `mtt show` history. Next:
-  the `advance`/`start`/`done` meta-walk (e4_t5 / **s007**).
+  codes 3/6, append `history`, `--role`/`--by`), config-driven `command_timeout`, `mtt show` history. Then
+  **s006.5** attribution+sugar (e4_t8), **s006.7** current task (e4_t8a), **s007** structured commands (e4_t9:
+  the `Command` VO with placeholders + per-command timeout). Next: **s008** rollback/compensation (e4_t10).
+  The `advance`/`start`/`done` meta-walk (e4_t5) stays **PARKED** (single-edge is the norm).
 
 Two decisions from the domain-model snapshot ([docs/architecture/model.go](docs/architecture/model.go)):
 
@@ -150,11 +152,15 @@ Single-edge `mtt status` shipped in **s006**; the meta-walk (`advance`/`start`/`
       `Capabilities()` deferred to `mtt caps` (e4_t6). Follow-up think-items are in **Later (think)** below
       (separate `current`/`use` commands; description-on-move; current for all single-task ops; per-agent
       current; multi-assignee providers; the `advance` reuse seam).
-- [ ] e4_t9 — **structured commands (s007)**: evolve `Transition.Commands` `[]string` → a `Command`
-      value object (`{run, timeout?}`) with **placeholder** expansion on `run` (`.ID`/`.Type`/`.From`/`.To`;
-      shell-quote/restrict — injection caveat) + **per-command timeout** overriding `command_timeout`.
-      Additive/back-compatible (bare string ⇒ `{run: …}`), but a **domain-shape change** in `pkg/mtt`. This
-      is the enabler for "the agent works in task terms" (task-aware transitions, e.g. branch creation)
+- [x] e4_t9 — **structured commands (s007)** — shipped: `Transition.Commands` `[]string` → the `Command`
+      value object (`{Run, Timeout}`, pure `pkg/mtt`) with **placeholder** expansion on `run`
+      (`.ID`/`.Type`/`.From`/`.To`, a structural `text/template` whitelist — no free text, no shell-quoting) in
+      `core.Transitioner` (pkg/mtt stays template-agnostic) + a **per-command timeout** overriding
+      `command_timeout` resolved in the exec `Runner` (global as fallback). Back-compat: a bare YAML scalar ⇒
+      `{run: …}` via a custom `ymlCommand.UnmarshalYAML` (scalar or `{run, timeout}` map). `Runner.Run` now
+      takes `[]mtt.Command` (Run expanded at the boundary; `Check.Cmd` records the expanded command). An
+      expansion error is exit 1 (not `ErrBlocked`). The enabler for "the agent works in task terms" (task-aware
+      transitions, e.g. `git checkout -b task/{{.ID}}`). `rollback?` stays additive → s008 (e4_t10)
 - [ ] e4_t10 — **rollback/compensation (s008)**: reverse-order compensating commands on a failed pipeline
       or (later) an `--atomic`/multi-step abort after side effects; the executor's abort path is the hook
 

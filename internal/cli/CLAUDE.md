@@ -72,3 +72,8 @@ for `list`/`tree`/`dep`/`ready`. Order: explicit id > current; a stale/absent cu
 error (validated at the point of use). `applyCurrent(root, cfg, task, id)` (in `status.go`) moves the pointer
 after a successful `runTransition` by reading the traversed edge's `Current` via `Type.FindTransition` —
 `core.Transitioner` is untouched (the CLI applies the flow-declared set/clear).
+
+Structured commands (session 007): no CLI wiring change — the runner is still `exec.NewRunner(root,
+settings.CommandTimeout, …)` (the global is now the **per-command fallback**), and `core.Transitioner`
+expands placeholders before the gate. The one CLI touch is `mtt types` (`formatTypes`): a command renders as
+`$ <run>` plus `  (timeout <d>)` when the command carries a per-command timeout.

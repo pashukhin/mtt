@@ -73,6 +73,17 @@ const (
 	CurrentClear CurrentAction = "clear" // release: the pointer is cleared
 )
 
+// Command is one gate step of a transition: a shell command (Run, a raw
+// template) with an optional per-command timeout overriding the adapter's global
+// command_timeout (zero = fall back). core expands Run's placeholders
+// (.ID/.Type/.From/.To — shape-safe whitelist) before the runner runs it;
+// pkg/mtt stays template-agnostic. Valid() = non-empty Run + non-negative
+// Timeout. [shipped s007]
+type Command struct {
+	Run     string
+	Timeout time.Duration
+}
+
 // RefKind is the closed vocabulary of reference targets. [T1 field / T2–T3 resolution]
 type RefKind string
 
@@ -180,12 +191,14 @@ type Status struct {
 
 // Transition is a directed edge between two statuses of the same flow, referenced
 // BY NAME (Layer A). Commands are the local gate augmentation (all must exit 0 or
-// the move is blocked); they run behind the Runner port in T2. [T1 fields / T2 exec]
+// the move is blocked); they run behind the Runner port. Each Command is a value
+// object {Run (a raw template), Timeout} — core expands Run's placeholders before
+// the gate; the per-command timeout overrides the adapter global. [Commands VO s007]
 type Transition struct {
 	From        StatusName
 	To          StatusName
 	Description string
-	Commands    []string
+	Commands    []Command
 	Current     CurrentAction // set|clear the personal current pointer when traversed [shipped s006.7]
 }
 
@@ -488,9 +501,10 @@ var NewDependencyEditor func(store TaskStore, now func() time.Time) DependencyEd
 // NOT passed here — keeps core free of filesystem paths) and a per-command
 // timeout, aborting on the first non-zero exit. A non-zero exit is DATA (a
 // Check), not a Go error; the error signals an operational failure (launch /
-// timeout). [shipped s006]
+// timeout). Each Command's Run is ALREADY EXPANDED by core at this boundary; the
+// adapter resolves the effective timeout (per-command, else the global). [shipped s006; VO s007]
 type Runner interface {
-	Run(commands []string) ([]Check, error)
+	Run(commands []Command) ([]Check, error)
 }
 
 // Transitioner applies a SINGLE flow edge (mtt status <id> <new>): validate the
@@ -588,7 +602,7 @@ type ResolvedStatus struct {
 type ResolvedEdge struct {
 	From     *ResolvedStatus
 	To       *ResolvedStatus
-	Commands []string
+	Commands []Command
 }
 
 // ---------------------------------------------------------------------------

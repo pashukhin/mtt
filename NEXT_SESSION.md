@@ -4,13 +4,20 @@ A living handoff doc. Update it at the end of each session (what's done / what's
 
 ## Where we are
 
-- **Phase 0 (scaffold) + sessions 001–006 + 006.5 + 006.7 are DONE** (version `0.6.7-dev`, `make check` green).
+- **Phase 0 (scaffold) + sessions 001–006 + 006.5 + 006.7 + 007 are DONE** (version `0.7.0-dev`, `make check` green).
+  **Session 007 (structured commands)** shipped the `pkg/mtt.Command` value object (`{Run, Timeout}`;
+  `Transition.Commands` is now `[]Command`), **placeholder expansion** on `run` (`.ID`/`.Type`/`.From`/`.To`
+  via `text/template` in `core.Transitioner` — a self-enforcing shape-safe whitelist; `pkg/mtt` stays
+  template-agnostic), a **per-command timeout** overriding the global `command_timeout` (resolved in the exec
+  `Runner`, global as fallback), back-compat via `ymlCommand.UnmarshalYAML` (bare scalar **or** `{run, timeout}`
+  map), `Runner.Run([]mtt.Command)` (Run expanded at the boundary; `Check.Cmd` records the expanded command),
+  and `mtt types` showing per-command timeouts. Next: **s008 rollback/compensation**.
   **Session 006.7 (current task / working context)** shipped `mtt use [<id>] [--clear]` (a personal
   git-`HEAD`-for-tasks pointer in `config.local.yaml`), the additive `pkg/mtt.Transition.Current` (`set|clear`)
   rule + the `CurrentStore` capability port (`yaml.NewCurrent` writes `config.local` via a comment-preserving
   `yaml.Node`; the CLI applies set/clear after a move — `core.Transitioner` untouched), the pure
   `Type.FindTransition` primitive, and **omitted-id resolution** to the current task for
-  `status`/`mtt <status>`/`show`/`edit` only (never list/tree/dep/ready). Next: **s007 structured commands**.
+  `status`/`mtt <status>`/`show`/`edit` only (never list/tree/dep/ready).
   **Session 006.5 (attribution + verb sugar)** shipped `--why` (durable reason; `HistoryEntry.Why` + DTO +
   `show`), `--who` (mutually-exclusive alias of `--by`), the `mtt <status> <id>` **verb sugar** (fallback-routing
   in `root.RunE` — reuses `core.Transitioner`; unknown arg0 → exit 1; real command wins a clash), and
@@ -131,15 +138,51 @@ resolved graph, and open gaps. Two decisions locked there that shape s005:
   at its boundary (`toDomain` fails fast on a corrupt empty `id`/`type`/`status`). s005 is written against the
   typed contract. Constructors reject empty, no transform; `Ref.ID` stays `string`; `NoteSlug` deferred (KB).
 
-## Next task — session 007 (structured commands)
+## Next task — session 008 (rollback / compensation)
 
-> **s006.7 (current task) is SHIPPED** — see the summary in "Where we are" and "Carry-over lessons (006.7)"
-> above; the design spec is `docs/superpowers/specs/2026-07-06-session-006.7-current-task-design.md` and the
-> plan is `docs/superpowers/plans/2026-07-06-session-006.7-current-task.md`. **Next up is s007 structured
-> commands** (evolve `Transition.Commands` `[]string` → a `Command` value object `{run, timeout?}` with
-> placeholder expansion on `run` + per-command timeout — the "agent works in task terms" enabler; a domain-shape
-> change in `pkg/mtt`; see TASKS.md → e4_t9 and DESIGN.md → "Seam (deferred): structured commands"). The block
-> below is the (now-completed) s006.7 brief, kept for reference until the s007 brief replaces it.
+> **s007 (structured commands) is SHIPPED** — see "Where we are" and "Carry-over lessons (007)" below; the spec
+> is `docs/superpowers/specs/2026-07-06-session-007-structured-commands-design.md` and the plan is
+> `docs/superpowers/plans/2026-07-06-session-007-structured-commands.md`. **Next up is s008
+> rollback/compensation** (e4_t10): a transition may declare reverse-order compensating commands run over the
+> already-succeeded commands when a later command in the same pipeline fails (undo a created branch, …). The
+> `Command` VO gains an additive `Rollback` field; the executor's abort path is the hook. See DESIGN.md →
+> "Seam (deferred): rollback / compensation" and TASKS.md → e4_t10. The blocks below are the completed s007 and
+> s006.7 carry-over lessons; the s006.7 brief is kept for reference.
+
+### Carry-over lessons (007 — structured commands)
+- **Domain-vs-policy split for a per-edge property.** The s006 rule "execution policy (`command_timeout`) rides
+  the adapter `Settings`, not `pkg/mtt`" does **not** bar a *per-command* timeout from the domain: the global is
+  one runner knob (applies to every command, external trackers run none), but a per-command timeout is an
+  **authored property of a flow edge**, inseparable from its `run` (which already lives in `Transition.Commands`).
+  Test: "is this a runner default, or authored on this specific edge?" Default → adapter `Settings`; authored →
+  the domain VO. The runner resolves per-command-else-global, keeping the global out of `core`.
+- **Reuse the DTO's mandatory custom `UnmarshalYAML` to parse and keep `toDomain` error-free.** `ymlCommand`
+  needed a custom unmarshal anyway (scalar OR map back-compat); folding `time.ParseDuration` into it means a bad
+  duration surfaces at `Load` (like `parseCommandTimeout`) and `toDomain` stays a pure, error-free copy — no
+  smart constructor, no `toDomain` signature churn (the s006.7 lesson holds). Decode the map branch into a
+  string-`Timeout` alias, never back into `ymlCommand` (infinite recursion; yaml.v3 can't decode `30s` into
+  `time.Duration`).
+- **A `text/template` struct context is a self-enforcing whitelist.** Exposing only `cmdContext{ID,Type,From,To}`
+  means `{{.Title}}` (or any free-text/typo) is a template error at `Execute` — the struct's shape *is* the
+  injection policy; no shell-quoting, no field allow-list check. Keep templating in `core` (where the policy
+  lives), not `pkg/mtt` (which stays template-agnostic, storing the raw template). An expansion error is a plain
+  error (exit 1), distinct from a gate block (`ErrBlocked`, exit 3) — a malformed command is a config fault, not
+  a failed gate.
+- **Expand with the pre-move status.** `.From` must be the status being *left*, so capture `from := t.Status`
+  **before** `t.Status = to` and build the context from it; the same `from` feeds the history entry. `--no-run`
+  skips expansion together with the gate (nothing to expand if nothing runs).
+- **Type-migration task in a green-between-commits plan.** Flipping `Transition.Commands []string → []Command`
+  breaks every consumer at once (unavoidable — the field type drives them). Land it as one behavior-preserving
+  refactor commit (DTO maps string→`{Run}`, runner/exec/core/`types`/tests updated), *then* add the new YAML
+  form + expansion + timeout on top. Each commit stays `make check`-green.
+- **`Check.Cmd` records the expanded command** (`git checkout -b task/t1`, not the template) — a truthful audit;
+  it falls out for free because `core` passes expanded `Command`s to the runner.
+- **e2e: assert an unborn branch via `git symbolic-ref --short HEAD`, not `git branch --list`.** On a fresh
+  `git init` with no commits, a newly-created branch is unborn and invisible to `git branch --list` (empty
+  stdout); `symbolic-ref` reports it and needs no user config. Guard the one git-shelling script with
+  `[!exec:git] skip`. Keep the slow-gate sleep short (~1s): `exec.CommandContext` kills at the timeout but
+  `Run()` blocks until the orphaned child closes the inherited output pipe (same as `TestRunTimeout`), so a long
+  sleep only slows the test — the block still fires.
 
 ### (Completed) session 006.7 brief — current task / working context
 

@@ -16,6 +16,7 @@ beyond provider-specific checks.
 ## Boundaries
 
 - The domain never sees YAML: DTOs carry the yaml tags + `prefix`; `toDomain` maps to pure types.
+- **`ymlCommand` (s007)** — a transition command on disk is a bare **scalar** (a command string, back-compat) **or** a `{run, timeout}` **map**; `ymlCommand.UnmarshalYAML` dispatches on the node `Kind` and maps both to one `mtt.Command`. The map branch decodes into a local string-`Timeout` alias (never back into `ymlCommand` — infinite recursion; yaml.v3 can't decode `30s` into `time.Duration`) then `time.ParseDuration`s it, so a bad duration surfaces at `Load` (like the global `command_timeout`) and `toDomain` stays error-free. Config is never marshaled (read-only + template text), so there is no `MarshalYAML`.
 - **Identity mapping**: on-disk DTOs keep plain `string` fields; `fromDomain*` casts the named identities
   (`TaskID`/`TypeName`/`StatusName`) to `string`, and `toDomain` maps back — **guarding** the required
   `id`/`type`/`status` via `mtt.NewTaskID`/`NewTypeName`/`NewStatusName` (a corrupt file with an empty one

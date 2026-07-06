@@ -64,7 +64,28 @@ external backends in the local overlay or env vars, **never** in the committed c
 
 **`command_timeout`** (top-level, e.g. `command_timeout: 5m`) bounds each transition gate command (per
 command). It is an execution/adapter setting (kept out of the pure domain), defaults to `5m` when absent,
-and is overridable via `config.local.yaml`.
+and is overridable via `config.local.yaml`. A command may override it with its own **per-command timeout**
+(see "Transition commands" below); the global is the fallback.
+
+**Transition commands (structured — session 007).** A transition's `commands` is a list where each entry is
+either a **bare string** (the command) or a **map** `{run, timeout}`:
+
+```yaml
+transitions:
+  - {from: tbd, to: in_progress, commands: ["git checkout -b task/{{.ID}}"]}
+  - from: in_progress
+    to: done
+    commands:
+      - make lint                      # bare string — uses the global command_timeout
+      - {run: make test, timeout: 30s} # per-command timeout overrides the global
+```
+
+- **Placeholders** in `run` are expanded before the gate runs: `{{.ID}}`, `{{.Type}}`, `{{.From}}` (the
+  status being left), `{{.To}}` (the target). Only these shape-safe fields are available — free text
+  (title/description) is never interpolated; a stray `{{.Title}}` is an error. The expanded command is what
+  runs and what the transition `history` records.
+- **`timeout`** (a Go duration like `30s`, `2m`) bounds that command, overriding `command_timeout` for it.
+- `mtt types` prints a command as `$ <run>` and appends `(timeout <d>)` when it carries a per-command timeout.
 
 **`author`** (top-level, typically in the gitignored `config.local.yaml`) is the durable default for the
 history `by` field — "who is acting" — used when neither `--by` nor `MTT_BY` is set (precedence

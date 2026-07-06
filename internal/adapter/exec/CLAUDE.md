@@ -5,9 +5,12 @@ transition's `commands` as gates.
 
 ## Responsibilities
 
-- `NewRunner(dir, timeout, progress, cmdOut)` / `Run(commands)` — run each command with `cwd=dir` and a
-  **per-command** timeout (`context.WithTimeout`), in order, **stopping at the first non-zero exit**. Records
-  a `mtt.Check{Cmd, Exit}` per executed command.
+- `NewRunner(dir, timeout, progress, cmdOut)` / `Run(commands []mtt.Command)` — run each command with
+  `cwd=dir`, in order, **stopping at the first non-zero exit**. The effective timeout per command is
+  `cmd.Timeout` when set, else the constructor `timeout` (the adapter global `command_timeout`) as a
+  **fallback** (`context.WithTimeout`) — so a tight per-command timeout fails fast independent of the global
+  (s007). Each `mtt.Command.Run` is **already expanded** by `core` (this adapter does not template); records a
+  `mtt.Check{Cmd: cmd.Run, Exit}` per executed command (the expanded command — truthful audit).
 - **Two output streams, separate concerns.** `progress` (always) gets the live pipeline lines
   `▶ <cmd>` / `✓|✗ <cmd> (exit N, <elapsed>)` — per-command wall-clock timing, display-only (not persisted).
   `cmdOut` gets each command's own stdout/stderr (the CLI passes `io.Discard` by default, stderr with `-v`,
