@@ -77,12 +77,37 @@ func runTransition(cmd *cobra.Command, root string, cfg mtt.Config, settings yam
 	if err != nil {
 		return err
 	}
+	if err := applyCurrent(root, cfg, task, id); err != nil {
+		return err
+	}
 	if jsonFlag(cmd) {
 		return writeJSON(cmd.OutOrStdout(), toTaskJSON(task))
 	}
 	last := task.History[len(task.History)-1]
 	_, err = fmt.Fprintf(cmd.OutOrStdout(), "%s: %s → %s\n", id, last.From, last.To)
 	return err
+}
+
+// applyCurrent moves the personal current-task pointer per the edge just
+// traversed: the task's last history entry gives from->to, and the type's
+// transition carries the set/clear rule. A no-op when the edge declares nothing.
+func applyCurrent(root string, cfg mtt.Config, task mtt.Task, id mtt.TaskID) error {
+	typ, ok := cfg.TypeByName(task.Type)
+	if !ok {
+		return nil
+	}
+	last := task.History[len(task.History)-1]
+	edge, ok := typ.FindTransition(last.From, last.To)
+	if !ok {
+		return nil
+	}
+	switch edge.Current {
+	case mtt.CurrentSet:
+		return yaml.NewCurrent(root).SetCurrent(id)
+	case mtt.CurrentClear:
+		return yaml.NewCurrent(root).ClearCurrent()
+	}
+	return nil
 }
 
 // gateOutputWriter resolves where each gate command's own stdout/stderr goes:
