@@ -3,6 +3,7 @@ package yaml
 import (
 	"strings"
 	"testing"
+	"time"
 
 	goyaml "gopkg.in/yaml.v3"
 
@@ -82,5 +83,65 @@ func TestToDomainTransitionCurrent(t *testing.T) {
 	}
 	if trs[1].Current != mtt.CurrentClear {
 		t.Errorf("edge wip->done Current = %q, want clear", trs[1].Current)
+	}
+}
+
+func TestYmlCommandUnmarshalScalar(t *testing.T) {
+	var c ymlCommand
+	if err := goyaml.Unmarshal([]byte(`"make test"`), &c); err != nil {
+		t.Fatal(err)
+	}
+	if c.Run != "make test" || c.Timeout != 0 {
+		t.Fatalf("got %+v, want {Run: make test, Timeout: 0}", c)
+	}
+}
+
+func TestYmlCommandUnmarshalMap(t *testing.T) {
+	var c ymlCommand
+	if err := goyaml.Unmarshal([]byte("{run: make test, timeout: 30s}"), &c); err != nil {
+		t.Fatal(err)
+	}
+	if c.Run != "make test" || c.Timeout != 30*time.Second {
+		t.Fatalf("got %+v, want {Run: make test, Timeout: 30s}", c)
+	}
+}
+
+func TestYmlCommandUnmarshalBadDuration(t *testing.T) {
+	var c ymlCommand
+	if err := goyaml.Unmarshal([]byte("{run: x, timeout: banana}"), &c); err == nil {
+		t.Fatal("want error for a bad duration")
+	}
+}
+
+func TestToDomainCommandsMixed(t *testing.T) {
+	src := `
+version: 1
+project: {name: p}
+types:
+  - name: task
+    prefix: t
+    default: true
+    statuses:
+      - {name: tbd, kind: initial}
+      - {name: doing, kind: active}
+      - {name: done, kind: terminal}
+    transitions:
+      - {from: tbd, to: doing, commands: ["make lint", {run: "make test", timeout: 30s}]}
+      - {from: doing, to: done}
+`
+	var yc ymlConfig
+	if err := goyaml.Unmarshal([]byte(src), &yc); err != nil {
+		t.Fatal(err)
+	}
+	cfg, _ := yc.toDomain()
+	cmds := cfg.Types[0].Transitions[0].Commands
+	if len(cmds) != 2 {
+		t.Fatalf("cmds = %+v, want 2", cmds)
+	}
+	if cmds[0] != (mtt.Command{Run: "make lint"}) {
+		t.Fatalf("cmd0 = %+v", cmds[0])
+	}
+	if cmds[1] != (mtt.Command{Run: "make test", Timeout: 30 * time.Second}) {
+		t.Fatalf("cmd1 = %+v", cmds[1])
 	}
 }
