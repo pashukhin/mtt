@@ -49,7 +49,11 @@ func (r *Runner) Run(commands []mtt.Command) ([]mtt.Check, error) {
 	for _, cmd := range commands {
 		_, _ = fmt.Fprintf(r.progress, "▶ %s\n", cmd.Run)
 		start := time.Now()
-		exit, err := r.runOne(cmd.Run)
+		timeout := cmd.Timeout
+		if timeout <= 0 {
+			timeout = r.timeout // fall back to the global command_timeout
+		}
+		exit, err := r.runOne(cmd.Run, timeout)
 		elapsed := time.Since(start).Round(time.Millisecond)
 		mark := "✓"
 		if exit != 0 || err != nil {
@@ -67,11 +71,11 @@ func (r *Runner) Run(commands []mtt.Command) ([]mtt.Check, error) {
 	return checks, nil
 }
 
-// runOne runs a single command, streaming its output to cmdOut and returning its
-// exit code. A clean non-zero exit yields (code, nil); a timeout or launch
-// failure yields (-1, error).
-func (r *Runner) runOne(cmd string) (int, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), r.timeout)
+// runOne runs a single command with the given timeout, streaming its output to
+// cmdOut and returning its exit code. A clean non-zero exit yields (code, nil); a
+// timeout or launch failure yields (-1, error).
+func (r *Runner) runOne(cmd string, timeout time.Duration) (int, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 	name, args := shell(cmd)
 	c := exec.CommandContext(ctx, name, args...)
@@ -83,7 +87,7 @@ func (r *Runner) runOne(cmd string) (int, error) {
 		return 0, nil
 	}
 	if ctx.Err() == context.DeadlineExceeded {
-		return -1, fmt.Errorf("command %q timed out after %s", cmd, r.timeout)
+		return -1, fmt.Errorf("command %q timed out after %s", cmd, timeout)
 	}
 	var ee *exec.ExitError
 	if errors.As(err, &ee) {
