@@ -60,11 +60,13 @@ type Comment struct {
 	Replies []Comment
 }
 
-// HistoryEntry is one append-only transition record. Role is the roles seam.
+// HistoryEntry is one append-only transition record. Role is the roles seam;
+// Why is a durable free-text reason for the move (--why).
 type HistoryEntry struct {
 	At     time.Time
 	By     string
 	Role   string
+	Why    string
 	From   StatusName
 	To     StatusName
 	Checks []Check

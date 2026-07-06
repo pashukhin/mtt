@@ -93,6 +93,24 @@ func TestToDomainRejectsEmptyStatus(t *testing.T) {
 	}
 }
 
+func TestHistoryWhyRoundTrip(t *testing.T) {
+	in := mtt.Task{
+		ID: "t1", Type: "task", Status: "in_progress",
+		Created: fixedTime(), Updated: fixedTime(),
+		History: []mtt.HistoryEntry{{
+			At: fixedTime(), By: "alice", Role: "impl", Why: "start work",
+			From: "tbd", To: "in_progress",
+		}},
+	}
+	out, err := fromDomainTask(in).toDomain()
+	if err != nil {
+		t.Fatalf("round-trip: %v", err)
+	}
+	if out.History[0].Why != "start work" {
+		t.Fatalf("Why = %q, want %q", out.History[0].Why, "start work")
+	}
+}
+
 func TestTaskDTODependsOnRoundTrip(t *testing.T) {
 	in := mtt.Task{
 		ID: "t3", Type: "task", Title: "c", Status: "tbd",
