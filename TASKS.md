@@ -147,11 +147,9 @@ Single-edge `mtt status` shipped in **s006**; the meta-walk (`advance`/`start`/`
       `Type.FindTransition`); `core.Transitioner` untouched. `mtt use [<id>] [--clear]` (set/show/clear). An
       **omitted id** resolves to `current` for `status`/`mtt <status>`/`show`/`edit` only (order: explicit id >
       current; stale/absent → actionable error); never for `list`/`tree`/`dep`/`ready`. `CapCurrent` +
-      `Capabilities()` deferred to `mtt caps` (e4_t6). **Later (think):** separate `mtt current`/`use` commands
-      (ergonomic clarity); show status/transition `description` on a move (in-flow agent reminder); resolve
-      `current` for **all** single-task ops incl. reads (`tree <id>`, `dep list`); per-agent current
-      (subagent-identity); multi-assignee providers ("my current" when several assigned); the `advance` reuse
-      seam (extract a shared core apply-edge-effects step when the parked multi-edge walk unparks).
+      `Capabilities()` deferred to `mtt caps` (e4_t6). Follow-up think-items are in **Later (think)** below
+      (separate `current`/`use` commands; description-on-move; current for all single-task ops; per-agent
+      current; multi-assignee providers; the `advance` reuse seam).
 - [ ] e4_t9 — **structured commands (s007)**: evolve `Transition.Commands` `[]string` → a `Command`
       value object (`{run, timeout?}`) with **placeholder** expansion on `run` (`.ID`/`.Type`/`.From`/`.To`;
       shell-quote/restrict — injection caveat) + **per-command timeout** overriding `command_timeout`.
@@ -231,6 +229,22 @@ comments (which enrich a full self-host but don't enable it). See sessions/READM
   the status-sugar — `mtt check` is reserved for ref-checking); a non-transition action's audit ties to
   edit-audit. **Open: release-needed?** Lean *no* (an agent commits WIP via plain `git` while `in_progress` —
   completeness polish, not the minimum); revisit once structured commands land. See DESIGN.md → Flow seam.
+- later (think) — **`current` (working context) follow-ups (s006.7)**: (a) **separate `mtt current` (show) +
+  `mtt use <id>` (set) + clear** — semantically cleaner than one overloaded `use` command; an ergonomics pass.
+  (b) **resolve `current` for *all* single-task ops, including reads** (`tree <id>`, `dep list`; today only
+  `show`/`edit`/`status`/sugar resolve it) — generalize deliberately, not verb-by-verb. (c) **per-agent
+  current** — a shared checkout with multiple agents has one `config.local` = one `current` → collision;
+  blocked on the subagent-identity item above (fine for solo / one-agent-per-checkout meanwhile). (d)
+  **multi-assignee providers** — what "my current" means when an external backend allows several assignees
+  (team work); YAML is single-valued, decide with the first external adapter. See DESIGN.md → "Working context:
+  the current task".
+- later (think) — **show the status/transition `description` on a successful move**: an in-flow reminder for the
+  agent ("what this transition is for") printed after `mtt status`/sugar. A read-side nicety from the s006.7
+  brainstorm; cheap, but decide the output shape (stdout vs stderr, interaction with `--quiet`).
+- later (think) — **`advance` reuse seam for `current` set/clear**: s006.7 applies `Transition.Current` in the
+  CLI (single-edge `status`/sugar share `runTransition`). When the parked multi-edge `advance` (e4_t5) unparks,
+  extract a shared **core** "apply edge effects" step so `Transitioner` and `Advancer` both move the pointer
+  (avoids the DRY split option ii accepts now). Revisit-at-the-second-caller. See DESIGN.md → "Working context".
 - **now scheduled (regrouped 2026-07-05):** attribution + verb sugar (`--why`/`--who` + `mtt <status> <id>`)
   → **e4_t8 / s006.5**; current task / working context → **e4_t8a / s006.7**; structured commands
   (placeholders + per-command timeout) → **e4_t9 / s007**; rollback/compensation → **e4_t10 / s008**; dogfood enablers (`mtt rm`, `--depends-on`) + packaging →
