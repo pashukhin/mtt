@@ -88,3 +88,11 @@ func TestClearPreservesOtherKeys(t *testing.T) {
 		t.Errorf("author lost:\n%s", data)
 	}
 }
+
+func TestSetCurrentRejectsNonMappingRoot(t *testing.T) {
+	root := t.TempDir()
+	writeLocal(t, root, "- a\n- b\n") // a sequence-root config.local is corrupt
+	if err := NewCurrent(root).SetCurrent("t1"); err == nil {
+		t.Fatal("SetCurrent on a sequence-root config.local = nil, want an error (not silent corruption)")
+	}
+}

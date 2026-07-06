@@ -97,20 +97,9 @@ func trySugarCurrent(cmd *cobra.Command, statusArg string) (bool, error) {
 	}
 	task, err := yaml.NewTaskStore(root).Get(id)
 	if err != nil {
-		return true, fmt.Errorf("current task %q no longer exists; run `mtt use <id>` or `mtt use --clear`", id)
+		return true, staleCurrentErr(id) // current points at a task that no longer exists
 	}
-	typ, ok := cfg.TypeByName(task.Type)
-	if !ok {
-		return false, nil
-	}
-	to, err := mtt.NewStatusName(statusArg)
-	if err != nil {
-		return false, nil
-	}
-	if _, ok := typ.StatusKind(to); !ok {
-		return false, nil
-	}
-	return true, runTransition(cmd, root, cfg, settings, id, to, false)
+	return classifyStatusMove(cmd, root, cfg, settings, task, statusArg)
 }
 
 // trySugar classifies `<arg0> <arg1>` as a status move. It routes only when the
@@ -133,8 +122,17 @@ func trySugar(cmd *cobra.Command, statusArg, idArg string) (bool, error) {
 	}
 	task, err := yaml.NewTaskStore(root).Get(id)
 	if err != nil {
-		return false, nil
+		return false, nil // arg1 is not an existing task ⇒ not sugar (→ unknown command)
 	}
+	return classifyStatusMove(cmd, root, cfg, settings, task, statusArg)
+}
+
+// classifyStatusMove is the shared tail of the 1-arg and 2-arg sugar once the
+// target task is in hand: it routes to the transition path iff statusArg is a
+// status in the task's type flow (else routed=false → unknown command). The two
+// callers differ only in how they obtain the task and in their Get-failure policy
+// (2-arg declines; 1-arg reports a stale current) — that stays in the callers.
+func classifyStatusMove(cmd *cobra.Command, root string, cfg mtt.Config, settings yaml.Settings, task mtt.Task, statusArg string) (bool, error) {
 	typ, ok := cfg.TypeByName(task.Type)
 	if !ok {
 		return false, nil
@@ -146,7 +144,7 @@ func trySugar(cmd *cobra.Command, statusArg, idArg string) (bool, error) {
 	if _, ok := typ.StatusKind(to); !ok {
 		return false, nil
 	}
-	return true, runTransition(cmd, root, cfg, settings, id, to, false)
+	return true, runTransition(cmd, root, cfg, settings, task.ID, to, false)
 }
 
 // exitCode maps an error to the CLI's exit-code taxonomy.

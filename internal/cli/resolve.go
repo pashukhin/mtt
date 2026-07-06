@@ -8,6 +8,12 @@ import (
 	"github.com/pashukhin/mtt/pkg/mtt"
 )
 
+// staleCurrentErr is the actionable message when a current-task pointer no longer
+// resolves — the pointer is validated at the point of use, never silently stale.
+func staleCurrentErr(id mtt.TaskID) error {
+	return fmt.Errorf("current task %q no longer exists; run `mtt use <id>` or `mtt use --clear`", id)
+}
+
 // argOrEmpty returns the first arg or "" — the seam between an explicit id and
 // the current-task fallback.
 func argOrEmpty(args []string) string {
@@ -35,7 +41,7 @@ func resolveTaskID(root, explicit string) (mtt.TaskID, error) {
 	}
 	if _, err := yaml.NewTaskStore(root).Get(id); err != nil {
 		if errors.Is(err, mtt.ErrNotFound) {
-			return "", fmt.Errorf("current task %q no longer exists; run `mtt use <id>` or `mtt use --clear`", id)
+			return "", staleCurrentErr(id)
 		}
 		return "", err
 	}

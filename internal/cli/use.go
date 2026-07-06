@@ -66,7 +66,7 @@ func newUseCmd() *cobra.Command {
 				task, err := yaml.NewTaskStore(root).Get(id)
 				if err != nil {
 					if errors.Is(err, mtt.ErrNotFound) {
-						return fmt.Errorf("current task %q no longer exists; run `mtt use <id>` or `mtt use --clear`", id)
+						return staleCurrentErr(id)
 					}
 					return err
 				}

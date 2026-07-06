@@ -82,7 +82,7 @@ func runTransition(cmd *cobra.Command, root string, cfg mtt.Config, settings yam
 		return err
 	}
 	if err := applyCurrent(root, cfg, task, id); err != nil {
-		return err
+		return fmt.Errorf("transition applied but updating the current pointer failed: %w", err)
 	}
 	if jsonFlag(cmd) {
 		return writeJSON(cmd.OutOrStdout(), toTaskJSON(task))
@@ -96,6 +96,9 @@ func runTransition(cmd *cobra.Command, root string, cfg mtt.Config, settings yam
 // traversed: the task's last history entry gives from->to, and the type's
 // transition carries the set/clear rule. A no-op when the edge declares nothing.
 func applyCurrent(root string, cfg mtt.Config, task mtt.Task, id mtt.TaskID) error {
+	if len(task.History) == 0 {
+		return nil // only reached after a transition (which appends history); defensive
+	}
 	typ, ok := cfg.TypeByName(task.Type)
 	if !ok {
 		return nil
