@@ -11,7 +11,7 @@ import (
 )
 
 // version is the build version, overridable at build time via -ldflags.
-var version = "0.6.0-dev"
+var version = "0.7.0-dev"
 
 // NewRootCmd builds the root mtt command tree.
 func NewRootCmd() *cobra.Command {
@@ -26,6 +26,10 @@ func NewRootCmd() *cobra.Command {
 	root.PersistentFlags().Bool("json", false, "emit machine-readable JSON output")
 	root.PersistentFlags().String("role", "", "acting role, recorded in history (env MTT_ROLE)")
 	root.PersistentFlags().String("by", "", "acting subject, recorded in history (env MTT_BY)")
+	root.PersistentFlags().String("who", "", "acting subject, alias of --by, recorded in history")
+	root.PersistentFlags().String("why", "", "durable free-text reason recorded in history")
+	root.PersistentFlags().BoolP("verbose", "v", false, "stream gate command output to stderr")
+	root.PersistentFlags().String("log-file", "", "write gate command output to a file")
 	root.AddCommand(newVersionCmd(), newInitCmd(), newTypesCmd(), newAddCmd(), newShowCmd(),
 		newListCmd(), newEditCmd(), newTreeCmd(), newDepCmd(), newReadyCmd(), newStatusCmd())
 	return root
@@ -51,6 +55,8 @@ func exitCode(err error) int {
 		return 3
 	case errors.Is(err, core.ErrInvalidTransition):
 		return 6
+	case errors.Is(err, core.ErrMissingAttribution):
+		return 2
 	default:
 		return 1
 	}

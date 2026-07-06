@@ -15,12 +15,12 @@ func TestFormatTaskRendersHistory(t *testing.T) {
 		Updated: time.Date(2026, 7, 5, 12, 0, 0, 0, time.UTC),
 		History: []mtt.HistoryEntry{{
 			At: time.Date(2026, 7, 5, 12, 0, 0, 0, time.UTC),
-			By: "grisha", Role: "impl", From: "tbd", To: "in_progress",
+			By: "grisha", Role: "impl", Why: "start work", From: "tbd", To: "in_progress",
 			Checks: []mtt.Check{{Cmd: "make lint", Exit: 0}},
 		}},
 	}
 	out := formatTask(task, nil, nil)
-	for _, want := range []string{"history:", "tbd → in_progress", "by grisha", "role impl", "make lint(0)"} {
+	for _, want := range []string{"history:", "tbd → in_progress", "by grisha", "role impl", `why "start work"`, "make lint(0)"} {
 		if !strings.Contains(out, want) {
 			t.Fatalf("formatTask output missing %q:\n%s", want, out)
 		}

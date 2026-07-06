@@ -3,6 +3,7 @@ package cli
 import (
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -94,6 +95,9 @@ func formatTask(t mtt.Task, ancestors, children []mtt.Task) string {
 			}
 			if h.Role != "" {
 				who = append(who, "role "+h.Role)
+			}
+			if h.Why != "" {
+				who = append(who, "why "+strconv.Quote(h.Why))
 			}
 			if len(who) > 0 {
 				line += "  (" + strings.Join(who, ", ") + ")"
