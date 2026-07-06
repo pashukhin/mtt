@@ -63,6 +63,9 @@ func (t Type) validateFlow() []error {
 		if !known[tr.To] {
 			errs = append(errs, fmt.Errorf("type %q: transition to unknown status %q", t.Name, tr.To))
 		}
+		if !tr.Current.Valid() {
+			errs = append(errs, fmt.Errorf("type %q transition %q->%q: invalid current action %q", t.Name, tr.From, tr.To, tr.Current))
+		}
 		out[tr.From]++
 		in[tr.To]++
 	}

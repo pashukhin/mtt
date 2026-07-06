@@ -85,3 +85,20 @@ func TestValidateErrors(t *testing.T) {
 		})
 	}
 }
+
+func TestValidateRejectsBadCurrent(t *testing.T) {
+	cfg := Config{Types: []Type{{
+		Name: "task", Default: true,
+		Flow: Flow{
+			Statuses: []Status{
+				{Name: "tbd", Kind: KindInitial}, {Name: "wip", Kind: KindActive}, {Name: "done", Kind: KindTerminal},
+			},
+			Transitions: []Transition{
+				{From: "tbd", To: "wip"}, {From: "wip", To: "done", Current: "toggle"},
+			},
+		},
+	}}}
+	if err := cfg.Validate(); err == nil {
+		t.Fatal("Validate() = nil, want an invalid-current error")
+	}
+}
