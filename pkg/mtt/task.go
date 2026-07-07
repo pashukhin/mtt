@@ -4,13 +4,15 @@ import "time"
 
 // Task is a single unit of work. Field order == on-disk order (deterministic
 // diff). Title is optional when Description is set (core requires at least one).
-// Tags/DependsOn/Refs/Comments/History are reserved; they are populated in later
-// sessions and omitted from storage while empty.
+// Priority is optional (unset = medium in ordering, omitted from storage while
+// empty). Tags/DependsOn/Refs/Comments/History are reserved; they are populated in
+// later sessions and omitted from storage while empty.
 type Task struct {
 	ID          TaskID
 	Type        TypeName
 	Title       string
 	Status      StatusName
+	Priority    Priority
 	Parent      TaskID
 	Tags        []string
 	DependsOn   []TaskID
