@@ -10,20 +10,23 @@ import (
 // timestamp (freshest first), tie-broken by ID for determinism.
 type SortKey string
 
-// The supported sort keys. An empty key defaults to SortCreated.
+// The supported sort keys. An empty key defaults to SortCreated. SortPriority
+// orders by Priority.Rank ascending (high first), tie-broken by recency.
 const (
-	SortCreated SortKey = "created"
-	SortUpdated SortKey = "updated"
+	SortCreated  SortKey = "created"
+	SortUpdated  SortKey = "updated"
+	SortPriority SortKey = "priority"
 )
 
 // ListFilter holds the list predicates and ordering. Empty slices/zero Parent
 // match everything; within a field the values are OR-ed, across fields AND-ed.
 type ListFilter struct {
-	Statuses []mtt.StatusName
-	Types    []mtt.TypeName
-	Kinds    []mtt.StatusKind
-	Parent   mtt.TaskID
-	Sort     SortKey
+	Statuses   []mtt.StatusName
+	Types      []mtt.TypeName
+	Kinds      []mtt.StatusKind
+	Priorities []mtt.Priority
+	Parent     mtt.TaskID
+	Sort       SortKey
 }
 
 // Match reports whether t satisfies f. Within a dimension the values are OR-ed;
@@ -31,7 +34,7 @@ type ListFilter struct {
 // resolve t's status category via its type's flow); a task whose type or status
 // is unknown to cfg fails a non-empty Kinds filter. Shared by Select and tree.
 func Match(t mtt.Task, f ListFilter, cfg mtt.Config) bool {
-	if !anyOrEmpty(f.Statuses, t.Status) || !anyOrEmpty(f.Types, t.Type) {
+	if !anyOrEmpty(f.Statuses, t.Status) || !anyOrEmpty(f.Types, t.Type) || !anyOrEmpty(f.Priorities, t.Priority) {
 		return false
 	}
 	if f.Parent != "" && t.Parent != f.Parent {
@@ -68,9 +71,23 @@ func Select(tasks []mtt.Task, f ListFilter, cfg mtt.Config) []mtt.Task {
 		}
 	}
 	sort.SliceStable(out, func(i, j int) bool {
+		if f.Sort == SortPriority {
+			return lessByPriority(out[i], out[j])
+		}
 		return lessByRecency(out[i], out[j], f.Sort)
 	})
 	return out
+}
+
+// lessByPriority orders by Priority.Rank ascending (high first; unset/unknown rank
+// as medium), tie-broken by the shared recency comparator (Created desc, ID) — so
+// list --sort priority and roadmap agree on order.
+func lessByPriority(a, b mtt.Task) bool {
+	ra, rb := a.Priority.Rank(), b.Priority.Rank()
+	if ra != rb {
+		return ra < rb
+	}
+	return lessByRecency(a, b, SortCreated)
 }
 
 // anyOrEmpty reports whether values is empty (match everything) or contains v.

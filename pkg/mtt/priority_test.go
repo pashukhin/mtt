@@ -38,7 +38,7 @@ func TestPriorityRank(t *testing.T) {
 		}
 	}
 	// Ordering invariant: high < medium < low.
-	if !(PriorityHigh.Rank() < PriorityMedium.Rank() && PriorityMedium.Rank() < PriorityLow.Rank()) {
+	if PriorityHigh.Rank() >= PriorityMedium.Rank() || PriorityMedium.Rank() >= PriorityLow.Rank() {
 		t.Fatal("want Rank ordering high < medium < low")
 	}
 }

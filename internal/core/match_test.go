@@ -43,3 +43,23 @@ func TestMatchKind(t *testing.T) {
 		t.Fatal("unknown type must fail a kind filter")
 	}
 }
+
+func TestMatchPriorityFilter(t *testing.T) {
+	high := mtt.Task{ID: "t1", Type: "task", Status: "tbd", Priority: mtt.PriorityHigh}
+	unset := mtt.Task{ID: "t2", Type: "task", Status: "tbd"}
+	// A --priority high filter matches the stored value; an unset task does NOT
+	// match a filter (filtering is on the authored label, not the ordering default).
+	if !Match(high, ListFilter{Priorities: []mtt.Priority{mtt.PriorityHigh}}, mtt.Config{}) {
+		t.Error("high task should match --priority high")
+	}
+	if Match(unset, ListFilter{Priorities: []mtt.Priority{mtt.PriorityHigh}}, mtt.Config{}) {
+		t.Error("unset task should NOT match --priority high")
+	}
+	if Match(unset, ListFilter{Priorities: []mtt.Priority{mtt.PriorityMedium}}, mtt.Config{}) {
+		t.Error("unset task should NOT match --priority medium (match the stored value, not the default)")
+	}
+	// No filter → everything matches, including unset.
+	if !Match(unset, ListFilter{}, mtt.Config{}) {
+		t.Error("unset task should match when no --priority filter is given")
+	}
+}

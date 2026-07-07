@@ -67,6 +67,25 @@ func TestSelectSortUpdated(t *testing.T) {
 	}
 }
 
+func TestSelectSortPriority(t *testing.T) {
+	base := time.Date(2026, 7, 7, 9, 0, 0, 0, time.UTC)
+	tasks := []mtt.Task{
+		{ID: "t1", Type: "task", Status: "tbd", Priority: mtt.PriorityLow, Created: base},
+		{ID: "t2", Type: "task", Status: "tbd", Priority: mtt.PriorityHigh, Created: base},
+		{ID: "t3", Type: "task", Status: "tbd", Priority: "", Created: base.Add(time.Second)}, // unset → medium band, newer
+		{ID: "t4", Type: "task", Status: "tbd", Priority: mtt.PriorityMedium, Created: base},  // medium, older
+	}
+	got := ids(Select(tasks, ListFilter{Sort: SortPriority}, mtt.Config{}))
+	// high(t2) < medium-band{t3 newer, t4 older} < low(t1); unset(t3) sorts in the
+	// medium band, ahead of t4 by recency (Created desc).
+	want := []string{"t2", "t3", "t4", "t1"}
+	for i, id := range want {
+		if got[i] != id {
+			t.Fatalf("SortPriority order[%d] = %s, want %s (full: %v)", i, got[i], id, got)
+		}
+	}
+}
+
 func TestSelectDoesNotMutateInput(t *testing.T) {
 	base := time.Date(2026, 7, 4, 9, 0, 0, 0, time.UTC)
 	tasks := []mtt.Task{tsk("e1", "epic", "tbd", base), tsk("e2", "epic", "tbd", base.Add(time.Hour))}
