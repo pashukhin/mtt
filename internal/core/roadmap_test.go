@@ -126,6 +126,34 @@ func TestRoadmapCancelledBlockerSatisfied(t *testing.T) {
 	}
 }
 
+// A node with an unresolvable OWN status (config drift) is INCLUDED (conservative)
+// but Ready=false — the conservative signal wins (spec §3b). As a non-terminal
+// blocker it still imposes an ordering edge and lands in its dependent's BlockedBy.
+func TestRoadmapUnresolvableOwnStatusIncluded(t *testing.T) {
+	base := time.Date(2026, 7, 7, 9, 0, 0, 0, time.UTC)
+	tasks := []mtt.Task{
+		{ID: "t1", Type: "task", Status: "bogus", Created: base}, // status not in flow → drift
+		{ID: "t2", Type: "task", Status: "tbd", DependsOn: []mtt.TaskID{"t1"}, Created: base},
+	}
+	entries := Roadmap(tasks, roadmapCfg())
+	e1, ok := findEntry(entries, "t1")
+	if !ok {
+		t.Fatal("drift-status t1 must be INCLUDED (not confirmed-terminal)")
+	}
+	if e1.Ready {
+		t.Fatal("drift-status t1 must be Ready=false (conservative)")
+	}
+	// t1 is a non-terminal node → hard-constrains t2 (emitted first) and appears in
+	// t2's BlockedBy (not terminal-satisfied).
+	if !sameIDs(entryIDs(entries), "t1", "t2") {
+		t.Fatalf("order = %v, want [t1 t2] (drift blocker precedes dependent)", entryIDs(entries))
+	}
+	e2, _ := findEntry(entries, "t2")
+	if e2.Ready || len(e2.BlockedBy) != 1 || e2.BlockedBy[0] != "t1" {
+		t.Fatalf("t2: ready=%v blockedBy=%v, want ready=false blockedBy=[t1]", e2.Ready, e2.BlockedBy)
+	}
+}
+
 // (iv) Terminal tasks excluded; (vii) empty & all-terminal sets → empty result.
 func TestRoadmapExcludesTerminalAndEmpty(t *testing.T) {
 	if got := Roadmap(nil, roadmapCfg()); len(got) != 0 {

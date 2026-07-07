@@ -427,6 +427,7 @@ type AddParams struct {
 	Parent      TaskID
 	NoParent    bool
 	Description string
+	Priority    Priority // unset by default (not medium) [s008.6]
 	DependsOn   []TaskID // blocking edges set at creation; targets validated [s008.5]
 }
 
