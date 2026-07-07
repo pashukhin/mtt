@@ -154,7 +154,9 @@ adapter mints the ID — a flat, per-prefix ID such as `e1` or `t17` — and pri
   its **type** is allowed by the child type's `parents`. Mutually exclusive with `--no-parent`. *(implemented)*
 - `--no-parent` — create a parent-requiring type at top level (a conscious exception). *(implemented)*
 - `--description <text>` — the task description (stdin via `--description -` planned).
-- `--depends-on <id>…` and `--ref <kind>:<target>…` (e.g. `note:auth-design`, `task:t2`) arrive in a later session.
+- `--depends-on <id>…` — set blocking dependencies at creation (repeatable, comma-separated). Each target
+  must exist (else the add errors and nothing is created); validated in `core.Adder`. **Implemented (session
+  008.5)**. (`--ref <kind>:<target>…`, e.g. `note:auth-design`/`task:t2`, arrives in a later session.)
 
 A non-root type given neither `--parent` nor `--no-parent` errors and tells you how to proceed. A missing
 parent, or a parent whose type the child may not sit under, errors with guidance.
@@ -189,6 +191,21 @@ in the YAML adapter — see Notes).
 
 - `--title <text>` — new title.
 - `--description <text>` — new description (`-` for stdin still later).
+
+### `mtt rm <id> [--force]` — delete a task (hard delete)  *(session 008.5, implemented)*
+Permanently removes a task (distinct from `cancel`, which is a terminal *status*, not removal). `rm` is for
+backlog hygiene — purging a mistaken or obsolete task. There is **no history** for a delete (the file is
+gone); the git commit that drops `.mtt/tasks/<id>.yaml` is the de-facto audit.
+
+- Requires an **explicit `<id>`** — `rm` does **not** resolve the current-task pointer (a destructive op takes
+  an explicit target). If the deleted task was the current pointer, it is cleared.
+- By default `rm` is **rejected** if the task is **referenced** — another task `depends_on` it, or it has
+  children (`parent` points at it) — listing the referencing ids. This keeps a delete from silently stranding
+  references (exit `1`).
+- `--force` — delete anyway, leaving the references **dangling** (which the system tolerates: `ready` is
+  conservative — a dangling blocker leaves the dependent not ready — and `tree` surfaces orphans as roots).
+- A missing `<id>` exits `4` (not found). On success prints `removed <id>` (no `--json`, like `add`'s
+  `created <id>` — the object is gone; the agent branches on the exit code).
 
 ### `mtt tree [<id>] [flags]` — show the hierarchy  *(session 004, implemented)*
 Prints the epic → task → subtask tree as an ASCII tree (`├─`/`└─`/`│` connectors; each node is
@@ -407,11 +424,12 @@ Distinct codes let agents branch on the outcome without parsing text.
 | `5` | Unsupported — the active adapter lacks the required capability (`ErrUnsupported`) |
 | `6` | Invalid transition — not allowed by the type's flow |
 
-Codes `3` (gate blocked) and `6` (invalid transition) are **implemented (session 006)**, and `2` (missing
-required attribution) is **implemented (session 006.5)** on `mtt status`/the verb sugar (`Execute()` maps
-`core.ErrBlocked`→3, `core.ErrInvalidTransition`→6, `core.ErrMissingAttribution`→2). The remaining codes
-(`4`, `5`) are still **proposed** and land alongside the behaviors they distinguish (capability gates, …);
-other error paths keep the generic `1`.
+Codes `3` (gate blocked) and `6` (invalid transition) are **implemented (session 006)**, `2` (missing
+required attribution) is **implemented (session 006.5)**, and `4` (not found) is **implemented (session
+008.5)** — applied **uniformly** to every single-task-by-id path (`rm`/`show`/`edit`/`tree`/`use`/`status`/
+`dep`), which all wrap `mtt.ErrNotFound`. `Execute()` maps `core.ErrBlocked`→3, `core.ErrInvalidTransition`→6,
+`core.ErrMissingAttribution`→2, `mtt.ErrNotFound`→4. The remaining code (`5`, unsupported capability) is still
+**proposed** and lands with capability gates; other error paths keep the generic `1`.
 
 ---
 
@@ -442,6 +460,8 @@ These are things this reference surfaces that are worth keeping consistent with 
 - **Capability-gated commands.** `dep*`, `comment*`, `note*`, `search`, and history rely on optional
   adapter capabilities; against a backend that lacks them they exit `5` (`ErrUnsupported`), not silently.
 - **`--json` everywhere.** Every command supports JSON output so agents can drive mtt without parsing
-  human text; mutations echo the resulting object.
+  human text; mutations echo the resulting object. **Exception:** the create/delete acks (`created <id>` /
+  `removed <id>`) are plain text — a create prints only the minted id, and a delete has no object left to
+  echo; agents branch on the exit code (`0`/`4`).
 - **`--role` is recorded, not enforced.** It writes into history now (the non-deferrable seam); role-based
   routing of `start`/`done` is deferred.

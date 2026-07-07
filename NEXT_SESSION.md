@@ -4,7 +4,18 @@ A living handoff doc. Update it at the end of each session (what's done / what's
 
 ## Where we are
 
-- **Phase 0 (scaffold) + sessions 001–006 + 006.5 + 006.7 + 007 + 008 are DONE** (version `0.8.0-dev`, `make check` green).
+- **Phase 0 (scaffold) + sessions 001–006 + 006.5 + 006.7 + 007 + 008 + 008.5 are DONE** (version `0.8.5-dev`, `make check` green).
+  **Session 008.5 (dogfood enablers, chore)** shipped `mtt rm <id>` — hard-delete via a new base-port method
+  **`TaskStore.Delete`** (the *D* in CRUD; YAML `os.Remove`) + the pure `core.Remover` usecase (reject-if-referenced —
+  children via `Index`, dependents via `DepGraph`, deduped — with `--force` to override, leaving dangling refs the
+  system already tolerates); `mtt rm` takes an **explicit id** (no current resolution — destructive) and clears a
+  stale `current` pointer. **`--depends-on` on `mtt add`** sets `depends_on` at creation, validated + deduped in
+  `core.Adder` (no cycle possible — unminted id). **Packaging:** `make install`/`build` stamp the version via
+  conditional `-ldflags` (`make build VERSION=…`), a new `make smoke` installs into a throwaway `GOBIN` and runs
+  `version`/`--help`, `version.go` now prints to **stdout**, default bumped `0.8.0-dev` → `0.8.5-dev`. **Not-found
+  → exit `4` made UNIFORM:** every single-task-by-id path (`rm`/`show`/`edit`/`tree`/`use`/`status`/`dep`) wraps
+  `mtt.ErrNotFound` via the `taskNotFound` helper (cli) / `%w` (core), so `exitCode` maps them all to 4. Next:
+  **s008.6 priorities + roadmap** (spec already written + subagent-reviewed).
   **Session 008 (rollback/compensation)** shipped an additive per-command `pkg/mtt.Command.Rollback *Command`
   (a **leaf** compensator; `Valid()` rejects a nested rollback), recursive `ymlCommand.rollback` (scalar|map) +
   `toDomain` deep-copy, **eager** rollback expansion (`expandOne`/`expandTemplate` — a bad rollback template is
@@ -146,18 +157,42 @@ resolved graph, and open gaps. Two decisions locked there that shape s005:
   at its boundary (`toDomain` fails fast on a corrupt empty `id`/`type`/`status`). s005 is written against the
   typed contract. Constructors reject empty, no transform; `Ref.ID` stays `string`; `NoteSlug` deferred (KB).
 
-## Next task — session 008.5 (dogfood enablers, chore)
+## Next task — session 008.6 (priorities + roadmap)
 
-> **s008 (rollback/compensation) is SHIPPED** — see "Where we are" and "Carry-over lessons (008)" below; the
-> spec is `docs/superpowers/specs/2026-07-06-session-008-rollback-design.md` and the plan is
-> `docs/superpowers/plans/2026-07-06-session-008-rollback.md`. **Next up is s008.5 dogfood enablers** (e5_t1):
-> `mtt rm <id>` (hard-delete, distinct from `cancel`), `--depends-on` on `add`, and packaging (`make install`
-> → `go install ./cmd/mtt` + a smoke test). See sessions/README.md (row 008.5) and TASKS.md → e5_t1. Then
-> **s008.6 priorities + roadmap** (📋 already **spec'd + subagent-reviewed** — implement from
-> `docs/superpowers/specs/2026-07-07-session-008.6-priorities-roadmap-design.md`; write the plan at that
-> session's start; a closed `Priority` VO + `mtt roadmap [--json]`, the agent-queryable execution order that
-> motivates dogfood), then **s008.7 tags**, **s008.9 batch & pipeline**, **s009 dogfood**.
+> **s008.5 (dogfood enablers) is SHIPPED** — see "Where we are" and "Carry-over lessons (008.5)" below; the
+> spec is `docs/superpowers/specs/2026-07-07-session-008.5-dogfood-enablers-design.md` and the plan is
+> `docs/superpowers/plans/2026-07-07-session-008.5-dogfood-enablers.md`. **Next up is s008.6 priorities +
+> roadmap** (e5_t1a): 📋 already **spec'd + subagent-reviewed** — implement from
+> `docs/superpowers/specs/2026-07-07-session-008.6-priorities-roadmap-design.md` (write the plan at that
+> session's start, in fresh context); a closed `Priority` VO (`--priority` on `add`/`edit`/`list`,
+> `--sort priority`, in `show`/`taskJSON`) + **`mtt roadmap [--json]`** — a pure-core priority-guided Kahn
+> (dependency hard, priority soft; cycle-safe; `ready`/`blocked_by` annotations), the agent-queryable execution
+> order that motivates dogfood. Then **s008.7 tags**, **s008.9 batch & pipeline**, **s009 dogfood**.
 > `advance`/`start`/`done` + modes + roles-on-edges stay **PARKED** (single-edge `status` is the norm).
+
+### Carry-over lessons (008.5 — dogfood enablers)
+- **A store operation earns a base-port method (the D in CRUD), unlike an embedded field.** `depends_on`/
+  `history`/`current` ride `Update` (or a capability port); *delete* cannot be embedded in the aggregate it
+  removes, so `TaskStore.Delete` goes on the mandatory-minimum port (YAML `os.Remove`). Read GAP #1 the other
+  way: "can the reference adapter embed this?" — no → base-port method.
+- **A new interface method's blast radius is every implicit implementer — fold the fakes into the same
+  commit.** Adding `Delete` to `TaskStore` broke three `internal/core` test fakes (`fakeStore`/`memStore`/
+  `editStore`, and `memStore` is reused by `transition_test.go`); stubbing all three is part of commit #1 or
+  the package won't compile. Grep for fakes before an interface change.
+- **A uniform exit-code taxonomy is a wrap-with-`%w` pass, and it changes error *text*.** Making not-found →
+  exit 4 uniform meant wrapping `mtt.ErrNotFound` in every single-task-by-id path (`taskNotFound` helper in
+  cli; `fmt.Errorf("…: %w", …, mtt.ErrNotFound)` in core). The wrapped message (`… : mtt: task not found`)
+  keeps the `not found` substring (so substring e2e survive) but breaks exact-wording asserts — two testdata
+  scripts (`add_show.txt`, `tree.txt`) needed the new wording. Grep `not found` across tests/testdata first.
+- **`rm` is agent-facing: no interactive confirm, no attribution.** A `y/N` prompt hangs an agent (no stdin);
+  a deleted task has no `history` to sign, so `--who`/`--why` don't apply — the git commit is the audit.
+  Safety comes from reject-if-referenced + `--force`, and an **explicit id** (no current resolution on a
+  destructive verb). Reused `Index.Children` + `DepGraph.Dependents` for the referenced-check — no new graph.
+- **Conditional-LDFLAGS keeps `make build` predictable.** `VERSION ?=` empty → the code default
+  (`internal/cli.version`) ships; `make build VERSION=v0.8.5` stamps via `-X`. A `make smoke` (throwaway
+  `GOBIN`, `trap` cleanup, one backslash-joined recipe) install-tests the binary; kept out of `check` (real
+  `go install` is non-hermetic). Also fixed `version.go` to print to **stdout** (`cmd.Println` → `OutOrStderr`
+  meant `$(mtt version)` was empty).
 
 ### Carry-over lessons (008 — rollback / compensation)
 - **Additive VO field with a self-referential pointer + a leaf invariant.** A per-command compensator that is

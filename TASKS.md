@@ -174,8 +174,11 @@ Single-edge `mtt status` shipped in **s006**; the meta-walk (`advance`/`start`/`
 Reordered so mtt self-hosts as soon as flow orchestration is complete (after e4), ahead of references and
 comments (which enrich a full self-host but don't enable it). See sessions/README.md → "Roadmap regrouped".
 
-- [ ] e5_t1 — **dogfood enablers (chore, s008.5)** ← **next**: `mtt rm <id>` (hard-delete, distinct from
-      `cancel`), `--depends-on` on `add`, packaging (`make install` → `go install ./cmd/mtt` + a smoke test)
+- [x] e5_t1 — **dogfood enablers (chore, s008.5)** — shipped: `mtt rm <id>` (hard-delete via base-port
+      `TaskStore.Delete`; `core.Remover` reject-if-referenced + `--force`; not-found → **uniform exit 4**;
+      explicit id only; clears a stale `current` pointer), `--depends-on` on `add` (validated + deduped in
+      `core.Adder`), packaging (`make install` ldflags version stamping + `make smoke`). Version `0.8.0-dev` →
+      `0.8.5-dev`. Spec/plan: `docs/superpowers/{specs,plans}/2026-07-07-session-008.5-dogfood-enablers*`
 - [ ] e5_t1a — **priorities + roadmap (s008.6)** — 📋 **spec'd + subagent-reviewed** (implementation deferred to
       after s008.5): a closed `Priority` VO (`high|medium|low`; empty=medium in order, off-disk; rides `Task`
       + `Update`, no port) with `--priority` on `add`/`edit`/`list`, `--sort priority`, `priority` in
