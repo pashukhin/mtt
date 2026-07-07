@@ -83,6 +83,25 @@ func TestFormatTypesShowsRollback(t *testing.T) {
 	}
 }
 
+func TestFormatTypesShowsRollbackTimeout(t *testing.T) {
+	cfg := mtt.Config{Types: []mtt.Type{{
+		Name: "task",
+		Flow: mtt.Flow{
+			Statuses: []mtt.Status{{Name: "tbd", Kind: mtt.KindInitial}, {Name: "doing", Kind: mtt.KindActive}},
+			Transitions: []mtt.Transition{{From: "tbd", To: "doing", Commands: []mtt.Command{
+				{Run: "a", Rollback: &mtt.Command{Run: "cleanup", Timeout: 30 * time.Second}},
+			}}},
+		},
+	}}}
+	out, err := formatTypes(cfg, map[string]string{"task": "t"}, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out, "↩ cleanup  (timeout 30s)") {
+		t.Fatalf("rollback timeout annotation missing:\n%s", out)
+	}
+}
+
 func TestFormatTypesFilter(t *testing.T) {
 	cfg := mtt.Config{Types: []mtt.Type{
 		{Name: "epic", Parents: nil, Flow: mtt.Flow{Statuses: []mtt.Status{{Name: "a", Kind: mtt.KindInitial}}}},
