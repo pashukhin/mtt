@@ -55,6 +55,18 @@ func TestFormatTask(t *testing.T) {
 	}
 }
 
+func TestFormatTaskShowsPriority(t *testing.T) {
+	out := formatTask(mtt.Task{ID: "t1", Type: "task", Status: "tbd", Title: "a", Priority: mtt.PriorityHigh}, nil, nil)
+	if !strings.Contains(out, "priority: high") {
+		t.Fatalf("show output missing priority line:\n%s", out)
+	}
+	// Unset priority is omitted.
+	out2 := formatTask(mtt.Task{ID: "t2", Type: "task", Status: "tbd", Title: "b"}, nil, nil)
+	if strings.Contains(out2, "priority:") {
+		t.Fatalf("unset priority must be omitted:\n%s", out2)
+	}
+}
+
 func TestShowCommand(t *testing.T) {
 	dir := t.TempDir()
 	chdir(t, dir)

@@ -32,6 +32,7 @@ type AddParams struct {
 	Parent      mtt.TaskID
 	NoParent    bool
 	Description string
+	Priority    mtt.Priority // unset by default (not medium)
 	DependsOn   []mtt.TaskID // blocking edges set at creation (targets validated)
 }
 
@@ -81,6 +82,7 @@ func (a *Adder) Add(p AddParams) (mtt.Task, error) {
 		Type:        typ.Name,
 		Title:       p.Title,
 		Status:      initial.Name,
+		Priority:    p.Priority,
 		Parent:      parent,
 		DependsOn:   deps,
 		Description: p.Description,

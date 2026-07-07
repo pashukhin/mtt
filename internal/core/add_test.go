@@ -60,6 +60,25 @@ func cfg() mtt.Config {
 
 func fixed() time.Time { return time.Date(2026, 7, 4, 9, 20, 30, 500, time.UTC) }
 
+func TestAddStampsPriority(t *testing.T) {
+	fs := &fakeStore{retID: "e1"}
+	got, err := NewAdder(fs, cfg(), fixed).Add(AddParams{Title: "x", TypeName: "epic", Priority: mtt.PriorityHigh})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Priority != mtt.PriorityHigh {
+		t.Fatalf("Priority = %q, want high", got.Priority)
+	}
+	// Default: unset (not medium).
+	plain, err := NewAdder(&fakeStore{retID: "e2"}, cfg(), fixed).Add(AddParams{Title: "y", TypeName: "epic"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if plain.Priority != "" {
+		t.Fatalf("default Priority = %q, want unset", plain.Priority)
+	}
+}
+
 func TestAddRootExplicitType(t *testing.T) {
 	fs := &fakeStore{retID: "e1"}
 	got, err := NewAdder(fs, cfg(), fixed).Add(AddParams{Title: "build auth", TypeName: "epic"})
