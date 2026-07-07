@@ -35,6 +35,11 @@ Usecase logic. Depends **only** on the `pkg/mtt` domain contract and its ports �
   self-edge and, via `DepGraph.Reaches`, any edge that would create a **cycle**; a duplicate add is an
   idempotent no-op; removing an absent edge is likewise an idempotent no-op (the task must exist). Bumps
   `updated` from the injected clock on a real change.
+- `Remover` (the `rm` usecase, a mutation): `Remove(id, force)` — `Get` → wraps `ErrNotFound` if absent;
+  unless `force`, rejects deletion of a **referenced** task (children via `Index` + dependents via `DepGraph`,
+  deduped, deterministic) with the referencing ids; else `store.Delete(id)`. No clock (a delete records
+  nothing). `--force` leaves dangling refs, which the system tolerates (`Ready` conservative; `Index`
+  orphans→roots).
 - `Runner` (driven **port**, defined here — the first beyond storage): `Run(commands []mtt.Command)
   ([]mtt.Check, error)` **+ `Compensate(commands []mtt.Command) []mtt.Check`** (s008). Implemented by
   `internal/adapter/exec`, **faked** in tests. A non-zero exit is **data** (a `Check`), not a Go error; the
