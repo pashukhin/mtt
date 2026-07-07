@@ -1,0 +1,42 @@
+# rm: hard-delete; reject-if-referenced; --force; not-found exit 4
+mkdir proj
+cd proj
+exec mtt init
+stdout 'initialized'
+
+exec mtt add --type epic 'E'
+stdout 'created e1'
+exec mtt add --type task --parent e1 'A'
+stdout 'created t1'
+exec mtt add --type task --parent e1 'B'
+stdout 'created t2'
+
+# t2 depends on t1
+exec mtt dep add t2 t1
+stdout 'now t2 depends on t1'
+
+# rm t1 is rejected (t2 depends on it) and t1 survives
+! exec mtt rm t1
+stderr 'referenced by t2'
+exec mtt show t1
+stdout 't1  task  \[tbd\]'
+
+# --force deletes t1 despite the reference
+exec mtt rm t1 --force
+stdout 'removed t1'
+! exec mtt show t1
+stderr 'not found'
+
+# t2 now has a dangling blocker → not ready
+exec mtt ready
+! stdout 't2'
+
+# removing an absent task exits non-zero (not-found → code 4, asserted in a unit test)
+! exec mtt rm t9
+stderr 'not found'
+
+# rm t2 (now unreferenced) succeeds
+exec mtt rm t2
+stdout 'removed t2'
+exec mtt list
+! stdout 't2'
