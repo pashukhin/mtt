@@ -43,6 +43,26 @@ func TestRunTimeout(t *testing.T) {
 	}
 }
 
+func TestRunOperationalFailureRecordsFailingCheckLast(t *testing.T) {
+	// CONTRACT (core.Runner): on an operational failure, Run returns the checks so
+	// far with the FAILING command's Check as the LAST element (Exit -1). core's
+	// compensation index (len(checks)-1) relies on it — so assert it here.
+	checks, err := NewRunner(t.TempDir(), time.Minute, io.Discard, io.Discard).
+		Run([]mtt.Command{{Run: "true"}, {Run: "sleep 1", Timeout: 20 * time.Millisecond}})
+	if err == nil {
+		t.Fatal("want an operational (timeout) error")
+	}
+	if len(checks) != 2 {
+		t.Fatalf("checks = %+v, want the succeeded command + the failing one", checks)
+	}
+	if checks[0].Exit != 0 {
+		t.Fatalf("first check = %+v, want the succeeded command (exit 0)", checks[0])
+	}
+	if last := checks[len(checks)-1]; last.Cmd != "sleep 1" || last.Exit != -1 {
+		t.Fatalf("last check = %+v, want {Cmd: sleep 1, Exit: -1}", last)
+	}
+}
+
 func TestRunStreamsProgressAndSeparatesOutput(t *testing.T) {
 	// The command text ("echo $((3+4))") deliberately does not contain its output
 	// ("7"), so we can assert the two streams stay separate.

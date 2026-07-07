@@ -119,6 +119,9 @@ func TestTransitionAppliesAndRecordsHistory(t *testing.T) {
 	if !got.Updated.Equal(testClock()) {
 		t.Fatalf("updated = %v, want %v", got.Updated, testClock())
 	}
+	if runner.compCmds != nil {
+		t.Fatalf("compensated on a successful transition: %+v", runner.compCmds)
+	}
 }
 
 func TestTransitionBlockedOnFailedGate(t *testing.T) {
@@ -267,6 +270,9 @@ func TestTransitionNoRunBypassesRunner(t *testing.T) {
 	if got.Status != "in_progress" || len(got.History) != 1 || len(got.History[0].Checks) != 0 {
 		t.Fatalf("no-run result = %+v", got)
 	}
+	if runner.compCmds != nil {
+		t.Fatalf("--no-run must skip compensation; got %+v", runner.compCmds)
+	}
 }
 
 func TestTransitionCompensatesSucceededInReverse(t *testing.T) {
@@ -274,7 +280,9 @@ func TestTransitionCompensatesSucceededInReverse(t *testing.T) {
 	runner := &fakeRunner{checks: []mtt.Check{
 		{Cmd: "c1", Exit: 0}, {Cmd: "c2", Exit: 0}, {Cmd: "c3", Exit: 1},
 	}}
-	cfg := flowCfgA([]mtt.Command{rbCmd("c1", "r1"), rbCmd("c2", "r2"), {Run: "c3"}})
+	// c3 (the FAILING command) also carries a rollback (r3); it must NOT run —
+	// this guards the non-zero-branch failIdx (rollbacksBefore starts at failIdx-1).
+	cfg := flowCfgA([]mtt.Command{rbCmd("c1", "r1"), rbCmd("c2", "r2"), rbCmd("c3", "r3")})
 	tr := NewTransitioner(store, cfg, runner, testClock)
 
 	_, err := tr.Transition("t1", "in_progress", TransitionOptions{})
@@ -282,7 +290,7 @@ func TestTransitionCompensatesSucceededInReverse(t *testing.T) {
 		t.Fatalf("err = %v, want ErrBlocked", err)
 	}
 	if len(runner.compCmds) != 2 || runner.compCmds[0].Run != "r2" || runner.compCmds[1].Run != "r1" {
-		t.Fatalf("compensated %+v, want [r2 r1] (reverse over succeeded)", runner.compCmds)
+		t.Fatalf("compensated %+v, want [r2 r1] (reverse over succeeded; r3 excluded)", runner.compCmds)
 	}
 	reloaded, _ := store.Get("t1")
 	if reloaded.Status != "tbd" || len(reloaded.History) != 0 {
