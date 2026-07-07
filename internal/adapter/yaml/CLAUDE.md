@@ -20,7 +20,10 @@ beyond provider-specific checks.
 - **Identity mapping**: on-disk DTOs keep plain `string` fields; `fromDomain*` casts the named identities
   (`TaskID`/`TypeName`/`StatusName`) to `string`, and `toDomain` maps back — **guarding** the required
   `id`/`type`/`status` via `mtt.NewTaskID`/`NewTypeName`/`NewStatusName` (a corrupt file with an empty one
-  fails to load). Optional fields (`parent`, `depends_on`) use plain conversion (empty is legitimate).
+  fails to load). Optional fields (`parent`, `depends_on`, **`priority`** — s008.6, `yaml:"priority,omitempty"`
+  after `status`) use plain conversion (`mtt.Priority(yt.Priority)`; empty is legitimate, an unknown on-disk
+  value round-trips as-is and ranks medium — validity is a CLI-boundary concern, not a load-time one). Unset
+  priority is omitted on disk, so existing task files & goldens are byte-unchanged.
 - No flow/ready/traversal logic here (that is `core`, later). Templates are the **only** home of default type/status names.
 - `.mtt/config.yaml` is edited only through this adapter (determinism + validation).
 - `NewCurrent(root)` / `Current` — implements `mtt.CurrentStore` (session 006.7), owning **only** the top-level

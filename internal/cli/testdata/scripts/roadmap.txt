@@ -1,0 +1,60 @@
+# roadmap: dependency-hard, priority-soft execution order + ready/blocked_by
+mkdir proj
+cd proj
+exec mtt init
+stdout 'initialized'
+
+# an epic + three tasks with priorities
+exec mtt add --type epic 'E'
+stdout 'created e1'
+exec mtt add --type task --parent e1 --priority low 'setup'
+stdout 'created t1'
+exec mtt add --type task --parent e1 --priority high 'feature'
+stdout 'created t2'
+exec mtt add --type task --parent e1 --priority medium 'docs'
+stdout 'created t3'
+
+# t2 (high) depends on t1 (low): the low blocker must precede its high dependent
+exec mtt dep add t2 t1
+
+# human roadmap: two axes + propagation.
+exec mtt roadmap
+# hard dep: t1 (low) precedes t2 (high)
+stdout '(?s)t1  \[low\].*t2  \[high\]'
+# PROPAGATION: t1 (low) is lifted ABOVE t3 (medium) — it inherits t2's high, so a
+# low task outranks an independent medium one (impossible under own-priority order)
+stdout '(?s)t1  \[low\].*t3  \[medium\]'
+# t2 carries the depends_on annotation
+stdout '↳ blocked by: t1'
+# the epic e1 sinks to the end (its children precede it) and lists them
+stdout '(?s)t3  \[medium\].*e1  \(tbd\)  E'
+stdout '↳ contains: t\d, t\d, t\d'
+
+# --json: non-null arrays + honest priority
+exec mtt roadmap --json
+stdout '"id": "t1"'
+stdout '"priority": "high"'
+stdout '"priority": ""'
+stdout '"ready": true'
+stdout '"blocked_by": \[\]'
+# t2's blocked_by lists t1
+stdout '(?s)"blocked_by": \[\s*"t1"\s*\]'
+# a leaf's contains is [] (non-null); the epic's lists its children
+stdout '"contains": \[\]'
+stdout '(?s)"contains": \[\s*"t\d"'
+
+# list --sort priority puts the (unique) high task first
+exec mtt list --sort priority
+stdout '(?s)t2  task  \[tbd\]  feature.*t1  task  \[tbd\]  setup'
+
+# an invalid --sort is rejected with the extended error text
+! exec mtt list --sort bogus
+stderr 'want created\|updated\|priority'
+
+# an invalid --priority on add is a usage error
+! exec mtt add --type task --parent e1 --priority urgent 'x'
+stderr 'invalid --priority'
+
+# show prints the priority
+exec mtt show t2
+stdout 'priority: high'

@@ -15,12 +15,13 @@ import (
 // newListCmd builds `mtt list`: list tasks with filters and a stable order.
 func newListCmd() *cobra.Command {
 	var (
-		statuses []string
-		types    []string
-		kinds    []string
-		parent   string
-		sortKey  string
-		ready    bool
+		statuses   []string
+		types      []string
+		kinds      []string
+		priorities []string
+		parent     string
+		sortKey    string
+		ready      bool
 	)
 	cmd := &cobra.Command{
 		Use:   "list",
@@ -28,11 +29,15 @@ func newListCmd() *cobra.Command {
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			switch sortKey {
-			case "", string(core.SortCreated), string(core.SortUpdated):
+			case "", string(core.SortCreated), string(core.SortUpdated), string(core.SortPriority):
 			default:
-				return fmt.Errorf("invalid --sort %q: want created|updated", sortKey)
+				return fmt.Errorf("invalid --sort %q: want created|updated|priority", sortKey)
 			}
 			kindVals, err := parseKinds(kinds)
+			if err != nil {
+				return err
+			}
+			prioVals, err := toPriorities(priorities)
 			if err != nil {
 				return err
 			}
@@ -52,7 +57,8 @@ func newListCmd() *cobra.Command {
 				tasks = core.Ready(tasks, cfg)
 			}
 			selected := core.Select(tasks, core.ListFilter{
-				Statuses: toStatusNames(statuses), Types: toTypeNames(types), Kinds: kindVals, Parent: mtt.TaskID(parent), Sort: core.SortKey(sortKey),
+				Statuses: toStatusNames(statuses), Types: toTypeNames(types), Kinds: kindVals,
+				Priorities: prioVals, Parent: mtt.TaskID(parent), Sort: core.SortKey(sortKey),
 			}, cfg)
 			if jsonFlag(cmd) {
 				views := make([]taskJSON, 0, len(selected))
@@ -66,8 +72,9 @@ func newListCmd() *cobra.Command {
 	}
 	cmd.Flags().StringArrayVar(&statuses, "status", nil, "filter by status (repeatable)")
 	cmd.Flags().StringArrayVar(&types, "type", nil, "filter by type (repeatable)")
-	cmd.Flags().StringVar(&sortKey, "sort", "", "sort order: created|updated (default created)")
+	cmd.Flags().StringVar(&sortKey, "sort", "", "sort order: created|updated|priority (default created)")
 	cmd.Flags().StringArrayVar(&kinds, "kind", nil, "filter by status category: initial|active|terminal (repeatable)")
+	cmd.Flags().StringArrayVar(&priorities, "priority", nil, "filter by priority: high|medium|low (repeatable)")
 	cmd.Flags().StringVar(&parent, "parent", "", "only direct children of this task id")
 	cmd.Flags().BoolVar(&ready, "ready", false, "only tasks that are ready (no open blockers)")
 	return cmd

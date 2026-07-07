@@ -179,13 +179,13 @@ comments (which enrich a full self-host but don't enable it). See sessions/READM
       explicit id only; clears a stale `current` pointer), `--depends-on` on `add` (validated + deduped in
       `core.Adder`), packaging (`make install` ldflags version stamping + `make smoke`). Version `0.8.0-dev` →
       `0.8.5-dev`. Spec/plan: `docs/superpowers/{specs,plans}/2026-07-07-session-008.5-dogfood-enablers*`
-- [ ] e5_t1a — **priorities + roadmap (s008.6)** — 📋 **spec'd + subagent-reviewed** (implementation deferred to
-      after s008.5): a closed `Priority` VO (`high|medium|low`; empty=medium in order, off-disk; rides `Task`
-      + `Update`, no port) with `--priority` on `add`/`edit`/`list`, `--sort priority`, `priority` in
-      `show`/`taskJSON`; and **`mtt roadmap [--json]`** — a pure-core `Roadmap(tasks,cfg) []RoadmapEntry`
-      (priority-guided Kahn: dependency hard, priority soft; cycle-safe; `ready`/`blocked_by` annotations). The
-      agent-queryable execution order that motivates dogfood (retires the manual "what's next" reminders). Spec:
-      `docs/superpowers/specs/2026-07-07-session-008.6-priorities-roadmap-design.md`
+- [x] e5_t1a — **priorities + roadmap (s008.6)** — ✅ **shipped (s008.6)**: a closed `Priority` VO
+      (`high|medium|low`; empty=medium in order, off-disk; rides `Task` + `Update`, no port) with `--priority` on
+      `add`/`edit`/`list`, `--sort priority`, `priority` in `show`/`taskJSON`; and **`mtt roadmap [--json]`** — a
+      pure-core `Roadmap(tasks,cfg) []RoadmapEntry` (priority-guided Kahn: dependency hard, priority soft;
+      cycle-safe; `ready`/`blocked_by` annotations, own non-terminal DAG, shared `terminalSatisfied`). The
+      agent-queryable execution order that motivates dogfood. Version `0.8.5-dev` → `0.8.6-dev`. Spec/plan:
+      `docs/superpowers/{specs,plans}/2026-07-07-session-008.6-priorities-roadmap*`
 - [ ] e5_t1b — **tags (s008.7)** — needed to organize the self-hosted backlog: `mtt add --tag x`,
       `mtt tag add/rm <id> <tag>` (rides the reserved `Task.Tags` field + `Update`, no new port — like
       `depends_on`), and a `Tags` dimension in `ListFilter` for `mtt list/tree --tag` (reuses `Match`/`Select`

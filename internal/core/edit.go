@@ -27,12 +27,13 @@ func NewEditor(store mtt.TaskStore, now func() time.Time) *Editor {
 type EditParams struct {
 	Title       *string
 	Description *string
+	Priority    *mtt.Priority
 }
 
 // Edit applies p to task id, bumps Updated, persists, and returns the task.
 func (e *Editor) Edit(id mtt.TaskID, p EditParams) (mtt.Task, error) {
-	if p.Title == nil && p.Description == nil {
-		return mtt.Task{}, fmt.Errorf("nothing to edit: provide --title and/or --description")
+	if p.Title == nil && p.Description == nil && p.Priority == nil {
+		return mtt.Task{}, fmt.Errorf("nothing to edit: provide --title, --description, and/or --priority")
 	}
 	t, err := e.store.Get(id)
 	if err != nil {
@@ -43,6 +44,9 @@ func (e *Editor) Edit(id mtt.TaskID, p EditParams) (mtt.Task, error) {
 	}
 	if p.Description != nil {
 		t.Description = *p.Description
+	}
+	if p.Priority != nil {
+		t.Priority = *p.Priority
 	}
 	if t.Title == "" && t.Description == "" {
 		return mtt.Task{}, fmt.Errorf("a task needs a title or a description")

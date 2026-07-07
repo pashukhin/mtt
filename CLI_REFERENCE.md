@@ -158,6 +158,8 @@ adapter mints the ID — a flat, per-prefix ID such as `e1` or `t17` — and pri
   its **type** is allowed by the child type's `parents`. Mutually exclusive with `--no-parent`. *(implemented)*
 - `--no-parent` — create a parent-requiring type at top level (a conscious exception). *(implemented)*
 - `--description <text>` — the task description (stdin via `--description -` planned).
+- `--priority <high|medium|low>` — the task's scheduling priority (session 008.6). Default: **unset** (orders
+  as `medium`, written nothing on disk). An unknown value is a usage error. **Implemented (session 008.6)**.
 - `--depends-on <id>…` — set blocking dependencies at creation (repeatable, comma-separated). Each target
   must exist (else the add errors and nothing is created); validated in `core.Adder`. **Implemented (session
   008.5)**. (`--ref <kind>:<target>…`, e.g. `note:auth-design`/`task:t2`, arrives in a later session.)
@@ -165,8 +167,9 @@ adapter mints the ID — a flat, per-prefix ID such as `e1` or `t17` — and pri
 A non-root type given neither `--parent` nor `--no-parent` errors and tells you how to proceed. A missing
 parent, or a parent whose type the child may not sit under, errors with guidance.
 
-### `mtt show [<id>] [flags]` — show a task  *(phase 1, implemented; lineage in session 004; omitted id → current in 006.7)*
-Shows a task: id, type, status, title, the **lineage** breadcrumb, a **children** summary, timestamps, and
+### `mtt show [<id>] [flags]` — show a task  *(phase 1, implemented; lineage in session 004; omitted id → current in 006.7; priority in 008.6)*
+Shows a task: id, type, status, title, **priority** (a `priority:` line, shown only when set — session 008.6),
+the **lineage** breadcrumb, a **children** summary, timestamps, and
 description. The lineage is a "you are here" path from the root **down to and including the task**
 (`lineage:  e1 › t1 › s1`), shown only when the task has a parent; a root task shows none. The children line
 lists direct children (`children: 2 (t1, t2)`), shown only when present. There is no separate `parent:` line
@@ -184,17 +187,22 @@ Prints tasks in a stable order. Filters combine with AND.
 - `--kind <initial|active|terminal>…` — filter by status category (session 004). *(implemented)*
 - `--type <type>…` — filter by task type. *(implemented)*
 - `--parent <id>` — only direct children of this task (session 004). *(implemented)*
+- `--priority <high|medium|low>…` — filter by priority (session 008.6, repeatable). Matches the **stored**
+  label: an unset task matches only when no `--priority` is given. *(implemented)*
 - `--ready` — only tasks that are ready (no open blockers) — shorthand for `mtt ready`. *(implemented, session 005)*
-- `--sort <created|updated>` — ordering key; default `created`, both descending, tie-broken by ID.
-  *(implemented)*
+- `--sort <created|updated|priority>` — ordering key; default `created`. `created`/`updated` are descending,
+  tie-broken by ID; `priority` (session 008.6) orders high→low (unset in the medium band), tie-broken by
+  recency. *(implemented)*
 
-### `mtt edit [<id>] [flags]` — edit non-flow fields  *(phase 1, implemented in session 003; omitted id → current in 006.7)*
-Changes title and/or description. **Status is not editable here** — status changes go through `status` /
+### `mtt edit [<id>] [flags]` — edit non-flow fields  *(phase 1, implemented in session 003; omitted id → current in 006.7; priority in 008.6)*
+Changes title, description, and/or priority. **Status is not editable here** — status changes go through `status` /
 `advance` so the flow is enforced. Re-parenting/re-typing are not simple edits (they would re-mint the ID
 in the YAML adapter — see Notes).
 
 - `--title <text>` — new title.
 - `--description <text>` — new description (`-` for stdin still later).
+- `--priority <high|medium|low>` — new priority (session 008.6). `--priority ""` **clears** it back to unset.
+  An unknown value is a usage error. *(implemented)*
 
 ### `mtt rm <id> [--force]` — delete a task (hard delete)  *(session 008.5, implemented)*
 Permanently removes a task (distinct from `cancel`, which is a terminal *status*, not removal). `rm` is for
@@ -309,6 +317,30 @@ Lists non-terminal tasks whose blockers are all in a terminal status (`done`/`ca
 picked up next". Accepts the `list` filters (`--status`/`--type`/`--kind`/`--parent`) and `--json`.
 Readiness is **conservative**: a dangling blocker or a status not in the current flow leaves a task not
 ready (`mtt list --ready` is the same subset via `list`).
+
+### `mtt roadmap [--json]` — execution-order view  *(session 008.6, implemented)*
+Prints the **non-terminal** tasks in an **execution order**, each annotated with whether it is actionable now
+(`ready`), what still blocks it (`blocked_by`), and — for a parent — what it contains (`contains`). This is the
+"what do I do next, and what's it waiting on" view — what `ready` (unblocked *now*, flat) and `list --sort
+priority` (no dependency order, own priority only) each miss. **Not** a time scheduler: no dates, no critical path.
+
+Ordering runs over **two "comes-after" axes**, both **hard** constraints: `depends_on` (an explicit blocking
+edge — a non-terminal blocker precedes the task it blocks) **and `parent`** (a parent completes only once its
+children do, so a non-terminal child precedes its parent). Priority is the **soft** tie-breaker, and it
+**propagates**: a blocker inherits the highest priority of everything it (transitively) unblocks, so a
+high-priority task pulls its prerequisites forward, ahead of independent lower-priority work (a *low* task that
+blocks a *high* one can outrank an independent *medium* task). Readiness stays `depends_on`-only — the parent
+axis affects ordering and the `contains` annotation, not `ready`/`blocked_by` (a parent with open children can
+be `ready` yet ordered last). Confirmed-terminal tasks (`done`/`cancelled`) are excluded. The order is
+deterministic and cycle-safe across both axes (a hand-edited cycle cannot hang it — every node is still
+returned, best-effort).
+
+- Human: a numbered list — `1. t3  [high]  (tbd)  schema design`, the `[..]` priority label **omitted when
+  unset** (as in `show`); a `  ↳ blocked by: t1, t2` line under a `depends_on`-blocked task, and a `  ↳
+  contains: c1, c2` line under a parent (its non-terminal children).
+- `--json`: `[{"id","title","status","priority","ready","blocked_by":[…],"contains":[…]}]`. `priority` is the
+  **stored** value (`""` when unset — honest; consumers apply their own default); `blocked_by` and `contains`
+  are always arrays (`[]` when empty, never `null`); an empty roadmap is `[]`.
 
 ---
 

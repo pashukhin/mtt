@@ -4,7 +4,25 @@ A living handoff doc. Update it at the end of each session (what's done / what's
 
 ## Where we are
 
-- **Phase 0 (scaffold) + sessions 001–006 + 006.5 + 006.7 + 007 + 008 + 008.5 are DONE** (version `0.8.5-dev`, `make check` green).
+- **Phase 0 (scaffold) + sessions 001–006 + 006.5 + 006.7 + 007 + 008 + 008.5 + 008.6 are DONE** (version `0.8.6-dev`, `make check` green).
+  **Session 008.6 (priorities + roadmap)** shipped a closed **`Priority` VO** (`pkg/mtt`, `high|medium|low`;
+  `Valid()`/`Rank()`; empty = unset, ranks `medium`; the `StatusKind`/`CurrentAction` idiom — `type + consts +
+  Valid()`, cast in `toDomain`, validated at the CLI boundary, **no** smart constructor) riding **`Task.Priority`
+  + `TaskStore.Update`** (no new port, GAP #1) with `omitempty` on disk (existing files byte-untouched); the
+  yaml DTO round-trip (plain conversion, unknown tolerated → ranks medium, + a `task_priority.yaml` golden);
+  core `SortPriority` (+ `lessByPriority` → `lessByRecency`), `ListFilter.Priorities` + `Match` (matches the
+  *stored* label), `EditParams.Priority` (+ clear via `--priority ""`), and the shared **`terminalSatisfied`**
+  predicate factored out of `Ready`; the pure **`core.Roadmap(tasks,cfg) []RoadmapEntry`** — a cycle-safe
+  priority-guided Kahn over **two "comes-after" axes** (`depends_on` **and `parent`** — a child precedes its
+  parent; both hard) with **priority propagation** (a blocker takes `effectivePriority` = min of own and
+  everything it transitively unblocks, so a high task pulls its prerequisites forward), building its **own**
+  non-terminal graph (not `DepGraph`) and reusing `core.Ready` (depends_on-only) for `ready` + `terminalSatisfied`
+  for `blocked_by`; each entry also carries `Contains` (a parent's non-terminal children); and the CLI surface —
+  `--priority` on `add`/`edit`/`list`, `--sort priority`, `priority` in `show` + `taskJSON`, and **`mtt roadmap
+  [--json]`** (`roadmapJSON`: honest `priority` `""`, non-null `blocked_by`/`contains` `[]`; `↳ blocked by:` / `↳
+  contains:` lines). The roadmap ordering was **reworked post-ship on user feedback** (rev2 in the spec): the
+  first cut was greedy-by-own-priority (`roadmap == list --sort priority`) — dropped for propagation + the parent
+  axis. Next: **s008.7 tags**.
   **Session 008.5 (dogfood enablers, chore)** shipped `mtt rm <id>` — hard-delete via a new base-port method
   **`TaskStore.Delete`** (the *D* in CRUD; YAML `os.Remove`) + the pure `core.Remover` usecase (reject-if-referenced —
   children via `Index`, dependents via `DepGraph`, deduped — with `--force` to override, leaving dangling refs the
@@ -157,18 +175,69 @@ resolved graph, and open gaps. Two decisions locked there that shape s005:
   at its boundary (`toDomain` fails fast on a corrupt empty `id`/`type`/`status`). s005 is written against the
   typed contract. Constructors reject empty, no transform; `Ref.ID` stays `string`; `NoteSlug` deferred (KB).
 
-## Next task — session 008.6 (priorities + roadmap)
+## Next task — session 008.7 (tags)
 
-> **s008.5 (dogfood enablers) is SHIPPED** — see "Where we are" and "Carry-over lessons (008.5)" below; the
-> spec is `docs/superpowers/specs/2026-07-07-session-008.5-dogfood-enablers-design.md` and the plan is
-> `docs/superpowers/plans/2026-07-07-session-008.5-dogfood-enablers.md`. **Next up is s008.6 priorities +
-> roadmap** (e5_t1a): 📋 already **spec'd + subagent-reviewed** — implement from
-> `docs/superpowers/specs/2026-07-07-session-008.6-priorities-roadmap-design.md` (write the plan at that
-> session's start, in fresh context); a closed `Priority` VO (`--priority` on `add`/`edit`/`list`,
-> `--sort priority`, in `show`/`taskJSON`) + **`mtt roadmap [--json]`** — a pure-core priority-guided Kahn
-> (dependency hard, priority soft; cycle-safe; `ready`/`blocked_by` annotations), the agent-queryable execution
-> order that motivates dogfood. Then **s008.7 tags**, **s008.9 batch & pipeline**, **s009 dogfood**.
-> `advance`/`start`/`done` + modes + roles-on-edges stay **PARKED** (single-edge `status` is the norm).
+> **s008.6 (priorities + roadmap) is SHIPPED** — see "Where we are" and "Carry-over lessons (008.6)" below; the
+> spec is `docs/superpowers/specs/2026-07-07-session-008.6-priorities-roadmap-design.md` and the plan is
+> `docs/superpowers/plans/2026-07-07-session-008.6-priorities-roadmap.md`. **Next up is s008.7 tags** (e5_t1b):
+> `mtt add --tag x`, `mtt tag add/rm <id> <tag>` (rides the reserved `Task.Tags` field + `Update`, **no new
+> port** — like `depends_on`/`priority`), and a `Tags` dimension in `ListFilter` for `mtt list/tree --tag`
+> (reuses `Match`/`Select`), plus `#hashtags` parsed from title/description. Then **s008.9 batch & pipeline**,
+> **s009 dogfood**. `advance`/`start`/`done` + modes + roles-on-edges stay **PARKED** (single-edge `status` is
+> the norm). No spec yet — start with brainstorming → writing-plans.
+
+### Carry-over lessons (008.6 — priorities + roadmap)
+- **A new closed VO mirrors `StatusKind`/`CurrentAction` — `type + consts + Valid()`, cast in `toDomain`,
+  validated at the boundary; no smart constructor.** `Priority` shipped exactly like `CurrentAction`: the DTO
+  does a plain `mtt.Priority(yt.Priority)` cast (no error path, no `toDomain` churn), validity is a CLI-boundary
+  check (`parsePriority` → `!Valid()` usage error), and a corrupt on-disk value is **tolerated** (ranks medium),
+  mirroring lazy status validation. `Rank()` gives the sort order; empty/unknown both rank medium, so the
+  ordering never needs to special-case unset.
+- **An embeddable field rides `Task` + `Update` — no new port (GAP #1 again).** Priority joined
+  `depends_on`/`tags` on the "can the reference adapter embed this?" → yes → `omitempty` field + `Update` path.
+  `omitempty` on the off-disk default (unset) is what keeps existing task files & goldens byte-unchanged —
+  prove it with a golden that has **no** priority (`task_min.yaml` untouched) *and* one that does
+  (`task_priority.yaml`).
+- **A pure derived read builds its OWN restricted graph rather than overloading the shared one.** `Roadmap`
+  needed a **non-terminal-restricted** DAG (a terminal blocker imposes no ordering constraint), but
+  `DepGraph.Dependents` are unfiltered — so it builds `indeg`/`dependents` from scratch over the node set, and
+  does **not** extend `DepGraph` (GAP #6 stays unextracted). The reuse that *did* pay off: `core.Ready` for the
+  `ready` flag (one source of truth) and a `terminalSatisfied` predicate **factored out of `isReady`** as the
+  single home for "is this blocker satisfied?" (shared by `Ready` and `Roadmap`).
+- **Align a new order with the existing one so they never diverge.** `roadmap`'s same-priority tiebreak reuses
+  the **shared `lessByPriority`** (Rank asc → `lessByRecency`), identical to `Select`+`SortPriority`, so
+  `roadmap` is provably a dependency-constrained `list --sort priority` — not a second, drifting comparator.
+- **Priority-guided Kahn: emit one, re-sort the available set, repeat; append the stuck set best-effort.** Seed
+  `avail` with indeg-0 nodes, `sort.SliceStable(avail, lessByPriority)` before each pop (a node freed mid-walk
+  may outrank the rest), decrement dependents' indeg, push newly-zero ones. Any node never reaching indeg 0 is
+  **in — or downstream of — a cycle**; append the remaining nodes sorted by `(Rank, recency)` so the function
+  always terminates and returns **every** node. Determinism comes from the sort (total order over unique IDs),
+  not input order — assert it with a 20×-stable test.
+- **JSON honesty for a derived view: stored value, non-null arrays.** `roadmap --json` emits the **stored**
+  `priority` (`""` when unset — **not** `omitempty`; the consumer applies its own default) while the *ordering*
+  treats unset as medium — the label is never fabricated. `blocked_by` is always a non-null array (`[]` when
+  empty, built with `make([]string, 0, …)`) — the house rule, like `dep list --json`. `taskJSON.priority` is
+  `omitempty` (a task field, absent when unset) — a deliberate contrast with roadmap's always-present field.
+- **e2e asserts ordering *relationships*, not absolute positions (the s003 wall-clock lesson).** With `time.Now`
+  timestamps that tie at second resolution, exact numbering shifts; a `(?s)t1  \[low\].*t2  \[high\]`
+  multiline regexp captures the hard-constraint (blocker before dependent) robustly, and `--sort priority` uses
+  that a *unique* `high` (rank 0) is strictly first. The deterministic exact order is the **unit** test.
+- **Run the primitive by hand before declaring it done — an intuitive spec can still encode the wrong model.**
+  The first roadmap cut was correct *to the spec* (greedy Kahn by own priority, subagent-verified) — but running
+  `mtt roadmap` on a real scenario made two things obvious: a *high* task hidden behind a blocker sinks below an
+  independent *medium* one, and a parent/epic isn't ordered relative to its children. Fix (rev2, same PR): **two
+  ordering axes** — `depends_on` **and** `parent` (a parent completes only once its children do → a child
+  precedes its parent), both hard — plus **priority propagation** (`effectivePriority(n)` = min of own and
+  everything n transitively unblocks, memoized + cycle-safe), so a high task pulls its prerequisites forward.
+  Kept clean: `Ready`/`BlockedBy` stay **depends_on-only** (the parent axis is ordering + a new `Contains`
+  annotation, not readiness — an epic with open children is `Ready` yet ordered last), and the two claims the
+  first cut leaned on (`roadmap == list --sort priority`; "greedy, not a scheduler") were explicitly retracted.
+  Lesson: for a derived-order primitive, a manual run on a lifelike shape is worth more than another test — the
+  spec was internally consistent yet modelled the domain wrong.
+- **Parent-child is a second dependency axis, distinct from a link.** Hierarchy (`parent`) is not just display:
+  a container can't be *completed* until its children are, so it's a real "comes after" ordering edge — but it
+  is NOT a `depends_on` (readiness/`blocked_by` stay about explicit blockers). Model both axes in the ordering
+  graph, annotate them separately (`blocked by:` vs `contains:`), and don't conflate the vocabularies.
 
 ### Carry-over lessons (008.5 — dogfood enablers)
 - **A store operation earns a base-port method (the D in CRUD), unlike an embedded field.** `depends_on`/
@@ -446,46 +515,36 @@ resolved graph, and open gaps. Two decisions locked there that shape s005:
 
 ## Ready-to-paste kickoff prompt (for a new session)
 
-> Продолжаем mtt. Сессии 001–008 + 008.5 (+ 006.5/006.7/007) смёржены в `main`, версия `0.8.5-dev`,
-> `make check` + CI зелёные. **s008.6 (priorities + roadmap) уже заспечено и субагент-отревьюено**
-> (спека на `main`). Общайся по-русски.
+> Продолжаем mtt. Сессии 001–008 + 008.5 + 008.6 (+ 006.5/006.7/007) смёржены в `main`, версия
+> `0.8.6-dev`, `make check` + CI зелёные. **s008.7 (tags) ещё НЕ заспечено.** Общайся по-русски.
 >
 > Прочитай сначала (в порядке): CLAUDE.md → AGENTS.md → DESIGN.md → NEXT_SESSION.md (секции «Where
-> we are», «Next task — session 008.6», «Carry-over lessons» 008.5/007/006.7/006/005) →
-> sessions/README.md (роадмап: 008.6 ← next) → docs/architecture/model.go (Task-поля; `Select`/
-> `ListFilter`/`SortKey`/`Ready`/`DepGraph` — куда едет Priority: поле `Task` + `Update`, **БЕЗ порта**,
-> GAP #1 как depends_on/tags; куда едет Roadmap: pure-core как `Ready`/`Select`/`DepGraph`, без
-> store/clock) → TASKS.md (e5_t1a) → sessions/008.5_dogfood_enablers.md (свежий образец сессии) →
-> CLI_REFERENCE.md (add/edit/list/show, `--sort`/`--json`, таблица exit-кодов) →
-> `docs/superpowers/specs/2026-07-07-session-008.6-priorities-roadmap-design.md` (СПЕКА — locked).
-> Убедись, что superpowers-скиллы активны.
+> we are», «Next task — session 008.7», «Carry-over lessons» 008.6/008.5/007/006.7/006/005) →
+> sessions/README.md (роадмап: 008.7 ← next) → docs/architecture/model.go (`Task.Tags` — reserved;
+> `Select`/`Match`/`ListFilter` — куда едет Tags: поле `Task` + `Update`, **БЕЗ порта**, GAP #1 как
+> depends_on/priority; фильтр — новая dimension в `Match`/`Select`) → TASKS.md (e5_t1b) →
+> sessions/008.6_priorities_roadmap.md (свежий образец сессии) → CLI_REFERENCE.md (add/edit/list/show,
+> `--priority`/`--sort`/`--json`, таблица exit-кодов). Убедись, что superpowers-скиллы активны.
 >
-> Спека уже написана и субагент-отревьюена, **БРЕЙНСТОРМ НЕ НУЖЕН** — сразу writing-plans: прочитай
-> спеку, при желании быстрый sanity-check, затем детальный test-first план → строго TDD до зелёного
-> acceptance-e2e + `make check`. Если по ходу плана всплывут неоднозначности — уточни, не гадай.
-> Ветка `feat/s008.6-priorities-roadmap` от свежего `main`; ветка → PR → CI green → мёрдж в `main`.
-> Бампни версию `0.8.5-dev` → `0.8.6-dev`.
+> Спеки НЕТ — начни с **brainstorming → writing-plans**, затем строго TDD до зелёного acceptance-e2e +
+> `make check`. Если всплывут неоднозначности — уточни, не гадай. Ветка `feat/s008.7-tags` от свежего
+> `main`; ветка → PR → CI green → мёрдж в `main`. Бампни версию `0.8.6-dev` → `0.8.7-dev`.
 >
-> Scope (из спеки — сверься с ней, это ориентир): **(1)** закрытый `Priority` VO (`high|medium|low`;
-> `empty=medium` в ordering; off-disk когда medium/пусто — `omitempty`, детерминизм диффа) — едет на
-> `Task.Priority` + `TaskStore.Update`, БЕЗ нового порта. **(2)** `--priority` на `add`/`edit`/`list`;
-> `--sort priority`; `priority` в `mtt show` и `taskJSON`. **(3)** `mtt roadmap [--json]` — pure-core
-> `Roadmap(tasks, cfg) []RoadmapEntry`: priority-guided топосорт (Kahn) — зависимость = ЖЁСТКОЕ
-> ограничение, приоритет = МЯГКИЙ tiebreak; cycle-safe; аннотации `ready`/`blocked_by`. Переиспользуй
-> `core.DepGraph` (рёбра depends_on) и `core.Ready` (ready-аннотация), не плоди новый граф без нужды.
+> Scope (ориентир — уточни в брейнсторме): `mtt add --tag x` (повторяемый), `mtt tag add/rm <id> <tag>`
+> (едет на reserved `Task.Tags` + `Update`, БЕЗ нового порта — как depends_on/priority), `Tags`-dimension
+> в `ListFilter` для `mtt list/tree --tag` (переиспользуй `Match`/`Select`), плюс парсинг `#hashtags` из
+> title/description. Идемпотентность add/rm тега (как у dep). Сериализация — `tags,omitempty`.
 >
-> Heed «Carry-over lessons», особенно: новый value object мирроит `StatusKind`/`CurrentAction` (type +
-> consts + `Valid()`, каст-в-`toDomain`, валидация в `Config.Validate`/на границе — БЕЗ smart-
-> конструктора, идиома кодовой базы); поле, встраиваемое в `Task`, едет на `Update` — НЕ новый порт
-> (GAP #1: depends_on/tags/priority); pure-read usecase (`Roadmap`/`Select`/`Ready`) — чистая функция,
-> без store/clock, не в `pkg/mtt` контракте; non-zero exit — ДАННЫЕ; CLI-вывод через
-> `fmt.Fprint(cmd.OutOrStdout(), …)`; zero-match `--json` = `[]`; anchored testscript-ассерты;
-> `golangci unused` (символ объявляй там, где ВПЕРВЫЕ используется); детерминизм сериализации
-> (`omitempty` на off-disk-дефолте); держи каждый `CLAUDE.md` актуальным. Docs-sync tick: DESIGN.md/.ru,
-> CLI_REFERENCE.md/.ru (**+обнови статус-шапку/теги в ТУ ЖЕ сессию** — не давай им протухать), model.go
-> (`Task.Priority`, `Roadmap`/`RoadmapEntry`), TASKS e5_t1a ✅, sessions/README 008.6 ✅, NEXT_SESSION
-> (+carry-over 008.6), заполни sessions/008.6_*.md Done.
+> Heed «Carry-over lessons», особенно (008.6): поле, встраиваемое в `Task`, едет на `Update` — НЕ новый
+> порт (GAP #1: depends_on/priority/tags); фильтр по стор-значению — новая dimension в `Match` (`anyOrEmpty`);
+> non-zero exit — ДАННЫЕ; CLI-вывод через `fmt.Fprint(cmd.OutOrStdout(), …)`; zero-match `--json` = `[]`,
+> non-null массивы (`make([]T,0)`); anchored testscript-ассерты; `golangci unused` (символ объявляй там,
+> где ВПЕРВЫЕ используется); детерминизм сериализации (`omitempty` на off-disk-дефолте); e2e ассертит
+> отношения, не абсолютные позиции (wall-clock ties); держи каждый `CLAUDE.md` актуальным. Docs-sync tick:
+> DESIGN.md/.ru, CLI_REFERENCE.md/.ru (**+обнови статус-шапку/теги в ТУ ЖЕ сессию**), model.go (`Task.Tags`,
+> `ListFilter.Tags`), TASKS e5_t1b ✅, sessions/README 008.7 ✅, NEXT_SESSION (+carry-over 008.7), заполни
+> sessions/008.7_*.md Done.
 >
-> После s008.6 → **s008.7 tags**. **PARKED** — не делать: advance/start/done/cancel + режимы + роли-на-
-> рёбрах; node-level status-actions; кросс-рёберная компенсация. Фанатично: SOLID/DRY/KISS/TDD/DDD/
-> clean-arch + self-check из AGENTS.md.
+> После s008.7 → **s008.9 batch & pipeline**, **s009 dogfood**. **PARKED** — не делать: advance/start/done/
+> cancel + режимы + роли-на-рёбрах; node-level status-actions; кросс-рёберная компенсация. Фанатично:
+> SOLID/DRY/KISS/TDD/DDD/clean-arch + self-check из AGENTS.md.

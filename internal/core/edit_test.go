@@ -69,3 +69,49 @@ func TestEditNotFoundPropagates(t *testing.T) {
 		t.Fatalf("want ErrNotFound, got %v", err)
 	}
 }
+
+func prioptr(p mtt.Priority) *mtt.Priority { return &p }
+
+func TestEditPriorityOnly(t *testing.T) {
+	// A priority-only edit is allowed (the guard permits it) and does not need
+	// --title/--description.
+	orig := mtt.Task{ID: "t1", Type: "task", Title: "a", Status: "tbd", Created: fixed(), Updated: fixed()}
+	got, err := NewEditor(&editStore{get: orig}, later).Edit("t1", EditParams{Priority: prioptr(mtt.PriorityHigh)})
+	if err != nil {
+		t.Fatalf("priority-only edit: %v", err)
+	}
+	if got.Priority != mtt.PriorityHigh {
+		t.Fatalf("Priority = %q, want high", got.Priority)
+	}
+}
+
+func TestEditPriorityNilUnchanged(t *testing.T) {
+	orig := mtt.Task{ID: "t1", Type: "task", Title: "a", Status: "tbd", Priority: mtt.PriorityLow, Created: fixed(), Updated: fixed()}
+	got, err := NewEditor(&editStore{get: orig}, later).Edit("t1", EditParams{Title: strptr("b")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Priority != mtt.PriorityLow {
+		t.Fatalf("Priority = %q, want low (unchanged when nil)", got.Priority)
+	}
+}
+
+func TestEditPriorityClear(t *testing.T) {
+	// edit --priority "" clears the priority back to unset (empty is Valid; the
+	// pointer is non-nil so it applies).
+	orig := mtt.Task{ID: "t1", Type: "task", Title: "a", Status: "tbd", Priority: mtt.PriorityHigh, Created: fixed(), Updated: fixed()}
+	got, err := NewEditor(&editStore{get: orig}, later).Edit("t1", EditParams{Priority: prioptr("")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Priority != "" {
+		t.Fatalf("Priority = %q, want unset", got.Priority)
+	}
+}
+
+func TestEditNothingIncludesPriorityGuard(t *testing.T) {
+	orig := mtt.Task{ID: "t1", Type: "task", Title: "a", Status: "tbd", Created: fixed(), Updated: fixed()}
+	if _, err := NewEditor(&editStore{get: orig}, later).Edit("t1", EditParams{}); err == nil {
+		t.Fatal("empty EditParams should error (nothing to edit)")
+	}
+}

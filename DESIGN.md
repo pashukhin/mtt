@@ -685,6 +685,42 @@ requires no public-API diff), as a ready-made demo of the enforcement value.
 > should not smuggle in, and would risk the name-agnostic principle. s006 adds an e2e (`cancel_unblock`)
 > demonstrating the current semantics with a reachable state; the deeper fix stays deferred. See TASKS.md → Later.
 
+## Priorities and roadmap — session 008.6
+
+- **Priority is the third ordering axis** (alongside `depends_on` and hierarchy). It is a closed, ordered
+  **value object** `Priority` (`high|medium|low`) — the `StatusKind` idiom, **not** a bare string/int and
+  **not** config-defined levels (YAGNI — configurable levels are a revisit-at-second-caller). Empty = **unset**,
+  ordered as `medium` (the neutral default) and **not materialized on disk** (`omitempty`, so existing task
+  files are byte-untouched; back-compat). It rides `Task.Priority` + `TaskStore.Update` — **no new port** (the
+  GAP #1 rule, like `depends_on`) — and maps to a provider's native priority/labels later. Validity is enforced
+  at the **CLI input boundary** (`--priority` rejects an unknown value); a corrupt on-disk value is **tolerated**
+  (ranks as `medium`), mirroring how `status` is validated lazily against the flow. Authored via `--priority` on
+  `add`/`edit` (`edit --priority ""` clears it), filtered via `list --priority` (matches the *stored* label — an
+  unset task matches only when no filter is given), sorted via `list --sort priority`, and surfaced in `show` +
+  `--json` (`taskJSON.priority`). The **default `list`/`ready` order is unchanged** (recency); priority is opt-in.
+- **`mtt roadmap [--json]` is a derived execution-order view** — a **pure `core` read** (`Roadmap(tasks, cfg)
+  []RoadmapEntry`, no store/clock, **not** in the `pkg/mtt` contract), like `Ready`/`Select`. It returns the
+  **non-terminal** tasks in an execution order over **two "comes-after" axes** — `depends_on` (an explicit
+  blocking edge) **and `parent`** (a parent completes only once its children do, so a non-terminal child
+  precedes its non-terminal parent). **Both axes are hard constraints.** Each entry is annotated `ready` (via
+  `core.Ready` — one source of truth) and `blocked_by` (the `depends_on` entries not terminal-satisfied), and a
+  parent additionally lists its non-terminal children as `contains`. **Readiness stays `depends_on`-only** — the
+  parent axis affects *ordering* and the `contains` annotation, not readiness (so a parent with open children
+  can be `ready: true` yet ordered last; a container/epic type may itself carry a flow + artifacts, so it is
+  both a task and a container and is never special-cased or filtered).
+- **Priority propagates (the soft tiebreak).** Rather than sorting by a task's *own* priority, a blocker takes
+  an **effective** rank = `min(own, min over everything it transitively unblocks across both axes)` — so a
+  high-priority task **pulls its prerequisites forward**, ahead of independent lower-priority work ("to finish
+  the important thing, do its blockers first"). The priority-guided Kahn tiebreak is `(effective rank,
+  recency)`; deterministic and **cycle-safe** across both axes (memoized effective-rank DFS; a stuck node — in
+  or downstream of a cycle, including a cross-axis one — is appended best-effort so the function always
+  terminates and returns every node). It builds its **own** non-terminal-restricted graph (not a reuse of
+  `DepGraph`, whose `Dependents` are unfiltered — GAP #6 stays unextracted) and reuses the shared
+  `terminalSatisfied` predicate factored out of `Ready`. It is **not** a *time* scheduler (no dates / critical
+  path) and, deliberately, **not** `list --sort priority` (which sorts by own priority; roadmap propagates).
+  This is what an agent asks instead of re-deriving "what do I do next, and what's it waiting on" from raw
+  tasks; it motivates dogfooding (s009).
+
 ## Flow versioning and task history
 
 - **The flow definition is versioned by git** (in the YAML adapter): `git log .mtt/config.yaml` is the

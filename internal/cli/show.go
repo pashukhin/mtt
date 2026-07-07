@@ -63,6 +63,9 @@ func formatTask(t mtt.Task, ancestors, children []mtt.Task) string {
 	if t.Title != "" {
 		fmt.Fprintf(&b, "  title:    %s\n", t.Title)
 	}
+	if t.Priority != "" {
+		fmt.Fprintf(&b, "  priority: %s\n", t.Priority)
+	}
 	if len(ancestors) > 0 {
 		ids := make([]string, 0, len(ancestors)+1)
 		for _, a := range ancestors {

@@ -88,6 +88,21 @@ type Command struct {
 	Rollback *Command // optional compensator for THIS command; nil = none [s008]
 }
 
+// Priority is a task's scheduling priority — a closed, ordered value object (like
+// StatusKind), not a bare string/number. Empty = unset and orders as
+// PriorityMedium (the neutral default); it is not written to disk (omitempty), so
+// existing tasks are unaffected. Valid() accepts the three + empty; Rank() gives
+// the sort order (high=0, medium/unset/unknown=1, low=2). Maps to a provider's
+// native priority/labels later. [shipped s008.6]
+type Priority string
+
+// The three priorities. Empty (unset) is valid and orders as PriorityMedium.
+const (
+	PriorityHigh   Priority = "high"
+	PriorityMedium Priority = "medium"
+	PriorityLow    Priority = "low"
+)
+
 // RefKind is the closed vocabulary of reference targets. [T1 field / T2–T3 resolution]
 type RefKind string
 
@@ -214,6 +229,7 @@ type Task struct {
 	Type        TypeName
 	Title       string
 	Status      StatusName     // validated lazily against the current flow
+	Priority    Priority       // scheduling axis; unset=medium in order, off-disk [s008.6]
 	Parent      TaskID         // hierarchy edge (forward ref); children computed
 	Tags        []string       // reserved; cross-cutting labels          [T3]
 	DependsOn   []TaskID       // blocking edges (affects Ready)          [T1/s005]
@@ -411,6 +427,7 @@ type AddParams struct {
 	Parent      TaskID
 	NoParent    bool
 	Description string
+	Priority    Priority // unset by default (not medium) [s008.6]
 	DependsOn   []TaskID // blocking edges set at creation; targets validated [s008.5]
 }
 
@@ -426,10 +443,12 @@ type Adder interface {
 var NewAdder func(store TaskStore, cfg Config, now func() time.Time) Adder
 
 // EditParams carry the editable non-flow fields; a nil pointer means unchanged.
-// Status is deliberately NOT here — it moves through the flow so gates apply. [T1]
+// Status is deliberately NOT here — it moves through the flow so gates apply. A
+// non-nil Priority pointer to "" clears the priority (empty is Valid). [T1; Priority s008.6]
 type EditParams struct {
 	Title       *string
 	Description *string
+	Priority    *Priority
 }
 
 // Editor edits title/description only, bumping Updated from the injected clock. [T1]
@@ -441,22 +460,26 @@ type Editor interface {
 var NewEditor func(store TaskStore, now func() time.Time) Editor
 
 // ListFilter holds the list/tree predicates and ordering. Within a field values
-// are OR-ed; across fields AND-ed. cfg is consulted only for the Kinds dimension. [T1]
+// are OR-ed; across fields AND-ed. cfg is consulted only for the Kinds dimension.
+// Priorities match the STORED label (unset only matches when no filter). [T1; Priorities s008.6]
 type ListFilter struct {
-	Statuses []StatusName
-	Types    []TypeName
-	Kinds    []StatusKind
-	Parent   TaskID
-	Sort     SortKey
+	Statuses   []StatusName
+	Types      []TypeName
+	Kinds      []StatusKind
+	Priorities []Priority
+	Parent     TaskID
+	Sort       SortKey
 }
 
-// SortKey selects the list ordering (timestamp descending, ID tiebreak). [T1]
+// SortKey selects the list ordering (timestamp descending, ID tiebreak; or, for
+// SortPriority, Rank ascending then the recency tiebreak). [T1; SortPriority s008.6]
 type SortKey string
 
-// The supported sort keys; empty defaults to SortCreated. [T1]
+// The supported sort keys; empty defaults to SortCreated. [T1; SortPriority s008.6]
 const (
-	SortCreated SortKey = "created"
-	SortUpdated SortKey = "updated"
+	SortCreated  SortKey = "created"
+	SortUpdated  SortKey = "updated"
+	SortPriority SortKey = "priority"
 )
 
 // Match is the single node predicate (status/type/kind/parent), shared by Select
@@ -485,6 +508,37 @@ var NewIndex func(tasks []Task) Index
 // config. Conservative: an unresolvable status or a dangling blocker leaves a
 // task not-ready. One primitive behind mtt ready and list --ready. [shipped s005]
 var Ready func(tasks []Task, cfg Config) []Task
+
+// RoadmapEntry is one task in the computed execution order, annotated with whether
+// it is actionable now (Ready — core.Ready membership, depends_on-only), what still
+// blocks it (BlockedBy — depends_on entries not terminal-satisfied), and, for a
+// parent, its non-terminal children (Contains). [shipped s008.6; Contains rev2]
+type RoadmapEntry struct {
+	Task      Task
+	Ready     bool
+	BlockedBy []TaskID
+	Contains  []TaskID
+}
+
+// Roadmap returns the non-terminal tasks in an execution order over TWO "comes
+// after" axes — depends_on (an explicit blocking edge) and parent (a parent
+// completes only once its children do, so children precede it) — weighted by a
+// PROPAGATED priority: a blocker takes an effective rank = min(own, min over
+// everything it transitively unblocks across both axes), so a high-priority task
+// pulls its prerequisites forward, ahead of lower-priority independent work. Both
+// axes are HARD constraints; priority is the SOFT tiebreak (effective rank, then
+// recency). Ready/BlockedBy stay depends_on-only — the parent axis affects ordering
+// and the Contains annotation, not readiness (a parent with open children can be
+// Ready but ordered last). Pure derived read (no store, no clock; NOT in the
+// pkg/mtt contract) — like Ready/Select. It builds its OWN non-terminal-restricted
+// graph (NOT a reuse of DepGraph, whose Dependents are unfiltered) and reuses
+// core.Ready (the ready flag) + the shared terminalSatisfied predicate factored
+// out of Ready. Cycle-safe across both axes (memoized effective-rank DFS; a stuck
+// node — in or downstream of a cycle — is appended best-effort so the function
+// always terminates and returns every node). NOT a time scheduler (no dates /
+// critical path), and NOT `list --sort priority` (that sorts by OWN priority;
+// roadmap propagates). [shipped s008.6; two-axis propagation rev2]
+var Roadmap func(tasks []Task, cfg Config) []RoadmapEntry
 
 // DependencyEditor mutates DependsOn (add/remove) and persists via
 // TaskStore.Update by default (YAML path), rejecting cycles first. A

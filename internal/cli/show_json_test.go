@@ -2,8 +2,28 @@ package cli
 
 import (
 	"encoding/json"
+	"strings"
 	"testing"
+	"time"
+
+	"github.com/pashukhin/mtt/pkg/mtt"
 )
+
+func TestTaskJSONCarriesPriority(t *testing.T) {
+	ts := time.Date(2026, 7, 7, 9, 0, 0, 0, time.UTC)
+	j := toTaskJSON(mtt.Task{ID: "t1", Type: "task", Status: "tbd", Priority: mtt.PriorityLow, Created: ts, Updated: ts})
+	if j.Priority != "low" {
+		t.Fatalf("taskJSON.Priority = %q, want low", j.Priority)
+	}
+	// Unset priority is omitted from JSON (omitempty).
+	data, err := json.Marshal(toTaskJSON(mtt.Task{ID: "t2", Type: "task", Status: "tbd", Created: ts, Updated: ts}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(data), "priority") {
+		t.Fatalf("unset priority must be omitted from JSON: %s", data)
+	}
+}
 
 func TestShowJSON(t *testing.T) {
 	dir := t.TempDir()

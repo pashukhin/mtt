@@ -50,6 +50,36 @@ func TestAddCommand(t *testing.T) {
 	}
 }
 
+func TestAddPriorityInvalid(t *testing.T) {
+	dir := t.TempDir()
+	chdir(t, dir)
+	if err := runRoot(t, "init"); err != nil {
+		t.Fatalf("init: %v", err)
+	}
+	_, _, err := runOut(t, "add", "--no-parent", "--priority", "urgent", "x")
+	if err == nil || !strings.Contains(err.Error(), "invalid --priority") {
+		t.Fatalf("err = %v, want an invalid --priority usage error", err)
+	}
+}
+
+func TestAddPriorityStored(t *testing.T) {
+	dir := t.TempDir()
+	chdir(t, dir)
+	if err := runRoot(t, "init"); err != nil {
+		t.Fatalf("init: %v", err)
+	}
+	if _, _, err := runOut(t, "add", "--no-parent", "--priority", "high", "x"); err != nil {
+		t.Fatalf("add --priority high: %v", err)
+	}
+	out, _, err := runOut(t, "show", "t1")
+	if err != nil {
+		t.Fatalf("show: %v", err)
+	}
+	if !strings.Contains(out, "priority: high") {
+		t.Fatalf("show output missing priority line:\n%s", out)
+	}
+}
+
 func TestAddArgError(t *testing.T) {
 	dir := t.TempDir()
 	chdir(t, dir)
