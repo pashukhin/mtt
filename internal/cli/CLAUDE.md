@@ -100,7 +100,9 @@ boundary (`!Valid()` → usage error; never leak a bare string into `core`). `mt
 (omitted when unset); `taskJSON` gains `priority` (`omitempty`), so it is readable via `show`/`list --json`.
 **`mtt roadmap [--json]`** (`roadmap.go`) is a pure read — `TaskStore.List` → `core.Roadmap` → render:
 `writeRoadmap` numbers entries (`N. <id>  [<priority>]  (<status>)  <title>`, `[..]` omitted when unset, `  ↳
-blocked by: …` under a blocked one), and `roadmapJSON`/`toRoadmapJSON` emit `{id,title,status,priority,ready,
-blocked_by}` with `priority` the **stored** value (`""` when unset, not omitempty — honest) and `blocked_by`
-always a non-null array (`[]` when empty). Display echoes the stored priority — the *ordering* treats unset as
-medium, the *label* is never fabricated.
+blocked by: …` under a depends_on-blocked one and `  ↳ contains: …` under a parent), and
+`roadmapJSON`/`toRoadmapJSON` emit `{id,title,status,priority,ready,blocked_by,contains}` with `priority` the
+**stored** value (`""` when unset, not omitempty — honest) and `blocked_by`/`contains` always non-null arrays
+(`[]` when empty, via the shared `idStrings` helper). Display echoes the stored priority — the *ordering* treats
+unset as medium (and propagates it up the blocker chain), the *label* is never fabricated. Ordering is
+`core`'s concern (two axes — depends_on + parent — with priority propagation); the CLI only renders.

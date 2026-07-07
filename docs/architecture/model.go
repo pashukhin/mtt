@@ -510,26 +510,34 @@ var NewIndex func(tasks []Task) Index
 var Ready func(tasks []Task, cfg Config) []Task
 
 // RoadmapEntry is one task in the computed execution order, annotated with whether
-// it is actionable now (Ready — core.Ready membership) and what still blocks it
-// (BlockedBy — depends_on entries not terminal-satisfied). [shipped s008.6]
+// it is actionable now (Ready — core.Ready membership, depends_on-only), what still
+// blocks it (BlockedBy — depends_on entries not terminal-satisfied), and, for a
+// parent, its non-terminal children (Contains). [shipped s008.6; Contains rev2]
 type RoadmapEntry struct {
 	Task      Task
 	Ready     bool
 	BlockedBy []TaskID
+	Contains  []TaskID
 }
 
-// Roadmap returns the non-terminal tasks in a dependency-respecting,
-// priority-weighted order (a priority-guided Kahn topological sort): a depends_on
-// edge is a HARD constraint (a non-terminal blocker precedes its dependent, even
-// at lower priority); priority is a SOFT tiebreak (Priority.Rank) among the tasks
-// a topological step leaves available — exactly Select+SortPriority order, so
-// roadmap == a dependency-constrained `list --sort priority`. Pure derived read
-// (no store, no clock; NOT in the pkg/mtt contract) — like Ready/Select/DepGraph.
-// It builds its OWN non-terminal-restricted DAG (NOT a reuse of DepGraph, whose
-// Dependents are unfiltered) and reuses core.Ready (the ready flag) + the shared
-// terminalSatisfied predicate factored out of Ready. Cycle-safe: a node in — or
-// downstream of — a depends_on cycle is appended best-effort so the function
-// always terminates and returns every node. [shipped s008.6]
+// Roadmap returns the non-terminal tasks in an execution order over TWO "comes
+// after" axes — depends_on (an explicit blocking edge) and parent (a parent
+// completes only once its children do, so children precede it) — weighted by a
+// PROPAGATED priority: a blocker takes an effective rank = min(own, min over
+// everything it transitively unblocks across both axes), so a high-priority task
+// pulls its prerequisites forward, ahead of lower-priority independent work. Both
+// axes are HARD constraints; priority is the SOFT tiebreak (effective rank, then
+// recency). Ready/BlockedBy stay depends_on-only — the parent axis affects ordering
+// and the Contains annotation, not readiness (a parent with open children can be
+// Ready but ordered last). Pure derived read (no store, no clock; NOT in the
+// pkg/mtt contract) — like Ready/Select. It builds its OWN non-terminal-restricted
+// graph (NOT a reuse of DepGraph, whose Dependents are unfiltered) and reuses
+// core.Ready (the ready flag) + the shared terminalSatisfied predicate factored
+// out of Ready. Cycle-safe across both axes (memoized effective-rank DFS; a stuck
+// node — in or downstream of a cycle — is appended best-effort so the function
+// always terminates and returns every node). NOT a time scheduler (no dates /
+// critical path), and NOT `list --sort priority` (that sorts by OWN priority;
+// roadmap propagates). [shipped s008.6; two-axis propagation rev2]
 var Roadmap func(tasks []Task, cfg Config) []RoadmapEntry
 
 // DependencyEditor mutates DependsOn (add/remove) and persists via

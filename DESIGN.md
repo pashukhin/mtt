@@ -699,20 +699,27 @@ requires no public-API diff), as a ready-made demo of the enforcement value.
   unset task matches only when no filter is given), sorted via `list --sort priority`, and surfaced in `show` +
   `--json` (`taskJSON.priority`). The **default `list`/`ready` order is unchanged** (recency); priority is opt-in.
 - **`mtt roadmap [--json]` is a derived execution-order view** — a **pure `core` read** (`Roadmap(tasks, cfg)
-  []RoadmapEntry`, no store/clock, **not** in the `pkg/mtt` contract), like `Ready`/`Select`/`DepGraph`. It
-  returns the **non-terminal** tasks in a dependency-respecting, priority-weighted sequence (a **priority-guided
-  Kahn** topological sort), each annotated `ready` (via `core.Ready` — one source of truth for the flag) and
-  `blocked_by` (the `depends_on` entries not terminal-satisfied). **Ordering rule:** a `depends_on` edge is a
-  **hard** constraint (a non-terminal blocker precedes its dependent, even at *lower* priority); priority is a
-  **soft** tie-breaker among the tasks a topological step leaves free — so `roadmap` is exactly a
-  dependency-constrained `list --sort priority` (the same `lessByPriority` tiebreak, never divergent). It builds
-  its **own** non-terminal-restricted DAG (it does **not** reuse `DepGraph`, whose `Dependents` are unfiltered —
-  GAP #6 stays unextracted) and factors a shared `terminalSatisfied` predicate out of `Ready`. **Cycle-safe:** a
-  node in — or downstream of — a hand-edited `depends_on` cycle is appended best-effort, so the function always
-  terminates and returns every node. It is **not** a Gantt/scheduler (no dates, no critical path) and is
-  **greedy** (it does not pull a high-priority task's blockers forward beyond what dependencies force). This is
-  what an agent asks instead of re-deriving "what do I do next, and what's it waiting on" from raw tasks; it
-  motivates dogfooding (s009).
+  []RoadmapEntry`, no store/clock, **not** in the `pkg/mtt` contract), like `Ready`/`Select`. It returns the
+  **non-terminal** tasks in an execution order over **two "comes-after" axes** — `depends_on` (an explicit
+  blocking edge) **and `parent`** (a parent completes only once its children do, so a non-terminal child
+  precedes its non-terminal parent). **Both axes are hard constraints.** Each entry is annotated `ready` (via
+  `core.Ready` — one source of truth) and `blocked_by` (the `depends_on` entries not terminal-satisfied), and a
+  parent additionally lists its non-terminal children as `contains`. **Readiness stays `depends_on`-only** — the
+  parent axis affects *ordering* and the `contains` annotation, not readiness (so a parent with open children
+  can be `ready: true` yet ordered last; a container/epic type may itself carry a flow + artifacts, so it is
+  both a task and a container and is never special-cased or filtered).
+- **Priority propagates (the soft tiebreak).** Rather than sorting by a task's *own* priority, a blocker takes
+  an **effective** rank = `min(own, min over everything it transitively unblocks across both axes)` — so a
+  high-priority task **pulls its prerequisites forward**, ahead of independent lower-priority work ("to finish
+  the important thing, do its blockers first"). The priority-guided Kahn tiebreak is `(effective rank,
+  recency)`; deterministic and **cycle-safe** across both axes (memoized effective-rank DFS; a stuck node — in
+  or downstream of a cycle, including a cross-axis one — is appended best-effort so the function always
+  terminates and returns every node). It builds its **own** non-terminal-restricted graph (not a reuse of
+  `DepGraph`, whose `Dependents` are unfiltered — GAP #6 stays unextracted) and reuses the shared
+  `terminalSatisfied` predicate factored out of `Ready`. It is **not** a *time* scheduler (no dates / critical
+  path) and, deliberately, **not** `list --sort priority` (which sorts by own priority; roadmap propagates).
+  This is what an agent asks instead of re-deriving "what do I do next, and what's it waiting on" from raw
+  tasks; it motivates dogfooding (s009).
 
 ## Flow versioning and task history
 

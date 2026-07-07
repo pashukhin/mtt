@@ -12,12 +12,17 @@ A living handoff doc. Update it at the end of each session (what's done / what's
   yaml DTO round-trip (plain conversion, unknown tolerated → ranks medium, + a `task_priority.yaml` golden);
   core `SortPriority` (+ `lessByPriority` → `lessByRecency`), `ListFilter.Priorities` + `Match` (matches the
   *stored* label), `EditParams.Priority` (+ clear via `--priority ""`), and the shared **`terminalSatisfied`**
-  predicate factored out of `Ready`; the pure **`core.Roadmap(tasks,cfg) []RoadmapEntry`** — a priority-guided
-  cycle-safe Kahn (dependency **hard**, priority **soft** = `lessByPriority`, so `roadmap` == a
-  dependency-constrained `list --sort priority`), building its **own** non-terminal DAG (not `DepGraph`) and
-  reusing `core.Ready` for the `ready` flag + `terminalSatisfied` for `blocked_by`; and the CLI surface —
+  predicate factored out of `Ready`; the pure **`core.Roadmap(tasks,cfg) []RoadmapEntry`** — a cycle-safe
+  priority-guided Kahn over **two "comes-after" axes** (`depends_on` **and `parent`** — a child precedes its
+  parent; both hard) with **priority propagation** (a blocker takes `effectivePriority` = min of own and
+  everything it transitively unblocks, so a high task pulls its prerequisites forward), building its **own**
+  non-terminal graph (not `DepGraph`) and reusing `core.Ready` (depends_on-only) for `ready` + `terminalSatisfied`
+  for `blocked_by`; each entry also carries `Contains` (a parent's non-terminal children); and the CLI surface —
   `--priority` on `add`/`edit`/`list`, `--sort priority`, `priority` in `show` + `taskJSON`, and **`mtt roadmap
-  [--json]`** (`roadmapJSON`: honest `priority` `""`, non-null `blocked_by []`). Next: **s008.7 tags**.
+  [--json]`** (`roadmapJSON`: honest `priority` `""`, non-null `blocked_by`/`contains` `[]`; `↳ blocked by:` / `↳
+  contains:` lines). The roadmap ordering was **reworked post-ship on user feedback** (rev2 in the spec): the
+  first cut was greedy-by-own-priority (`roadmap == list --sort priority`) — dropped for propagation + the parent
+  axis. Next: **s008.7 tags**.
   **Session 008.5 (dogfood enablers, chore)** shipped `mtt rm <id>` — hard-delete via a new base-port method
   **`TaskStore.Delete`** (the *D* in CRUD; YAML `os.Remove`) + the pure `core.Remover` usecase (reject-if-referenced —
   children via `Index`, dependents via `DepGraph`, deduped — with `--force` to override, leaving dangling refs the
@@ -217,6 +222,22 @@ resolved graph, and open gaps. Two decisions locked there that shape s005:
   timestamps that tie at second resolution, exact numbering shifts; a `(?s)t1  \[low\].*t2  \[high\]`
   multiline regexp captures the hard-constraint (blocker before dependent) robustly, and `--sort priority` uses
   that a *unique* `high` (rank 0) is strictly first. The deterministic exact order is the **unit** test.
+- **Run the primitive by hand before declaring it done — an intuitive spec can still encode the wrong model.**
+  The first roadmap cut was correct *to the spec* (greedy Kahn by own priority, subagent-verified) — but running
+  `mtt roadmap` on a real scenario made two things obvious: a *high* task hidden behind a blocker sinks below an
+  independent *medium* one, and a parent/epic isn't ordered relative to its children. Fix (rev2, same PR): **two
+  ordering axes** — `depends_on` **and** `parent` (a parent completes only once its children do → a child
+  precedes its parent), both hard — plus **priority propagation** (`effectivePriority(n)` = min of own and
+  everything n transitively unblocks, memoized + cycle-safe), so a high task pulls its prerequisites forward.
+  Kept clean: `Ready`/`BlockedBy` stay **depends_on-only** (the parent axis is ordering + a new `Contains`
+  annotation, not readiness — an epic with open children is `Ready` yet ordered last), and the two claims the
+  first cut leaned on (`roadmap == list --sort priority`; "greedy, not a scheduler") were explicitly retracted.
+  Lesson: for a derived-order primitive, a manual run on a lifelike shape is worth more than another test — the
+  spec was internally consistent yet modelled the domain wrong.
+- **Parent-child is a second dependency axis, distinct from a link.** Hierarchy (`parent`) is not just display:
+  a container can't be *completed* until its children are, so it's a real "comes after" ordering edge — but it
+  is NOT a `depends_on` (readiness/`blocked_by` stay about explicit blockers). Model both axes in the ordering
+  graph, annotate them separately (`blocked by:` vs `contains:`), and don't conflate the vocabularies.
 
 ### Carry-over lessons (008.5 — dogfood enablers)
 - **A store operation earns a base-port method (the D in CRUD), unlike an embedded field.** `depends_on`/

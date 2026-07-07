@@ -319,23 +319,28 @@ Readiness is **conservative**: a dangling blocker or a status not in the current
 ready (`mtt list --ready` is the same subset via `list`).
 
 ### `mtt roadmap [--json]` — execution-order view  *(session 008.6, implemented)*
-Prints the **non-terminal** tasks in a dependency-respecting, priority-weighted **execution order**, each
-annotated with whether it is actionable now (`ready`) and what still blocks it (`blocked_by`). This is the
+Prints the **non-terminal** tasks in an **execution order**, each annotated with whether it is actionable now
+(`ready`), what still blocks it (`blocked_by`), and — for a parent — what it contains (`contains`). This is the
 "what do I do next, and what's it waiting on" view — what `ready` (unblocked *now*, flat) and `list --sort
-priority` (no dependency order) each miss. **Not** a Gantt/scheduler: no dates, no critical path.
+priority` (no dependency order, own priority only) each miss. **Not** a time scheduler: no dates, no critical path.
 
-Ordering rule: a `depends_on` edge is a **hard** constraint (a non-terminal blocker is placed before the task
-it blocks, even if the blocker has *lower* priority), and priority is a **soft** tie-breaker among the tasks a
-topological step leaves free — so `roadmap` is exactly a dependency-constrained `list --sort priority`. A
-satisfied (terminal) blocker imposes no constraint. Confirmed-terminal tasks (`done`/`cancelled`) are
-excluded; `parent` is shown as a field, not a grouping. The order is deterministic and cycle-safe (a
-hand-edited `depends_on` cycle cannot hang it — every node is still returned, best-effort).
+Ordering runs over **two "comes-after" axes**, both **hard** constraints: `depends_on` (an explicit blocking
+edge — a non-terminal blocker precedes the task it blocks) **and `parent`** (a parent completes only once its
+children do, so a non-terminal child precedes its parent). Priority is the **soft** tie-breaker, and it
+**propagates**: a blocker inherits the highest priority of everything it (transitively) unblocks, so a
+high-priority task pulls its prerequisites forward, ahead of independent lower-priority work (a *low* task that
+blocks a *high* one can outrank an independent *medium* task). Readiness stays `depends_on`-only — the parent
+axis affects ordering and the `contains` annotation, not `ready`/`blocked_by` (a parent with open children can
+be `ready` yet ordered last). Confirmed-terminal tasks (`done`/`cancelled`) are excluded. The order is
+deterministic and cycle-safe across both axes (a hand-edited cycle cannot hang it — every node is still
+returned, best-effort).
 
 - Human: a numbered list — `1. t3  [high]  (tbd)  schema design`, the `[..]` priority label **omitted when
-  unset** (as in `show`), and, when blocked, a `  ↳ blocked by: t1, t2` line.
-- `--json`: `[{"id","title","status","priority","ready","blocked_by":[…]}]`. `priority` is the **stored**
-  value (`""` when unset — honest; consumers apply their own default); `blocked_by` is always an array (`[]`
-  when empty, never `null`); an empty roadmap is `[]`.
+  unset** (as in `show`); a `  ↳ blocked by: t1, t2` line under a `depends_on`-blocked task, and a `  ↳
+  contains: c1, c2` line under a parent (its non-terminal children).
+- `--json`: `[{"id","title","status","priority","ready","blocked_by":[…],"contains":[…]}]`. `priority` is the
+  **stored** value (`""` when unset — honest; consumers apply their own default); `blocked_by` and `contains`
+  are always arrays (`[]` when empty, never `null`); an empty roadmap is `[]`.
 
 ---
 
