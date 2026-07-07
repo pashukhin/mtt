@@ -30,6 +30,13 @@ func (f *fakeStore) Update(t mtt.Task) (mtt.Task, error) {
 	f.got = t
 	return t, nil
 }
+func (f *fakeStore) Delete(id mtt.TaskID) error {
+	if _, ok := f.byID[id]; !ok {
+		return mtt.ErrNotFound
+	}
+	delete(f.byID, id)
+	return nil
+}
 
 func flow() mtt.Flow {
 	return mtt.Flow{

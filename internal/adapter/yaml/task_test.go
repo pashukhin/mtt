@@ -20,6 +20,28 @@ func initDefault(t *testing.T) string {
 	return root
 }
 
+func TestDeleteRemovesFile(t *testing.T) {
+	root := initDefault(t)
+	s := NewTaskStore(root)
+	created, err := s.Create(mtt.Task{Type: "epic", Title: "E", Status: "tbd", Created: fixedTime(), Updated: fixedTime()})
+	if err != nil {
+		t.Fatalf("create: %v", err)
+	}
+	if err := s.Delete(created.ID); err != nil {
+		t.Fatalf("delete: %v", err)
+	}
+	if _, err := s.Get(created.ID); !errors.Is(err, mtt.ErrNotFound) {
+		t.Fatalf("Get after Delete = %v; want ErrNotFound", err)
+	}
+}
+
+func TestDeleteAbsentIsNotFound(t *testing.T) {
+	root := initDefault(t)
+	if err := NewTaskStore(root).Delete("t99"); !errors.Is(err, mtt.ErrNotFound) {
+		t.Fatalf("Delete absent = %v; want ErrNotFound", err)
+	}
+}
+
 func TestStoreCreateAndGet(t *testing.T) {
 	root := initDefault(t)
 	s := NewTaskStore(root)

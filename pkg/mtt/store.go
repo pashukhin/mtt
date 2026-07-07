@@ -17,6 +17,10 @@ type TaskStore interface {
 	// Update overwrites an existing task identified by t.ID, returning the stored
 	// task; it never mints and never creates. Missing task -> ErrNotFound.
 	Update(t Task) (Task, error)
+	// Delete removes an existing task by ID. Missing task -> ErrNotFound. It is a
+	// store operation (not an embedded field), so it lives on the base port; an
+	// adapter that cannot hard-delete returns ErrUnsupported.
+	Delete(id TaskID) error
 }
 
 // ErrNotFound is returned by TaskStore.Get when the ID does not resolve.

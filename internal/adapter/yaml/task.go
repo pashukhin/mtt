@@ -68,6 +68,20 @@ func (s *Store) Update(t mtt.Task) (mtt.Task, error) {
 	return s.write(t)
 }
 
+// Delete removes the task file .mtt/tasks/<id>.yaml. A task that does not exist
+// yields mtt.ErrNotFound. The os.Remove unlink is atomic (same filesystem
+// assumptions as the store's temp+rename writes).
+func (s *Store) Delete(id mtt.TaskID) error {
+	path := filepath.Join(s.root, dirName, tasksDirName, string(id)+".yaml")
+	if err := os.Remove(path); err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return mtt.ErrNotFound
+		}
+		return fmt.Errorf("remove %s: %w", path, err)
+	}
+	return nil
+}
+
 // List returns all tasks under .mtt/tasks/, mapping each file to the domain. The
 // order is unspecified (os.ReadDir's lexical order); callers impose their own
 // deterministic order. A missing tasks/ directory yields an empty slice.
