@@ -20,6 +20,7 @@ func (s *editStore) Create(t mtt.Task) (mtt.Task, error) { return t, nil }
 func (s *editStore) Get(mtt.TaskID) (mtt.Task, error)    { return s.get, s.getErr }
 func (s *editStore) List() ([]mtt.Task, error)           { return nil, nil }
 func (s *editStore) Update(t mtt.Task) (mtt.Task, error) { s.updated = t; return t, nil }
+func (s *editStore) Delete(mtt.TaskID) error             { return nil }
 
 func strptr(s string) *string { return &s }
 func later() time.Time        { return time.Date(2026, 7, 5, 12, 0, 0, 0, time.UTC) }

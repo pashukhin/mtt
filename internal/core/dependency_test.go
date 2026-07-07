@@ -42,6 +42,13 @@ func (m *memStore) Update(t mtt.Task) (mtt.Task, error) {
 	m.updated = t
 	return t, nil
 }
+func (m *memStore) Delete(id mtt.TaskID) error {
+	if _, ok := m.byID[id]; !ok {
+		return mtt.ErrNotFound
+	}
+	delete(m.byID, id)
+	return nil
+}
 
 func laterClock() time.Time { return time.Date(2026, 7, 6, 12, 0, 0, 0, time.UTC) }
 
