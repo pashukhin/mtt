@@ -403,45 +403,47 @@ resolved graph, and open gaps. Two decisions locked there that shape s005:
 
 ## Ready-to-paste kickoff prompt (for a new session)
 
-> We're continuing mtt. Sessions 001–006 + **006.5 (attribution + verb sugar)** are merged to `main`, version
-> `0.6.5-dev`, `make check` + CI green. Phase 2 is complete and Phase 3 is underway: s006 shipped the **flow
-> gate** (`mtt status <id> <new>`), and s006.5 shipped `--why` (`HistoryEntry.Why` + DTO + `show`), `--who`
-> (mutually-exclusive alias of `--by`), the `mtt <status> <id>` **verb sugar** (fallback-routing in `root.RunE`,
-> reusing `core.Transitioner`; unknown arg0 → exit 1), and **required-attribution** (`require:{who,why}`
-> committed `Settings.Require`, `config.local` tighten-only; checked in `core.Transitioner` before the gate →
-> `ErrMissingAttribution` exit 2; `--no-run` no-bypass). `-v`/`--log-file` are now root-persistent.
-> Read, in order: CLAUDE.md, AGENTS.md, DESIGN.md, NEXT_SESSION.md, sessions/README.md,
-> `docs/architecture/model.go` (`Transitioner`/`TransitionOptions`/`ErrMissingAttribution`/`Advancer`), TASKS.md
-> (e4_t8a), sessions/006.5_attribution_and_sugar.md and sessions/006_flow_gate.md, CLI_REFERENCE.md. Confirm the
-> superpowers skills are active (else activate per NEXT_SESSION.md).
+> Продолжаем mtt. Сессии 001–008 (+ 006.5/006.7/007) смёржены в `main`, версия `0.8.0-dev`,
+> `make check` + CI зелёные. **s008.6 (priorities + roadmap) уже заспечено и субагент-отревьюено**
+> (на `main`, статус 📋 planned) — делаем ПОСЛЕ этой сессии. Общайся по-русски.
 >
-> Do **session 006.7 (current task / working context)** on branch `feat/s006.7-current-task` off fresh `main`:
-> first create `sessions/006.7_current_task.md` from `sessions/000_template.md`, then brainstorm → writing-plans,
-> then implement strictly test-first until the acceptance e2e + `make check` are green; branch → PR → CI green →
-> squash into `main`.
+> Прочитай сначала (в порядке): CLAUDE.md → AGENTS.md → DESIGN.md → NEXT_SESSION.md (секции
+> «Where we are», «Next task — session 008.5», «Carry-over lessons (008)» и (007)/(006)/(005)) →
+> sessions/README.md (роадмап: 008.5 ← next, затем 008.6 spec'd) → docs/architecture/model.go
+> (порт `TaskStore` — Create/Get/List/Update, **без Delete**; `Adder`/`AddParams`, `DependencyEditor`
+> — куда едут `rm` и `--depends-on`) → TASKS.md (e5_t1 + think-item «dangerous ops must mandate
+> --who/--why» в Later) → sessions/008_rollback.md (свежий образец) → CLI_REFERENCE.md. Убедись,
+> что superpowers-скиллы активны.
 >
-> Scope (kills id-repetition — git-`HEAD`-for-tasks): (1) a **`current`** record in `config.local.yaml`
-> (personal/gitignored — the value) + `mtt use <id>` (git-checkout-like set) + a way to show it. (2) set/clear
-> driven by a **transition property** in the committed flow (the rule) — a new additive `pkg/mtt.Transition`
-> field (e.g. `current: set|clear`; name-agnostic; topology default set-on-→active/clear-on-→terminal is a
-> brainstorm option) — the only `pkg/mtt` change. (3) an **omitted id** resolves to `current` **only for
-> single-task direct verbs** (status / `mtt <status>` / show / edit / tag) — never for filter/list/stdin/bulk
-> (resolution order: explicit id > filter/stdin > current); resolve the id **before** `runTransition`, keep the
-> shared path. **Caveat:** shared checkout + multiple agents = one `config.local` = one `current` (ties to the
-> parked subagent-identity think-item; fine for solo). **PARKED — do NOT build:** `advance`/`start`/`done`/
-> `cancel`, modes, roles-on-edges, config verb→status. After 006.7 → s007 structured commands, s008 rollback,
-> s008.5 dogfood-enablers, s008.7 tags, s008.9 batch & pipeline, then dogfood. Everything typed; convert strings
-> only at cli/adapter.
+> Делаем **СЕССИЮ 008.5 (dogfood enablers, chore)** на ветке `feat/s008.5-dogfood-enablers` от
+> свежего `main`. Порядок: brainstorming → writing-plans → строго test-first до зелёного
+> acceptance-e2e + `make check`; ветка → PR → CI green → squash в `main`. Бампни `0.8.0-dev` →
+> `0.8.5-dev`.
 >
-> Heed the "Carry-over lessons (006.5)" below — esp.: verb sugar via `root.RunE` fallback (not command
-> registration), classify then `unknown command` on a miss; policy enforcement in `core.Transitioner` before the
-> gate, new exit code in `exitCode(err)`; `config.local` tighten-only = OR with the pre-overlay committed value;
-> mutually-exclusive aliases via a manual `Changed()` check; `formatTask` lives in `show.go`; root-persistent
-> flags only some commands honor is an accepted pattern (remove the now-duplicate local flag or cobra panics).
-> And s006's: a fake for the driven port + real exec adapter; non-zero exit is **data**; adapter settings ride
-> the config layer not `pkg/mtt`; e2e gate configs via a txtar `-- gated.yaml --` `cp`'d over `.mtt/config.yaml`,
-> `mtt add`'s title is positional; CLI stdout via `fmt.Fprint(cmd.OutOrStdout(), …)`; anchored testscript
-> asserts; `golangci unused`; keep each `CLAUDE.md` current; zero-match `--json` = `[]`. Don't lose the **open
-> design slices**: a git-independent **edit-audit** trail; a real `cancelled`-blocker fix; packaging
-> (`make install`) chore-PR; **dangerous ops must mandate `--who`/`--why`** (s006.5 think-item). Follow
-> SOLID/DRY/KISS/TDD/DDD/clean-architecture and the AGENTS.md self-check.
+> Scope — ТРИ маленькие однозначные фичи в ОДНУ сессию (батч — предпочтение: не плодить сессии):
+> **(1) `mtt rm <id>`** — hard-delete (в отличие от `cancel`). Открытые вопросы для брейнсторма (НЕ
+> решай заранее): нужен ли новый метод порта `TaskStore.Delete` (delete — операция стора, НЕ
+> embedded-поле → GAP #1 «поле на Update, без порта» его не покрывает → вероятно да, обоснуй); что с
+> dangling-ссылками (кто `depends_on` удаляемую; дети с `parent` на неё — система уже терпит dangling:
+> Ready консервативен, Index сирот поднимает в корни — но rm решает: отклонять-если-referenced /
+> каскад / оставить); опасная операция → требовать ли `--who/--why` и/или `--force`/подтверждение
+> (think-item в TASKS); exit-код «not found» (кандидат 4). **(2) `--depends-on` на `mtt add`** —
+> задать `depends_on` при создании (валидировать существование целей; цикл на свежей задаче
+> невозможен; переиспользуй примитивы `DependencyEditor`; типизировано, конверсия строк только на
+> границе cli). **(3) Packaging** — `make install` → `go install ./cmd/mtt` + smoke-тест (бинарь
+> ставится, `mtt version`/`--help` работают; версия через `-ldflags`, сейчас `var version` в root.go).
+>
+> Heed «Carry-over lessons» из NEXT_SESSION, особенно: новый метод порта оправдан, когда данные НЕ
+> embeddable (delete — операция стора → новый метод порта, в отличие от depends_on/tags на Update);
+> non-zero exit — ДАННЫЕ; CLI-вывод через `fmt.Fprint(cmd.OutOrStdout(), …)`; anchored testscript-
+> ассерты; `golangci unused` (символ объявляй там, где ВПЕРВЫЕ используется); zero-match `--json` =
+> `[]`; атомарная запись в yaml-адаптере (temp+rename) — удаление тоже атомарно; держи каждый
+> `CLAUDE.md` актуальным; docs-sync (DESIGN.md/.ru, CLI_REFERENCE.md/.ru, CLAUDE ×N, model.go —
+> `TaskStore.Delete`/`AddParams.DependsOn`, TASKS e5_t1 ✅, sessions/README 008.5 ✅, NEXT_SESSION,
+> заполни sessions/008.5_*.md Done).
+>
+> После s008.5 → **s008.6 priorities + roadmap** по готовой спеке
+> `docs/superpowers/specs/2026-07-07-session-008.6-priorities-roadmap-design.md` (план допиши в
+> начале той сессии). **PARKED:** advance/start/done/cancel + режимы + роли-на-рёбрах; node-level
+> status-actions; кросс-рёберная компенсация. Фанатично: SOLID/DRY/KISS/TDD/DDD/clean-arch +
+> self-check из AGENTS.md.
