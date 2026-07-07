@@ -446,47 +446,46 @@ resolved graph, and open gaps. Two decisions locked there that shape s005:
 
 ## Ready-to-paste kickoff prompt (for a new session)
 
-> Продолжаем mtt. Сессии 001–008 (+ 006.5/006.7/007) смёржены в `main`, версия `0.8.0-dev`,
+> Продолжаем mtt. Сессии 001–008 + 008.5 (+ 006.5/006.7/007) смёржены в `main`, версия `0.8.5-dev`,
 > `make check` + CI зелёные. **s008.6 (priorities + roadmap) уже заспечено и субагент-отревьюено**
-> (на `main`, статус 📋 planned) — делаем ПОСЛЕ этой сессии. Общайся по-русски.
+> (спека на `main`). Общайся по-русски.
 >
-> Прочитай сначала (в порядке): CLAUDE.md → AGENTS.md → DESIGN.md → NEXT_SESSION.md (секции
-> «Where we are», «Next task — session 008.5», «Carry-over lessons (008)» и (007)/(006)/(005)) →
-> sessions/README.md (роадмап: 008.5 ← next, затем 008.6 spec'd) → docs/architecture/model.go
-> (порт `TaskStore` — Create/Get/List/Update, **без Delete**; `Adder`/`AddParams`, `DependencyEditor`
-> — куда едут `rm` и `--depends-on`) → TASKS.md (e5_t1 + think-item «dangerous ops must mandate
-> --who/--why» в Later) → sessions/008_rollback.md (свежий образец) → CLI_REFERENCE.md. Убедись,
-> что superpowers-скиллы активны.
+> Прочитай сначала (в порядке): CLAUDE.md → AGENTS.md → DESIGN.md → NEXT_SESSION.md (секции «Where
+> we are», «Next task — session 008.6», «Carry-over lessons» 008.5/007/006.7/006/005) →
+> sessions/README.md (роадмап: 008.6 ← next) → docs/architecture/model.go (Task-поля; `Select`/
+> `ListFilter`/`SortKey`/`Ready`/`DepGraph` — куда едет Priority: поле `Task` + `Update`, **БЕЗ порта**,
+> GAP #1 как depends_on/tags; куда едет Roadmap: pure-core как `Ready`/`Select`/`DepGraph`, без
+> store/clock) → TASKS.md (e5_t1a) → sessions/008.5_dogfood_enablers.md (свежий образец сессии) →
+> CLI_REFERENCE.md (add/edit/list/show, `--sort`/`--json`, таблица exit-кодов) →
+> `docs/superpowers/specs/2026-07-07-session-008.6-priorities-roadmap-design.md` (СПЕКА — locked).
+> Убедись, что superpowers-скиллы активны.
 >
-> Делаем **СЕССИЮ 008.5 (dogfood enablers, chore)** на ветке `feat/s008.5-dogfood-enablers` от
-> свежего `main`. Порядок: brainstorming → writing-plans → строго test-first до зелёного
-> acceptance-e2e + `make check`; ветка → PR → CI green → squash в `main`. Бампни `0.8.0-dev` →
-> `0.8.5-dev`.
+> Спека уже написана и субагент-отревьюена, **БРЕЙНСТОРМ НЕ НУЖЕН** — сразу writing-plans: прочитай
+> спеку, при желании быстрый sanity-check, затем детальный test-first план → строго TDD до зелёного
+> acceptance-e2e + `make check`. Если по ходу плана всплывут неоднозначности — уточни, не гадай.
+> Ветка `feat/s008.6-priorities-roadmap` от свежего `main`; ветка → PR → CI green → мёрдж в `main`.
+> Бампни версию `0.8.5-dev` → `0.8.6-dev`.
 >
-> Scope — ТРИ маленькие однозначные фичи в ОДНУ сессию (батч — предпочтение: не плодить сессии):
-> **(1) `mtt rm <id>`** — hard-delete (в отличие от `cancel`). Открытые вопросы для брейнсторма (НЕ
-> решай заранее): нужен ли новый метод порта `TaskStore.Delete` (delete — операция стора, НЕ
-> embedded-поле → GAP #1 «поле на Update, без порта» его не покрывает → вероятно да, обоснуй); что с
-> dangling-ссылками (кто `depends_on` удаляемую; дети с `parent` на неё — система уже терпит dangling:
-> Ready консервативен, Index сирот поднимает в корни — но rm решает: отклонять-если-referenced /
-> каскад / оставить); опасная операция → требовать ли `--who/--why` и/или `--force`/подтверждение
-> (think-item в TASKS); exit-код «not found» (кандидат 4). **(2) `--depends-on` на `mtt add`** —
-> задать `depends_on` при создании (валидировать существование целей; цикл на свежей задаче
-> невозможен; переиспользуй примитивы `DependencyEditor`; типизировано, конверсия строк только на
-> границе cli). **(3) Packaging** — `make install` → `go install ./cmd/mtt` + smoke-тест (бинарь
-> ставится, `mtt version`/`--help` работают; версия через `-ldflags`, сейчас `var version` в root.go).
+> Scope (из спеки — сверься с ней, это ориентир): **(1)** закрытый `Priority` VO (`high|medium|low`;
+> `empty=medium` в ordering; off-disk когда medium/пусто — `omitempty`, детерминизм диффа) — едет на
+> `Task.Priority` + `TaskStore.Update`, БЕЗ нового порта. **(2)** `--priority` на `add`/`edit`/`list`;
+> `--sort priority`; `priority` в `mtt show` и `taskJSON`. **(3)** `mtt roadmap [--json]` — pure-core
+> `Roadmap(tasks, cfg) []RoadmapEntry`: priority-guided топосорт (Kahn) — зависимость = ЖЁСТКОЕ
+> ограничение, приоритет = МЯГКИЙ tiebreak; cycle-safe; аннотации `ready`/`blocked_by`. Переиспользуй
+> `core.DepGraph` (рёбра depends_on) и `core.Ready` (ready-аннотация), не плоди новый граф без нужды.
 >
-> Heed «Carry-over lessons» из NEXT_SESSION, особенно: новый метод порта оправдан, когда данные НЕ
-> embeddable (delete — операция стора → новый метод порта, в отличие от depends_on/tags на Update);
-> non-zero exit — ДАННЫЕ; CLI-вывод через `fmt.Fprint(cmd.OutOrStdout(), …)`; anchored testscript-
-> ассерты; `golangci unused` (символ объявляй там, где ВПЕРВЫЕ используется); zero-match `--json` =
-> `[]`; атомарная запись в yaml-адаптере (temp+rename) — удаление тоже атомарно; держи каждый
-> `CLAUDE.md` актуальным; docs-sync (DESIGN.md/.ru, CLI_REFERENCE.md/.ru, CLAUDE ×N, model.go —
-> `TaskStore.Delete`/`AddParams.DependsOn`, TASKS e5_t1 ✅, sessions/README 008.5 ✅, NEXT_SESSION,
-> заполни sessions/008.5_*.md Done).
+> Heed «Carry-over lessons», особенно: новый value object мирроит `StatusKind`/`CurrentAction` (type +
+> consts + `Valid()`, каст-в-`toDomain`, валидация в `Config.Validate`/на границе — БЕЗ smart-
+> конструктора, идиома кодовой базы); поле, встраиваемое в `Task`, едет на `Update` — НЕ новый порт
+> (GAP #1: depends_on/tags/priority); pure-read usecase (`Roadmap`/`Select`/`Ready`) — чистая функция,
+> без store/clock, не в `pkg/mtt` контракте; non-zero exit — ДАННЫЕ; CLI-вывод через
+> `fmt.Fprint(cmd.OutOrStdout(), …)`; zero-match `--json` = `[]`; anchored testscript-ассерты;
+> `golangci unused` (символ объявляй там, где ВПЕРВЫЕ используется); детерминизм сериализации
+> (`omitempty` на off-disk-дефолте); держи каждый `CLAUDE.md` актуальным. Docs-sync tick: DESIGN.md/.ru,
+> CLI_REFERENCE.md/.ru (**+обнови статус-шапку/теги в ТУ ЖЕ сессию** — не давай им протухать), model.go
+> (`Task.Priority`, `Roadmap`/`RoadmapEntry`), TASKS e5_t1a ✅, sessions/README 008.6 ✅, NEXT_SESSION
+> (+carry-over 008.6), заполни sessions/008.6_*.md Done.
 >
-> После s008.5 → **s008.6 priorities + roadmap** по готовой спеке
-> `docs/superpowers/specs/2026-07-07-session-008.6-priorities-roadmap-design.md` (план допиши в
-> начале той сессии). **PARKED:** advance/start/done/cancel + режимы + роли-на-рёбрах; node-level
-> status-actions; кросс-рёберная компенсация. Фанатично: SOLID/DRY/KISS/TDD/DDD/clean-arch +
-> self-check из AGENTS.md.
+> После s008.6 → **s008.7 tags**. **PARKED** — не делать: advance/start/done/cancel + режимы + роли-на-
+> рёбрах; node-level status-actions; кросс-рёберная компенсация. Фанатично: SOLID/DRY/KISS/TDD/DDD/
+> clean-arch + self-check из AGENTS.md.
