@@ -650,6 +650,23 @@ requires no public-API diff), as a ready-made demo of the enforcement value.
 - `mtt ready` — "what can be picked up for work"; `mtt list --ready` is the shorthand companion (one shared
   `core.Ready` primitive backs both). `mtt dep list <id>` shows a task's direct blockers and its computed
   dependents, with `--tree` (transitive) and `--cycles` (project-wide, defensive).
+- **Creation-time dependencies (`add --depends-on`, s008.5).** `depends_on` can be set at creation, not just
+  via `dep add`: the targets are validated (each must exist) and **deduped** in `core.Adder` before `Create`.
+  No cycle check is needed — the new task's ID is unminted, so it cannot be a target (a self- or back-edge is
+  inexpressible). Typed end-to-end; string→`TaskID` conversion stays at the CLI boundary.
+
+> **Deletion (`mtt rm`, s008.5).** Hard-delete is a **store operation**, so it earns a base-port method
+> `TaskStore.Delete(id)` (the *D* in CRUD; not an embedded field, so the "field rides `Update`" rule does not
+> cover it — the YAML reference does `os.Remove`, an archive-only external adapter returns `ErrUnsupported`).
+> It is distinct from `cancel` (a terminal *status*): `rm` is for **backlog hygiene** (purge a mistaken task),
+> not the normal lifecycle, and leaves **no `history`** — the git commit dropping the file is the audit.
+> `core.Remover` is **conservative**: by default it **rejects** deleting a task that others reference (a child
+> via `parent`, or a dependent via `depends_on`, found by reusing `Index`+`DepGraph`), so a delete never
+> silently strands references; `--force` overrides, leaving them **dangling** (already tolerated: `ready` is
+> conservative, `Index` surfaces orphans as roots). It is **agent-facing** — no interactive confirmation (that
+> would hang an agent), and `--who`/`--why` are not mandated (nowhere to record them without a history). A
+> missing id exits `4`, the first consumer of the now-**uniform** not-found taxonomy (every single-task-by-id
+> path wraps `mtt.ErrNotFound`).
 
 > **Deferred design question — `cancelled` blocker semantics.** A `terminal` blocker unblocks its dependent,
 > and `cancelled` is a terminal `kind`, so a task whose blockers are `done` **and** `cancelled` is formally

@@ -292,6 +292,10 @@ type TaskStore interface {
 	List() ([]Task, error)
 	// Update overwrites an existing task by ID; never mints, never creates.
 	Update(t Task) (Task, error)
+	// Delete removes an existing task by ID; ErrNotFound when absent. The D in
+	// CRUD — a store op, not an embedded field, so it lives on the base port; an
+	// archive-only external adapter may return ErrUnsupported. [shipped s008.5]
+	Delete(id TaskID) error
 }
 
 // ---------------------------------------------------------------------------
@@ -407,6 +411,7 @@ type AddParams struct {
 	Parent      TaskID
 	NoParent    bool
 	Description string
+	DependsOn   []TaskID // blocking edges set at creation; targets validated [s008.5]
 }
 
 // Adder creates a task: resolve type, validate placement (parent exists via
@@ -498,6 +503,20 @@ type DependencyEditor interface {
 // persists via Update. The capability port is added only when an external
 // adapter that cannot embed the field needs it. [shipped s005]
 var NewDependencyEditor func(store TaskStore, now func() time.Time) DependencyEditor
+
+// Remover is the delete-a-task usecase (mtt rm). Unless force, it rejects
+// deleting a REFERENCED task — a child (Parent) or a dependent (DependsOn),
+// found by reusing Index+DepGraph, deduped — so a delete never silently strands
+// references; --force overrides, leaving dangling refs (tolerated: Ready
+// conservative, Index orphans→roots). Delete is a store op on the base
+// TaskStore, not an embedded field. No clock (a delete records nothing).
+// [shipped s008.5]
+type Remover interface {
+	Remove(id TaskID, force bool) error
+}
+
+// NewRemover wires the delete usecase — no store-beyond-TaskStore, no clock. [s008.5]
+var NewRemover func(store TaskStore) Remover
 
 // Runner executes a transition's Commands and reports each result. It is defined
 // in CORE (only core uses it), implemented in internal/adapter/exec, faked in
