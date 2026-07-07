@@ -126,3 +126,68 @@ func TestTaskDTODependsOnRoundTrip(t *testing.T) {
 		t.Fatalf("DependsOn round-trip = %v; want [t1 t2]", out.DependsOn)
 	}
 }
+
+func TestTaskDTOPriorityRoundTrip(t *testing.T) {
+	in := mtt.Task{
+		ID: "t1", Type: "task", Title: "a", Status: "tbd", Priority: mtt.PriorityHigh,
+		Created: fixedTime(), Updated: fixedTime(),
+	}
+	out, err := fromDomainTask(in).toDomain()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if out.Priority != mtt.PriorityHigh {
+		t.Fatalf("Priority round-trip = %q, want %q", out.Priority, mtt.PriorityHigh)
+	}
+}
+
+func TestTaskDTOPriorityOmitemptyWhenUnset(t *testing.T) {
+	in := mtt.Task{ID: "t1", Type: "task", Title: "a", Status: "tbd", Created: fixedTime(), Updated: fixedTime()}
+	data, err := goyaml.Marshal(fromDomainTask(in))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if bytes.Contains(data, []byte("priority")) {
+		t.Fatalf("unset priority must be omitted on disk; got:\n%s", data)
+	}
+}
+
+func TestTaskDTOPriorityUnknownTolerated(t *testing.T) {
+	// A corrupt/unknown on-disk value round-trips as-is (validated lazily, ranks
+	// as medium) — it does not fail toDomain.
+	yt := ymlTask{ID: "t1", Type: "task", Status: "tbd", Priority: "urgent",
+		Created: "2026-07-05T00:00:00Z", Updated: "2026-07-05T00:00:00Z"}
+	got, err := yt.toDomain()
+	if err != nil {
+		t.Fatalf("unknown priority must be tolerated, got err: %v", err)
+	}
+	if got.Priority != "urgent" {
+		t.Fatalf("Priority = %q, want %q (preserved verbatim)", got.Priority, "urgent")
+	}
+	if got.Priority.Rank() != mtt.PriorityMedium.Rank() {
+		t.Fatalf("unknown priority must rank as medium")
+	}
+}
+
+func TestTaskGoldenWithPriority(t *testing.T) {
+	task := mtt.Task{ID: "t1", Type: "task", Title: "build auth", Status: "tbd",
+		Priority: mtt.PriorityHigh, Created: fixedTime(), Updated: fixedTime()}
+	got, err := goyaml.Marshal(fromDomainTask(task))
+	if err != nil {
+		t.Fatal(err)
+	}
+	golden := filepath.Join("testdata", "golden", "task_priority.yaml")
+	if *update {
+		if err := os.WriteFile(golden, got, 0o644); err != nil {
+			t.Fatal(err)
+		}
+		return
+	}
+	want, err := os.ReadFile(golden)
+	if err != nil {
+		t.Fatalf("read golden (run -update first): %v", err)
+	}
+	if !bytes.Equal(got, want) {
+		t.Errorf("priority task serialization != golden:\n%s", got)
+	}
+}

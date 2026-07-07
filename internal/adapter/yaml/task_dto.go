@@ -17,6 +17,7 @@ type ymlTask struct {
 	Type        string            `yaml:"type"`
 	Title       string            `yaml:"title,omitempty"`
 	Status      string            `yaml:"status"`
+	Priority    string            `yaml:"priority,omitempty"`
 	Parent      string            `yaml:"parent,omitempty"`
 	Tags        []string          `yaml:"tags,omitempty"`
 	DependsOn   []string          `yaml:"depends_on,omitempty"`
@@ -104,7 +105,7 @@ func fromDomainHistory(hs []mtt.HistoryEntry) []ymlHistoryEntry {
 // fromDomainTask maps the pure domain task to its on-disk DTO.
 func fromDomainTask(t mtt.Task) ymlTask {
 	return ymlTask{
-		ID: string(t.ID), Type: string(t.Type), Title: t.Title, Status: string(t.Status), Parent: string(t.Parent),
+		ID: string(t.ID), Type: string(t.Type), Title: t.Title, Status: string(t.Status), Priority: string(t.Priority), Parent: string(t.Parent),
 		Tags: t.Tags, DependsOn: fromDomainDeps(t.DependsOn), Refs: fromDomainRefs(t.Refs),
 		Created: fmtTime(t.Created), Updated: fmtTime(t.Updated), Description: t.Description,
 		Comments: fromDomainComments(t.Comments), History: fromDomainHistory(t.History),
@@ -228,7 +229,7 @@ func (yt ymlTask) toDomain() (mtt.Task, error) {
 		return mtt.Task{}, err
 	}
 	return mtt.Task{
-		ID: id, Type: typ, Title: yt.Title, Status: status, Parent: mtt.TaskID(yt.Parent),
+		ID: id, Type: typ, Title: yt.Title, Status: status, Priority: mtt.Priority(yt.Priority), Parent: mtt.TaskID(yt.Parent),
 		Tags: yt.Tags, DependsOn: toDomainDeps(yt.DependsOn), Refs: toDomainRefs(yt.Refs),
 		Created: created, Updated: updated, Description: yt.Description,
 		Comments: comments, History: history,
