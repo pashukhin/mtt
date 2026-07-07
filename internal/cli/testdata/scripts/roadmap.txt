@@ -1,0 +1,53 @@
+# roadmap: dependency-hard, priority-soft execution order + ready/blocked_by
+mkdir proj
+cd proj
+exec mtt init
+stdout 'initialized'
+
+# an epic + three tasks with priorities
+exec mtt add --type epic 'E'
+stdout 'created e1'
+exec mtt add --type task --parent e1 --priority low 'setup'
+stdout 'created t1'
+exec mtt add --type task --parent e1 --priority high 'feature'
+stdout 'created t2'
+exec mtt add --type task --parent e1 --priority medium 'docs'
+stdout 'created t3'
+
+# t2 (high) depends on t1 (low): the low blocker must precede its high dependent
+exec mtt dep add t2 t1
+
+# human roadmap: t1 (low) appears before t2 (high) — dependency is a hard constraint
+exec mtt roadmap
+stdout '(?s)t1  \[low\].*t2  \[high\]'
+# t2 carries the blocked-by annotation; t3 shows its medium label
+stdout '↳ blocked by: t1'
+stdout 't3  \[medium\]  \(tbd\)  docs'
+# e1 (epic, unset priority) has no [..] label
+stdout 'e1  \(tbd\)  E'
+
+# --json: non-null arrays + honest priority
+exec mtt roadmap --json
+stdout '"id": "t1"'
+stdout '"priority": "high"'
+stdout '"priority": ""'
+stdout '"ready": true'
+stdout '"blocked_by": \[\]'
+# t2's blocked_by lists t1
+stdout '(?s)"blocked_by": \[\s*"t1"\s*\]'
+
+# list --sort priority puts the (unique) high task first
+exec mtt list --sort priority
+stdout '(?s)t2  task  \[tbd\]  feature.*t1  task  \[tbd\]  setup'
+
+# an invalid --sort is rejected with the extended error text
+! exec mtt list --sort bogus
+stderr 'want created\|updated\|priority'
+
+# an invalid --priority on add is a usage error
+! exec mtt add --type task --parent e1 --priority urgent 'x'
+stderr 'invalid --priority'
+
+# show prints the priority
+exec mtt show t2
+stdout 'priority: high'
