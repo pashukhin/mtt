@@ -20,7 +20,8 @@ install:
 # smoke: install into a throwaway GOBIN and check the binary runs. Not part of
 # `check` (it does a real go install; check stays hermetic).
 smoke:
-	@tmp=$$(mktemp -d); \
+	@set -e; \
+	tmp=$$(mktemp -d); \
 	trap 'rm -rf "$$tmp"' EXIT; \
 	GOBIN=$$tmp $(GO) install $(LDFLAGS) ./cmd/mtt; \
 	v=$$("$$tmp/mtt" version); \

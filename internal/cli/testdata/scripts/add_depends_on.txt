@@ -20,5 +20,6 @@ stdout '  e2  epic  \[tbd\]  A'
 ! exec mtt add --type epic --depends-on e99 'C'
 stderr 'not found'
 exec mtt list
-! stdout 'created e4'
+stdout '  B'
 ! stdout '  C'
+! stdout 'e4'

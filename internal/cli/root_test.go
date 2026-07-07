@@ -2,6 +2,7 @@ package cli
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"strings"
 	"testing"
@@ -15,6 +16,52 @@ func TestExitCodeNotFound(t *testing.T) {
 	err := fmt.Errorf("task %q: %w", "t9", mtt.ErrNotFound)
 	if got := exitCode(err); got != 4 {
 		t.Fatalf("exitCode(ErrNotFound) = %d; want 4", got)
+	}
+}
+
+// TestRmMissingTaskExit4 pins the full rm path end-to-end: a missing id flows
+// core.Remover → wrapped ErrNotFound → exitCode 4 (testscript can only assert
+// non-zero, so this regression-locks the numeric code).
+func TestRmMissingTaskExit4(t *testing.T) {
+	dir := t.TempDir()
+	if err := yaml.Init(dir, "default", "demo", false); err != nil {
+		t.Fatalf("init: %v", err)
+	}
+	root := NewRootCmd()
+	var out bytes.Buffer
+	root.SetOut(&out)
+	root.SetErr(&out)
+	root.SetArgs([]string{"--dir", dir, "rm", "t99"})
+	err := root.Execute()
+	if !errors.Is(err, mtt.ErrNotFound) {
+		t.Fatalf("rm missing err = %v; want ErrNotFound wrap", err)
+	}
+	if got := exitCode(err); got != 4 {
+		t.Fatalf("exitCode = %d; want 4", got)
+	}
+}
+
+// TestSugarMissingTaskExit4 pins the uniform-exit-4 gap fix: the `mtt <status>
+// <id>` sugar on a missing task now wraps ErrNotFound (exit 4), instead of the
+// misleading "unknown command" (exit 1), when arg0 is a plausible status verb.
+func TestSugarMissingTaskExit4(t *testing.T) {
+	dir, _ := initSugarProject(t)
+	root := NewRootCmd()
+	var out bytes.Buffer
+	root.SetOut(&out)
+	root.SetErr(&out)
+	root.SetArgs([]string{"--dir", dir, "done", "t99"})
+	err := root.Execute()
+	if !errors.Is(err, mtt.ErrNotFound) {
+		t.Fatalf("sugar-missing err = %v; want ErrNotFound wrap", err)
+	}
+	// a non-status arg0 on a missing id stays an unknown command (exit 1).
+	root2 := NewRootCmd()
+	root2.SetOut(&out)
+	root2.SetErr(&out)
+	root2.SetArgs([]string{"--dir", dir, "bogus", "t99"})
+	if err := root2.Execute(); err == nil || !strings.Contains(err.Error(), "unknown command") {
+		t.Fatalf("bogus arg0 err = %v; want unknown command", err)
 	}
 }
 
@@ -64,15 +111,19 @@ func TestSugarUnknownFirstArg(t *testing.T) {
 
 func TestVersionCommand(t *testing.T) {
 	root := NewRootCmd()
-	var out bytes.Buffer
-	root.SetOut(&out)
-	root.SetErr(&out)
+	var outBuf, errBuf bytes.Buffer
+	root.SetOut(&outBuf)
+	root.SetErr(&errBuf)
 	root.SetArgs([]string{"version"})
 
 	if err := root.Execute(); err != nil {
 		t.Fatalf("execute version: %v", err)
 	}
-	if got := strings.TrimSpace(out.String()); got != version {
-		t.Fatalf("version output = %q, want %q", got, version)
+	// version prints to STDOUT (not stderr), so an agent can capture it.
+	if got := strings.TrimSpace(outBuf.String()); got != version {
+		t.Fatalf("version stdout = %q, want %q", got, version)
+	}
+	if errBuf.Len() != 0 {
+		t.Fatalf("version wrote to stderr: %q", errBuf.String())
 	}
 }

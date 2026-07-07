@@ -312,6 +312,15 @@ comments (which enrich a full self-host but don't enable it). See sessions/READM
 - later — **`cancelled`-blocker semantics**: a `cancelled` (abandoned) `depends_on` currently unblocks its
   dependent (terminal by `kind`), which may be wrong — the dependent may need re-evaluation. Revisit with
   flow enforcement (s006), when terminal statuses become reachable. See DESIGN.md → "Dependencies".
+- later (think) — **monotonic / never-reuse ID minting** (surfaced s008.5 impl review). The YAML `mint` uses
+  `max+1` per prefix with no high-water mark, so deleting the **highest-numbered** task frees its id; a later
+  `add` reuses it and silently re-points any dangling `depends_on`/`parent` (left by `mtt rm --force`) at the
+  new, unrelated task — a data-integrity hazard. Latent (needs `--force` + delete-the-max + a later create) and
+  rooted in the mint scheme, not `rm`. **Fix options:** a persistent per-prefix counter (a small committed
+  seq file, or a `next:` in config) that only increments; or record deletions (a tombstone) so `max+1` skips
+  freed ids. Interacts with the known cross-branch collision limitation (both are about id allocation) and with
+  re-parenting — worth a single minting brainstorm. Documented meanwhile as a `--force` caveat (DESIGN.md,
+  CLI_REFERENCE.md). See DESIGN.md → "Deletion (`mtt rm`)".
 - later — **re-parenting** (`mtt reparent`/`move`): change a task's `parent`; enabled by flat, position-free IDs.
 - **tags** — **scheduled s008.7** (e5_t1b), pulled forward for backlog management (was "later"): CRUD +
   `list/tree --tag` filter over the reserved `Task.Tags` field, plus `#hashtag` extraction from title/description.
