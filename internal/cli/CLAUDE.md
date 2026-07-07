@@ -78,6 +78,14 @@ settings.CommandTimeout, …)` (the global is now the **per-command fallback**),
 expands placeholders before the gate. The one CLI touch is `mtt types` (`formatTypes`): a command renders as
 `$ <run>` plus `  (timeout <d>)` when the command carries a per-command timeout.
 
+Dogfood enablers (session 008.5): `mtt rm <id>` (`ExactArgs(1)`, `--force`) routes through `core.Remover`
+(reject-if-referenced; `--force` deletes despite refs); requires an **explicit id** (no current resolution —
+destructive); after a successful delete it clears the `current:` pointer if it named the deleted task
+(`yaml.NewCurrent`). `exitCode` now maps `mtt.ErrNotFound → 4`, applied **uniformly**: `taskNotFound(id)`
+(`errors.go`) wraps `ErrNotFound` and is used by `show`/`edit`/`tree`/`use`/`dep` (core wraps it in
+`transition`/`dependency`/`add`), so every single-task not-found exits 4. `mtt add --depends-on <id>…`
+(StringSlice, repeatable/csv) → `AddParams.DependsOn` (validation in `core.Adder`).
+
 Rollback / compensation (session 008): still no wiring change — `core.Transitioner` (via `Runner.Compensate`,
 implemented by the same `exec.Runner`) runs a blocked gate's compensators; the `↩ compensating (N)` phase and
 per-compensator `▶`/`✓`/`✗` lines come from the runner on the existing stderr progress writer, and the block

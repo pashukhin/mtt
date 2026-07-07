@@ -35,7 +35,8 @@ func NewRootCmd() *cobra.Command {
 	root.PersistentFlags().BoolP("verbose", "v", false, "stream gate command output to stderr")
 	root.PersistentFlags().String("log-file", "", "write gate command output to a file")
 	root.AddCommand(newVersionCmd(), newInitCmd(), newTypesCmd(), newAddCmd(), newShowCmd(),
-		newListCmd(), newEditCmd(), newTreeCmd(), newDepCmd(), newReadyCmd(), newStatusCmd(), newUseCmd())
+		newListCmd(), newEditCmd(), newTreeCmd(), newDepCmd(), newReadyCmd(), newStatusCmd(),
+		newUseCmd(), newRmCmd())
 	return root
 }
 
@@ -158,6 +159,8 @@ func exitCode(err error) int {
 		return 6
 	case errors.Is(err, core.ErrMissingAttribution):
 		return 2
+	case errors.Is(err, mtt.ErrNotFound):
+		return 4
 	default:
 		return 1
 	}

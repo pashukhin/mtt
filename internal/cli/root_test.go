@@ -2,6 +2,7 @@ package cli
 
 import (
 	"bytes"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -9,6 +10,13 @@ import (
 	"github.com/pashukhin/mtt/internal/adapter/yaml"
 	"github.com/pashukhin/mtt/pkg/mtt"
 )
+
+func TestExitCodeNotFound(t *testing.T) {
+	err := fmt.Errorf("task %q: %w", "t9", mtt.ErrNotFound)
+	if got := exitCode(err); got != 4 {
+		t.Fatalf("exitCode(ErrNotFound) = %d; want 4", got)
+	}
+}
 
 // initSugarProject inits a default project in a temp dir and mints one task at
 // the initial status, returning the project dir and the minted task id.
