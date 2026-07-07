@@ -15,10 +15,11 @@ import (
 // newAddCmd builds `mtt add [title]`: create a task.
 func newAddCmd() *cobra.Command {
 	var (
-		typeName string
-		parent   string
-		noParent bool
-		desc     string
+		typeName  string
+		parent    string
+		noParent  bool
+		desc      string
+		dependsOn []string
 	)
 	cmd := &cobra.Command{
 		Use:   "add [title]",
@@ -45,8 +46,12 @@ func newAddCmd() *cobra.Command {
 			if len(args) == 1 {
 				title = args[0]
 			}
+			depIDs := make([]mtt.TaskID, len(dependsOn))
+			for i, d := range dependsOn {
+				depIDs[i] = mtt.TaskID(d)
+			}
 			adder := core.NewAdder(yaml.NewTaskStore(root), cfg, time.Now)
-			task, err := adder.Add(core.AddParams{Title: title, TypeName: mtt.TypeName(typeName), Parent: mtt.TaskID(parent), NoParent: noParent, Description: desc})
+			task, err := adder.Add(core.AddParams{Title: title, TypeName: mtt.TypeName(typeName), Parent: mtt.TaskID(parent), NoParent: noParent, Description: desc, DependsOn: depIDs})
 			if err != nil {
 				return err
 			}
@@ -58,6 +63,7 @@ func newAddCmd() *cobra.Command {
 	cmd.Flags().StringVar(&parent, "parent", "", "place under an existing parent task (by id)")
 	cmd.Flags().BoolVar(&noParent, "no-parent", false, "create a parent-requiring type at top level (conscious exception)")
 	cmd.Flags().StringVar(&desc, "description", "", "task description")
+	cmd.Flags().StringSliceVar(&dependsOn, "depends-on", nil, "ids this task depends on (repeatable, comma-separated)")
 	cmd.MarkFlagsMutuallyExclusive("parent", "no-parent")
 	return cmd
 }

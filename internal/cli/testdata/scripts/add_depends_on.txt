@@ -1,0 +1,24 @@
+# add --depends-on: set depends_on at creation; validate targets
+mkdir proj
+cd proj
+exec mtt init
+stdout 'initialized'
+
+exec mtt add --type epic 'E'
+stdout 'created e1'
+exec mtt add --type epic 'A'
+stdout 'created e2'
+
+# create B depending on e2
+exec mtt add --type epic --depends-on e2 'B'
+stdout 'created e3'
+exec mtt dep list e3
+stdout 'e3 depends on:'
+stdout '  e2  epic  \[tbd\]  A'
+
+# a missing target is rejected and no task is created
+! exec mtt add --type epic --depends-on e99 'C'
+stderr 'not found'
+exec mtt list
+! stdout 'created e4'
+! stdout '  C'
