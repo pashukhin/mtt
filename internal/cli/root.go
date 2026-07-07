@@ -123,7 +123,13 @@ func trySugar(cmd *cobra.Command, statusArg, idArg string) (bool, error) {
 	}
 	task, err := yaml.NewTaskStore(root).Get(id)
 	if err != nil {
-		return false, nil // arg1 is not an existing task ⇒ not sugar (→ unknown command)
+		// arg1 is not an existing task. If arg0 is a plausible status verb the user
+		// meant a status move on a missing task → not-found (exit 4), not an unknown
+		// command; otherwise decline (→ unknown command). Mirrors trySugarCurrent.
+		if errors.Is(err, mtt.ErrNotFound) && statusInAnyFlow(cfg, statusArg) {
+			return true, taskNotFound(id)
+		}
+		return false, nil
 	}
 	return classifyStatusMove(cmd, root, cfg, settings, task, statusArg)
 }

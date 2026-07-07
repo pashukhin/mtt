@@ -190,9 +190,17 @@ resolved graph, and open gaps. Two decisions locked there that shape s005:
   destructive verb). Reused `Index.Children` + `DepGraph.Dependents` for the referenced-check — no new graph.
 - **Conditional-LDFLAGS keeps `make build` predictable.** `VERSION ?=` empty → the code default
   (`internal/cli.version`) ships; `make build VERSION=v0.8.5` stamps via `-X`. A `make smoke` (throwaway
-  `GOBIN`, `trap` cleanup, one backslash-joined recipe) install-tests the binary; kept out of `check` (real
-  `go install` is non-hermetic). Also fixed `version.go` to print to **stdout** (`cmd.Println` → `OutOrStderr`
-  meant `$(mtt version)` was empty).
+  `GOBIN`, `trap` cleanup, one `set -e` backslash-joined recipe — `set -e` so a broken `--help` actually fails
+  it) install-tests the binary; kept out of `check` (real `go install` is non-hermetic). Also fixed `version.go`
+  to print to **stdout** (`cmd.Println` → `OutOrStderr` meant `$(mtt version)` was empty); gated by a
+  separate-buffer `TestVersionCommand` so a revert isn't silently green.
+- **`rm --force` + `max+1` minting = id resurrection (impl-review [major], documented not fixed).** Deleting
+  the highest-numbered task frees its id; a later `add` reuses it and **silently re-points** a dangling
+  `depends_on`/`parent` at the new, unrelated task. Rooted in the pre-existing `mint` scheme (no high-water
+  mark), which `rm` first makes reachable — so it was **documented** as a `--force` caveat (DESIGN/.ru,
+  CLI_REFERENCE/.ru) + a monotonic-minting **think-item** (TASKS → Later), not smuggled into the chore. Lesson:
+  a delete op re-opens id-allocation questions a create-only history had hidden — decide reuse-vs-monotonic
+  before dogfooding at volume.
 
 ### Carry-over lessons (008 — rollback / compensation)
 - **Additive VO field with a self-referential pointer + a leaf invariant.** A per-command compensator that is

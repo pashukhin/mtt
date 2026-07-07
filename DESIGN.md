@@ -667,6 +667,14 @@ requires no public-API diff), as a ready-made demo of the enforcement value.
 > would hang an agent), and `--who`/`--why` are not mandated (nowhere to record them without a history). A
 > missing id exits `4`, the first consumer of the now-**uniform** not-found taxonomy (every single-task-by-id
 > path wraps `mtt.ErrNotFound`).
+>
+> **Caveat surfaced by `rm --force` — id reuse (pre-existing mint limitation).** The YAML adapter mints ids as
+> `max+1` per prefix with no high-water mark, so deleting the **highest-numbered** task frees its id for a
+> later `add` to **reuse** — which silently re-points any dangling reference (a `depends_on`/`parent` left by
+> `--force`) at the new, unrelated task. `rm` is what first makes this reachable. It is latent (needs `--force`
+> + deleting the max id + a subsequent create) and rooted in the mint scheme, not the delete; the proper fix
+> is monotonic / never-reuse minting (see TASKS.md → Later). Meanwhile prefer `cancel` for a referenced task,
+> or clear the dangling edges first.
 
 > **Deferred design question — `cancelled` blocker semantics.** A `terminal` blocker unblocks its dependent,
 > and `cancelled` is a terminal `kind`, so a task whose blockers are `done` **and** `cancelled` is formally

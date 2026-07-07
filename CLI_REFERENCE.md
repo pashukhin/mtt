@@ -204,6 +204,10 @@ gone); the git commit that drops `.mtt/tasks/<id>.yaml` is the de-facto audit.
   references (exit `1`).
 - `--force` — delete anyway, leaving the references **dangling** (which the system tolerates: `ready` is
   conservative — a dangling blocker leaves the dependent not ready — and `tree` surfaces orphans as roots).
+  **Caveat (id reuse):** the YAML adapter mints ids as `max+1` per prefix, so deleting the *highest-numbered*
+  task frees its id — a later `add` may **reuse** it, silently re-pointing any dangling reference at the new
+  (unrelated) task. Prefer `cancel` over `rm --force` for a referenced task, or remove the dangling edges
+  first. A monotonic/never-reuse minting fix is tracked in TASKS.md → Later.
 - A missing `<id>` exits `4` (not found). On success prints `removed <id>` (no `--json`, like `add`'s
   `created <id>` — the object is gone; the agent branches on the exit code).
 
@@ -247,7 +251,9 @@ argument order — `<status> <id>`). It is resolved by **fallback-routing**, not
 exactly two arguments where the first is not a real subcommand, an existing task `<id>`, and `<status>` is a
 status in that task's type flow, mtt routes to the `status` path (reusing all its validation, gates, exit
 codes, and `--who`/`--why`). A real command always wins a name clash (e.g. there is no sugar that shadows
-`list`); anything that does not classify as a status move is an `unknown command` (exit `1`). The sugar takes
+`list`). If `<status>` is a plausible status verb but `<id>` does not exist, it is a **not-found** error
+(exit `4`, consistent with the explicit `mtt status` form); anything else that does not classify as a status
+move is an `unknown command` (exit `1`). The sugar takes
 no gate-control flags (`--no-run`/`-v`/`--log-file` remain on `mtt status`); it is forward-compatible — its
 semantics can grow single-edge → `advance` later without a surface change.
 
