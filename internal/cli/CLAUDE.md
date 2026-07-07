@@ -92,3 +92,15 @@ per-compensator `▶`/`✓`/`✗` lines come from the runner on the existing std
 error already carries the `compensated N …` summary (surfaced by `Execute` → stderr, exit 3). The one CLI touch
 is `mtt types` (`writeTypeBlock`): under a command, a `↩ <rollback.Run>` line (+ `  (timeout <d>)`) when the
 command declares a compensator.
+
+Priorities + roadmap (session 008.6): `--priority high|medium|low` on `add` (→ `AddParams.Priority`) and `edit`
+(→ `EditParams.Priority`; `--priority ""` clears — `Changed("priority")` is true), and repeatable `--priority`
++ `--sort priority` on `list`. The shared `parsePriority`/`toPriorities` (`priority.go`) validate at the CLI
+boundary (`!Valid()` → usage error; never leak a bare string into `core`). `mtt show` prints a `priority:` line
+(omitted when unset); `taskJSON` gains `priority` (`omitempty`), so it is readable via `show`/`list --json`.
+**`mtt roadmap [--json]`** (`roadmap.go`) is a pure read — `TaskStore.List` → `core.Roadmap` → render:
+`writeRoadmap` numbers entries (`N. <id>  [<priority>]  (<status>)  <title>`, `[..]` omitted when unset, `  ↳
+blocked by: …` under a blocked one), and `roadmapJSON`/`toRoadmapJSON` emit `{id,title,status,priority,ready,
+blocked_by}` with `priority` the **stored** value (`""` when unset, not omitempty — honest) and `blocked_by`
+always a non-null array (`[]` when empty). Display echoes the stored priority — the *ordering* treats unset as
+medium, the *label* is never fabricated.

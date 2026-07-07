@@ -13,7 +13,7 @@ import (
 )
 
 // version is the build version, overridable at build time via -ldflags.
-var version = "0.8.5-dev"
+var version = "0.8.6-dev"
 
 // NewRootCmd builds the root mtt command tree.
 func NewRootCmd() *cobra.Command {
