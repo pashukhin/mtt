@@ -110,7 +110,7 @@ func newDepListCmd() *cobra.Command {
 			g := core.NewDepGraph(tasks)
 			id := mtt.TaskID(args[0])
 			if _, ok := g.Get(id); !ok {
-				return fmt.Errorf("task %q not found", id)
+				return taskNotFound(id)
 			}
 			if cycles {
 				return writeDepCycles(cmd, g)

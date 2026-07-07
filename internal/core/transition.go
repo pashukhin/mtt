@@ -47,7 +47,7 @@ func (tr *Transitioner) Transition(id mtt.TaskID, to mtt.StatusName, opts Transi
 	t, err := tr.store.Get(id)
 	if err != nil {
 		if errors.Is(err, mtt.ErrNotFound) {
-			return mtt.Task{}, fmt.Errorf("task %q not found", id)
+			return mtt.Task{}, fmt.Errorf("task %q: %w", id, mtt.ErrNotFound)
 		}
 		return mtt.Task{}, fmt.Errorf("load task %q: %w", id, err)
 	}

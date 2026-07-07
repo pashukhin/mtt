@@ -84,7 +84,7 @@ func (d *DependencyEditor) load(id mtt.TaskID, role string) (mtt.Task, error) {
 	t, err := d.store.Get(id)
 	if err != nil {
 		if errors.Is(err, mtt.ErrNotFound) {
-			return mtt.Task{}, fmt.Errorf("%s %q not found", role, id)
+			return mtt.Task{}, fmt.Errorf("%s %q: %w", role, id, mtt.ErrNotFound)
 		}
 		return mtt.Task{}, fmt.Errorf("load %s %q: %w", role, id, err)
 	}

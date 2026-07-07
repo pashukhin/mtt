@@ -1,6 +1,7 @@
 package core
 
 import (
+	"errors"
 	"strings"
 	"testing"
 	"time"
@@ -115,8 +116,8 @@ func TestAddUnderParentOK(t *testing.T) {
 func TestAddParentMissing(t *testing.T) {
 	fs := &fakeStore{retID: "t1", byID: map[mtt.TaskID]mtt.Task{}}
 	_, err := NewAdder(fs, cfg(), fixed).Add(AddParams{Title: "x", TypeName: "task", Parent: "e9"})
-	if err == nil || !strings.Contains(err.Error(), `parent "e9" not found`) {
-		t.Fatalf("want parent-not-found, got %v", err)
+	if err == nil || !errors.Is(err, mtt.ErrNotFound) || !strings.Contains(err.Error(), `parent "e9"`) {
+		t.Fatalf("want parent-not-found wrapping ErrNotFound, got %v", err)
 	}
 }
 

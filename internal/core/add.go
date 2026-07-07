@@ -56,7 +56,7 @@ func (a *Adder) Add(p AddParams) (mtt.Task, error) {
 		pt, err := a.store.Get(p.Parent)
 		if err != nil {
 			if errors.Is(err, mtt.ErrNotFound) {
-				return mtt.Task{}, fmt.Errorf("parent %q not found", p.Parent)
+				return mtt.Task{}, fmt.Errorf("parent %q: %w", p.Parent, mtt.ErrNotFound)
 			}
 			return mtt.Task{}, fmt.Errorf("load parent %q: %w", p.Parent, err)
 		}

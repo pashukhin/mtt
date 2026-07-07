@@ -42,7 +42,7 @@ func newUseCmd() *cobra.Command {
 				task, err := yaml.NewTaskStore(root).Get(id)
 				if err != nil {
 					if errors.Is(err, mtt.ErrNotFound) {
-						return fmt.Errorf("task %q not found", args[0])
+						return taskNotFound(id)
 					}
 					return err
 				}

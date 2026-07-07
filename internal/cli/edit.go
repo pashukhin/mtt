@@ -39,7 +39,7 @@ func newEditCmd() *cobra.Command {
 			task, err := editor.Edit(id, p)
 			if err != nil {
 				if errors.Is(err, mtt.ErrNotFound) {
-					return fmt.Errorf("task %q not found", id)
+					return taskNotFound(id)
 				}
 				return err
 			}
