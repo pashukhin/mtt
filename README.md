@@ -4,8 +4,12 @@
 
 > 🇷🇺 Читать по-русски: [README.ru.md](README.ru.md)
 
-> **Status:** early — design phase. The architecture is settled (see [DESIGN.md](DESIGN.md));
-> implementation starts at phase 1. Phase 0 (scaffold + quality gate + CI) is done.
+> **Status:** working alpha (`0.8.5-dev`). Phases 1–3 are implemented — `init`, `add`/`show`/`list`/`edit`,
+> hierarchy (`tree`), dependencies (`dep`/`ready`), and the **flow gate** (`mtt status <id> <new>` or the
+> `mtt <status> <id>` sugar run a transition's commands and block on a red gate, writing history; structured
+> commands + rollback included). Install from source (needs Go): `go install github.com/pashukhin/mtt/cmd/mtt@latest`.
+> The `advance`/`start`/`done` meta-walk is **parked** (single-edge `status` is the norm); the knowledge base,
+> search, `mtt-ui`, and external adapters are later phases. Full plan in [DESIGN.md](DESIGN.md).
 
 > **Pitch.** Coding agents write code well but respect a task's lifecycle poorly — "done" is often just a
 > text label. mtt turns a task into an executable state machine: a status transition passes through gates

@@ -6,8 +6,12 @@ The complete **target** command surface of the `mtt` CLI, derived from [DESIGN.m
 two purposes: a reference for humans and agents, and a way to sanity-check the design from the CLI angle
 (man/usage) rather than from requirements.
 
-**Status:** this is the design surface. Only `mtt version` exists today (phase 0). Each command is tagged
-with the phase that introduces it (see the plan in [DESIGN.md](DESIGN.md#implementation-order)).
+**Status:** this is the target command surface. **Implemented today (through session 008.5, `0.8.5-dev`):**
+`version`, `init`, `types`, `add`, `show`, `list`, `edit`, `tree`, `dep add/rm/list`, `ready`, `status`
+(plus the `mtt <status> <id>` verb sugar), `use`, `rm` — and cobra's built-in `completion`/`help`. Everything
+else below is design surface, each tagged with the phase/session that introduces it (see the plan in
+[DESIGN.md](DESIGN.md#implementation-order)). The `advance`/`start`/`done`/`cancel` meta-walk is **PARKED**
+(single-edge `status` is the norm — see the note in "Flow" below).
 
 **Notation:** `<required>`, `[optional]`, `…` repeatable. `<id>` is a task ID such as `t17` — flat,
 per-prefix (in the YAML adapter). `<status>` is a status name from the type's flow (e.g. `tbd`,
@@ -114,7 +118,7 @@ violation aggregates all missing fields into one usage error (exit `2`). **Imple
 
 ## Project & meta
 
-### `mtt init` — initialize a project  *(phase 1)*
+### `mtt init` — initialize a project  *(phase 1, implemented in session 001)*
 Creates `.mtt/` with a default `config.yaml` (types `epic`/`task`/`subtask`, flow `tbd → in_progress →
 done` plus the terminal `cancelled`, no commands) and the `tasks/` (and later `knowledge/`) directories. A
 personal, gitignored `.mtt/config.local.yaml` may override it (connection params, local prefs — see
@@ -128,13 +132,13 @@ Configuration).
 ### `mtt version` — print the version  *(phase 0, implemented)*
 Prints the build version. No arguments.
 
-### `mtt types` — show configured types and their flows  *(phase 3)*
+### `mtt types` — show configured types and their flows  *(implemented in session 001; flow/command detail grew through s006–s008)*
 Lists each task type: its `parent`, statuses (with their `kind`), and transitions (with `description` and
 whether `commands` are attached).
 
 - `[<type>]` — show only this type.
 
-### `mtt caps` — show the current backend's capabilities  *(phase 3)*
+### `mtt caps` — show the current backend's capabilities  *(phase 3 — not yet implemented; design surface)*
 Prints which capabilities the active adapter supports (history, dependencies, comment tree, search,
 knowledge base). Lets an agent avoid relying on a feature the backend lacks.
 
@@ -276,21 +280,27 @@ the sugar `mtt <status>` (e.g. `mtt done`), `mtt show`, `mtt edit` — mtt uses 
 current and `mtt done` clears it. (Storing the pointer is a capability: the YAML adapter writes `config.local`;
 an external adapter may map it to a native assignee.)
 
-### `mtt advance <id> --to <status> [flags]` — walk to a target status  *(phase 3)*
+> **PARKED (on-demand) — the `advance` family is NOT implemented.** Most transitions are a single edge, so
+> `mtt status` and the `mtt <status> <id>` sugar are the norm; the multi-edge walk (and the `--stop`/
+> `--atomic`/`--force` modes) surfaces only when a flow actually branches. The four sections below are the
+> **target semantics** for that point. Note `mtt done t1` works *today* as the single-edge verb sugar (move to
+> a `done` status in one edge), not as this `advance` meta-walk. See DESIGN.md → "Advancing through the flow".
+
+### `mtt advance <id> --to <status> [flags]` — walk to a target status  *(phase 3, PARKED)*
 Meta-command: walks the task through a chain of transitions to `--to <status>`, running edge gates along
 the way. Follows only progressing edges, never enters a different terminal, stops at a real fork, guards
 against cycles, and errors if the target is unreachable. Accepts all transition flags (default `--stop`).
 
 - `--to <status>` — the target status (required).
 
-### `mtt start <id> [flags]` — alias: advance to `in_progress`  *(phase 3)*
+### `mtt start <id> [flags]` — alias: advance to `in_progress`  *(phase 3, PARKED)*
 Equivalent to `mtt advance <id> --to in_progress`. Accepts the transition flags.
 
-### `mtt done <id> [flags]` — alias: advance to `done`  *(phase 3)*
+### `mtt done <id> [flags]` — alias: advance to `done`  *(phase 3, PARKED — but `mtt done <id>` works today as verb sugar)*
 Equivalent to `mtt advance <id> --to done`. Runs the `→ done` gate (e.g. lint/test). By default warns if
 the task is not `ready` (open dependencies).
 
-### `mtt cancel <id> [reason] [flags]` — move to the `cancelled` terminal  *(phase 3)*
+### `mtt cancel <id> [reason] [flags]` — move to the `cancelled` terminal  *(phase 3, PARKED — `mtt cancelled <id>` works today as verb sugar)*
 Transitions the task to `cancelled` (a terminal that unblocks its dependents). `[reason]` is recorded in
 the history. Does not run the `done` gate.
 
