@@ -17,14 +17,18 @@ stdout 'created t3'
 # t2 (high) depends on t1 (low): the low blocker must precede its high dependent
 exec mtt dep add t2 t1
 
-# human roadmap: t1 (low) appears before t2 (high) — dependency is a hard constraint
+# human roadmap: two axes + propagation.
 exec mtt roadmap
+# hard dep: t1 (low) precedes t2 (high)
 stdout '(?s)t1  \[low\].*t2  \[high\]'
-# t2 carries the blocked-by annotation; t3 shows its medium label
+# PROPAGATION: t1 (low) is lifted ABOVE t3 (medium) — it inherits t2's high, so a
+# low task outranks an independent medium one (impossible under own-priority order)
+stdout '(?s)t1  \[low\].*t3  \[medium\]'
+# t2 carries the depends_on annotation
 stdout '↳ blocked by: t1'
-stdout 't3  \[medium\]  \(tbd\)  docs'
-# e1 (epic, unset priority) has no [..] label
-stdout 'e1  \(tbd\)  E'
+# the epic e1 sinks to the end (its children precede it) and lists them
+stdout '(?s)t3  \[medium\].*e1  \(tbd\)  E'
+stdout '↳ contains: t\d, t\d, t\d'
 
 # --json: non-null arrays + honest priority
 exec mtt roadmap --json
@@ -35,6 +39,9 @@ stdout '"ready": true'
 stdout '"blocked_by": \[\]'
 # t2's blocked_by lists t1
 stdout '(?s)"blocked_by": \[\s*"t1"\s*\]'
+# a leaf's contains is [] (non-null); the epic's lists its children
+stdout '"contains": \[\]'
+stdout '(?s)"contains": \[\s*"t\d"'
 
 # list --sort priority puts the (unique) high task first
 exec mtt list --sort priority

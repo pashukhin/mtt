@@ -9,6 +9,7 @@ import (
 
 	"github.com/pashukhin/mtt/internal/adapter/yaml"
 	"github.com/pashukhin/mtt/internal/core"
+	"github.com/pashukhin/mtt/pkg/mtt"
 )
 
 // newRoadmapCmd builds `mtt roadmap [--json]`: the non-terminal tasks in a
@@ -47,7 +48,8 @@ func newRoadmapCmd() *cobra.Command {
 
 // roadmapJSON is the machine view of one roadmap entry. priority is the STORED
 // value ("" when unset — honest; consumers apply their own default), so it is NOT
-// omitempty. blocked_by is always a (possibly empty) array, never null.
+// omitempty. blocked_by (depends_on) and contains (children) are always
+// (possibly empty) arrays, never null.
 type roadmapJSON struct {
 	ID        string   `json:"id"`
 	Title     string   `json:"title,omitempty"`
@@ -55,22 +57,31 @@ type roadmapJSON struct {
 	Priority  string   `json:"priority"`
 	Ready     bool     `json:"ready"`
 	BlockedBy []string `json:"blocked_by"`
+	Contains  []string `json:"contains"`
 }
 
 func toRoadmapJSON(e core.RoadmapEntry) roadmapJSON {
-	blocked := make([]string, 0, len(e.BlockedBy))
-	for _, id := range e.BlockedBy {
-		blocked = append(blocked, string(id))
-	}
 	return roadmapJSON{
 		ID: string(e.Task.ID), Title: e.Task.Title, Status: string(e.Task.Status),
-		Priority: string(e.Task.Priority), Ready: e.Ready, BlockedBy: blocked,
+		Priority: string(e.Task.Priority), Ready: e.Ready,
+		BlockedBy: idStrings(e.BlockedBy), Contains: idStrings(e.Contains),
 	}
+}
+
+// idStrings maps typed ids to a non-null string slice ([] when empty — the house
+// JSON rule), shared by the roadmap JSON view's array fields.
+func idStrings(ids []mtt.TaskID) []string {
+	out := make([]string, 0, len(ids))
+	for _, id := range ids {
+		out = append(out, string(id))
+	}
+	return out
 }
 
 // writeRoadmap renders the entries as a numbered list: "N. <id>  [<priority>]
 // (<status>)  <title>" (the [..] label omitted when unset, the title when empty),
-// with "  ↳ blocked by: a, b" under a blocked entry. Priority is the stored value,
+// with "  ↳ blocked by: a, b" under a depends_on-blocked entry and "  ↳ contains:
+// a, b" under a parent (its non-terminal children). Priority is the stored value,
 // never faked as medium (the ORDERING treats unset as medium, the LABEL never
 // fabricates one).
 func writeRoadmap(w io.Writer, entries []core.RoadmapEntry) error {
@@ -86,11 +97,10 @@ func writeRoadmap(w io.Writer, entries []core.RoadmapEntry) error {
 		}
 		b.WriteString("\n")
 		if len(e.BlockedBy) > 0 {
-			ids := make([]string, len(e.BlockedBy))
-			for j, id := range e.BlockedBy {
-				ids[j] = string(id)
-			}
-			fmt.Fprintf(&b, "  ↳ blocked by: %s\n", strings.Join(ids, ", "))
+			fmt.Fprintf(&b, "  ↳ blocked by: %s\n", strings.Join(idStrings(e.BlockedBy), ", "))
+		}
+		if len(e.Contains) > 0 {
+			fmt.Fprintf(&b, "  ↳ contains: %s\n", strings.Join(idStrings(e.Contains), ", "))
 		}
 	}
 	_, err := fmt.Fprint(w, b.String())
