@@ -32,6 +32,7 @@ type AddParams struct {
 	Parent      mtt.TaskID
 	NoParent    bool
 	Description string
+	DependsOn   []mtt.TaskID // blocking edges set at creation (targets validated)
 }
 
 // Add creates one task and returns it with the adapter-minted ID.
@@ -67,6 +68,10 @@ func (a *Adder) Add(p AddParams) (mtt.Task, error) {
 	case !typ.IsRoot() && !p.NoParent:
 		return mtt.Task{}, fmt.Errorf("type %q requires a parent; use --parent <id> (or --no-parent to create it at the top level)", typ.Name)
 	}
+	deps, err := a.resolveDeps(p.DependsOn)
+	if err != nil {
+		return mtt.Task{}, err
+	}
 	initial, ok := typ.InitialStatus()
 	if !ok {
 		return mtt.Task{}, fmt.Errorf("type %q has no initial status", typ.Name)
@@ -77,8 +82,31 @@ func (a *Adder) Add(p AddParams) (mtt.Task, error) {
 		Title:       p.Title,
 		Status:      initial.Name,
 		Parent:      parent,
+		DependsOn:   deps,
 		Description: p.Description,
 		Created:     now,
 		Updated:     now,
 	})
+}
+
+// resolveDeps validates that each depends-on target exists (via TaskStore.Get)
+// and returns the deduped list. A missing target wraps mtt.ErrNotFound. No
+// cycle check is needed: the new task's id is unminted, so it cannot be a target.
+func (a *Adder) resolveDeps(ids []mtt.TaskID) ([]mtt.TaskID, error) {
+	seen := map[mtt.TaskID]bool{}
+	var out []mtt.TaskID
+	for _, dep := range ids {
+		if seen[dep] {
+			continue
+		}
+		seen[dep] = true
+		if _, err := a.store.Get(dep); err != nil {
+			if errors.Is(err, mtt.ErrNotFound) {
+				return nil, fmt.Errorf("depends-on target %q: %w", dep, mtt.ErrNotFound)
+			}
+			return nil, fmt.Errorf("load depends-on target %q: %w", dep, err)
+		}
+		out = append(out, dep)
+	}
+	return out, nil
 }

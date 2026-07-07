@@ -149,3 +149,45 @@ func TestAddNeedsTitleOrDescription(t *testing.T) {
 		t.Fatalf("description-only should be allowed: %v", err)
 	}
 }
+
+func TestAddWithDependsOn(t *testing.T) {
+	fs := &fakeStore{retID: "t2", byID: map[mtt.TaskID]mtt.Task{"t1": {ID: "t1", Type: "epic"}}}
+	got, err := NewAdder(fs, cfg(), fixed).Add(AddParams{
+		Title: "B", TypeName: "epic", DependsOn: []mtt.TaskID{"t1"},
+	})
+	if err != nil {
+		t.Fatalf("add: %v", err)
+	}
+	if len(got.DependsOn) != 1 || got.DependsOn[0] != "t1" {
+		t.Fatalf("DependsOn = %v; want [t1]", got.DependsOn)
+	}
+	if len(fs.got.DependsOn) != 1 {
+		t.Fatalf("DependsOn not persisted via Create: %+v", fs.got)
+	}
+}
+
+func TestAddDependsOnMissingTarget(t *testing.T) {
+	fs := &fakeStore{retID: "t2", byID: map[mtt.TaskID]mtt.Task{}}
+	_, err := NewAdder(fs, cfg(), fixed).Add(AddParams{
+		Title: "B", TypeName: "epic", DependsOn: []mtt.TaskID{"t99"},
+	})
+	if err == nil || !errors.Is(err, mtt.ErrNotFound) {
+		t.Fatalf("err = %v; want ErrNotFound", err)
+	}
+	if fs.got.Title != "" {
+		t.Fatal("task must not be created when a depends-on target is missing")
+	}
+}
+
+func TestAddDependsOnDedup(t *testing.T) {
+	fs := &fakeStore{retID: "t2", byID: map[mtt.TaskID]mtt.Task{"t1": {ID: "t1", Type: "epic"}}}
+	got, err := NewAdder(fs, cfg(), fixed).Add(AddParams{
+		Title: "B", TypeName: "epic", DependsOn: []mtt.TaskID{"t1", "t1"},
+	})
+	if err != nil {
+		t.Fatalf("add: %v", err)
+	}
+	if len(got.DependsOn) != 1 {
+		t.Fatalf("DependsOn = %v; want deduped [t1]", got.DependsOn)
+	}
+}
