@@ -174,8 +174,15 @@ Single-edge `mtt status` shipped in **s006**; the meta-walk (`advance`/`start`/`
 Reordered so mtt self-hosts as soon as flow orchestration is complete (after e4), ahead of references and
 comments (which enrich a full self-host but don't enable it). See sessions/README.md → "Roadmap regrouped".
 
-- [ ] e5_t1 — **dogfood enablers (chore, s008.5)**: `mtt rm <id>` (hard-delete, distinct from `cancel`),
-      `--depends-on` on `add`, packaging (`make install` → `go install ./cmd/mtt` + a smoke test)
+- [ ] e5_t1 — **dogfood enablers (chore, s008.5)** ← **next**: `mtt rm <id>` (hard-delete, distinct from
+      `cancel`), `--depends-on` on `add`, packaging (`make install` → `go install ./cmd/mtt` + a smoke test)
+- [ ] e5_t1a — **priorities + roadmap (s008.6)** — 📋 **spec'd + subagent-reviewed** (implementation deferred to
+      after s008.5): a closed `Priority` VO (`high|medium|low`; empty=medium in order, off-disk; rides `Task`
+      + `Update`, no port) with `--priority` on `add`/`edit`/`list`, `--sort priority`, `priority` in
+      `show`/`taskJSON`; and **`mtt roadmap [--json]`** — a pure-core `Roadmap(tasks,cfg) []RoadmapEntry`
+      (priority-guided Kahn: dependency hard, priority soft; cycle-safe; `ready`/`blocked_by` annotations). The
+      agent-queryable execution order that motivates dogfood (retires the manual "what's next" reminders). Spec:
+      `docs/superpowers/specs/2026-07-07-session-008.6-priorities-roadmap-design.md`
 - [ ] e5_t1b — **tags (s008.7)** — needed to organize the self-hosted backlog: `mtt add --tag x`,
       `mtt tag add/rm <id> <tag>` (rides the reserved `Task.Tags` field + `Update`, no new port — like
       `depends_on`), and a `Tags` dimension in `ListFilter` for `mtt list/tree --tag` (reuses `Match`/`Select`

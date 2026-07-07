@@ -34,7 +34,8 @@ sliced so **every session delivers something usable**. Order/size may be refined
 | 006.7 ✅ | **current task** (working context) | `current` in `config.local` (capability port `CurrentStore`), set/clear via `Transition.Current`; omitted id → current for `status`/sugar/`show`/`edit`; `mtt use [<id>] [--clear]` | `mtt done` / `mtt show` act on the current task; edge sets/clears the pointer |
 | 007 ✅ | **structured commands** | placeholders + per-command timeout in transition commands (`Command` VO) | `in_progress t1` creates a `task/t1` branch; a slow gate fails fast on its per-command timeout |
 | 008 ✅ | **rollback** | per-command `rollback:` — reverse-order compensation on a failed pipeline (best-effort; blocked stays exit 3, no history) | a late gate failure undoes prior side effects; `↩ compensating` |
-| 008.5 | dogfood enablers (chore) | `mtt rm`, `--depends-on` on `add`, packaging (`make install`) | delete a task; `add --depends-on`; `go install ./cmd/mtt` |
+| 008.5 | dogfood enablers (chore) ⬅ **next** | `mtt rm`, `--depends-on` on `add`, packaging (`make install`) | delete a task; `add --depends-on`; `go install ./cmd/mtt` |
+| 008.6 | **priorities + roadmap** 📋 spec'd | `Priority` VO (`--priority` on add/edit/list, `--sort priority`); `mtt roadmap [--json]` — dependency+priority execution order | `roadmap --json` gives the agent-ordered plan with `ready`/`blocked_by` |
 | 008.7 | **tags** | `mtt add --tag`, `tag add/rm`, `list/tree --tag`; `#hashtags` in title/description | tag a task; filter by tag; `add "fix #auth"` tags it |
 | 008.9 | **batch & pipeline** | task-set selector (IDs ∪ `--filter` ∪ stdin `-`) + `--ids` output; bulk `tag add/rm`, `rm` | `list --tag x --ids \| tag rm x -`; `tag add y --status tbd` |
 | 009 | **dogfood** | self-host: `mtt init` this repo, task-aware gates, migrate the backlog | mtt tracks its own tasks; `done` gated on `make check` |

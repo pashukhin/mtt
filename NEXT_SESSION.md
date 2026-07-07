@@ -153,8 +153,11 @@ resolved graph, and open gaps. Two decisions locked there that shape s005:
 > `docs/superpowers/plans/2026-07-06-session-008-rollback.md`. **Next up is s008.5 dogfood enablers** (e5_t1):
 > `mtt rm <id>` (hard-delete, distinct from `cancel`), `--depends-on` on `add`, and packaging (`make install`
 > → `go install ./cmd/mtt` + a smoke test). See sessions/README.md (row 008.5) and TASKS.md → e5_t1. Then
-> **s008.7 tags**, **s008.9 batch & pipeline**, **s009 dogfood**. `advance`/`start`/`done` + modes +
-> roles-on-edges stay **PARKED** (single-edge `status` is the norm).
+> **s008.6 priorities + roadmap** (📋 already **spec'd + subagent-reviewed** — implement from
+> `docs/superpowers/specs/2026-07-07-session-008.6-priorities-roadmap-design.md`; write the plan at that
+> session's start; a closed `Priority` VO + `mtt roadmap [--json]`, the agent-queryable execution order that
+> motivates dogfood), then **s008.7 tags**, **s008.9 batch & pipeline**, **s009 dogfood**.
+> `advance`/`start`/`done` + modes + roles-on-edges stay **PARKED** (single-edge `status` is the norm).
 
 ### Carry-over lessons (008 — rollback / compensation)
 - **Additive VO field with a self-referential pointer + a leaf invariant.** A per-command compensator that is
