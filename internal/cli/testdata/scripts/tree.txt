@@ -28,9 +28,9 @@ exec mtt tree --depth 1
 stdout 'e1  epic'
 ! stdout 't1  task'
 
-# a missing root errors
+# a missing root errors (wraps ErrNotFound → exit 4)
 ! exec mtt tree nope
-stderr 'task "nope" not found'
+stderr 'task "nope": mtt: task not found'
 
 # an invalid --kind errors
 ! exec mtt tree --kind bogus

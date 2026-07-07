@@ -54,7 +54,7 @@ func newTreeCmd() *cobra.Command {
 				}
 				t, ok := idx.Get(id)
 				if !ok {
-					return fmt.Errorf("task %q not found", args[0])
+					return taskNotFound(id)
 				}
 				roots = []mtt.Task{t}
 			} else {

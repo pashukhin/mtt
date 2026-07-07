@@ -41,9 +41,9 @@ stdout 't3  task  \[tbd\]'
 stdout 'lineage:  e1 › t3'
 ! stdout 'parent:'
 
-# a missing parent errors
+# a missing parent errors (wraps ErrNotFound → exit 4)
 ! exec mtt add --type task --parent nope 'x'
-stderr 'parent "nope" not found'
+stderr 'parent "nope": mtt: task not found'
 
 # a disallowed parent type errors (epic cannot sit under an epic)
 ! exec mtt add --type epic --parent e1 'x'

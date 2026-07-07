@@ -33,7 +33,7 @@ func newShowCmd() *cobra.Command {
 			task, err := store.Get(id)
 			if err != nil {
 				if errors.Is(err, mtt.ErrNotFound) {
-					return fmt.Errorf("task %q not found", id)
+					return taskNotFound(id)
 				}
 				return err
 			}
