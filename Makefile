@@ -1,16 +1,32 @@
 GO      ?= go
 BIN     := bin/mtt
 PKGS    := ./...
+VERSION ?=
 
-.PHONY: all build install test fmt fmt-check vet lint check tidy clean
+ifneq ($(VERSION),)
+LDFLAGS := -ldflags "-X github.com/pashukhin/mtt/internal/cli.version=$(VERSION)"
+endif
+
+.PHONY: all build install smoke test fmt fmt-check vet lint check tidy clean
 
 all: build
 
 build:
-	$(GO) build -o $(BIN) ./cmd/mtt
+	$(GO) build $(LDFLAGS) -o $(BIN) ./cmd/mtt
 
 install:
-	$(GO) install ./cmd/mtt
+	$(GO) install $(LDFLAGS) ./cmd/mtt
+
+# smoke: install into a throwaway GOBIN and check the binary runs. Not part of
+# `check` (it does a real go install; check stays hermetic).
+smoke:
+	@tmp=$$(mktemp -d); \
+	trap 'rm -rf "$$tmp"' EXIT; \
+	GOBIN=$$tmp $(GO) install $(LDFLAGS) ./cmd/mtt; \
+	v=$$("$$tmp/mtt" version); \
+	if [ -z "$$v" ]; then echo "smoke: empty version output"; exit 1; fi; \
+	"$$tmp/mtt" --help >/dev/null; \
+	echo "OK: smoke (mtt version = $$v)"
 
 test:
 	$(GO) test -race -cover $(PKGS)
