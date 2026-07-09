@@ -34,6 +34,7 @@ type AddParams struct {
 	Description string
 	Priority    mtt.Priority // unset by default (not medium)
 	DependsOn   []mtt.TaskID // blocking edges set at creation (targets validated)
+	Tags        []string     // explicit tags; unioned with #hashtags from title/description
 }
 
 // Add creates one task and returns it with the adapter-minted ID.
@@ -78,12 +79,14 @@ func (a *Adder) Add(p AddParams) (mtt.Task, error) {
 		return mtt.Task{}, fmt.Errorf("type %q has no initial status", typ.Name)
 	}
 	now := a.now().UTC().Truncate(time.Second)
+	tags := canonicalTags(p.Tags, mtt.ExtractTags(p.Title), mtt.ExtractTags(p.Description))
 	return a.store.Create(mtt.Task{
 		Type:        typ.Name,
 		Title:       p.Title,
 		Status:      initial.Name,
 		Priority:    p.Priority,
 		Parent:      parent,
+		Tags:        tags,
 		DependsOn:   deps,
 		Description: p.Description,
 		Created:     now,

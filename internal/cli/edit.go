@@ -18,7 +18,13 @@ func newEditCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "edit [<id>]",
 		Short: "Edit a task's title, description, and/or priority (the current task when the id is omitted)",
-		Args:  cobra.MaximumNArgs(1),
+		Long: `Edit a task's title, description, and/or priority (the current task when the id is
+omitted). Status is not editable here — it moves through the flow ('mtt status').
+
+Editing the title or description re-derives #hashtags: a tag whose #hashtag leaves
+the text is dropped, a newly-typed one is added, and tags set via 'mtt tag add'
+survive. There is no --tag here; use 'mtt tag add/rm' for tags not in the text.`,
+		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var p core.EditParams
 			if cmd.Flags().Changed("title") {

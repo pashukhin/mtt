@@ -231,7 +231,7 @@ type Task struct {
 	Status      StatusName     // validated lazily against the current flow
 	Priority    Priority       // scheduling axis; unset=medium in order, off-disk [s008.6]
 	Parent      TaskID         // hierarchy edge (forward ref); children computed
-	Tags        []string       // reserved; cross-cutting labels          [T3]
+	Tags        []string       // cross-cutting labels; normalized+sorted   [s008.7]
 	DependsOn   []TaskID       // blocking edges (affects Ready)          [T1/s005]
 	Refs        []Ref          // informational verifiable links          [T2/T3]
 	Created     time.Time      // domain timestamp; drives list/tree order
@@ -429,6 +429,7 @@ type AddParams struct {
 	Description string
 	Priority    Priority // unset by default (not medium) [s008.6]
 	DependsOn   []TaskID // blocking edges set at creation; targets validated [s008.5]
+	Tags        []string // explicit tags, unioned with #hashtags from title/description [s008.7]
 }
 
 // Adder creates a task: resolve type, validate placement (parent exists via
@@ -461,12 +462,15 @@ var NewEditor func(store TaskStore, now func() time.Time) Editor
 
 // ListFilter holds the list/tree predicates and ordering. Within a field values
 // are OR-ed; across fields AND-ed. cfg is consulted only for the Kinds dimension.
-// Priorities match the STORED label (unset only matches when no filter). [T1; Priorities s008.6]
+// Priorities match the STORED label (unset only matches when no filter). Tags is a
+// slice-valued OR-within dimension (a task matches if it carries any filter tag),
+// via anyOrEmptyIntersect. [T1; Priorities s008.6; Tags s008.7]
 type ListFilter struct {
 	Statuses   []StatusName
 	Types      []TypeName
 	Kinds      []StatusKind
 	Priorities []Priority
+	Tags       []string
 	Parent     TaskID
 	Sort       SortKey
 }
@@ -557,6 +561,28 @@ type DependencyEditor interface {
 // persists via Update. The capability port is added only when an external
 // adapter that cannot embed the field needs it. [shipped s005]
 var NewDependencyEditor func(store TaskStore, now func() time.Time) DependencyEditor
+
+// NormalizeTag / ExtractTags are the pure pkg/mtt tag vocabulary (like the type-
+// query predicates): NormalizeTag canonicalizes one authored tag (trim, strip one
+// leading '#', Unicode ToLower, validate the \pL\pN._- charset), ExtractTags pulls
+// the normalized #hashtags out of free text (title/description). Task.Tags is a
+// normalized+deduped+sorted set — an OPEN vocabulary, so a plain []string (not a
+// closed VO like Priority, not an identity that "never transforms"). [shipped s008.7]
+
+// TagEditor mutates Task.Tags (add/remove) and persists via TaskStore.Update — no
+// new port (the tags ride the field, GAP #1, like DependsOn). add is idempotent;
+// RemoveTags is GUARDED: a tag whose #hashtag is still in the title/description is
+// refused (edit the text). The primary authoring path is #hashtags in title/
+// description, merged on Add and reconciled on Edit by a text-delta (drop tags whose
+// #hashtag left the text, add new ones, keep manual tags — no provenance stored).
+// [shipped s008.7]
+type TagEditor interface {
+	AddTags(id TaskID, tags []string) (Task, error)
+	RemoveTags(id TaskID, tags []string) (Task, error)
+}
+
+// NewTagEditor wires tag mutation — no store-beyond-TaskStore, an injected clock. [s008.7]
+var NewTagEditor func(store TaskStore, now func() time.Time) TagEditor
 
 // Remover is the delete-a-task usecase (mtt rm). Unless force, it rejects
 // deleting a REFERENCED task — a child (Parent) or a dependent (DependsOn),

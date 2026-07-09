@@ -19,6 +19,7 @@ func newListCmd() *cobra.Command {
 		types      []string
 		kinds      []string
 		priorities []string
+		tags       []string
 		parent     string
 		sortKey    string
 		ready      bool
@@ -41,6 +42,10 @@ func newListCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			tagVals, err := toTags(tags)
+			if err != nil {
+				return err
+			}
 			root, err := projectRoot(cmd)
 			if err != nil {
 				return err
@@ -58,7 +63,7 @@ func newListCmd() *cobra.Command {
 			}
 			selected := core.Select(tasks, core.ListFilter{
 				Statuses: toStatusNames(statuses), Types: toTypeNames(types), Kinds: kindVals,
-				Priorities: prioVals, Parent: mtt.TaskID(parent), Sort: core.SortKey(sortKey),
+				Priorities: prioVals, Tags: tagVals, Parent: mtt.TaskID(parent), Sort: core.SortKey(sortKey),
 			}, cfg)
 			if jsonFlag(cmd) {
 				views := make([]taskJSON, 0, len(selected))
@@ -75,6 +80,7 @@ func newListCmd() *cobra.Command {
 	cmd.Flags().StringVar(&sortKey, "sort", "", "sort order: created|updated|priority (default created)")
 	cmd.Flags().StringArrayVar(&kinds, "kind", nil, "filter by status category: initial|active|terminal (repeatable)")
 	cmd.Flags().StringArrayVar(&priorities, "priority", nil, "filter by priority: high|medium|low (repeatable)")
+	cmd.Flags().StringArrayVar(&tags, "tag", nil, "filter by tag (repeatable)")
 	cmd.Flags().StringVar(&parent, "parent", "", "only direct children of this task id")
 	cmd.Flags().BoolVar(&ready, "ready", false, "only tasks that are ready (no open blockers)")
 	return cmd

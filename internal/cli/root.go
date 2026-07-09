@@ -13,7 +13,7 @@ import (
 )
 
 // version is the build version, overridable at build time via -ldflags.
-var version = "0.8.6-dev"
+var version = "0.8.7-dev"
 
 // NewRootCmd builds the root mtt command tree.
 func NewRootCmd() *cobra.Command {
@@ -36,7 +36,7 @@ func NewRootCmd() *cobra.Command {
 	root.PersistentFlags().String("log-file", "", "write gate command output to a file")
 	root.AddCommand(newVersionCmd(), newInitCmd(), newTypesCmd(), newAddCmd(), newShowCmd(),
 		newListCmd(), newEditCmd(), newTreeCmd(), newDepCmd(), newReadyCmd(), newStatusCmd(),
-		newUseCmd(), newRmCmd(), newRoadmapCmd())
+		newUseCmd(), newRmCmd(), newRoadmapCmd(), newTagCmd())
 	return root
 }
 

@@ -25,6 +25,7 @@ type ListFilter struct {
 	Types      []mtt.TypeName
 	Kinds      []mtt.StatusKind
 	Priorities []mtt.Priority
+	Tags       []string
 	Parent     mtt.TaskID
 	Sort       SortKey
 }
@@ -35,6 +36,9 @@ type ListFilter struct {
 // is unknown to cfg fails a non-empty Kinds filter. Shared by Select and tree.
 func Match(t mtt.Task, f ListFilter, cfg mtt.Config) bool {
 	if !anyOrEmpty(f.Statuses, t.Status) || !anyOrEmpty(f.Types, t.Type) || !anyOrEmpty(f.Priorities, t.Priority) {
+		return false
+	}
+	if !anyOrEmptyIntersect(f.Tags, t.Tags) {
 		return false
 	}
 	if f.Parent != "" && t.Parent != f.Parent {
@@ -97,6 +101,24 @@ func anyOrEmpty[T comparable](values []T, v T) bool {
 	}
 	for _, x := range values {
 		if x == v {
+			return true
+		}
+	}
+	return false
+}
+
+// anyOrEmptyIntersect reports whether filter is empty (match everything) or shares
+// at least one value with have — OR within a slice-valued dimension (e.g. tags).
+func anyOrEmptyIntersect[T comparable](filter, have []T) bool {
+	if len(filter) == 0 {
+		return true
+	}
+	set := make(map[T]bool, len(have))
+	for _, v := range have {
+		set[v] = true
+	}
+	for _, v := range filter {
+		if set[v] {
 			return true
 		}
 	}

@@ -17,6 +17,7 @@ func newTreeCmd() *cobra.Command {
 	var (
 		statuses []string
 		kinds    []string
+		tags     []string
 		depth    int
 	)
 	cmd := &cobra.Command{
@@ -30,6 +31,10 @@ func newTreeCmd() *cobra.Command {
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			kindVals, err := parseKinds(kinds)
+			if err != nil {
+				return err
+			}
+			tagVals, err := toTags(tags)
 			if err != nil {
 				return err
 			}
@@ -64,7 +69,7 @@ func newTreeCmd() *cobra.Command {
 			for i, s := range statuses {
 				statusNames[i] = mtt.StatusName(s)
 			}
-			f := core.ListFilter{Statuses: statusNames, Kinds: kindVals}
+			f := core.ListFilter{Statuses: statusNames, Kinds: kindVals, Tags: tagVals}
 			if jsonFlag(cmd) {
 				return writeJSON(cmd.OutOrStdout(), buildTreeJSON(idx, roots, f, cfg, depth))
 			}
@@ -74,6 +79,7 @@ func newTreeCmd() *cobra.Command {
 	}
 	cmd.Flags().StringArrayVar(&statuses, "status", nil, "filter by status (repeatable)")
 	cmd.Flags().StringArrayVar(&kinds, "kind", nil, "filter by status category: initial|active|terminal (repeatable)")
+	cmd.Flags().StringArrayVar(&tags, "tag", nil, "filter by tag (repeatable)")
 	cmd.Flags().IntVar(&depth, "depth", 0, "limit visible levels (0 = unlimited)")
 	return cmd
 }

@@ -21,10 +21,18 @@ func newAddCmd() *cobra.Command {
 		desc      string
 		priority  string
 		dependsOn []string
+		tags      []string
 	)
 	cmd := &cobra.Command{
 		Use:   "add [title]",
 		Short: "Create a task",
+		Long: `Create a task. Provide a title (positional) and/or --description; at least one is
+required.
+
+#hashtags in the title or description are extracted into the task's tags, and --tag
+adds explicit tags — both merged into one normalized, deduplicated, sorted set. Edit
+the text later ('mtt edit') to change text-derived tags, or 'mtt tag add/rm' for
+explicit ones.`,
 		Args: func(_ *cobra.Command, args []string) error {
 			if len(args) > 1 {
 				return errors.New("too many arguments: wrap a multi-word title in quotes (example: mtt add \"fix login\")")
@@ -51,12 +59,16 @@ func newAddCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			tagVals, err := toTags(tags)
+			if err != nil {
+				return err
+			}
 			depIDs := make([]mtt.TaskID, len(dependsOn))
 			for i, d := range dependsOn {
 				depIDs[i] = mtt.TaskID(d)
 			}
 			adder := core.NewAdder(yaml.NewTaskStore(root), cfg, time.Now)
-			task, err := adder.Add(core.AddParams{Title: title, TypeName: mtt.TypeName(typeName), Parent: mtt.TaskID(parent), NoParent: noParent, Description: desc, Priority: prio, DependsOn: depIDs})
+			task, err := adder.Add(core.AddParams{Title: title, TypeName: mtt.TypeName(typeName), Parent: mtt.TaskID(parent), NoParent: noParent, Description: desc, Priority: prio, DependsOn: depIDs, Tags: tagVals})
 			if err != nil {
 				return err
 			}
@@ -70,6 +82,7 @@ func newAddCmd() *cobra.Command {
 	cmd.Flags().StringVar(&desc, "description", "", "task description")
 	cmd.Flags().StringVar(&priority, "priority", "", "task priority: high|medium|low (default: unset)")
 	cmd.Flags().StringSliceVar(&dependsOn, "depends-on", nil, "ids this task depends on (repeatable, comma-separated)")
+	cmd.Flags().StringArrayVar(&tags, "tag", nil, "add a tag (repeatable; #hashtags in the title/description are also picked up)")
 	cmd.MarkFlagsMutuallyExclusive("parent", "no-parent")
 	return cmd
 }
