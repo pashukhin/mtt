@@ -36,7 +36,7 @@ func NewRootCmd() *cobra.Command {
 	root.PersistentFlags().String("log-file", "", "write gate command output to a file")
 	root.AddCommand(newVersionCmd(), newInitCmd(), newTypesCmd(), newAddCmd(), newShowCmd(),
 		newListCmd(), newEditCmd(), newTreeCmd(), newDepCmd(), newReadyCmd(), newStatusCmd(),
-		newUseCmd(), newRmCmd(), newRoadmapCmd())
+		newUseCmd(), newRmCmd(), newRoadmapCmd(), newTagCmd())
 	return root
 }
 
