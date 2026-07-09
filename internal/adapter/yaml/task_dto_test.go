@@ -169,6 +169,41 @@ func TestTaskDTOPriorityUnknownTolerated(t *testing.T) {
 	}
 }
 
+func TestTaskDTOTagsOmitemptyWhenUnset(t *testing.T) {
+	in := mtt.Task{ID: "t1", Type: "task", Title: "a", Status: "tbd", Created: fixedTime(), Updated: fixedTime()}
+	data, err := goyaml.Marshal(fromDomainTask(in))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if bytes.Contains(data, []byte("tags")) {
+		t.Fatalf("unset tags must be omitted on disk; got:\n%s", data)
+	}
+}
+
+func TestTaskGoldenWithTags(t *testing.T) {
+	// Tags are emitted in the canonical (sorted) form core produces.
+	task := mtt.Task{ID: "t1", Type: "task", Title: "build auth", Status: "tbd",
+		Tags: []string{"auth", "urgent"}, Created: fixedTime(), Updated: fixedTime()}
+	got, err := goyaml.Marshal(fromDomainTask(task))
+	if err != nil {
+		t.Fatal(err)
+	}
+	golden := filepath.Join("testdata", "golden", "task_tags.yaml")
+	if *update {
+		if err := os.WriteFile(golden, got, 0o644); err != nil {
+			t.Fatal(err)
+		}
+		return
+	}
+	want, err := os.ReadFile(golden)
+	if err != nil {
+		t.Fatalf("read golden (run -update first): %v", err)
+	}
+	if !bytes.Equal(got, want) {
+		t.Errorf("tags task serialization != golden:\n%s", got)
+	}
+}
+
 func TestTaskGoldenWithPriority(t *testing.T) {
 	task := mtt.Task{ID: "t1", Type: "task", Title: "build auth", Status: "tbd",
 		Priority: mtt.PriorityHigh, Created: fixedTime(), Updated: fixedTime()}
