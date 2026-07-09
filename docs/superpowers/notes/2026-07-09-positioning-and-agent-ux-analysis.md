@@ -108,6 +108,37 @@ sync will out-feature it on integrations anyway (their direction is inverse: own
 (c) R1's "vs harness hooks" is the highest-leverage doc change; (d) speed > completeness for the
 release — the KB/UI phases are not what the window is about.
 
+**Launch timing (decided-direction, 2026-07-10): promote at `v0.9.0` + the dogfood proof — do NOT wait
+for the first external adapter.** Rationale: (a) both channel precedents grew with **no** tracker
+adapter — beads to ~25k★ on its local Dolt store, Backlog.md to ~6k★ on plain markdown; the initial
+audience (solo agent-devs, the HN/r/ClaudeAI crowd) needs the zero-footprint + gates story, not Jira;
+(b) the niche window is narrowing (harness completion-hooks) — waiting for phase 8 risks launching into
+an occupied slot; (c) dogfood IS the launch asset ("mtt's own development passes through its own gates"
+— a `history` excerpt is the demo); (d) adapters follow demand: build the first one (GitHub Issues, not
+Trello — that's where coding agents live; bespoke Jira only paid/sponsored) when users ask, as the
+second wave. Launch artifacts = the AGENTS.md snippet (R3), a "how mtt gates its own development"
+write-up, Show-HN/r/ClaudeAI posts.
+
+### Appendix — category-scan long tail (2026-07-09 sweep; context for R1/R2, no doc changes needed)
+
+Nearest non-equivalent neighbors, for the record (none gates a local task lifecycle per task type with
+executable commands): **Claude Code Tasks + `TaskCompleted` hook** (closest native rival: home-dir
+storage, one global hook, Claude-only, gates only "done"); **agent-tasks** (MCP server, 7-stage
+pipeline, approval/artifact-count gates — not executed commands; 9★); **Backlog.md DoD defaults**
+(checklist the agent ticks); **Shrimp Task Manager** (MCP; `verify_task` is LLM self-scoring — the
+self-grading failure mode mtt bypasses); **GitHub spec-kit** (phase gates via markdown checklists,
+per-feature); **Kiro** (AWS; spec-driven IDE, human approval gates, skippable, IDE-locked); **JetBrains
+Air "agentization cookbook"** (formal DoR/DoD gates as *process conventions* in markdown — a major
+vendor preaching mtt's thesis: validation and threat); **GitHub Agentic Workflows** (CI-side);
+**Linear/Jira agent modes** (SaaS workflow rules); orchestrators (**Vibe Kanban** — Bloop shut down
+early 2026, community-run; **Conductor**, **overstory**, **tasksmith**) — worktree isolation + human
+review, no DoD gates; minimal trackers (**kanban-md**, bash **ticket**, **git-task**, **tli**, **amux**)
+— explicitly no gates; **Qovery Agent** (cloud ephemeral-env verification — the opposite of
+zero-footprint). Problem-validation source shortlist: claude-code issue #25305 ("75% rework"); BSWEN
+false-positive benchmark 2026-06-25 (19/19); Cursor reward-hacking study 2026-06 (87.1→73.0);
+Anthropic emergent-misalignment research; Scrum.org "DoD for AI Agents"; DoltHub "Claude Code Gotchas";
+"verification is the bottleneck" (HN meta-review 2026).
+
 ---
 
 ## 6. Agent-UX findings (live drive of `0.8.9-dev`)
