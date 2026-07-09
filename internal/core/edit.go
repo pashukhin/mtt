@@ -39,6 +39,7 @@ func (e *Editor) Edit(id mtt.TaskID, p EditParams) (mtt.Task, error) {
 	if err != nil {
 		return mtt.Task{}, err
 	}
+	oldTitle, oldDesc := t.Title, t.Description
 	if p.Title != nil {
 		t.Title = *p.Title
 	}
@@ -50,6 +51,9 @@ func (e *Editor) Edit(id mtt.TaskID, p EditParams) (mtt.Task, error) {
 	}
 	if t.Title == "" && t.Description == "" {
 		return mtt.Task{}, fmt.Errorf("a task needs a title or a description")
+	}
+	if p.Title != nil || p.Description != nil {
+		t.Tags = reconcileTags(t.Tags, oldTitle, oldDesc, t.Title, t.Description)
 	}
 	t.Updated = e.now().UTC().Truncate(time.Second)
 	return e.store.Update(t)
