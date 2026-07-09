@@ -18,6 +18,12 @@ func newTagCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "tag",
 		Short: "Manage a task's tags",
+		Long: `Manage a task's tags.
+
+The primary way to tag is a #hashtag in the title or description: those are
+extracted and merged into the task's tags on 'mtt add' and 'mtt edit' (the text is
+left intact). 'mtt tag add/rm' is the secondary, pointed path — for tags not tied
+to the text. Tags are a normalized, deduplicated, sorted set (Unicode, lowercased).`,
 	}
 	cmd.AddCommand(newTagAddCmd(), newTagRmCmd())
 	return cmd
@@ -51,8 +57,12 @@ func newTagAddCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "add <id> <tag>...",
 		Short: "Add one or more tags to a task",
-		Args:  idAndTags("provide a task id and at least one tag (example: mtt tag add t1 backend urgent)"),
-		RunE:  func(cmd *cobra.Command, args []string) error { return runTagEdit(cmd, args, true) },
+		Long: `Add one or more tags to a task (all in one call). Adding a tag that is already
+present is a no-op. Values are normalized (lowercase; letters/digits and . _ -, any
+script; an optional leading # is allowed). Tip: for tags that describe the work, put
+a #hashtag in the title/description instead — 'mtt add'/'mtt edit' pick those up.`,
+		Args: idAndTags("provide a task id and at least one tag (example: mtt tag add t1 backend urgent)"),
+		RunE: func(cmd *cobra.Command, args []string) error { return runTagEdit(cmd, args, true) },
 	}
 }
 
@@ -60,8 +70,13 @@ func newTagRmCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "rm <id> <tag>...",
 		Short: "Remove one or more tags from a task",
-		Args:  idAndTags("provide a task id and at least one tag (example: mtt tag rm t1 urgent)"),
-		RunE:  func(cmd *cobra.Command, args []string) error { return runTagEdit(cmd, args, false) },
+		Long: `Remove one or more tags from a task (all in one call).
+
+A tag whose #hashtag is still present in the title or description is refused — edit
+the text to remove it (the text is authoritative). Removing a tag that is absent is
+a no-op.`,
+		Args: idAndTags("provide a task id and at least one tag (example: mtt tag rm t1 urgent)"),
+		RunE: func(cmd *cobra.Command, args []string) error { return runTagEdit(cmd, args, false) },
 	}
 }
 
