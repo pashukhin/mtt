@@ -63,6 +63,19 @@ func TestEditReconcileAddsNewHashtag(t *testing.T) {
 	}
 }
 
+func TestEditReconcileDescriptionScanned(t *testing.T) {
+	orig := mtt.Task{ID: "e1", Type: "epic", Title: "plain", Description: "old #db", Status: "tbd",
+		Tags: []string{"db", "urgent"}, Created: fixed(), Updated: fixed()}
+	got, err := NewEditor(&editStore{get: orig}, later).Edit("e1", EditParams{Description: strptr("new #cache")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	// #db left the description -> dropped; #cache entered -> added; manual urgent kept.
+	if !reflect.DeepEqual(got.Tags, []string{"cache", "urgent"}) {
+		t.Fatalf("Tags = %v; want [cache urgent]", got.Tags)
+	}
+}
+
 func TestEditReconcileManualTagSurvivesPriorityEdit(t *testing.T) {
 	orig := mtt.Task{ID: "e1", Type: "epic", Title: "plain", Status: "tbd",
 		Tags: []string{"urgent"}, Created: fixed(), Updated: fixed()}

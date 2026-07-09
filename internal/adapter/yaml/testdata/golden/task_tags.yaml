@@ -2,8 +2,11 @@ id: t1
 type: task
 title: build auth
 status: tbd
+parent: e1
 tags:
     - auth
     - urgent
+depends_on:
+    - t2
 created: "2026-07-04T09:20:00Z"
 updated: "2026-07-04T09:20:00Z"

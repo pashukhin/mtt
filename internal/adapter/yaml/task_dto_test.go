@@ -181,9 +181,12 @@ func TestTaskDTOTagsOmitemptyWhenUnset(t *testing.T) {
 }
 
 func TestTaskGoldenWithTags(t *testing.T) {
-	// Tags are emitted in the canonical (sorted) form core produces.
+	// Tags are emitted in the canonical (sorted) form core produces. Parent and
+	// DependsOn are present so the golden actually freezes the field ORDER
+	// (parent → tags → depends_on), not just that tags serialize.
 	task := mtt.Task{ID: "t1", Type: "task", Title: "build auth", Status: "tbd",
-		Tags: []string{"auth", "urgent"}, Created: fixedTime(), Updated: fixedTime()}
+		Parent: "e1", Tags: []string{"auth", "urgent"}, DependsOn: []mtt.TaskID{"t2"},
+		Created: fixedTime(), Updated: fixedTime()}
 	got, err := goyaml.Marshal(fromDomainTask(task))
 	if err != nil {
 		t.Fatal(err)

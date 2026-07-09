@@ -36,6 +36,11 @@ exec mtt list --tag auth
 stdout 'e1  epic  \[tbd\]'
 ! stdout 'e2'
 
+# tree --tag filters the hierarchy too (keep-ancestors over the same dimension)
+exec mtt tree --tag backend
+stdout 'e1  epic  \[tbd\]'
+! stdout 'e2'
+
 # edit the title to drop #auth -> the auth tag disappears (delta reconciliation)
 exec mtt edit e1 --title 'fix login'
 exec mtt show e1
@@ -46,6 +51,10 @@ exec mtt list --tag auth
 # an invalid tag is a usage error
 ! exec mtt tag add e1 'bad tag'
 stderr 'invalid tag'
+
+# a missing id is not-found (non-zero exit; the exact exit-4 mapping is a unit test)
+! exec mtt tag add ghost x
+stderr 'not found'
 
 # --json carries the tags array
 exec mtt show e1 --json
