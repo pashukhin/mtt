@@ -37,3 +37,43 @@ func TestStatusKind(t *testing.T) {
 		t.Fatal("unknown status must return ok=false")
 	}
 }
+
+func TestStatusByName(t *testing.T) {
+	typ := Type{Flow: Flow{Statuses: []Status{
+		{Name: "tbd", Kind: KindInitial},
+		{Name: "doing", Kind: KindActive, Description: "do the work"},
+		{Name: "done", Kind: KindTerminal},
+	}}}
+	if s, ok := typ.StatusByName("doing"); !ok || s.Description != "do the work" {
+		t.Fatalf("StatusByName(doing) = %+v,%v; want description %q, true", s, ok, "do the work")
+	}
+	if _, ok := typ.StatusByName("ghost"); ok {
+		t.Fatal("unknown status must return ok=false")
+	}
+}
+
+func TestTransitionsFrom(t *testing.T) {
+	typ := Type{Flow: Flow{
+		Statuses: []Status{
+			{Name: "tbd", Kind: KindInitial},
+			{Name: "doing", Kind: KindActive},
+			{Name: "done", Kind: KindTerminal},
+			{Name: "cancelled", Kind: KindTerminal},
+		},
+		Transitions: []Transition{
+			{From: "tbd", To: "doing", Description: "start"},
+			{From: "tbd", To: "cancelled"},
+			{From: "doing", To: "done", Description: "finish"},
+		},
+	}}
+	out := typ.TransitionsFrom("tbd")
+	if len(out) != 2 || out[0].To != "doing" || out[1].To != "cancelled" {
+		t.Fatalf("TransitionsFrom(tbd) = %+v; want doing,cancelled in definition order", out)
+	}
+	if got := typ.TransitionsFrom("done"); len(got) != 0 {
+		t.Fatalf("TransitionsFrom(done) = %+v; want empty (terminal)", got)
+	}
+	if got := typ.TransitionsFrom("ghost"); len(got) != 0 {
+		t.Fatalf("TransitionsFrom(ghost) = %+v; want empty (unknown)", got)
+	}
+}
