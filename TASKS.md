@@ -196,15 +196,20 @@ comments (which enrich a full self-host but don't enable it). See sessions/READM
       tags in `show`/`--json`. **`#hashtags` in title/description are the primary path; `tag add/rm` secondary.**
       Version `0.8.6-dev` → `0.8.7-dev`. Spec/plan:
       `docs/superpowers/{specs,plans}/2026-07-09-session-008.7-tags*`. `boards/views` over tags stay Later.
-- [ ] e5_t1c — **batch & pipeline (s008.9)** — makes mtt Unix-composable (big for agents + backlog migration):
-      a reusable **task-set selector** every set-operating command shares — explicit IDs ∪ a `--filter` (reuse
-      the `list` filters `--status/--type/--kind/--parent/--tag/--ready` over `Select`/`Match`) ∪ **stdin `-`**
-      (IDs one per line) — plus an **`--ids`** output mode on `list`/`ready` (one ID per line, for pipes). Apply
-      first to `tag add/rm` and `rm` (no gates → safe). E.g. `mtt list --tag x --ids | mtt tag rm x -`.
-      **Brainstorm decisions:** sources mutually exclusive (no confusing union); `--dry-run` guard for bulk
-      mutations (esp. `rm`) + an "affected N" summary; per-item best-effort with a per-item report and a
-      non-zero exit if any failed (git-style). Bulk `status`/verbs/`edit`/`dep` are **later** (gates +
-      partial-success + atomicity are trickier).
+- [x] e5_t1c — **batch & pipeline (s008.9)** — ✅ **shipped**: makes mtt Unix-composable. A reusable **task-set
+      selector** (`internal/cli/selector.go`, `selectTaskIDs`) shared by every set-operating command — explicit
+      IDs | a `--filter` (the `list` filters `--status/--type/--kind/--parent/--priority/--tag/--ready` over
+      `Select`/`Match`) | **stdin `-`** (IDs one per line), **mutually exclusive** (>1 or 0 = usage error;
+      present-but-empty = no-op exit 0), never resolves `current`. **`--ids`** output on `list`/`ready` (one ID
+      per line, `⊕ --json`). Applied to `tag add/rm` and `rm` (no gates). Bulk mutations share `runBulk`
+      (`bulk.go`): best-effort per item, report (stdout summary + stderr per-item / `--json` per-item array),
+      **generic exit 1** on any failure (the aggregate never `%w`-wraps a per-item sentinel), and `--dry-run`
+      preview. `tag` argument layout is **context-sensitive** (a `-`/filter marker → positionals are tags, tasks
+      from the selector; else the single `tag add <id> <tag>…`). Bulk `rm` is **subgraph-aware**
+      (`core.Remover.RemoveMany`: referents inside the deletion set are ignored, so `rm <epic> <child>` needs no
+      `--force`; `Remove` is a thin wrapper — single `rm <id>` keeps exit-4). Spec/plan:
+      `docs/superpowers/{specs,plans}/2026-07-09-session-008.9-batch*`. Version `0.8.7-dev` → `0.8.9-dev`. Bulk
+      `status`/verbs/`edit`/`dep` stay **later** (gates + partial-success + atomicity).
 - [ ] e5_t2 — **dogfooding (s009)**: `mtt init` this repo, a config whose gates are task-aware (branch on the
       `→ in_progress` edge via a placeholder, `make check` on `→ done`), migrate the backlog onto mtt
 - [ ] e5_t3 — references (**s010**): `mtt ref add/rm/list`, backlinks; resolve `task`/`comment` refs (link a

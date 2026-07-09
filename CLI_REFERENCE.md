@@ -6,9 +6,11 @@ The complete **target** command surface of the `mtt` CLI, derived from [DESIGN.m
 two purposes: a reference for humans and agents, and a way to sanity-check the design from the CLI angle
 (man/usage) rather than from requirements.
 
-**Status:** this is the target command surface. **Implemented today (through session 008.5, `0.8.5-dev`):**
-`version`, `init`, `types`, `add`, `show`, `list`, `edit`, `tree`, `dep add/rm/list`, `ready`, `status`
-(plus the `mtt <status> <id>` verb sugar), `use`, `rm` — and cobra's built-in `completion`/`help`. Everything
+**Status:** this is the target command surface. **Implemented today (through session 008.9, `0.8.9-dev`):**
+`version`, `init`, `types`, `add`, `show`, `list`, `edit`, `tree`, `dep add/rm/list`, `ready`, `roadmap`,
+`status` (plus the `mtt <status> <id>` verb sugar), `use`, `rm`, `tag add/rm` — with a **task-set selector**
+(explicit ids | stdin `-` | `--filter`) + an **`--ids`** output on `list`/`ready` powering **bulk** `tag add/rm`
+and `rm` (s008.9) — and cobra's built-in `completion`/`help`. Everything
 else below is design surface, each tagged with the phase/session that introduces it (see the plan in
 [DESIGN.md](DESIGN.md#implementation-order)). The `advance`/`start`/`done`/`cancel` meta-walk is **PARKED**
 (single-edge `status` is the norm — see the note in "Flow" below).
@@ -201,6 +203,8 @@ Prints tasks in a stable order. Filters combine with AND.
 - `--sort <created|updated|priority>` — ordering key; default `created`. `created`/`updated` are descending,
   tie-broken by ID; `priority` (session 008.6) orders high→low (unset in the medium band), tie-broken by
   recency. *(implemented)*
+- `--ids` — print only task ids, one per line, for pipelines (session 008.9). Honours the filters and
+  `--sort`; **mutually exclusive with `--json`**. E.g. `mtt list --tag x --ids | mtt tag rm x -`. *(implemented)*
 
 ### `mtt edit [<id>] [flags]` — edit non-flow fields  *(phase 1, implemented in session 003; omitted id → current in 006.7; priority in 008.6)*
 Changes title, description, and/or priority. **Status is not editable here** — status changes go through `status` /
@@ -215,13 +219,23 @@ in the YAML adapter — see Notes).
   `#hashtags` — a tag whose `#hashtag` left the text is dropped, a newly-typed one is added, and manual tags
   (from `mtt tag add`) survive. There is no `--tag` on `edit`; surgical tag changes go through `mtt tag add/rm`.
 
-### `mtt rm <id> [--force]` — delete a task (hard delete)  *(session 008.5, implemented)*
-Permanently removes a task (distinct from `cancel`, which is a terminal *status*, not removal). `rm` is for
+### `mtt rm [<id>...] [-] [--force]` — delete tasks (hard delete)  *(session 008.5; bulk + selector in 008.9)*
+Permanently removes tasks (distinct from `cancel`, which is a terminal *status*, not removal). `rm` is for
 backlog hygiene — purging a mistaken or obsolete task. There is **no history** for a delete (the file is
 gone); the git commit that drops `.mtt/tasks/<id>.yaml` is the de-facto audit.
 
-- Requires an **explicit `<id>`** — `rm` does **not** resolve the current-task pointer (a destructive op takes
-  an explicit target). If the deleted task was the current pointer, it is cleared.
+**Task-set selector (session 008.9).** `rm` takes a set from **one** of three mutually-exclusive sources:
+explicit ids (`mtt rm t1 t2`), stdin `-` (ids one per line — `mtt list … --ids | mtt rm -`), or a `--filter`
+(`--status/--type/--kind/--parent/--priority/--tag/--ready` — `mtt rm --status cancelled`). Giving more than
+one source, or none, is a usage error; a source that matches nothing is a no-op (exit 0). A **single explicit
+id** keeps the exact single-task behaviour (below); a multi-id / `-` / `--filter` delete is **bulk**:
+best-effort per task, a `removed N task(s): …` summary on stdout, per-task failures on stderr, and **exit 1**
+if any failed. `--dry-run` previews the affected ids (one per line) without deleting. Bulk `rm` is
+**subgraph-aware** — the reject-if-referenced check ignores referents that are **themselves in the deletion
+set**, so `mtt rm <epic> <child>…` removes a whole subtree in one call **without** `--force`.
+
+- Requires an **explicit `<id>`** for the single form — `rm` does **not** resolve the current-task pointer (a
+  destructive op takes an explicit target). If a deleted task was the current pointer, it is cleared.
 - By default `rm` is **rejected** if the task is **referenced** — another task `depends_on` it, or it has
   children (`parent` points at it) — listing the referencing ids. This keeps a delete from silently stranding
   references (exit `1`).
@@ -249,11 +263,20 @@ surfaced as a root, never dropped.
 - `--json` — emit a **nested** tree (`{…task fields…, "children": [ … ]}`); the top level is always a JSON
   array (`[]` when empty, never `null`); leaf `children` are omitted.
 
-### `mtt tag add|rm <id> <tag>...` — manage a task's tags  *(session 008.7, implemented)*
+### `mtt tag add|rm <id> <tag>... | <tag>... (- | --filter)` — manage tags  *(session 008.7; bulk in 008.9)*
 Tags are cross-cutting labels. The **primary** way to tag is a `#hashtag` in the title/description (extracted
 on `add`/`edit`); `mtt tag add/rm` is the secondary, pointed path. Both take **one or more** tags (variadic),
 so a whole set changes in one write. Tags are stored as a normalized, deduplicated, **sorted** set and ride
 `Task.Tags` (no new port — like `depends_on`).
+
+**Bulk over a task set (session 008.9).** The argument layout is **context-sensitive**: with a selector
+marker — a `-` (ids from stdin) or a `--filter` flag
+(`--status/--type/--kind/--parent/--priority/--tag/--ready`) — the **positionals are the tags** and they are
+applied to every selected task (`mtt tag add urgent --status tbd`, `mtt list --tag x --ids | mtt tag rm x -`).
+Without a marker it is the **single** form `mtt tag add <id> <tag>…` (unchanged). Bulk is best-effort per task
+(a `tagged/untagged N task(s): …` summary on stdout, per-task failures — e.g. the `rm` guard — on stderr, exit
+1 if any failed); `--dry-run` previews the affected ids. On `tag`, the `--tag` **filter** flag selects tasks
+carrying a tag — distinct from the positional tags being added/removed.
 
 - `mtt tag add <id> <tag>...` — add tags (idempotent: re-adding an existing tag writes nothing). Prints
   `tagged <id>: <tags>`, or the task object with `--json`.
@@ -344,7 +367,8 @@ the history. Does not run the `done` gate.
 
 ### `mtt ready [flags]` — list actionable tasks  *(session 005, implemented)*
 Lists non-terminal tasks whose blockers are all in a terminal status (`done`/`cancelled`) — "what can be
-picked up next". Accepts the `list` filters (`--status`/`--type`/`--kind`/`--parent`) and `--json`.
+picked up next". Accepts the `list` filters (`--status`/`--type`/`--kind`/`--parent`), `--json`, and `--ids`
+(session 008.9; one id per line, mutually exclusive with `--json`).
 Readiness is **conservative**: a dangling blocker or a status not in the current flow leaves a task not
 ready (`mtt list --ready` is the same subset via `list`).
 
@@ -508,6 +532,12 @@ required attribution) is **implemented (session 006.5)**, and `4` (not found) is
 `dep`), which all wrap `mtt.ErrNotFound`. `Execute()` maps `core.ErrBlocked`→3, `core.ErrInvalidTransition`→6,
 `core.ErrMissingAttribution`→2, `mtt.ErrNotFound`→4. The remaining code (`5`, unsupported capability) is still
 **proposed** and lands with capability gates; other error paths keep the generic `1`.
+
+**Bulk mutations (session 008.9)** are best-effort: a partial or total failure exits `1` (generic, git-style)
+with a per-item report — the aggregate deliberately does **not** map onto `3`/`4`/`6` (a heterogeneous set has
+no single code). A **single** `rm <id>` / `tag add/rm <id>` still exits `4` on not-found. An empty selector
+(a source that matched nothing) is a successful no-op (exit `0`); giving two sources, or none, is a usage
+error (exit `1`).
 
 ---
 

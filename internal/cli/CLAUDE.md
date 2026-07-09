@@ -78,10 +78,11 @@ settings.CommandTimeout, …)` (the global is now the **per-command fallback**),
 expands placeholders before the gate. The one CLI touch is `mtt types` (`formatTypes`): a command renders as
 `$ <run>` plus `  (timeout <d>)` when the command carries a per-command timeout.
 
-Dogfood enablers (session 008.5): `mtt rm <id>` (`ExactArgs(1)`, `--force`) routes through `core.Remover`
-(reject-if-referenced; `--force` deletes despite refs); requires an **explicit id** (no current resolution —
-destructive); after a successful delete it clears the `current:` pointer if it named the deleted task
-(`yaml.NewCurrent`). `exitCode` now maps `mtt.ErrNotFound → 4`, applied **uniformly**: `taskNotFound(id)`
+Dogfood enablers (session 008.5): `mtt rm` routes through `core.Remover`
+(reject-if-referenced; `--force` deletes despite refs); a **single explicit id** takes no current resolution
+(destructive); after a successful delete it clears the `current:` pointer if it named the deleted task
+(`yaml.NewCurrent`, now `clearCurrentIfMatches`). **(Since s008.9 `rm` is `ArbitraryArgs` — single vs bulk;
+see the Batch paragraph.)** `exitCode` now maps `mtt.ErrNotFound → 4`, applied **uniformly**: `taskNotFound(id)`
 (`errors.go`) wraps `ErrNotFound` and is used by `show`/`edit`/`tree`/`use`/`dep` (core wraps it in
 `transition`/`dependency`/`add`), so every single-task not-found exits 4. `mtt add --depends-on <id>…`
 (StringSlice, repeatable/csv) → `AddParams.DependsOn` (validation in `core.Adder`).
@@ -115,3 +116,18 @@ surfaces as a plain error (exit 1). `--tag` (repeatable, `StringArrayVar`) on `a
 in `core` (Adder/Editor), not parsed in the CLI. `mtt show` prints a `tags:` line (`formatTask`, after
 `priority`); `taskJSON` gains `tags` (`omitempty`), readable via `show`/`list`/`edit`/`tag …` `--json`. Tags
 are NOT shown in the `taskLine` row (list/tree) — visible via `show`/`--json`/the `--tag` filter.
+
+Batch & pipeline (session 008.9): a reusable **task-set selector** (`selector.go`) — `selectTaskIDs(cmd,
+positional, allowExplicitIDs)` resolves ONE of three mutually-exclusive sources: explicit ids | stdin `-`
+(`readIDsFromStdin`) | `--filter` (the shared `addSelectorFilterFlags`/`readSelectorFilter`/`filterActive`
+over `core.Select`/`Ready`). >1 or 0 active sources is a usage error; a present-but-empty source is a no-op
+(exit 0); dedup + first-occurrence order; **never** resolves `current`. `writeIDs`/`idsOf` back `--ids` on
+`list`/`ready` (one id per line, `⊕ --json`). Bulk mutations share `bulk.go`: `runBulk(cmd, ids, verbPast,
+apply)` (best-effort per item, `reportBulk` summary on stdout + per-item errors on stderr, `--json` per-item
+array, a plain aggregate `fmt.Errorf` — no `%w`, so exit 1 not a per-item sentinel) and `previewBulk`
+(`--dry-run`: ids to stdout + stderr summary, no mutation). **`rm` is `ArbitraryArgs`**: a single explicit id
+keeps `runRmSingle` (verbatim `removed <id>`, exit 4); multi/`-`/`--filter` → `core.Remover.RemoveMany`
+(subgraph-aware), then `reportBulk`, clearing `current` per deleted id. **`tag add/rm` is marker-driven**
+(`tagArgs`): no marker → the single `applyTagSingle` path (`<id> <tag>…`, back-compat); a `-` or a filter flag
+→ bulk (positionals are the tags, tasks from the selector, per-item `TagEditor` via `runBulk`). On `tag`, the
+`--tag` flag is the tag **filter** (distinct from the positional tags being added/removed).
