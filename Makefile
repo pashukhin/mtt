@@ -7,7 +7,10 @@ ifneq ($(VERSION),)
 LDFLAGS := -ldflags "-X github.com/pashukhin/mtt/internal/cli.version=$(VERSION)"
 endif
 
-.PHONY: all build install smoke test fmt fmt-check vet lint check tidy clean
+DIST      := dist
+PLATFORMS := linux/amd64 linux/arm64 darwin/amd64 darwin/arm64 windows/amd64
+
+.PHONY: all build install smoke release test fmt fmt-check vet lint check tidy clean
 
 all: build
 
@@ -28,6 +31,24 @@ smoke:
 	if [ -z "$$v" ]; then echo "smoke: empty version output"; exit 1; fi; \
 	"$$tmp/mtt" --help >/dev/null; \
 	echo "OK: smoke (mtt version = $$v)"
+
+# release: cross-compile version-stamped binaries for every target platform into
+# dist/ + a SHA256SUMS. Requires VERSION (a release must be stamped). Pure Go (no
+# cgo) so cross-compilation is a plain GOOS/GOARCH build. Not part of `check`
+# (cross-compiles + writes dist/, non-hermetic — like smoke).
+release:
+	@if [ -z "$(VERSION)" ]; then \
+		echo "release: VERSION is required (e.g. make release VERSION=v0.9.0)"; exit 1; fi
+	@rm -rf $(DIST); mkdir -p $(DIST)
+	@set -e; for p in $(PLATFORMS); do \
+		os=$${p%/*}; arch=$${p#*/}; \
+		out="$(DIST)/mtt_$(VERSION)_$${os}_$${arch}"; \
+		if [ "$$os" = "windows" ]; then out="$$out.exe"; fi; \
+		echo "building $$out"; \
+		GOOS=$$os GOARCH=$$arch CGO_ENABLED=0 $(GO) build $(LDFLAGS) -o "$$out" ./cmd/mtt; \
+	done
+	@cd $(DIST) && sha256sum mtt_* > SHA256SUMS
+	@echo "OK: release $(VERSION) -> $(DIST)/ ($$(ls $(DIST) | grep -c '^mtt_') binaries)"
 
 test:
 	$(GO) test -race -cover $(PKGS)
