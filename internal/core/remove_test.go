@@ -77,3 +77,70 @@ func TestRemoveReferencedDedup(t *testing.T) {
 		t.Fatalf("err = %v; want t2 mentioned exactly once", err)
 	}
 }
+
+func TestRemoveManySubgraphIgnore(t *testing.T) {
+	// e1 has child t1; deleting BOTH in one call ignores the in-set reference.
+	m := newMemStore(
+		mtt.Task{ID: "e1", Type: "epic", Status: "tbd"},
+		mtt.Task{ID: "t1", Type: "task", Status: "tbd", Parent: "e1"},
+	)
+	res := NewRemover(m).RemoveMany([]mtt.TaskID{"e1", "t1"}, false)
+	if len(res) != 2 || res[0].Err != nil || res[1].Err != nil {
+		t.Fatalf("results = %+v; want both nil", res)
+	}
+	if len(m.byID) != 0 {
+		t.Fatalf("store not empty: %v", m.byID)
+	}
+}
+
+func TestRemoveManyExternalRejects(t *testing.T) {
+	// deleting only e1 (child t1 NOT in the set) is rejected without --force.
+	m := newMemStore(
+		mtt.Task{ID: "e1", Type: "epic", Status: "tbd"},
+		mtt.Task{ID: "t1", Type: "task", Status: "tbd", Parent: "e1"},
+	)
+	res := NewRemover(m).RemoveMany([]mtt.TaskID{"e1"}, false)
+	if len(res) != 1 || res[0].Err == nil || !strings.Contains(res[0].Err.Error(), "t1") {
+		t.Fatalf("res = %+v; want referenced-by-t1", res)
+	}
+	if _, ok := m.byID["e1"]; !ok {
+		t.Fatal("e1 must survive a rejected delete")
+	}
+}
+
+func TestRemoveManyForceOverrides(t *testing.T) {
+	m := newMemStore(
+		mtt.Task{ID: "e1", Type: "epic", Status: "tbd"},
+		mtt.Task{ID: "t1", Type: "task", Status: "tbd", Parent: "e1"},
+	)
+	res := NewRemover(m).RemoveMany([]mtt.TaskID{"e1"}, true)
+	if res[0].Err != nil {
+		t.Fatalf("force err: %v", res[0].Err)
+	}
+	if _, ok := m.byID["e1"]; ok {
+		t.Fatal("e1 not deleted under force")
+	}
+}
+
+func TestRemoveManyBestEffort(t *testing.T) {
+	// a missing id does not stop the rest; each has its own result.
+	m := newMemStore(mtt.Task{ID: "t1", Type: "task", Status: "tbd"})
+	res := NewRemover(m).RemoveMany([]mtt.TaskID{"t1", "t99"}, false)
+	if len(res) != 2 || res[0].Err != nil {
+		t.Fatalf("t1 should succeed: %+v", res)
+	}
+	if !errors.Is(res[1].Err, mtt.ErrNotFound) {
+		t.Fatalf("t99 err = %v; want ErrNotFound", res[1].Err)
+	}
+	if _, ok := m.byID["t1"]; ok {
+		t.Fatal("t1 not deleted")
+	}
+}
+
+func TestRemoveManyDedup(t *testing.T) {
+	m := newMemStore(mtt.Task{ID: "t1", Type: "task", Status: "tbd"})
+	res := NewRemover(m).RemoveMany([]mtt.TaskID{"t1", "t1"}, false)
+	if len(res) != 1 || res[0].Err != nil {
+		t.Fatalf("res = %+v; want a single ok", res)
+	}
+}
