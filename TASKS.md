@@ -186,14 +186,16 @@ comments (which enrich a full self-host but don't enable it). See sessions/READM
       cycle-safe; `ready`/`blocked_by` annotations, own non-terminal DAG, shared `terminalSatisfied`). The
       agent-queryable execution order that motivates dogfood. Version `0.8.5-dev` → `0.8.6-dev`. Spec/plan:
       `docs/superpowers/{specs,plans}/2026-07-07-session-008.6-priorities-roadmap*`
-- [ ] e5_t1b — **tags (s008.7)** — needed to organize the self-hosted backlog: `mtt add --tag x`,
-      `mtt tag add/rm <id> <tag>` (rides the reserved `Task.Tags` field + `Update`, no new port — like
-      `depends_on`), and a `Tags` dimension in `ListFilter` for `mtt list/tree --tag` (reuses `Match`/`Select`
-      — cheap). Plus **`#hashtag` extraction** from title/description on `add`/`edit` (less verbose than
-      repeated `--tag`). **Brainstorm decisions:** (a) derived-on-read (tags = explicit ∪ parsed-from-text —
-      single source, no staleness) vs extract-to-field (simpler, but stale on later edits); (b) which fields
-      to scan — title reliably, description cautiously/opt-in (‌`#` is common in prose/code: `#!`, `#include`,
-      `##` headings, URL anchors); (c) the token rule + case normalization. `boards/views` over tags stay Later.
+- [x] e5_t1b — **tags (s008.7)** — ✅ **shipped**: pure `pkg/mtt` tag vocabulary (`NormalizeTag`/`ExtractTags`,
+      **Unicode** `\pL\pN._-` charset, no NFC) + `Task.Tags` a normalized+sorted **set** (rides the field +
+      `Update`, **no new port** — GAP #1). `core.Adder` unions explicit `--tag` with `#hashtags` from title/
+      description; `core.Editor` reconciles on a **text-delta** (drop tags whose `#hashtag` left the text, keep
+      manual — the no-provenance corner is documented); `core.TagEditor` (`tag add/rm`, idempotent, **rm
+      guard** on a text-anchored tag, atomic multi-tag, wraps `ErrNotFound` → exit 4); `ListFilter.Tags` +
+      `Match` OR-within (`anyOrEmptyIntersect`); cli `mtt tag add/rm` (variadic), `--tag` on `add`/`list`/`tree`,
+      tags in `show`/`--json`. **`#hashtags` in title/description are the primary path; `tag add/rm` secondary.**
+      Version `0.8.6-dev` → `0.8.7-dev`. Spec/plan:
+      `docs/superpowers/{specs,plans}/2026-07-09-session-008.7-tags*`. `boards/views` over tags stay Later.
 - [ ] e5_t1c — **batch & pipeline (s008.9)** — makes mtt Unix-composable (big for agents + backlog migration):
       a reusable **task-set selector** every set-operating command shares — explicit IDs ∪ a `--filter` (reuse
       the `list` filters `--status/--type/--kind/--parent/--tag/--ready` over `Select`/`Match`) ∪ **stdin `-`**
@@ -322,8 +324,9 @@ comments (which enrich a full self-host but don't enable it). See sessions/READM
   re-parenting — worth a single minting brainstorm. Documented meanwhile as a `--force` caveat (DESIGN.md,
   CLI_REFERENCE.md). See DESIGN.md → "Deletion (`mtt rm`)".
 - later — **re-parenting** (`mtt reparent`/`move`): change a task's `parent`; enabled by flat, position-free IDs.
-- **tags** — **scheduled s008.7** (e5_t1b), pulled forward for backlog management (was "later"): CRUD +
-  `list/tree --tag` filter over the reserved `Task.Tags` field, plus `#hashtag` extraction from title/description.
+- **tags** — **shipped s008.7** (e5_t1b): CRUD (`tag add/rm`, `--tag` on `add`) + `list/tree --tag` filter over
+  `Task.Tags`, plus `#hashtag` extraction (the **primary** authoring path) from title/description with
+  write-time reconciliation and a `tag rm` guard on text-anchored tags.
 - later — **boards / views**: a query/view over tags/status/type (relates to `list` and `mtt-ui`); the backlog is such a view.
 - later — **durable, git-independent audit of edits** (a change-log or field versioning for plain `edit`s,
   additive; `history` stays transition-only). (The subject-identity `By` source is now **resolved** — s006

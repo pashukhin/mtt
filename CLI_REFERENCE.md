@@ -163,12 +163,17 @@ adapter mints the ID — a flat, per-prefix ID such as `e1` or `t17` — and pri
 - `--depends-on <id>…` — set blocking dependencies at creation (repeatable, comma-separated). Each target
   must exist (else the add errors and nothing is created); validated in `core.Adder`. **Implemented (session
   008.5)**. (`--ref <kind>:<target>…`, e.g. `note:auth-design`/`task:t2`, arrives in a later session.)
+- `--tag <tag>…` — add a tag (repeatable, session 008.7). `#hashtags` in the title/description are also
+  extracted and merged into the same set. Values are normalized (Unicode-lowercased over letters/digits plus
+  `. _ -`, any script; an optional leading `#` is allowed); an out-of-charset value is a usage error.
+  **Implemented (session 008.7)**.
 
 A non-root type given neither `--parent` nor `--no-parent` errors and tells you how to proceed. A missing
 parent, or a parent whose type the child may not sit under, errors with guidance.
 
 ### `mtt show [<id>] [flags]` — show a task  *(phase 1, implemented; lineage in session 004; omitted id → current in 006.7; priority in 008.6)*
 Shows a task: id, type, status, title, **priority** (a `priority:` line, shown only when set — session 008.6),
+**tags** (a `tags:` line — the sorted set, shown only when non-empty — session 008.7),
 the **lineage** breadcrumb, a **children** summary, timestamps, and
 description. The lineage is a "you are here" path from the root **down to and including the task**
 (`lineage:  e1 › t1 › s1`), shown only when the task has a parent; a root task shows none. The children line
@@ -189,6 +194,9 @@ Prints tasks in a stable order. Filters combine with AND.
 - `--parent <id>` — only direct children of this task (session 004). *(implemented)*
 - `--priority <high|medium|low>…` — filter by priority (session 008.6, repeatable). Matches the **stored**
   label: an unset task matches only when no `--priority` is given. *(implemented)*
+- `--tag <tag>…` — filter by tag (session 008.7, repeatable). **OR within** the dimension (a task matches if it
+  carries **any** given tag), AND across the other filters. Values are normalized like `--tag` on `add`.
+  *(implemented)*
 - `--ready` — only tasks that are ready (no open blockers) — shorthand for `mtt ready`. *(implemented, session 005)*
 - `--sort <created|updated|priority>` — ordering key; default `created`. `created`/`updated` are descending,
   tie-broken by ID; `priority` (session 008.6) orders high→low (unset in the medium band), tie-broken by
@@ -203,6 +211,9 @@ in the YAML adapter — see Notes).
 - `--description <text>` — new description (`-` for stdin still later).
 - `--priority <high|medium|low>` — new priority (session 008.6). `--priority ""` **clears** it back to unset.
   An unknown value is a usage error. *(implemented)*
+- **Tags reconcile on a text edit** (session 008.7): editing `--title`/`--description` re-derives the
+  `#hashtags` — a tag whose `#hashtag` left the text is dropped, a newly-typed one is added, and manual tags
+  (from `mtt tag add`) survive. There is no `--tag` on `edit`; surgical tag changes go through `mtt tag add/rm`.
 
 ### `mtt rm <id> [--force]` — delete a task (hard delete)  *(session 008.5, implemented)*
 Permanently removes a task (distinct from `cancel`, which is a terminal *status*, not removal). `rm` is for
@@ -230,12 +241,31 @@ roots the tree at that task. Children are **computed** (an inverse index in `cor
 order is deterministic (`Created` desc, tie-broken by ID). An orphan (a task whose parent id is absent) is
 surfaced as a root, never dropped.
 
-- `--status <status>…` / `--kind <initial|active|terminal>…` — filter displayed nodes. Filtering uses
-  **keep-ancestors** semantics: a node shows if it matches or any descendant matches, and non-matching
-  ancestors are kept as the path to a match (so a matching leaf is never lost under a non-matching parent).
+- `--status <status>…` / `--kind <initial|active|terminal>…` / `--tag <tag>…` — filter displayed nodes
+  (`--tag` is session 008.7, OR-within). Filtering uses **keep-ancestors** semantics: a node shows if it
+  matches or any descendant matches, and non-matching ancestors are kept as the path to a match (so a matching
+  leaf is never lost under a non-matching parent).
 - `--depth <n>` — limit visible levels, like `tree -L n` (`--depth 1` = roots only; `0`/unset = unlimited).
 - `--json` — emit a **nested** tree (`{…task fields…, "children": [ … ]}`); the top level is always a JSON
   array (`[]` when empty, never `null`); leaf `children` are omitted.
+
+### `mtt tag add|rm <id> <tag>...` — manage a task's tags  *(session 008.7, implemented)*
+Tags are cross-cutting labels. The **primary** way to tag is a `#hashtag` in the title/description (extracted
+on `add`/`edit`); `mtt tag add/rm` is the secondary, pointed path. Both take **one or more** tags (variadic),
+so a whole set changes in one write. Tags are stored as a normalized, deduplicated, **sorted** set and ride
+`Task.Tags` (no new port — like `depends_on`).
+
+- `mtt tag add <id> <tag>...` — add tags (idempotent: re-adding an existing tag writes nothing). Prints
+  `tagged <id>: <tags>`, or the task object with `--json`.
+- `mtt tag rm <id> <tag>...` — remove tags. **Guarded:** a tag whose `#hashtag` is still in the title or
+  description is **refused** (`cannot remove tag "x": #x is present in the title …`) — edit the text to remove
+  it (the guard is faithful to "the text is authoritative", and has no bypass). The guard is checked for
+  **all** targets before any change, so a multi-tag call is atomic; removing an absent tag is a no-op. Prints
+  `untagged <id>: <tags>`, or the task object with `--json`.
+- A missing `<id>` exits `4` (not found); the `rm` guard is a plain error (exit `1`).
+- Tag values are normalized: Unicode-lowercased over letters/digits plus `. _ -` (any script — `#Бэкенд` →
+  `бэкенд`), with an optional leading `#`. Whitespace or other characters are a usage error. (Comparison is by
+  lowercased code points; there is **no** Unicode NFC folding.)
 
 ---
 

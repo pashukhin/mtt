@@ -803,12 +803,17 @@ after dogfood we move mtt's development onto mtt itself. See sessions/README.md 
 **Later (backlog):**
 
 - later — **re-parenting** (`mtt reparent`/`move`): change a task's `parent`; enabled by flat, position-free IDs.
-- **tags — scheduled s008.7** (pulled forward for backlog management): a cross-cutting `[]string` label
-  (reserved in the model), CRUD (`add --tag`, `tag add/rm` — rides `Task.Tags` + `Update`, no new port) +
-  `list/tree --tag` filtering (a `ListFilter` dimension over `Match`). Plus **`#hashtag` extraction** from
-  title/description on `add`/`edit` (terser than repeated `--tag`). Open design (s008.7 brainstorm):
-  derived-on-read (tags = explicit ∪ text-hashtags, single source, no staleness) vs extract-to-field; scan
-  title reliably, description cautiously (‌`#` is common in code/prose); the token rule + case normalization.
+- **tags — shipped s008.7** (backlog management): a cross-cutting label set on `Task.Tags` (rides the field +
+  `Update`, **no new port** — GAP #1, like `depends_on`). Authored two ways: **`#hashtags` in title/description
+  are the primary path** (extracted + merged into the canonical set on `add`/`edit`, the text left intact), and
+  explicit `--tag` / `mtt tag add/rm` are secondary/pointed. Reconciliation is **write-time** — a text-delta on
+  `edit` drops a tag when its `#hashtag` leaves the text and keeps manual tags (no provenance stored, so a
+  text+manual collision drops with the text); `tag rm` is **guarded** (refuses a tag whose `#hashtag` is still
+  in the text — edit the text instead). `list/tree --tag` filters (a slice-valued OR-within `ListFilter`
+  dimension over `Match`). The tag vocabulary is a pure `pkg/mtt` pair (`NormalizeTag`/`ExtractTags`) over a
+  **Unicode** charset (`\pL\pN._-`, Unicode `ToLower`, no NFC folding); tags are a normalized+sorted **set**
+  (open vocabulary → plain `[]string`, not a VO). Spec:
+  `docs/superpowers/specs/2026-07-09-session-008.7-tags-design.md`.
 - **batch & pipeline — scheduled s008.9** (mtt as a Unix-composable CLI): a reusable **task-set selector**
   shared by every set-operating command — explicit IDs ∪ a `--filter` (the `list` predicates over
   `Select`/`Match`) ∪ **stdin `-`** (IDs one per line) — plus an **`--ids`** output on `list`/`ready`, so

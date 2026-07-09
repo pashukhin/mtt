@@ -106,3 +106,12 @@ blocked by: …` under a depends_on-blocked one and `  ↳ contains: …` under 
 (`[]` when empty, via the shared `idStrings` helper). Display echoes the stored priority — the *ordering* treats
 unset as medium (and propagates it up the blocker chain), the *label* is never fabricated. Ordering is
 `core`'s concern (two axes — depends_on + parent — with priority propagation); the CLI only renders.
+
+Tags (session 008.7): `mtt tag add/rm <id> <tag>…` (variadic; `tag.go`) route through `core.TagEditor`
+(`runTagEdit` shared path); a not-found id maps to exit 4 (the editor wraps `ErrNotFound`), the `rm` guard
+surfaces as a plain error (exit 1). `--tag` (repeatable, `StringArrayVar`) on `add` (→ `AddParams.Tags`),
+`list`, and `tree` (→ `ListFilter.Tags`); the shared `toTags` normalizes/validates each value at the boundary
+(`mtt.NormalizeTag`; invalid → usage error) so no bare string leaks into `core`. Text `#hashtags` are handled
+in `core` (Adder/Editor), not parsed in the CLI. `mtt show` prints a `tags:` line (`formatTask`, after
+`priority`); `taskJSON` gains `tags` (`omitempty`), readable via `show`/`list`/`edit`/`tag …` `--json`. Tags
+are NOT shown in the `taskLine` row (list/tree) — visible via `show`/`--json`/the `--tag` filter.

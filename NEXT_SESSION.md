@@ -4,7 +4,23 @@ A living handoff doc. Update it at the end of each session (what's done / what's
 
 ## Where we are
 
-- **Phase 0 (scaffold) + sessions 001–006 + 006.5 + 006.7 + 007 + 008 + 008.5 + 008.6 are DONE** (version `0.8.6-dev`, `make check` green).
+- **Phase 0 (scaffold) + sessions 001–006 + 006.5 + 006.7 + 007 + 008 + 008.5 + 008.6 + 008.7 are DONE** (version `0.8.7-dev`, `make check` green).
+  **Session 008.7 (tags)** shipped a pure `pkg/mtt` **tag vocabulary** (`tag.go`: `NormalizeTag`/`ExtractTags`
+  over a **Unicode** `\pL\pN._-` charset, Unicode `ToLower`, no NFC — verified against RE2) and `Task.Tags` as a
+  normalized+deduped+**sorted set** (open vocabulary → plain `[]string`, not a VO), riding the field +
+  `TaskStore.Update` (**no new port**, GAP #1). `#hashtags` in title/description are the **primary** authoring
+  path: `core.Adder` unions explicit `--tag` with `ExtractTags(title/desc)` into `canonicalTags`, and
+  `core.Editor` reconciles on a **write-time text-delta** (`reconcileTags` — drop a tag when its `#hashtag`
+  leaves the text, add new ones, keep manual tags; **no provenance** → a text+manual collision drops with the
+  text, documented). The secondary path is **`core.TagEditor`** (`AddTags`/`RemoveTags`, idempotent, rides
+  `Task.Tags`+`Update`; `RemoveTags` is **guarded** — refuses a tag whose `#hashtag` is still in the text, all
+  targets validated before any write → atomic; `load` wraps `ErrNotFound` → exit 4). Filtering is a slice-valued
+  **`ListFilter.Tags`** OR-within `Match` dimension (`anyOrEmptyIntersect`, the slice analogue of scalar
+  `anyOrEmpty`). CLI: `mtt tag add/rm <id> <tag>…` (variadic), `--tag` (repeatable) on `add`/`list`/`tree`, a
+  `tags:` line in `show`, `taskJSON.tags` (`omitempty`); the shared `toTags` normalizes/validates at the
+  boundary. The YAML adapter needed **no code change** (the DTO already round-trips `tags,omitempty`); a golden
+  `task_tags.yaml` locks the field position (adapter copies verbatim — sorting is a `core` invariant). Next:
+  **s008.9 batch & pipeline**.
   **Session 008.6 (priorities + roadmap)** shipped a closed **`Priority` VO** (`pkg/mtt`, `high|medium|low`;
   `Valid()`/`Rank()`; empty = unset, ranks `medium`; the `StatusKind`/`CurrentAction` idiom — `type + consts +
   Valid()`, cast in `toDomain`, validated at the CLI boundary, **no** smart constructor) riding **`Task.Priority`
@@ -175,16 +191,60 @@ resolved graph, and open gaps. Two decisions locked there that shape s005:
   at its boundary (`toDomain` fails fast on a corrupt empty `id`/`type`/`status`). s005 is written against the
   typed contract. Constructors reject empty, no transform; `Ref.ID` stays `string`; `NoteSlug` deferred (KB).
 
-## Next task — session 008.7 (tags)
+## Next task — session 008.9 (batch & pipeline)
 
-> **s008.6 (priorities + roadmap) is SHIPPED** — see "Where we are" and "Carry-over lessons (008.6)" below; the
-> spec is `docs/superpowers/specs/2026-07-07-session-008.6-priorities-roadmap-design.md` and the plan is
-> `docs/superpowers/plans/2026-07-07-session-008.6-priorities-roadmap.md`. **Next up is s008.7 tags** (e5_t1b):
-> `mtt add --tag x`, `mtt tag add/rm <id> <tag>` (rides the reserved `Task.Tags` field + `Update`, **no new
-> port** — like `depends_on`/`priority`), and a `Tags` dimension in `ListFilter` for `mtt list/tree --tag`
-> (reuses `Match`/`Select`), plus `#hashtags` parsed from title/description. Then **s008.9 batch & pipeline**,
-> **s009 dogfood**. `advance`/`start`/`done` + modes + roles-on-edges stay **PARKED** (single-edge `status` is
-> the norm). No spec yet — start with brainstorming → writing-plans.
+> **s008.7 (tags) is SHIPPED** — see "Where we are" and "Carry-over lessons (008.7)" below; the spec is
+> `docs/superpowers/specs/2026-07-09-session-008.7-tags-design.md` and the plan is
+> `docs/superpowers/plans/2026-07-09-session-008.7-tags.md`. **Next up is s008.9 batch & pipeline** (e5_t1c):
+> a reusable **task-set selector** shared by every set-operating command — explicit IDs ∪ a `--filter` (the
+> `list` predicates over `Select`/`Match`, now including `--tag`) ∪ **stdin `-`** (IDs one per line) — plus an
+> **`--ids`** output on `list`/`ready`, so pipelines compose (`mtt list --tag x --ids | mtt tag rm x -`). First
+> applied to `tag add/rm` and `rm` (no gates). **Brainstorm decisions** (from TASKS e5_t1c): sources mutually
+> exclusive; a `--dry-run` guard + "affected N" summary for bulk mutations; per-item best-effort with a report
+> and a non-zero exit on any failure. Then **s009 dogfood**. `advance`/`start`/`done` + modes + roles-on-edges
+> stay **PARKED**. No spec yet — start with brainstorming → writing-plans.
+
+### Carry-over lessons (008.7 — tags)
+- **An open, *transforming* vocabulary is a plain `[]string` + pure funcs, NOT a VO and NOT an identity.**
+  Closed vocabularies (`Priority`) are VOs; named identities (`TypeName`) "reject empty, never transform". Tags
+  are neither — they are user-open **and** need normalization (Unicode lowercase). So `Task.Tags` stayed a
+  plain `[]string` (matching the reserved model, dodging `[]Tag` churn through DTO/JSON), with the vocabulary
+  rules as two pure `pkg/mtt` functions (`NormalizeTag`/`ExtractTags`, alongside the type-query predicates).
+  The canonical form (normalize+dedup+**sort**) lives in one core helper (`canonicalTags`).
+- **A "primary via free text, secondary via command" field reconciles at WRITE time via a text-delta — no
+  provenance stored.** `#hashtags` in title/description are the main authoring path; `Adder` unions them on
+  create, `Editor` reconciles on a text change by `removed = oldTextTags − newTextTags` (drop those, add new,
+  keep manual). The one anomaly (a tag added *both* by text and by `tag add` drops when the `#hashtag` is edited
+  out) is inherent to being provenance-free — **document it, don't build provenance**. Capture `oldTitle/oldDesc`
+  **before** the in-place apply (the `Editor` overwrites fields, so reconcile-after-apply needs the snapshot).
+- **A slice-valued filter dimension needs its own helper — `anyOrEmpty` is scalar.** `Match`'s existing
+  `anyOrEmpty(filter, scalar)` can't test slice∩slice; add `anyOrEmptyIntersect(filter, have []T)` (empty
+  filter ⇒ true; else non-empty intersection). OR-within, AND-across is preserved by short-circuiting it
+  alongside the other dimensions.
+- **A "refuse while the source still holds it" guard has no bypass and validates ALL targets before any
+  write.** `tag rm` refuses a text-anchored tag (its `#hashtag` is in the text) — faithful to "the text is
+  authoritative". For a variadic call, check every target first, then apply, so one guarded target blocks the
+  whole call (atomic). The guard names the field (title vs description) by re-checking `ExtractTags(title)`.
+- **An embedded-field mutation usecase wraps `ErrNotFound` with `%w` so the CLI keeps exit 4 for free.**
+  `TagEditor.load` mirrors `DependencyEditor.load` (`fmt.Errorf("task %q: %w", id, mtt.ErrNotFound)`); the CLI
+  then just `return err` (like `dep`), and `exitCode` maps it to 4. Using `%v` would silently degrade to 1 —
+  add a "missing id → ErrNotFound" unit test to lock it.
+- **Unicode boundary, ASCII trap.** Go's `\w` is ASCII-only, so a `#tag` glued to a non-ASCII word
+  (`тег#backend`) escaped an ASCII-`\w` adjacency guard and got extracted. Use `[^\pL\pN_#]` for the boundary
+  (RE2 supports `\pL`/`\pN` in classes) and the same classes in the token, so both boundary and charset are
+  Unicode. **Run the actual regex through RE2 on a table of tricky inputs** (Cyrillic, `café#x`, `##h`, `#L42`,
+  trailing punctuation) before trusting a claim about what it "rejects" — my spec first over-claimed `#include`
+  was rejected (it isn't; it's an accepted false positive of scanning description).
+- **The formatter split: `formatTask` is in `show.go`, `taskLine` in `format.go`.** (A recurring trap —
+  grep before editing.) `show.go` already imports `strings`; the tags line goes there, not in `format.go`
+  (which would need an unused-import-triggering `strings` add).
+- **A DTO golden proves field *position* + `omitempty`, NOT sort order.** The adapter copies `Tags` verbatim
+  (round-trip already covered elsewhere with an *unsorted* slice); the sorted-set invariant is a `core` test
+  (`canonicalTags`), not implied by the golden. Feed the golden already-sorted tags to mirror what core emits.
+- **Two adversarial subagent reviews (spec, then plan) each caught a real defect a self-review missed** — the
+  spec's `#include` over-claim / exit-4 wiring gap, and the plan's `format.go`-vs-`show.go` file-target BLOCKER.
+  Worth the tokens on a moderately involved slice; the transient IDE "declared and not used" diagnostics during
+  multi-edit flag wiring are noise (they clear once all edits land — build/`make check` is the real gate).
 
 ### Carry-over lessons (008.6 — priorities + roadmap)
 - **A new closed VO mirrors `StatusKind`/`CurrentAction` — `type + consts + Valid()`, cast in `toDomain`,
@@ -515,36 +575,38 @@ resolved graph, and open gaps. Two decisions locked there that shape s005:
 
 ## Ready-to-paste kickoff prompt (for a new session)
 
-> Продолжаем mtt. Сессии 001–008 + 008.5 + 008.6 (+ 006.5/006.7/007) смёржены в `main`, версия
-> `0.8.6-dev`, `make check` + CI зелёные. **s008.7 (tags) ещё НЕ заспечено.** Общайся по-русски.
+> Продолжаем mtt. Сессии 001–008 + 008.5 + 008.6 + 008.7 (+ 006.5/006.7/007) смёржены в `main`, версия
+> `0.8.7-dev`, `make check` + CI зелёные. **s008.9 (batch & pipeline) ещё НЕ заспечено.** Общайся по-русски.
 >
 > Прочитай сначала (в порядке): CLAUDE.md → AGENTS.md → DESIGN.md → NEXT_SESSION.md (секции «Where
-> we are», «Next task — session 008.7», «Carry-over lessons» 008.6/008.5/007/006.7/006/005) →
-> sessions/README.md (роадмап: 008.7 ← next) → docs/architecture/model.go (`Task.Tags` — reserved;
-> `Select`/`Match`/`ListFilter` — куда едет Tags: поле `Task` + `Update`, **БЕЗ порта**, GAP #1 как
-> depends_on/priority; фильтр — новая dimension в `Match`/`Select`) → TASKS.md (e5_t1b) →
-> sessions/008.6_priorities_roadmap.md (свежий образец сессии) → CLI_REFERENCE.md (add/edit/list/show,
-> `--priority`/`--sort`/`--json`, таблица exit-кодов). Убедись, что superpowers-скиллы активны.
+> we are», «Next task — session 008.9», «Carry-over lessons» 008.7/008.6/008.5/007/006.7/006/005) →
+> sessions/README.md (роадмап: 008.9 ← next) → docs/architecture/model.go (`Select`/`Match`/`ListFilter` —
+> предикаты фильтра, которые переиспользует селектор множества; `TagEditor`/`Remover` — set-операции без
+> гейтов) → TASKS.md (e5_t1c) → sessions/008.7_tags.md (свежий образец сессии) → CLI_REFERENCE.md (list/
+> ready/tag/rm, `--tag`/`--json`, таблица exit-кодов). Убедись, что superpowers-скиллы активны.
 >
 > Спеки НЕТ — начни с **brainstorming → writing-plans**, затем строго TDD до зелёного acceptance-e2e +
-> `make check`. Если всплывут неоднозначности — уточни, не гадай. Ветка `feat/s008.7-tags` от свежего
-> `main`; ветка → PR → CI green → мёрдж в `main`. Бампни версию `0.8.6-dev` → `0.8.7-dev`.
+> `make check`. Если всплывут неоднозначности — уточни, не гадай. Ветка `feat/s008.9-batch` от свежего
+> `main`; ветка → PR → CI green → мёрдж в `main`. Бампни версию `0.8.7-dev` → `0.8.9-dev`.
 >
-> Scope (ориентир — уточни в брейнсторме): `mtt add --tag x` (повторяемый), `mtt tag add/rm <id> <tag>`
-> (едет на reserved `Task.Tags` + `Update`, БЕЗ нового порта — как depends_on/priority), `Tags`-dimension
-> в `ListFilter` для `mtt list/tree --tag` (переиспользуй `Match`/`Select`), плюс парсинг `#hashtags` из
-> title/description. Идемпотентность add/rm тега (как у dep). Сериализация — `tags,omitempty`.
+> Scope (ориентир — уточни в брейнсторме): переиспользуемый **селектор множества задач** для всех
+> set-операций — явные ID ∪ `--filter` (предикаты `list`: `--status/--type/--kind/--parent/--tag/--ready`
+> поверх `Select`/`Match`) ∪ **stdin `-`** (ID построчно) — плюс вывод **`--ids`** у `list`/`ready`. Сначала
+> к `tag add/rm` и `rm` (нет гейтов). Источники **взаимоисключающие**; `--dry-run` + сводка «affected N» для
+> bulk-мутаций; per-item best-effort с отчётом и non-zero exit при любой ошибке (git-style). Bulk
+> `status`/verbs/`edit`/`dep` — **позже** (гейты + partial-success + атомарность).
 >
-> Heed «Carry-over lessons», особенно (008.6): поле, встраиваемое в `Task`, едет на `Update` — НЕ новый
-> порт (GAP #1: depends_on/priority/tags); фильтр по стор-значению — новая dimension в `Match` (`anyOrEmpty`);
+> Heed «Carry-over lessons», особенно (008.7): открытый+трансформируемый словарь — `[]string` + чистые
+> функции (не VO, не identity); slice-фильтр — свой хелпер (`anyOrEmptyIntersect`, не скалярный
+> `anyOrEmpty`); usecase-мутация оборачивает `ErrNotFound` через `%w` → exit 4 (CLI просто `return err`);
 > non-zero exit — ДАННЫЕ; CLI-вывод через `fmt.Fprint(cmd.OutOrStdout(), …)`; zero-match `--json` = `[]`,
-> non-null массивы (`make([]T,0)`); anchored testscript-ассерты; `golangci unused` (символ объявляй там,
-> где ВПЕРВЫЕ используется); детерминизм сериализации (`omitempty` на off-disk-дефолте); e2e ассертит
-> отношения, не абсолютные позиции (wall-clock ties); держи каждый `CLAUDE.md` актуальным. Docs-sync tick:
-> DESIGN.md/.ru, CLI_REFERENCE.md/.ru (**+обнови статус-шапку/теги в ТУ ЖЕ сессию**), model.go (`Task.Tags`,
-> `ListFilter.Tags`), TASKS e5_t1b ✅, sessions/README 008.7 ✅, NEXT_SESSION (+carry-over 008.7), заполни
-> sessions/008.7_*.md Done.
+> non-null массивы (`make([]T,0)`); anchored testscript-ассерты; e2e ассертит отношения, не абсолютные
+> позиции (wall-clock ties); `golangci unused` (символ объявляй там, где ВПЕРВЫЕ используется);
+> `formatTask`—в `show.go`, `taskLine`—в `format.go` (грепни перед правкой); **гоняй `make check` ПЕРЕД
+> каждым коммитом** (не только `go test`); отдавай спеку и план на адверсариальное субагент-ревью. Docs-sync
+> tick: DESIGN.md/.ru, CLI_REFERENCE.md/.ru (**+обнови статус-шапку в ТУ ЖЕ сессию**), model.go, TASKS
+> e5_t1c ✅, sessions/README 008.9 ✅, NEXT_SESSION (+carry-over 008.9), заполни sessions/008.9_*.md Done.
 >
-> После s008.7 → **s008.9 batch & pipeline**, **s009 dogfood**. **PARKED** — не делать: advance/start/done/
-> cancel + режимы + роли-на-рёбрах; node-level status-actions; кросс-рёберная компенсация. Фанатично:
+> После s008.9 → **s009 dogfood**. **PARKED** — не делать: advance/start/done/cancel + режимы +
+> роли-на-рёбрах; node-level status-actions; кросс-рёберная компенсация. Фанатично:
 > SOLID/DRY/KISS/TDD/DDD/clean-arch + self-check из AGENTS.md.

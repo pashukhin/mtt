@@ -23,7 +23,11 @@ beyond provider-specific checks.
   fails to load). Optional fields (`parent`, `depends_on`, **`priority`** — s008.6, `yaml:"priority,omitempty"`
   after `status`) use plain conversion (`mtt.Priority(yt.Priority)`; empty is legitimate, an unknown on-disk
   value round-trips as-is and ranks medium — validity is a CLI-boundary concern, not a load-time one). Unset
-  priority is omitted on disk, so existing task files & goldens are byte-unchanged.
+  priority is omitted on disk, so existing task files & goldens are byte-unchanged. **Tags** (s008.7)
+  round-trip the same way via `ymlTask.Tags` (`yaml:"tags,omitempty"`, after `parent`) — a plain `[]string`
+  copy, **no adapter change** and **no sort** (the adapter copies `Tags` verbatim; the normalized+sorted-set
+  invariant lives in `core.canonicalTags`). Golden `task_tags.yaml` locks the field position; unset tags are
+  omitted, keeping existing files byte-unchanged.
 - No flow/ready/traversal logic here (that is `core`, later). Templates are the **only** home of default type/status names.
 - `.mtt/config.yaml` is edited only through this adapter (determinism + validation).
 - `NewCurrent(root)` / `Current` — implements `mtt.CurrentStore` (session 006.7), owning **only** the top-level
