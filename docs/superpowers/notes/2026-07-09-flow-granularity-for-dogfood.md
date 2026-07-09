@@ -96,10 +96,12 @@ consistent because a transition is sequential and single-process.
 
 - **`phase`** (container): `tbd → in_progress → done` (+`cancelled`). No git/make gate; optionally the
   self-referential "no open sessions" gate on `→ done` (§4). Descriptions are light ("this phase groups …").
-- **`session`** (the gated unit): the §3 flow. A reasonable **moderate** cut is `tbd → in_progress → review →
-  done` (fold `speccing`/`planning` into `in_progress` if the extra states feel heavy), each edge with a real
-  `description`, a branch action on `→ in_progress` (`git checkout -b feat/{{.ID}}`), and `make check` gating
-  the *heavy* edges only (`→ review` and/or `→ done`).
+- **`session`** (the gated unit): the **full** §3 flow — **`tbd → speccing → planning → in_progress → review →
+  done`** (+`cancelled`) — **decided (A)**, `speccing`/`planning` are *separate* statuses (not folded into
+  `in_progress`). Branch + `current: set` on `→ speccing` (the spec is committed on the branch); a real
+  `description` on every edge (they are agent instructions); `make check` gates the **heavy** edges only
+  (`→ review`, `→ done`) — the early edges carry instructions but no heavy gate (an artifact-exists gate is
+  awkward, §6).
 - **`step`** (a TDD increment inside a session): `tbd → in_progress → done` (+`cancelled`), gating `make check`
   on `→ done` (per the earlier decision — every step is green). No branch (a step works in the session branch).
 
@@ -138,17 +140,21 @@ priority sequences it. `cancelled` means *abandoned*, not *paused*.
 
 ---
 
-## 8. Recommendation for s009
+## 8. Decisions carried into s009
 
-Decide `session` granularity in the s009 brainstorm with §6's litmus. A sound default:
+Two calls are **made**; the rest is settled in the s009 brainstorm.
 
-1. **`session`: `tbd → in_progress → review → done` (+`cancelled`)** — add `review` (a real "work done, awaiting
-   the gate" state); keep `speccing`/`planning` optional (introduce only if living without them feels lossy).
-2. **Author a real `description` on every edge** (they are now agent instructions — §2/§3).
-3. **Gate `make check`** on `→ review` (and/or `→ done`); **branch** on `→ in_progress` (`feat/{{.ID}}`, with a
-   `git branch -D` rollback for idempotency); **`step` gates `make check` on `→ done`**.
-4. **Showcase a self-referential gate** on `phase → done` (§4) — it makes the dogfood config a demo of mtt
-   gating on its own graph, and is the kind of example neighboring repos will copy.
-5. Revisit after living with it — the point of dogfood is to *feel* the granularity, not to get it perfect up
-   front. The **default template stays** `tbd → in_progress → done (+cancelled)`; richness is a self-host
-   choice (a richer reusable template could ship later).
+- **(A) `session` uses the full flow — `tbd → speccing → planning → in_progress → review → done` (+`cancelled`).**
+  `speccing`/`planning` are **separate statuses**, not folded into `in_progress`. **Rationale:** history then
+  shows *what* was done at each stage **and how many times a session looped back** — a `planning → speccing →
+  planning` bounce records spec rework; a coarse `in_progress` hides it. Granularity buys **iteration
+  visibility** (sharpens insight #1: history is signal — not just *what/when* but *how many times*).
+- **(B) Self-referential gates (§4): used sparingly** — only where there is genuinely no simpler way, **until a
+  bank of proven techniques is built up**. The `phase → done` "no open sessions" gate is a candidate but is
+  added only if clearly worth the config complexity; prefer plain git/make gates elsewhere.
+
+Still to settle in the brainstorm: exact gate placement + rollbacks (branch + `current: set` on `→ speccing`
+with a `git branch -D` rollback for idempotency; `make check` on `→ review`/`→ done`; `step` gates `make check`
+on `→ done`), the set/clear edges, and phase/step descriptions. The **default template stays**
+`tbd → in_progress → done (+cancelled)` — richness is a self-host choice (a richer reusable template could ship
+later). Revisit after living with it: the point of dogfood is to *feel* the granularity, not to nail it up front.
