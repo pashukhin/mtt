@@ -590,13 +590,30 @@ var NewTagEditor func(store TaskStore, now func() time.Time) TagEditor
 // references; --force overrides, leaving dangling refs (tolerated: Ready
 // conservative, Index orphans→roots). Delete is a store op on the base
 // TaskStore, not an embedded field. No clock (a delete records nothing).
-// [shipped s008.5]
+// RemoveMany (s008.9) is the primary method: best-effort per id over ONE List
+// snapshot, with a SUBGRAPH-AWARE referenced-check (referents inside the id set
+// are ignored, so an epic + its children delete in one call without --force).
+// Remove is a thin wrapper over RemoveMany([id]) (set={id} ⇒ every referent
+// external ⇒ identical single-id semantics). [Remove s008.5; RemoveMany s008.9]
 type Remover interface {
 	Remove(id TaskID, force bool) error
+	RemoveMany(ids []TaskID, force bool) []RemoveResult
+}
+
+// RemoveResult is one task's outcome in a bulk delete (nil Err on success). [s008.9]
+type RemoveResult struct {
+	ID  TaskID
+	Err error
 }
 
 // NewRemover wires the delete usecase — no store-beyond-TaskStore, no clock. [s008.5]
 var NewRemover func(store TaskStore) Remover
+
+// The task-set SELECTOR (explicit ids | stdin '-' | --filter, mutually exclusive)
+// and the --ids output on list/ready are CLI concerns (I/O + flags), NOT a core
+// surface — the --filter branch reuses core.Select/core.Ready. Bulk mutations
+// (tag add/rm, rm) run best-effort per item with a report and a generic exit-1
+// aggregate; gated bulk (status/verbs/edit/dep) stays later. [s008.9]
 
 // Runner executes a transition's Commands and reports each result. It is defined
 // in CORE (only core uses it), implemented in internal/adapter/exec, faked in

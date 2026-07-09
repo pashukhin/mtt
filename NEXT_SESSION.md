@@ -4,7 +4,20 @@ A living handoff doc. Update it at the end of each session (what's done / what's
 
 ## Where we are
 
-- **Phase 0 (scaffold) + sessions 001–006 + 006.5 + 006.7 + 007 + 008 + 008.5 + 008.6 + 008.7 are DONE** (version `0.8.7-dev`, `make check` green).
+- **Phase 0 (scaffold) + sessions 001–006 + 006.5 + 006.7 + 007 + 008 + 008.5 + 008.6 + 008.7 + 008.9 are DONE** (version `0.8.9-dev`, `make check` green).
+  **Session 008.9 (batch & pipeline)** shipped a reusable **task-set selector** (`internal/cli/selector.go`,
+  `selectTaskIDs`) — 3 **mutually-exclusive** sources (explicit ids | stdin `-` | `--filter` over
+  `core.Select`/`Ready`; >1 or 0 = usage error; present-but-empty = no-op exit 0; dedup; **never** resolves
+  `current`) + the shared filter flags (`addSelectorFilterFlags`/`readSelectorFilter`/`filterActive`); an
+  **`--ids`** output on `list`/`ready` (`⊕ --json`); a shared **`runBulk`** (`bulk.go`: best-effort per item,
+  `reportBulk` stdout summary + stderr per-item / `--json` per-item array, `previewBulk` `--dry-run`, a plain
+  aggregate `fmt.Errorf` → **generic exit 1**, NEVER `%w`-wrapping a per-item sentinel); **`core.Remover.RemoveMany`**
+  (subgraph-aware — `externalReferencingIDs` excludes in-set referents, so `rm <epic> <child>` needs no
+  `--force`; `Remove` is a thin wrapper keeping single-id exit-4). **`rm` is `ArbitraryArgs`** (single
+  `runRmSingle` verbatim vs bulk `RemoveMany`); **`tag add/rm` is marker-driven** (`tagArgs`: a `-`/filter marker
+  → positionals are tags + selector; else the single `applyTagSingle` path). The adversarial spec review caught a
+  MAJOR (cobra validates `Args` **before** `RunE`, so the old `idAndTags`/`ExactArgs(1)` would reject the bulk
+  forms) — fixed pre-code. e2e `batch.txt`. Next: **s009 dogfood**.
   **Session 008.7 (tags)** shipped a pure `pkg/mtt` **tag vocabulary** (`tag.go`: `NormalizeTag`/`ExtractTags`
   over a **Unicode** `\pL\pN._-` charset, Unicode `ToLower`, no NFC — verified against RE2) and `Task.Tags` as a
   normalized+deduped+**sorted set** (open vocabulary → plain `[]string`, not a VO), riding the field +
@@ -191,18 +204,57 @@ resolved graph, and open gaps. Two decisions locked there that shape s005:
   at its boundary (`toDomain` fails fast on a corrupt empty `id`/`type`/`status`). s005 is written against the
   typed contract. Constructors reject empty, no transform; `Ref.ID` stays `string`; `NoteSlug` deferred (KB).
 
-## Next task — session 008.9 (batch & pipeline)
+## Next task — session 009 (dogfood)
 
-> **s008.7 (tags) is SHIPPED** — see "Where we are" and "Carry-over lessons (008.7)" below; the spec is
-> `docs/superpowers/specs/2026-07-09-session-008.7-tags-design.md` and the plan is
-> `docs/superpowers/plans/2026-07-09-session-008.7-tags.md`. **Next up is s008.9 batch & pipeline** (e5_t1c):
-> a reusable **task-set selector** shared by every set-operating command — explicit IDs ∪ a `--filter` (the
-> `list` predicates over `Select`/`Match`, now including `--tag`) ∪ **stdin `-`** (IDs one per line) — plus an
-> **`--ids`** output on `list`/`ready`, so pipelines compose (`mtt list --tag x --ids | mtt tag rm x -`). First
-> applied to `tag add/rm` and `rm` (no gates). **Brainstorm decisions** (from TASKS e5_t1c): sources mutually
-> exclusive; a `--dry-run` guard + "affected N" summary for bulk mutations; per-item best-effort with a report
-> and a non-zero exit on any failure. Then **s009 dogfood**. `advance`/`start`/`done` + modes + roles-on-edges
-> stay **PARKED**. No spec yet — start with brainstorming → writing-plans.
+> **s008.9 (batch & pipeline) is SHIPPED** — see "Where we are" and "Carry-over lessons (008.9)" below; the
+> spec is `docs/superpowers/specs/2026-07-09-session-008.9-batch-design.md` and the plan is
+> `docs/superpowers/plans/2026-07-09-session-008.9-batch.md`. **Next up is s009 dogfood** (e5_t2): `mtt init`
+> **this repo**, author a config whose gates are **task-aware** (a branch on the `→ in_progress` edge via a
+> `{{.ID}}` placeholder, `make check` on `→ done`), and **migrate the backlog** (TASKS.md / sessions/README
+> roadmap) onto mtt itself — the selector + bulk `rm`/`tag` (s008.9) are what make a bulk migration practical.
+> After dogfood, `TASKS.md` freezes and mtt tracks its own work. Then references (s010), comments (s011), actor
+> profiles (s012). `advance`/`start`/`done` + modes + roles-on-edges + node-level status-actions + cross-edge
+> compensation stay **PARKED**. No spec yet — start with brainstorming → writing-plans. **Consider first** (a
+> dogfood design question): how much of the backlog to migrate vs keep in docs, the id/prefix scheme for
+> self-hosted tasks, and whether the gates shell out to `make check` (slow) or a lighter task-level check.
+
+### Carry-over lessons (008.9 — batch & pipeline)
+- **cobra validates `Args` BEFORE `RunE`, on the flag-stripped positionals — a context-sensitive command needs
+  a context-sensitive `PositionalArgs`, not a fixed arity.** The adversarial review's MAJOR: `idAndTags` (≥2)
+  and `ExactArgs(1)` would reject the bulk forms (`tag add y --status tbd` → 1 positional; `rm t1 t2` → 2)
+  *before* the marker classification ever runs. The validator closure receives `cmd` (flags already parsed), so
+  it can call `filterActive(cmd)`/`hasDash(args)` — `tag` requires ≥1 with a marker else ≥2; `rm` moved to
+  `ArbitraryArgs` (the no-source case becomes the selector's usage error in `RunE`).
+- **A best-effort bulk aggregate MUST be a plain `fmt.Errorf` (no `%w` of a per-item error).** `exitCode` maps
+  via `errors.Is`; per-item `TagEditor`/`RemoveMany` errors wrap `ErrNotFound`, so wrapping one into the
+  aggregate would mis-map the whole bulk to exit 4 (or 3). `fmt.Errorf("%d of %d task(s) failed", …)` keeps the
+  generic exit 1; unit-lock it (`errors.Is(err, ErrNotFound)` must be false). A **single** `rm <id>`/`tag <id>`
+  still returns the wrapped per-item error verbatim, so its exit 4 survives.
+- **Subgraph-aware bulk delete = `referencingIDs − set`, over a single static snapshot.** `RemoveMany` builds
+  `Index`+`DepGraph` once from one `List`, and the referenced-check excludes referents that are themselves in
+  the deletion set (`externalReferencingIDs`), so an epic+children delete needs no `--force`. The **static**
+  snapshot (not re-read during iteration) is what makes it order-independent and avoids a delete-during-iteration
+  hazard. A single id degenerates for free (set={id} ⇒ every referent external ⇒ today's reject). Keep a per-id
+  `store.Get` for existence (the List snapshot is only the graph) so `Remove`'s `load task %q` wording survives.
+- **The selector is a CLI concern, not core.** Two of three branches are pure I/O (stdin, arg parsing); the
+  third reuses `core.Select`/`Ready`. Putting an `io.Reader`/cobra flags into `core` would break "core has no
+  I/O". Source detection keys off a **marker** (a `-` among positionals, or a filter flag `Changed()`), not the
+  result count — so "source present but 0 results" (no-op, exit 0) is cleanly distinct from "no source" (usage
+  error), and two sources are a conflict caught before any mutation.
+- **`--ids` first-used in its own unit test, not the wiring task.** `golangci unused` fails on a package-level
+  func with no use; `writeIDs` is declared in `selector.go` (Task 1) but first wired into `list`/`ready`
+  (Task 2), so a `TestWriteIDs` in the same package (Task 1) is what keeps the Task-1 `make check` green. The
+  same "declare where first used" rule caught `ready.go` needing an added `"fmt"` import for the `--ids`⊕`--json`
+  guard (unlike `list.go`, which already imports it) — a transient IDE "imported and not used" clears once the
+  usage lands.
+- **testscript has no shell pipes.** Model `a | b` as `exec a` → `cp stdout ids.txt` → `stdin ids.txt` →
+  `exec b -` (the `stdin` directive resets after each command). A txtar `-- file --` unpacks into `$WORK`, but
+  the script `cd proj`s into `$WORK/proj`, so reference it as `$WORK/file`. `stdout` regexp is whole-output —
+  use `(?m)^id$` to assert an id is on its own line in `--ids` output.
+- **Context-sensitive positional layout beats breaking a good single form.** `tag`'s marker rule keeps
+  `tag add t1 backend` (the frequent explicit-single case) working *and* adds bulk without a `--tag`-flag
+  migration; the only subtlety is that on `tag` the `--tag` *flag* is a task **filter** while positionals are
+  the tags to add/remove — reads naturally (`tag rm urgent --tag backend`), documented.
 
 ### Carry-over lessons (008.7 — tags)
 - **An open, *transforming* vocabulary is a plain `[]string` + pure funcs, NOT a VO and NOT an identity.**
@@ -575,38 +627,38 @@ resolved graph, and open gaps. Two decisions locked there that shape s005:
 
 ## Ready-to-paste kickoff prompt (for a new session)
 
-> Продолжаем mtt. Сессии 001–008 + 008.5 + 008.6 + 008.7 (+ 006.5/006.7/007) смёржены в `main`, версия
-> `0.8.7-dev`, `make check` + CI зелёные. **s008.9 (batch & pipeline) ещё НЕ заспечено.** Общайся по-русски.
+> Продолжаем mtt. Сессии 001–008 + 008.5 + 008.6 + 008.7 + 008.9 (+ 006.5/006.7/007) смёржены в `main`, версия
+> `0.8.9-dev`, `make check` + CI зелёные. **s009 (dogfood) ещё НЕ заспечено.** Общайся по-русски.
 >
-> Прочитай сначала (в порядке): CLAUDE.md → AGENTS.md → DESIGN.md → NEXT_SESSION.md (секции «Where
-> we are», «Next task — session 008.9», «Carry-over lessons» 008.7/008.6/008.5/007/006.7/006/005) →
-> sessions/README.md (роадмап: 008.9 ← next) → docs/architecture/model.go (`Select`/`Match`/`ListFilter` —
-> предикаты фильтра, которые переиспользует селектор множества; `TagEditor`/`Remover` — set-операции без
-> гейтов) → TASKS.md (e5_t1c) → sessions/008.7_tags.md (свежий образец сессии) → CLI_REFERENCE.md (list/
-> ready/tag/rm, `--tag`/`--json`, таблица exit-кодов). Убедись, что superpowers-скиллы активны.
+> Прочитай сначала (в порядке): CLAUDE.md → AGENTS.md → DESIGN.md (секции «Implementation order» — фаза 4
+> dogfood; «Flow: executable transitions» — гейты; «Positioning») → NEXT_SESSION.md (секции «Where we are»,
+> «Next task — session 009», «Carry-over lessons» 008.9/008.7/008.6/008/007/006) → sessions/README.md (роадмап:
+> 009 ← next) → TASKS.md (e5_t2) → sessions/008.9_batch.md (свежий образец сессии) → CLI_REFERENCE.md
+> (init/status/`--depends-on`/tag/rm + селектор/`--ids`, таблица exit-кодов). Убедись, что superpowers-скиллы
+> активны.
 >
-> Спеки НЕТ — начни с **brainstorming → writing-plans**, затем строго TDD до зелёного acceptance-e2e +
-> `make check`. Если всплывут неоднозначности — уточни, не гадай. Ветка `feat/s008.9-batch` от свежего
-> `main`; ветка → PR → CI green → мёрдж в `main`. Бампни версию `0.8.7-dev` → `0.8.9-dev`.
+> Спеки НЕТ — начни с **brainstorming → writing-plans**, затем строго TDD/итеративно до зелёного `make check`.
+> Если всплывут неоднозначности — уточни, не гадай. Ветка `feat/s009-dogfood` от свежего `main`; ветка → PR → CI
+> green → мёрдж в `main`. Бампни версию `0.8.9-dev` → `0.9.0-dev` (s009 — полная сессия → минор).
 >
-> Scope (ориентир — уточни в брейнсторме): переиспользуемый **селектор множества задач** для всех
-> set-операций — явные ID ∪ `--filter` (предикаты `list`: `--status/--type/--kind/--parent/--tag/--ready`
-> поверх `Select`/`Match`) ∪ **stdin `-`** (ID построчно) — плюс вывод **`--ids`** у `list`/`ready`. Сначала
-> к `tag add/rm` и `rm` (нет гейтов). Источники **взаимоисключающие**; `--dry-run` + сводка «affected N» для
-> bulk-мутаций; per-item best-effort с отчётом и non-zero exit при любой ошибке (git-style). Bulk
-> `status`/verbs/`edit`/`dep` — **позже** (гейты + partial-success + атомарность).
+> Scope (ориентир — уточни в брейнсторме): **self-host** — `mtt init` **этого репозитория** с конфигом, чьи
+> гейты **task-aware** (ветка на ребре `→ in_progress` через плейсхолдер `{{.ID}}`; `make check` на `→ done`),
+> и **миграция бэклога** (TASKS.md / sessions/README) на mtt (селектор + bulk `rm`/`tag` из s008.9 делают
+> массовую миграцию практичной). После dogfood `TASKS.md` замораживается, mtt ведёт свою разработку. Реши в
+> брейнсторме: сколько бэклога переносить vs оставить в доках; id/prefix-схему self-hosted задач; гейт шеллит
+> `make check` (медленно) или лёгкую задачную проверку. Это НЕ обычная CLI-фича — это интеграция/конфиг + доки.
 >
-> Heed «Carry-over lessons», особенно (008.7): открытый+трансформируемый словарь — `[]string` + чистые
-> функции (не VO, не identity); slice-фильтр — свой хелпер (`anyOrEmptyIntersect`, не скалярный
-> `anyOrEmpty`); usecase-мутация оборачивает `ErrNotFound` через `%w` → exit 4 (CLI просто `return err`);
-> non-zero exit — ДАННЫЕ; CLI-вывод через `fmt.Fprint(cmd.OutOrStdout(), …)`; zero-match `--json` = `[]`,
-> non-null массивы (`make([]T,0)`); anchored testscript-ассерты; e2e ассертит отношения, не абсолютные
-> позиции (wall-clock ties); `golangci unused` (символ объявляй там, где ВПЕРВЫЕ используется);
-> `formatTask`—в `show.go`, `taskLine`—в `format.go` (грепни перед правкой); **гоняй `make check` ПЕРЕД
-> каждым коммитом** (не только `go test`); отдавай спеку и план на адверсариальное субагент-ревью. Docs-sync
-> tick: DESIGN.md/.ru, CLI_REFERENCE.md/.ru (**+обнови статус-шапку в ТУ ЖЕ сессию**), model.go, TASKS
-> e5_t1c ✅, sessions/README 008.9 ✅, NEXT_SESSION (+carry-over 008.9), заполни sessions/008.9_*.md Done.
+> Heed «Carry-over lessons», особенно (008.9): cobra валидирует `Args` ДО `RunE` (context-sensitive команда →
+> context-sensitive `PositionalArgs`); bulk-агрегат — plain `fmt.Errorf` (НЕ `%w` per-item, иначе exit-код
+> мис-мапится); non-zero exit — ДАННЫЕ; CLI-вывод через `fmt.Fprint(cmd.OutOrStdout(), …)`; zero-match `--json` =
+> `[]` (`make([]T,0)`); anchored testscript-ассерты (`(?m)^id$` для построчного вывода; нет пайпов — `cp stdout`
+> → `stdin`); e2e ассертит отношения, не абсолютные позиции (wall-clock ties); `golangci unused` (символ
+> объявляй там, где ВПЕРВЫЕ используется); гейт-конфиг для e2e — txtar `-- gated.yaml --` cp'нутый поверх
+> `.mtt/config.yaml`; **гоняй `make check` ПЕРЕД каждым коммитом БЕЗ пайпа** (не только `go test`); отдавай
+> спеку и план на адверсариальное субагент-ревью; отражай фичи в `--help`. Docs-sync tick: DESIGN.md/.ru,
+> CLI_REFERENCE.md/.ru (**+обнови статус-шапку в ТУ ЖЕ сессию**), model.go, TASKS e5_t2 ✅, sessions/README 009
+> ✅, NEXT_SESSION (+carry-over 009), заполни sessions/009_*.md Done.
 >
-> После s008.9 → **s009 dogfood**. **PARKED** — не делать: advance/start/done/cancel + режимы +
-> роли-на-рёбрах; node-level status-actions; кросс-рёберная компенсация. Фанатично:
-> SOLID/DRY/KISS/TDD/DDD/clean-arch + self-check из AGENTS.md.
+> После s009 → references (s010). **PARKED** — не делать: advance/start/done/cancel + режимы + роли-на-рёбрах;
+> node-level status-actions; кросс-рёберная компенсация. Фанатично: SOLID/DRY/KISS/TDD/DDD/clean-arch + self-check
+> из AGENTS.md.

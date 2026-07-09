@@ -1,6 +1,8 @@
 package cli
 
 import (
+	"fmt"
+
 	"github.com/spf13/cobra"
 
 	"github.com/pashukhin/mtt/internal/adapter/yaml"
@@ -16,6 +18,7 @@ func newReadyCmd() *cobra.Command {
 		types    []string
 		kinds    []string
 		parent   string
+		idsOut   bool
 	)
 	cmd := &cobra.Command{
 		Use:   "ready",
@@ -43,6 +46,12 @@ func newReadyCmd() *cobra.Command {
 				Kinds: kindVals, Parent: mtt.TaskID(parent),
 			}
 			selected := core.Select(core.Ready(tasks, cfg), filter, cfg)
+			if idsOut {
+				if jsonFlag(cmd) {
+					return fmt.Errorf("--ids and --json are mutually exclusive")
+				}
+				return writeIDs(cmd.OutOrStdout(), idsOf(selected))
+			}
 			if jsonFlag(cmd) {
 				views := make([]taskJSON, 0, len(selected))
 				for _, t := range selected {
@@ -57,6 +66,7 @@ func newReadyCmd() *cobra.Command {
 	cmd.Flags().StringArrayVar(&types, "type", nil, "filter by type (repeatable)")
 	cmd.Flags().StringArrayVar(&kinds, "kind", nil, "filter by status category: initial|active|terminal (repeatable)")
 	cmd.Flags().StringVar(&parent, "parent", "", "only direct children of this task id")
+	cmd.Flags().BoolVar(&idsOut, "ids", false, "print only task ids, one per line (for pipelines)")
 	return cmd
 }
 

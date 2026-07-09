@@ -23,6 +23,7 @@ func newListCmd() *cobra.Command {
 		parent     string
 		sortKey    string
 		ready      bool
+		idsOut     bool
 	)
 	cmd := &cobra.Command{
 		Use:   "list",
@@ -65,6 +66,12 @@ func newListCmd() *cobra.Command {
 				Statuses: toStatusNames(statuses), Types: toTypeNames(types), Kinds: kindVals,
 				Priorities: prioVals, Tags: tagVals, Parent: mtt.TaskID(parent), Sort: core.SortKey(sortKey),
 			}, cfg)
+			if idsOut {
+				if jsonFlag(cmd) {
+					return fmt.Errorf("--ids and --json are mutually exclusive")
+				}
+				return writeIDs(cmd.OutOrStdout(), idsOf(selected))
+			}
 			if jsonFlag(cmd) {
 				views := make([]taskJSON, 0, len(selected))
 				for _, t := range selected {
@@ -83,6 +90,7 @@ func newListCmd() *cobra.Command {
 	cmd.Flags().StringArrayVar(&tags, "tag", nil, "filter by tag (repeatable)")
 	cmd.Flags().StringVar(&parent, "parent", "", "only direct children of this task id")
 	cmd.Flags().BoolVar(&ready, "ready", false, "only tasks that are ready (no open blockers)")
+	cmd.Flags().BoolVar(&idsOut, "ids", false, "print only task ids, one per line (for pipelines)")
 	return cmd
 }
 

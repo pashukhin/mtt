@@ -814,13 +814,24 @@ after dogfood we move mtt's development onto mtt itself. See sessions/README.md 
   **Unicode** charset (`\pL\pN._-`, Unicode `ToLower`, no NFC folding); tags are a normalized+sorted **set**
   (open vocabulary → plain `[]string`, not a VO). Spec:
   `docs/superpowers/specs/2026-07-09-session-008.7-tags-design.md`.
-- **batch & pipeline — scheduled s008.9** (mtt as a Unix-composable CLI): a reusable **task-set selector**
-  shared by every set-operating command — explicit IDs ∪ a `--filter` (the `list` predicates over
-  `Select`/`Match`) ∪ **stdin `-`** (IDs one per line) — plus an **`--ids`** output on `list`/`ready`, so
-  pipelines compose: `mtt list --tag x --ids | mtt tag rm x -`. First applied to `tag add/rm` and `rm` (no
-  gates). Open design (s008.9 brainstorm): sources mutually exclusive; a `--dry-run` guard + "affected N"
-  summary for bulk mutations; per-item best-effort with a report and a non-zero exit on any failure. Bulk
-  `status`/verbs/`edit`/`dep` are later (gates + partial-success + atomicity).
+- **batch & pipeline — shipped s008.9** (mtt as a Unix-composable CLI): a reusable **task-set selector**
+  shared by every set-operating command — explicit IDs | a `--filter` (the `list` predicates
+  `--status/--type/--kind/--parent/--priority/--tag/--ready` over `Select`/`Match`) | **stdin `-`** (IDs one per
+  line), **mutually exclusive** (>1 or 0 active source = usage error; a present-but-empty source = no-op, exit
+  0) — plus an **`--ids`** output on `list`/`ready` (mutually exclusive with `--json`), so pipelines compose:
+  `mtt list --tag x --ids | mtt tag rm x -`. Applied first to `tag add/rm` and `rm` (no gates). The selector is
+  a **CLI concern** (stdin/flag I/O; the `--filter` branch reuses `core.Select`/`Ready`) — no core surface;
+  it **never** resolves the `current` pointer. Bulk mutations are **best-effort per item** with a report
+  (successes on stdout, per-item failures on stderr / a `--json` per-item array) and a **generic exit 1** on any
+  failure (git-style; the aggregate never wraps a per-item sentinel, so it can't mis-map to exit 3/4). A
+  **`--dry-run`** previews the affected ids without mutating. Argument layout is **context-sensitive** for `tag`:
+  a selector marker (a `-` or a filter flag) makes the positionals TAGS and the tasks come from the selector
+  (`mtt tag add urgent --status tbd`); without a marker the single `mtt tag add <id> <tag>…` form is unchanged.
+  **Bulk `rm` is subgraph-aware** (`core.Remover.RemoveMany`): a referenced-check counts only referents outside
+  the deletion set, so `mtt rm <epic> <child>` deletes the subtree in one call without `--force` (a single
+  `rm <id>` keeps its exit-4 not-found and single-store reject). Bulk `status`/verbs/`edit`/`dep` stay **later**
+  (gates + partial-success + atomicity are trickier). Spec:
+  `docs/superpowers/specs/2026-07-09-session-008.9-batch-design.md`.
 - later — **boards / views**: a query/view over tags/status/type (relates to `list` and `mtt-ui`); the backlog is such a view.
 - later — **durable, git-independent audit of edits**: `edit` today only bumps `updated`, with git as the
   de facto history; a change-log or field versioning (additive, non-breaking) would make edit history

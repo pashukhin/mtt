@@ -1,0 +1,77 @@
+# batch & pipeline: selector (ids | stdin - | --filter), --ids, bulk tag/rm, --dry-run
+mkdir proj
+cd proj
+exec mtt init
+stdout 'initialized'
+
+exec mtt add --type epic 'alpha'
+stdout 'created e1'
+exec mtt add --type epic 'beta'
+stdout 'created e2'
+exec mtt add --type task --parent e1 'child'
+stdout 'created t1'
+
+# manual tag x on the two epics (not text-anchored -> bulk-removable)
+exec mtt tag add e1 x
+stdout 'tagged e1: x'
+exec mtt tag add e2 x
+stdout 'tagged e2: x'
+
+# --ids: one id per line, honoring the --tag filter
+exec mtt list --tag x --ids
+stdout '(?m)^e1$'
+stdout '(?m)^e2$'
+! stdout '(?m)^t1$'
+
+# --ids and --json are mutually exclusive
+! exec mtt list --tag x --ids --json
+stderr 'mutually exclusive'
+
+# pipeline (testscript has no shell pipes): capture ids -> stdin -> bulk tag rm
+exec mtt list --tag x --ids
+cp stdout ids.txt
+stdin ids.txt
+exec mtt tag rm x -
+stdout 'untagged 2 task\(s\)'
+exec mtt list --tag x --ids
+! stdout 'e1'
+
+# filter source: bulk tag add over --status tbd (all three tasks are tbd)
+exec mtt tag add y --status tbd
+stdout 'tagged 3 task\(s\)'
+exec mtt list --tag y --ids
+stdout '(?m)^e1$'
+stdout '(?m)^t1$'
+
+# --dry-run: preview a bulk rm without deleting
+exec mtt rm --tag y --dry-run
+stdout '(?m)^e1$'
+stderr 'would affect 3 task\(s\)'
+exec mtt show e1
+stdout 'e1  epic'
+
+# bulk rm subgraph: e1 + its child t1 in one call, no --force (in-set ref ignored)
+exec mtt rm e1 t1
+stdout 'removed 2 task\(s\)'
+! exec mtt show e1
+stderr 'not found'
+! exec mtt show t1
+stderr 'not found'
+
+# empty selector (no match) is a no-op, exit 0
+exec mtt rm --status nonesuch
+
+# conflict: two sources -> usage error (non-zero)
+! exec mtt rm e2 --status tbd
+stderr 'one source'
+
+# partial failure: stdin with a real id and a missing one -> exit 1, missing reported
+# (badids.txt is unpacked into $WORK; we are in $WORK/proj)
+stdin $WORK/badids.txt
+! exec mtt tag add z -
+stderr 't99'
+stdout 'tagged 1 task\(s\): e2'
+
+-- badids.txt --
+e2
+t99
