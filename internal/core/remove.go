@@ -106,7 +106,9 @@ func externalReferencingIDs(idx Index, g DepGraph, id mtt.TaskID, set map[mtt.Ta
 	return out
 }
 
-// dedupIDSlice removes duplicate ids, keeping first-occurrence order.
+// dedupIDSlice removes duplicate ids, keeping first-occurrence order. (Mirrors
+// cli.dedupIDs; kept separate across the cli/core package boundary — no shared
+// exported home warrants adding one for a 6-line helper.)
 func dedupIDSlice(ids []mtt.TaskID) []mtt.TaskID {
 	seen := make(map[mtt.TaskID]bool, len(ids))
 	out := make([]mtt.TaskID, 0, len(ids))

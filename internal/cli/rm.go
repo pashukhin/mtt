@@ -39,7 +39,7 @@ func newRmCmd() *cobra.Command {
 			for _, r := range results {
 				items = append(items, bulkItem{id: r.ID, err: r.Err})
 				if r.Err == nil {
-					clearCurrentIfMatches(root, r.ID)
+					_ = clearCurrentIfMatches(root, r.ID) // best-effort in bulk: the task is already reported removed
 				}
 			}
 			return reportBulk(cmd, items, "removed")
@@ -64,17 +64,21 @@ func runRmSingle(cmd *cobra.Command, root, idArg string, force, dryRun bool) err
 	if err := core.NewRemover(yaml.NewTaskStore(root)).Remove(id, force); err != nil {
 		return err
 	}
-	clearCurrentIfMatches(root, id)
+	if err := clearCurrentIfMatches(root, id); err != nil {
+		return err
+	}
 	_, err = fmt.Fprintf(cmd.OutOrStdout(), "removed %s\n", id)
 	return err
 }
 
 // clearCurrentIfMatches clears the current-task pointer when it names id (a deleted
-// task must not leave a dangling current). Best-effort: a read/clear error is
-// ignored here (the delete already succeeded).
-func clearCurrentIfMatches(root string, id mtt.TaskID) {
+// task must not leave a dangling current). A read error is ignored (mirrors the
+// pre-s008.9 single-rm behaviour); a clear error is returned. Bulk rm calls this
+// best-effort (`_ =`) since the task is already reported removed.
+func clearCurrentIfMatches(root string, id mtt.TaskID) error {
 	current := yaml.NewCurrent(root)
 	if cur, ok, cerr := current.Current(); cerr == nil && ok && cur == id {
-		_ = current.ClearCurrent()
+		return current.ClearCurrent()
 	}
+	return nil
 }
