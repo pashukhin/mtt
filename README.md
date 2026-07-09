@@ -4,10 +4,10 @@
 
 > 🇷🇺 Читать по-русски: [README.ru.md](README.ru.md)
 
-> **Status:** working alpha (`0.8.5-dev`). Phases 1–3 are implemented — `init`, `add`/`show`/`list`/`edit`,
+> **Status:** working alpha (`0.8.9-dev`). Phases 1–3 are implemented — `init`, `add`/`show`/`list`/`edit`,
 > hierarchy (`tree`), dependencies (`dep`/`ready`), and the **flow gate** (`mtt status <id> <new>` or the
 > `mtt <status> <id>` sugar run a transition's commands and block on a red gate, writing history; structured
-> commands + rollback included). Install from source (needs Go): `go install github.com/pashukhin/mtt/cmd/mtt@latest`.
+> commands + rollback included).
 > The `advance`/`start`/`done` meta-walk is **parked** (single-edge `status` is the norm); the knowledge base,
 > search, `mtt-ui`, and external adapters are later phases. Full plan in [DESIGN.md](DESIGN.md).
 
@@ -44,7 +44,11 @@ backend you already have. (An honest comparison lives in
   The Definition of Done differs per task type (bugfix/refactor/feature). Agents work in task terms
   (`mtt start`, `mtt done`) while the tool enforces the discipline.
 - **Config-driven types & hierarchy.** Epic → task → subtask is just the default config; no type names or
-  ID structure are hardcoded. IDs are readable and hierarchical (`e1_t3_s2`).
+  ID structure are hardcoded. IDs are readable and **flat** per-prefix (`e1`, `t17`, `s3`) — stable under
+  re-parenting (hierarchy lives in a `parent` field, not the ID).
+- **Priorities, tags, dependencies & a roadmap.** `--priority`, `#hashtags` / `--tag`, `depends_on` / `ready`,
+  and `mtt roadmap` give an agent an ordered, filterable backlog; a `current` pointer tracks the task in flight,
+  and batch/pipeline (`--ids`, stdin `-`) makes it Unix-composable.
 - **Hexagonal, pluggable backends.** A public contract (`pkg/mtt`) with `TaskStore` and `KnowledgeStore`
   ports; the YAML adapter is the reference. Optional features (history, dependencies, comment trees,
   search) are per-adapter capabilities.
@@ -63,12 +67,58 @@ text search, and an optional external indexer hook.
 `mtt-ui` (a small local web server): minimal task management, a Gantt chart, a KB browser. Plus a CLI
 (not TUI) text output for task info, KB search, and an ASCII Gantt.
 
-## Build
+## Install
 
-```bash
-make build      # -> ./bin/mtt
-make check      # the gate: fmt + vet + lint + test -race + build
+### Prebuilt binary (recommended)
+
+Download the binary for your platform from the
+[latest release](https://github.com/pashukhin/mtt/releases/latest):
+
+| Platform | Asset |
+|---|---|
+| Linux x86-64 | `mtt_<version>_linux_amd64` |
+| Linux ARM64 | `mtt_<version>_linux_arm64` |
+| macOS (Intel) | `mtt_<version>_darwin_amd64` |
+| macOS (Apple Silicon) | `mtt_<version>_darwin_arm64` |
+| Windows x86-64 | `mtt_<version>_windows_amd64.exe` |
+
+Then, on Unix:
+
+```sh
+chmod +x mtt_<version>_<os>_<arch>
+sudo mv mtt_<version>_<os>_<arch> /usr/local/bin/mtt
+mtt version
 ```
+
+Verify integrity against `SHA256SUMS` from the same release (`sha256sum -c` on your asset's line).
+
+### With the Go toolchain
+
+```sh
+go install github.com/pashukhin/mtt/cmd/mtt@latest
+```
+
+### Build from source
+
+```sh
+git clone https://github.com/pashukhin/mtt && cd mtt
+make build      # -> bin/mtt
+```
+
+## Quickstart
+
+```sh
+mtt init                              # create .mtt/ (default template: epic > task > subtask)
+mtt add "Ship auth" --type epic       # -> e1
+mtt add "Login endpoint" --parent e1  # -> t1
+mtt status t1 in_progress             # move through the flow (a transition's commands run + gate here)
+mtt done t1                           # -> the done terminal (default flow has no gate commands)
+mtt list                              # all tasks
+mtt tree                              # the epic > task hierarchy
+mtt roadmap                           # dependency + priority execution order
+```
+
+See [CLI_REFERENCE.md](CLI_REFERENCE.md) for the full command surface and exit codes.
 
 ## Docs
 
