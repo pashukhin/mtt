@@ -6,13 +6,15 @@ import (
 )
 
 // hashtagRe matches a #hashtag: '#' at string start or after a char that is NOT a
-// Unicode letter/number, '_' or '#', capturing a token that starts and ends with a
-// Unicode letter/number (interior '.', '_', '-' allowed). Deliberately \pL\pN (not
-// ASCII \w) so a hashtag glued to a non-ASCII word (e.g. "тег#backend") is rejected.
-var hashtagRe = regexp.MustCompile(`(?:^|[^\pL\pN_#])#([\pL\pN](?:[\pL\pN._-]*[\pL\pN])?)`)
+// Unicode letter/number, '_' or '#', capturing a token that starts with a Unicode
+// letter/number and ends with a letter/number or combining mark (interior letters/
+// numbers/marks plus '.', '_', '-'). Deliberately \pL\pN (not ASCII \w) so a hashtag
+// glued to a non-ASCII word (e.g. "тег#backend") is rejected; \pM keeps a combining
+// mark from truncating the token (a decomposed "áuth"/"йога" stays whole, not "a"/"и").
+var hashtagRe = regexp.MustCompile(`(?:^|[^\pL\pN_#])#([\pL\pN](?:[\pL\pN\pM._-]*[\pL\pN\pM])?)`)
 
 // tagRe is the anchored canonical-tag shape (validates a whole, lowercased tag).
-var tagRe = regexp.MustCompile(`^[\pL\pN](?:[\pL\pN._-]*[\pL\pN])?$`)
+var tagRe = regexp.MustCompile(`^[\pL\pN](?:[\pL\pN\pM._-]*[\pL\pN\pM])?$`)
 
 // NormalizeTag canonicalizes one authored tag: trim, strip one optional leading
 // '#', Unicode-lowercase, validate the charset. ok is false for empty/out-of-charset

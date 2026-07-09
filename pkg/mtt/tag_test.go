@@ -5,6 +5,15 @@ import (
 	"testing"
 )
 
+// NFD (decomposed) fixtures built from explicit rune values so the combining mark
+// is unambiguous — an editor may silently compose a literal "á"/"й" to NFC, which
+// would not exercise the truncation path. nfdAcute = "a"+U+0301 ("á"); nfdBreve =
+// "и"+U+0306 ("й"). The mark (\pM) must stay in the token, not truncate it.
+var (
+	nfdAcute = "a" + string(rune(0x0301)) + "uth" // "áuth"
+	nfdBreve = "и" + string(rune(0x0306)) + "ога" // "йога"
+)
+
 func TestNormalizeTag(t *testing.T) {
 	cases := []struct {
 		in   string
@@ -19,6 +28,7 @@ func TestNormalizeTag(t *testing.T) {
 		{"a", "a", true},
 		{"1", "1", true},
 		{"я", "я", true},
+		{"#" + nfdAcute, nfdAcute, true}, // NFD accent kept whole, not truncated to "a"
 		{"a b", "", false},
 		{"", "", false},
 		{"-x", "", false},
@@ -57,6 +67,11 @@ func TestExtractTags(t *testing.T) {
 		{"see host#frag", nil},
 		{"no hashtags here", nil},
 		{"", nil},
+		// A decomposed (NFD) accent/mark must NOT truncate the token (the combining
+		// mark stays part of it). No NFC folding — the NFD and NFC spellings are
+		// distinct byte sequences and won't cross-match, but neither truncates.
+		{"fix #" + nfdAcute, []string{nfdAcute}},
+		{"чиним #" + nfdBreve, []string{nfdBreve}},
 	}
 	for _, c := range cases {
 		got := ExtractTags(c.in)
