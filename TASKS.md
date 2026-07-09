@@ -210,8 +210,23 @@ comments (which enrich a full self-host but don't enable it). See sessions/READM
       `--force`; `Remove` is a thin wrapper — single `rm <id>` keeps exit-4). Spec/plan:
       `docs/superpowers/{specs,plans}/2026-07-09-session-008.9-batch*`. Version `0.8.7-dev` → `0.8.9-dev`. Bulk
       `status`/verbs/`edit`/`dep` stay **later** (gates + partial-success + atomicity).
-- [ ] e5_t2 — **dogfooding (s009)**: `mtt init` this repo, a config whose gates are task-aware (branch on the
-      `→ in_progress` edge via a placeholder, `make check` on `→ done`), migrate the backlog onto mtt
+- [ ] e5_t1d — **dogfood hardening (chore, s008.97)** — added 2026-07-10 from the deep-analysis notes
+      (`docs/superpowers/notes/2026-07-09-positioning-and-agent-ux-analysis.md` U*,
+      `…-s009-readiness-and-architecture-audit.md` A*): a blocked gate surfaces the failing command's output
+      tail (or hints `-v`/`--log-file`) [U2]; yaml `List`/`Get` errors name the offending file, corrupt/
+      zero-byte task files locked by tests [A1]; map `Status.Default` in the YAML DTO (today silently dropped)
+      [A2]; `add --json` emits the created task [U3]; help discoverability (`status [<id>]`, sugar in root
+      help, `mtt init` hint) + a tagline naming the gate feature [U4/U5]; `rm -rf bin/.mtt`; split the
+      per-command-timeout e2e out of the git-gated script + a `-v` streaming test.
+- [ ] e5_t2 — **dogfooding (s009)**: `mtt init` this repo, a config whose gates are task-aware, migrate the
+      forward backlog onto mtt. **Starts by reconciling the spec with recorded decision A** (full session flow
+      `tbd → speccing → planning → in_progress → review → done`; branch + `current: set` on `→ speccing` via
+      the idempotent `git switch -c … || git switch …`; `make check` on `→ review`/`→ done`) — see the audit
+      note items S1–S5.
+- [ ] e5_t2a — **release positioning (chore, s009.5)**: README/DESIGN "why not harness hooks?" + refresh the
+      2026 competitive scan + a copy-pasteable AGENTS.md adoption snippet (R0–R3); ship `pkg/mtt.ErrUnsupported`
+      (the `Delete` godoc already references it — A7); decide the stale-`current` exit code (A5);
+      config-review-as-code + Windows-honesty doc lines. Then the user-triggered **`v0.9.0`** tag.
 - [ ] e5_t3 — references (**s010**): `mtt ref add/rm/list`, backlinks; resolve `task`/`comment` refs (link a
       task ↔ its PR/spec)
 - [ ] e5_t4 — comments (**s011**): `mtt comment add <id> [--reply <cid>]` (tree) + render in `show`
@@ -242,7 +257,10 @@ comments (which enrich a full self-host but don't enable it). See sessions/READM
   atomic aborts after side effects — should **force** attribution regardless of the project `require` setting
   (you may skip the gate, but you must sign for it). Independent of the global `require` knob; ties into the
   s007+ structured-commands / rollback risk surface. Surfaced in the s006.5 brainstorm. See DESIGN.md →
-  required-attribution deferred note.
+  required-attribution deferred note. **Elevated (2026-07-09): first candidate once s009 self-host lands** —
+  dogfood puts agents under real gates, making `--no-run` the legal bypass of a red `make check`; the signature
+  requirement is exactly what this item was written for. Small slice: force `--who`/`--why` when `--no-run`
+  skips a transition whose edge has a **non-empty** command list, regardless of the project `require` setting.
 - later (think) — **subagent identity under multi-agent access**: roles/RBAC are pointless unless we can
   distinguish subagents acting with **different** roles — that is what our RBAC ultimately hinges on. Figure
   out the identity mechanism (per-agent `config.local`? an env/handshake/token? a provider-supplied
@@ -302,9 +320,20 @@ comments (which enrich a full self-host but don't enable it). See sessions/READM
   a cheap first pass (List I/O scaling + the linear-scan-in-loop audit) can happen anytime; the full graph
   stress is most valuable **after** s007 (`ResolvedFlow`/advance — the real graph-algorithm surface) and s008.9
   (batch — where per-op rebuilds compound), around s009 dogfood (real volume).
-- later (think) — **show the status/transition `description` on a successful move**: an in-flow reminder for the
-  agent ("what this transition is for") printed after `mtt status`/sugar. A read-side nicety from the s006.7
-  brainstorm; cheap, but decide the output shape (stdout vs stderr, interaction with `--quiet`).
+  **Measured (2026-07-09, the cheap first pass, `0.8.9-dev`, generated flat labs):** suspicion (1) — I/O
+  dominance — is **retired**: `list`/`ready`/`tree`/`dep`/`show` scale linearly and stay cheap (≈30 ms at
+  N=1000, ≈120 ms at N=5000); `status` (the gate path) is O(1) (≈3 ms at any N). The one super-linear hotspot
+  is **`roadmap`**: 8 ms / 55 ms / **1.02 s** at N=100/1000/5000 (~quadratic) — not the graph build but the
+  documented Kahn "re-sort the available set before each pop" (O(N²·log N) when most nodes are independent).
+  Harmless at dogfood volume (10² tasks ⇒ sub-ms); the fix when needed is a heap (`container/heap` keyed by
+  `(effective rank, recency)`) replacing the per-pop `sort.SliceStable`. The graph-topology stress half (dense
+  flows, deep chains, fan-out) remains open, still best after `advance`/`ResolvedFlow` unparks. Details:
+  `docs/superpowers/notes/2026-07-09-s009-readiness-and-architecture-audit.md`.
+- ~~later (think) — **show the status/transition `description` on a successful move**~~ — **SHIPPED (s008.95,
+  "flow guidance on entry")**: `mtt status`/sugar print the traversed edge's + destination status's
+  `description` and the onward moves (`next:`) on stdout after a move; `mtt show` surfaces the current status's
+  guidance. Kept for the record; see
+  `docs/superpowers/specs/2026-07-09-flow-guidance-on-entry-design.md`.
 - later (think) — **`advance` reuse seam for `current` set/clear**: s006.7 applies `Transition.Current` in the
   CLI (single-edge `status`/sugar share `runTransition`). When the parked multi-edge `advance` (e4_t5) unparks,
   extract a shared **core** "apply edge effects" step so `Transitioner` and `Advancer` both move the pointer
@@ -328,6 +357,19 @@ comments (which enrich a full self-host but don't enable it). See sessions/READM
   freed ids. Interacts with the known cross-branch collision limitation (both are about id allocation) and with
   re-parenting — worth a single minting brainstorm. Documented meanwhile as a `--force` caveat (DESIGN.md,
   CLI_REFERENCE.md). See DESIGN.md → "Deletion (`mtt rm`)".
+- later (think) — **lost-update / write-concurrency contract** (surfaced by the 2026-07-09 architecture audit).
+  Every mutation is Get → mutate → whole-file `Update` (last writer wins; the stat-then-write TOCTOU is
+  documented-accepted): two agents transitioning/tagging the **same task** silently lose one `history` entry —
+  or the status move itself — with no error. Fine for solo / one-agent-per-checkout (the s009 mode); **the
+  trigger is the second writing agent on one store.** Fix direction: an optimistic-concurrency token on
+  `Update` (compare-and-swap on `Updated` or a content hash) + the reserved `ErrConflict`; or per-file lock
+  files. **Decide together with monotonic minting (above) and the cross-branch add/add collision** — all three
+  are one "concurrent store semantics" brainstorm, not three separate fixes. See
+  `docs/superpowers/notes/2026-07-09-s009-readiness-and-architecture-audit.md` (A3).
+- pre-`v0.9.0` — **ship `pkg/mtt.ErrUnsupported`**: the `TaskStore.Delete` godoc already instructs an adapter
+  that cannot hard-delete to return it, but the sentinel does not exist (a dangling contract reference — GAP
+  #3's "reserve when first thrown" is overtaken by the godoc). Additive: the sentinel + a deliberate
+  `exitCode` mapping decision + a CLI_REFERENCE note. See the audit note (A7).
 - later — **re-parenting** (`mtt reparent`/`move`): change a task's `parent`; enabled by flat, position-free IDs.
 - **tags** — **shipped s008.7** (e5_t1b): CRUD (`tag add/rm`, `--tag` on `add`) + `list/tree --tag` filter over
   `Task.Tags`, plus `#hashtag` extraction (the **primary** authoring path) from title/description with

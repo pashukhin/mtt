@@ -19,7 +19,9 @@ A living handoff doc. Update it at the end of each session (what's done / what's
   surfaces the current status's `description` + `next` (human + `--json` via `showJSON`), turning the flow's
   authored text into **inline instructions for the agent** (pure `Type.StatusByName`/`TransitionsFrom`; spec
   `docs/superpowers/specs/2026-07-09-flow-guidance-on-entry-design.md`). A **flow-granularity** artifact for
-  s009 is at `docs/superpowers/notes/2026-07-09-flow-granularity-for-dogfood.md`. Next: **s009 dogfood**.
+  s009 is at `docs/superpowers/notes/2026-07-09-flow-granularity-for-dogfood.md`. Next: **chore s008.97
+  (dogfood hardening)**, then s009 dogfood, then chore s009.5 (release positioning) → tag `v0.9.0` — see
+  "Next task" below (roadmap regrouped 2026-07-10 after the deep analysis).
   **Session 008.9 (batch & pipeline)** shipped a reusable **task-set selector** (`internal/cli/selector.go`,
   `selectTaskIDs`) — 3 **mutually-exclusive** sources (explicit ids | stdin `-` | `--filter` over
   `core.Select`/`Ready`; >1 or 0 = usage error; present-but-empty = no-op exit 0; dedup; **never** resolves
@@ -219,19 +221,39 @@ resolved graph, and open gaps. Two decisions locked there that shape s005:
   at its boundary (`toDomain` fails fast on a corrupt empty `id`/`type`/`status`). s005 is written against the
   typed contract. Constructors reject empty, no transform; `Ref.ID` stays `string`; `NoteSlug` deferred (KB).
 
-## Next task — session 009 (dogfood)
+## Next task — chore 008.97 (dogfood hardening), then s009 (dogfood)
 
-> **s008.9 (batch & pipeline) is SHIPPED** — see "Where we are" and "Carry-over lessons (008.9)" below; the
-> spec is `docs/superpowers/specs/2026-07-09-session-008.9-batch-design.md` and the plan is
-> `docs/superpowers/plans/2026-07-09-session-008.9-batch.md`. **Next up is s009 dogfood** (e5_t2): `mtt init`
-> **this repo**, author a config whose gates are **task-aware** (a branch on the `→ in_progress` edge via a
-> `{{.ID}}` placeholder, `make check` on `→ done`), and **migrate the backlog** (TASKS.md / sessions/README
-> roadmap) onto mtt itself — the selector + bulk `rm`/`tag` (s008.9) are what make a bulk migration practical.
-> After dogfood, `TASKS.md` freezes and mtt tracks its own work. Then references (s010), comments (s011), actor
-> profiles (s012). `advance`/`start`/`done` + modes + roles-on-edges + node-level status-actions + cross-edge
-> compensation stay **PARKED**. No spec yet — start with brainstorming → writing-plans. **Consider first** (a
-> dogfood design question): how much of the backlog to migrate vs keep in docs, the id/prefix scheme for
-> self-hosted tasks, and whether the gates shell out to `make check` (slow) or a lighter task-level check.
+> **Roadmap regrouped 2026-07-10** after a deep product/UX/architecture analysis. Read the two analysis notes
+> first — every item below is specified there with repro, file anchors, fix sketch, and acceptance:
+> `docs/superpowers/notes/2026-07-09-positioning-and-agent-ux-analysis.md` (R*/U* items) and
+> `docs/superpowers/notes/2026-07-09-s009-readiness-and-architecture-audit.md` (S*/A* items).
+>
+> **Next up is chore s008.97 — dogfood hardening** (e5_t1d): the small fixes dogfood would otherwise trip
+> over daily. Scope: **U2** (a blocked gate surfaces the failing command's output tail, or at least hints
+> `-v`/`--log-file`), **A1** (yaml `List`/`Get` errors name the offending file; corrupt/zero-byte task files
+> locked by tests), **A2** (map `Status.Default` in the YAML DTO — today silently dropped), **U3**
+> (`add --json` emits the created task; consider `history` in `show --json`), **U4/U5** (help discoverability:
+> `status [<id>]` usage, verb sugar in root help, `mtt init` hint on "no .mtt/", a tagline naming the gate
+> feature), plus `rm -rf bin/.mtt` and two test-debt items (split the per-command-timeout e2e out of the
+> git-gated script; a `-v` streaming test). Version bump `0.8.9-dev → 0.8.97-dev`.
+>
+> **Then s009 dogfood** (e5_t2) — the spec EXISTS
+> (`docs/superpowers/specs/2026-07-09-session-009-dogfood-design.md`) but **must first be reconciled with
+> recorded decision A** (audit note S1): the full session flow `tbd → speccing → planning → in_progress →
+> review → done`, branch + `current: set` on `→ speccing`, `make check` on `→ review`/`→ done`; switch the
+> branch command to the idempotent `git switch -c feat/{{.ID}} || git switch feat/{{.ID}}` (S2 — the
+> documented `git branch -D` rollback pattern is broken, see U1); give bare phases `--priority low` and
+> hand-run `mtt roadmap` before committing the migration (S3); record the gate-cost decision (S5) and the
+> "who commits .mtt mutations" process line (S4). Add a "dangerous-ops attribution" session to the migrated
+> backlog — it is the elevated TASKS think-item and the ideal first self-hosted session.
+>
+> **Then chore s009.5 — release positioning** (e5_t2a): README/DESIGN "why not harness hooks?" + 2026-scan
+> refresh + AGENTS.md adoption snippet (R0–R3), `pkg/mtt.ErrUnsupported` (A7), the stale-`current` exit-code
+> decision (A5), config-review-as-code + Windows-honesty doc lines — then the user-triggered **`v0.9.0`** tag.
+>
+> After dogfood, `TASKS.md` freezes and mtt tracks its own work. Then references (s010), comments (s011),
+> actor profiles (s012). `advance`/`start`/`done` + modes + roles-on-edges + node-level status-actions +
+> cross-edge compensation stay **PARKED**.
 
 ### Carry-over lessons (008.9 — batch & pipeline)
 - **cobra validates `Args` BEFORE `RunE`, on the flag-stripped positionals — a context-sensitive command needs

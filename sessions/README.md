@@ -39,7 +39,9 @@ sliced so **every session delivers something usable**. Order/size may be refined
 | 008.7 ✅ | **tags** | `mtt add --tag`, `tag add/rm`, `list/tree --tag`; `#hashtags` in title/description | tag a task; filter by tag; `add "fix #auth"` tags it |
 | 008.9 ✅ | **batch & pipeline** | task-set selector (IDs \| `--filter` \| stdin `-`) + `--ids` output; bulk `tag add/rm`, `rm` (subgraph-aware) | `list --tag x --ids \| tag rm x -`; `tag add y --status tbd` |
 | 008.95 ✅ | release prep (chore) + flow guidance | prebuilt binaries (`make release`, tag-triggered `release.yml`, README Install/Quickstart, CHANGELOG/RELEASING); **flow guidance on entry** — `status`/sugar + `show` surface the edge/status `description` + `next:` moves as inline agent instructions | `make release VERSION=…` → `dist/` + `SHA256SUMS`; `mtt done t1` prints `▸ …` + `next:` |
-| 009 | **dogfood** ⬅ **next** | self-host: `mtt init` this repo, task-aware gates, migrate the backlog | mtt tracks its own tasks; `done` gated on `make check` |
+| 008.97 | **dogfood hardening (chore)** ⬅ **next** | a blocked gate shows *why* (failing command's output tail / `-v` hint); `List`/`Get` errors name the offending file (corrupt/zero-byte task files locked by tests); `Status.Default` mapped by the YAML DTO; `add --json` emits the created task; help discoverability (`status [<id>]`, verb sugar in root help, `mtt init` hint) + a tagline that names the gate feature | a red `mtt done` names its cause; `mtt add x --json \| jq -r .id`; a planted corrupt task file is named in the error |
+| 009 | **dogfood** | self-host — **starts by reconciling the spec with decision A** (full session flow `tbd → speccing → planning → in_progress → review → done`) and an idempotent branch edge (`git switch -c … \|\| git switch …`); migrate the forward backlog; task-aware gates | mtt tracks its own tasks; `done` gated on `make check` |
+| 009.5 | release positioning (chore) | README/DESIGN "why not harness hooks?", 2026-scan refresh, AGENTS.md adoption snippet; `pkg/mtt.ErrUnsupported`; stale-`current` exit-code decision; config-review + Windows-honesty doc lines — then tag **`v0.9.0`** | the released pitch matches the verified landscape; the `Delete` godoc contract resolves |
 | 010 | references | `mtt ref add/rm/list`, backlinks | ref resolves; task↔PR/spec link |
 | 011 | comments | `mtt comment add/list` (tree) | nested comments render in `show` |
 | 012 | actor profiles | `mtt profile …`; default profile = the coding agent | `by`/`role` from the default profile |
@@ -76,6 +78,18 @@ sliced so **every session delivers something usable**. Order/size may be refined
 The `coding` template demo (branch + gated DoD) only becomes fully powered once structured commands land, so
 it sits in the later-phases bucket. **actor profiles** (default profile = the coding agent) pair with
 instructing the agent to work in task terms.
+
+**Roadmap regrouped (2026-07-10, after the deep product/UX/architecture analysis).** Two compact chores
+inserted around dogfood (findings:
+`docs/superpowers/notes/2026-07-09-positioning-and-agent-ux-analysis.md` and
+`docs/superpowers/notes/2026-07-09-s009-readiness-and-architecture-audit.md`): **008.97** front-loads the
+fixes dogfood would otherwise trip over daily (blocked-gate visibility, corrupt-file diagnostics, the
+`Status.Default` DTO gap, `add --json`, discoverability); **009.5** finalizes the release surface before the
+user-triggered `v0.9.0` tag (positioning vs the verified 2026 landscape, the dangling `ErrUnsupported`
+contract, the stale-`current` exit-code decision). s009 itself **starts by reconciling its spec with recorded
+decision A** (the full session flow) and switching the branch edge to an idempotent `git switch` form.
+Dogfood shifts right by exactly one compact chore — the narrowing niche window (harness completion-hooks)
+argues against any larger delay.
 
 **Cross-cutting — global flags** (root persistent flags; see [../CLI_REFERENCE.md](../CLI_REFERENCE.md) →
 "Global flags"). Not a session of their own — land early so new commands **inherit** them instead of
