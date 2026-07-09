@@ -38,6 +38,7 @@ sliced so **every session delivers something usable**. Order/size may be refined
 | 008.6 ✅ | **priorities + roadmap** | `Priority` VO (`--priority` on add/edit/list, `--sort priority`); `mtt roadmap [--json]` — dependency+priority execution order | `roadmap --json` gives the agent-ordered plan with `ready`/`blocked_by` |
 | 008.7 ✅ | **tags** | `mtt add --tag`, `tag add/rm`, `list/tree --tag`; `#hashtags` in title/description | tag a task; filter by tag; `add "fix #auth"` tags it |
 | 008.9 ✅ | **batch & pipeline** | task-set selector (IDs \| `--filter` \| stdin `-`) + `--ids` output; bulk `tag add/rm`, `rm` (subgraph-aware) | `list --tag x --ids \| tag rm x -`; `tag add y --status tbd` |
+| 008.95 ✅ | release prep (chore) | prebuilt binaries: `make release`, tag-triggered `release.yml`, README Install/Quickstart, CHANGELOG/RELEASING | `make release VERSION=…` → `dist/` (5 binaries) + `SHA256SUMS` |
 | 009 | **dogfood** ⬅ **next** | self-host: `mtt init` this repo, task-aware gates, migrate the backlog | mtt tracks its own tasks; `done` gated on `make check` |
 | 010 | references | `mtt ref add/rm/list`, backlinks | ref resolves; task↔PR/spec link |
 | 011 | comments | `mtt comment add/list` (tree) | nested comments render in `show` |
