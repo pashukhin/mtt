@@ -17,6 +17,9 @@ stderr '\(exit 0,'
 grep '7' build.log
 exec mtt show t1
 stdout '\[in_progress\]'
+# show surfaces the current status's guidance: its description + onward moves
+stdout '▸ do the work; commit as you go'
+stdout 'next:.*done \(quality gate\) · cancelled'
 stdout 'history:'
 stdout 'tbd → in_progress'
 

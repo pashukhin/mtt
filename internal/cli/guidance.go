@@ -31,6 +31,21 @@ func moveGuidance(cfg mtt.Config, typeName mtt.TypeName, from, to mtt.StatusName
 	return b.String()
 }
 
+// statusGuidance returns a task's current-status description and its onward
+// transitions — the flow guidance shown by `mtt show` (human + --json). Empty /
+// nil when the type or status can't be resolved (config drift), so the caller
+// renders no guidance rather than erroring.
+func statusGuidance(cfg mtt.Config, t mtt.Task) (statusDesc string, onward []mtt.Transition) {
+	typ, ok := cfg.TypeByName(t.Type)
+	if !ok {
+		return "", nil
+	}
+	if st, ok := typ.StatusByName(t.Status); ok {
+		statusDesc = st.Description
+	}
+	return statusDesc, typ.TransitionsFrom(t.Status)
+}
+
 // formatNextMoves renders a status's onward transitions as a "next:" hint —
 // each target status, with its transition description in parens when set, joined
 // by " · ". Empty for no onward moves (a terminal status). Shared by the on-move
