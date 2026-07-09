@@ -1,0 +1,52 @@
+# tags: #hashtags-primary + explicit; filter; rm-guard; edit-delta reconciliation
+mkdir proj
+cd proj
+exec mtt init
+stdout 'initialized'
+
+# add: a #hashtag in the title + an explicit --tag; both land, canonical (sorted)
+exec mtt add --type epic 'fix #auth' --tag urgent
+stdout 'created e1'
+exec mtt show e1
+stdout 'tags:     auth, urgent'
+
+# a Cyrillic hashtag works end-to-end (Unicode charset)
+exec mtt add --type epic 'чиним #бэкенд'
+stdout 'created e2'
+exec mtt show e2
+stdout 'tags:     бэкенд'
+exec mtt list --tag бэкенд
+stdout 'e2  epic  \[tbd\]'
+! stdout 'e1'
+
+# tag add (variadic) then tag rm on a manual tag
+exec mtt tag add e1 backend deploy
+stdout 'tagged e1: backend, deploy'
+exec mtt show e1
+stdout 'tags:     auth, backend, deploy, urgent'
+exec mtt tag rm e1 urgent
+stdout 'untagged e1: urgent'
+
+# GUARD: cannot rm a text-anchored tag while #auth is in the title
+! exec mtt tag rm e1 auth
+stderr 'cannot remove tag "auth": #auth is present in the title'
+
+# filter: --tag auth matches e1, not e2
+exec mtt list --tag auth
+stdout 'e1  epic  \[tbd\]'
+! stdout 'e2'
+
+# edit the title to drop #auth -> the auth tag disappears (delta reconciliation)
+exec mtt edit e1 --title 'fix login'
+exec mtt show e1
+! stdout 'auth'
+exec mtt list --tag auth
+! stdout 'e1'
+
+# an invalid tag is a usage error
+! exec mtt tag add e1 'bad tag'
+stderr 'invalid tag'
+
+# --json carries the tags array
+exec mtt show e1 --json
+stdout '"tags"'
