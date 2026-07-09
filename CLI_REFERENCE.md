@@ -176,6 +176,8 @@ parent, or a parent whose type the child may not sit under, errors with guidance
 ### `mtt show [<id>] [flags]` — show a task  *(phase 1, implemented; lineage in session 004; omitted id → current in 006.7; priority in 008.6)*
 Shows a task: id, type, status, title, **priority** (a `priority:` line, shown only when set — session 008.6),
 **tags** (a `tags:` line — the sorted set, shown only when non-empty — session 008.7),
+the **flow guidance** for its current status (session 008.95 — the status's `description` as a `▸ …` line when
+set, and the **onward moves** `next: <status> (<transition description>) · …` when the status is non-terminal),
 the **lineage** breadcrumb, a **children** summary, timestamps, and
 description. The lineage is a "you are here" path from the root **down to and including the task**
 (`lineage:  e1 › t1 › s1`), shown only when the task has a parent; a root task shows none. The children line
@@ -184,6 +186,9 @@ lists direct children (`children: 2 (t1, t2)`), shown only when present. There i
 comment tree, and the transition `history` (audit trail) print once those land in later phases.
 
 - `<id>` — the task to show.
+- `--json` — the task object plus **`status_description`** (omitempty) and **`next`** (an array of
+  `{to, description?}` onward moves, omitempty) — the structured, queryable form of the flow guidance
+  (session 008.95). The shared `list`/`edit` `--json` view is unaffected (these fields are `show`-only).
 - `--no-history` — *(later)* omit the history/audit trail.
 - `--no-comments` — *(later)* omit comments.
 
@@ -304,6 +309,14 @@ is unmet, it exits `2` **before** running the gate (see Configuration → `requi
 
 The gate reports **live pipeline progress** to stderr (`▶ <cmd>` / `✓|✗ <cmd> (exit N, <elapsed>)`) as each
 command runs; the commands' own output is hidden by default.
+
+After a successful move, mtt prints the flow's **guidance** on stdout under the `from → to` line (session
+008.95): the traversed edge's `description` and the destination status's `description` (each as a `▸ …` line,
+shown only when set) and the **onward moves** (`next: <status> (<transition description>) · …`; omitted at a
+terminal status). This surfaces the flow's authored text as **inline instructions for the agent** — what the
+move is for, what to do now, and where it can go next. A **blocked** move prints no guidance (the task did not
+enter the status). With `--json` the move output stays the task object; query the structured guidance via
+`mtt show --json` (below).
 
 - `--no-run` — skip the edge's `commands` (bypass the gate). Local to `mtt status` (the sugar cannot bypass
   the gate); does **not** bypass required-attribution. *(implemented)*

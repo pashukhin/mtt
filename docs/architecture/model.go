@@ -639,7 +639,9 @@ type Runner interface {
 // a HistoryEntry, persist via TaskStore.Update. No new port — history rides
 // Task.History (GAP #1 rule). A single-edge lookup via the shared pure primitive
 // Type.FindTransition (s006.7; the CLI reuses it to read an edge's Current after a
-// move), NOT ResolvedFlow (that earns its keep in s007's multi-edge Advancer). Sentinels ErrBlocked /
+// move — and its siblings Type.StatusByName / Type.TransitionsFrom, s008.95, back the
+// CLI's inline flow guidance: a status's Description + its onward moves shown after a
+// move and in `mtt show`), NOT ResolvedFlow (that earns its keep in s007's multi-edge Advancer). Sentinels ErrBlocked /
 // ErrInvalidTransition live in core (flow is core policy); the CLI maps them to
 // exit codes 3 / 6. [shipped s006]
 type Transitioner interface {

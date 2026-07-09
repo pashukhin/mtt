@@ -19,7 +19,7 @@ func TestFormatTaskRendersHistory(t *testing.T) {
 			Checks: []mtt.Check{{Cmd: "make lint", Exit: 0}},
 		}},
 	}
-	out := formatTask(task, nil, nil)
+	out := formatTask(task, nil, nil, "", nil)
 	for _, want := range []string{"history:", "tbd → in_progress", "by grisha", "role impl", `why "start work"`, "make lint(0)"} {
 		if !strings.Contains(out, want) {
 			t.Fatalf("formatTask output missing %q:\n%s", want, out)
@@ -34,7 +34,7 @@ func TestFormatTask(t *testing.T) {
 	anc := []mtt.Task{{ID: "e1"}}
 	kids := []mtt.Task{{ID: "s1"}, {ID: "s2"}}
 	got := formatTask(mtt.Task{ID: "t1", Type: "task", Title: "fix login", Status: "tbd",
-		Parent: "e1", Created: ts, Updated: ts, Description: "do the thing"}, anc, kids)
+		Parent: "e1", Created: ts, Updated: ts, Description: "do the thing"}, anc, kids, "", nil)
 	want := "t1  task  [tbd]\n" +
 		"  title:    fix login\n" +
 		"  lineage:  e1 › t1\n" +
@@ -49,19 +49,19 @@ func TestFormatTask(t *testing.T) {
 		t.Fatalf("the raw parent line must be dropped: %q", got)
 	}
 	// a root task with no ancestors and no children: no lineage/children/parent lines
-	bare := formatTask(mtt.Task{ID: "e1", Type: "epic", Status: "tbd", Created: ts, Updated: ts}, nil, nil)
+	bare := formatTask(mtt.Task{ID: "e1", Type: "epic", Status: "tbd", Created: ts, Updated: ts}, nil, nil, "", nil)
 	if strings.Contains(bare, "lineage:") || strings.Contains(bare, "children:") || strings.Contains(bare, "parent:") {
 		t.Fatalf("bare root task should omit lineage/children/parent lines: %q", bare)
 	}
 }
 
 func TestFormatTaskShowsPriority(t *testing.T) {
-	out := formatTask(mtt.Task{ID: "t1", Type: "task", Status: "tbd", Title: "a", Priority: mtt.PriorityHigh}, nil, nil)
+	out := formatTask(mtt.Task{ID: "t1", Type: "task", Status: "tbd", Title: "a", Priority: mtt.PriorityHigh}, nil, nil, "", nil)
 	if !strings.Contains(out, "priority: high") {
 		t.Fatalf("show output missing priority line:\n%s", out)
 	}
 	// Unset priority is omitted.
-	out2 := formatTask(mtt.Task{ID: "t2", Type: "task", Status: "tbd", Title: "b"}, nil, nil)
+	out2 := formatTask(mtt.Task{ID: "t2", Type: "task", Status: "tbd", Title: "b"}, nil, nil, "", nil)
 	if strings.Contains(out2, "priority:") {
 		t.Fatalf("unset priority must be omitted:\n%s", out2)
 	}

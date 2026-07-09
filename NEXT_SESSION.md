@@ -4,7 +4,22 @@ A living handoff doc. Update it at the end of each session (what's done / what's
 
 ## Where we are
 
-- **Phase 0 (scaffold) + sessions 001–006 + 006.5 + 006.7 + 007 + 008 + 008.5 + 008.6 + 008.7 + 008.9 are DONE** (version `0.8.9-dev`, `make check` green).
+- **Phase 0 (scaffold) + sessions 001–006 + 006.5 + 006.7 + 007 + 008 + 008.5 + 008.6 + 008.7 + 008.9 + 008.95 are DONE** (version `0.8.9-dev`, `make check` green).
+  **Chore 008.95 (release prep)** shipped first-release groundwork (version-neutral — no runtime change, so
+  `0.8.9-dev` stays): **`make release`** (5-platform GOOS/GOARCH cross-compile → `dist/` version-stamped raw
+  binaries + `SHA256SUMS`; `VERSION` required; out of `make check`, non-hermetic like `smoke`),
+  **`.github/workflows/release.yml`** (on `v*` tag → `make release VERSION=<tag>` → `gh release create`, built-in
+  `gh`, **no third-party action**; checkout@v7 + setup-go@v6 mirroring `ci.yml`), README/.ru **Install** (prebuilt
+  binary + `SHA256SUMS` + `go install` fallback + build-from-source) + **Quickstart** (runnable, verified) + a
+  staleness pass (version `0.8.5`→`0.8.9-dev`; the stale hierarchical-ID claim `e1_t3_s2` → flat per-prefix),
+  **`CHANGELOG.md`** (features under `[Unreleased]`), and **`RELEASING.md`** (runbook) + a DESIGN/.ru "Releasing"
+  pointer. The `v0.9.0` **tag + publish is user-triggered after s009 dogfood** (this chore only builds the
+  machinery). **Bundled feature — flow guidance on entry:** `mtt status`/sugar print the traversed edge's +
+  destination status's `description` and the onward moves (`next: …`) on stdout after a move, and `mtt show`
+  surfaces the current status's `description` + `next` (human + `--json` via `showJSON`), turning the flow's
+  authored text into **inline instructions for the agent** (pure `Type.StatusByName`/`TransitionsFrom`; spec
+  `docs/superpowers/specs/2026-07-09-flow-guidance-on-entry-design.md`). A **flow-granularity** artifact for
+  s009 is at `docs/superpowers/notes/2026-07-09-flow-granularity-for-dogfood.md`. Next: **s009 dogfood**.
   **Session 008.9 (batch & pipeline)** shipped a reusable **task-set selector** (`internal/cli/selector.go`,
   `selectTaskIDs`) — 3 **mutually-exclusive** sources (explicit ids | stdin `-` | `--filter` over
   `core.Select`/`Ready`; >1 or 0 = usage error; present-but-empty = no-op exit 0; dedup; **never** resolves

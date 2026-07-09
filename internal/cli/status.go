@@ -88,8 +88,16 @@ func runTransition(cmd *cobra.Command, root string, cfg mtt.Config, settings yam
 		return writeJSON(cmd.OutOrStdout(), toTaskJSON(task))
 	}
 	last := task.History[len(task.History)-1]
-	_, err = fmt.Fprintf(cmd.OutOrStdout(), "%s: %s → %s\n", id, last.From, last.To)
-	return err
+	out := cmd.OutOrStdout()
+	if _, err = fmt.Fprintf(out, "%s: %s → %s\n", id, last.From, last.To); err != nil {
+		return err
+	}
+	if g := moveGuidance(cfg, task.Type, last.From, last.To); g != "" {
+		if _, err = fmt.Fprint(out, g); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // applyCurrent moves the personal current-task pointer per the edge just

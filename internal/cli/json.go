@@ -37,6 +37,34 @@ func toTaskJSON(t mtt.Task) taskJSON {
 	}
 }
 
+// showJSON is `mtt show --json`: the task view plus the flow guidance for its
+// current status (the status's description + the onward moves). It anonymously
+// embeds taskJSON so those fields stay top-level and the shared list/edit/status
+// `--json` (which use taskJSON directly) are untouched. Both guidance fields are
+// omitempty, so a status with no description and no onward moves adds nothing.
+type showJSON struct {
+	taskJSON
+	StatusDescription string         `json:"status_description,omitempty"`
+	Next              []nextMoveJSON `json:"next,omitempty"`
+}
+
+// nextMoveJSON is one onward transition from the current status (the target and
+// its transition description, if any).
+type nextMoveJSON struct {
+	To          string `json:"to"`
+	Description string `json:"description,omitempty"`
+}
+
+// toShowJSON builds the show view from a task, its current status's description,
+// and the onward transitions. Next stays nil (omitted) when there are none.
+func toShowJSON(t mtt.Task, statusDesc string, onward []mtt.Transition) showJSON {
+	sj := showJSON{taskJSON: toTaskJSON(t), StatusDescription: statusDesc}
+	for _, e := range onward {
+		sj.Next = append(sj.Next, nextMoveJSON{To: string(e.To), Description: e.Description})
+	}
+	return sj
+}
+
 // writeJSON marshals v as indented JSON with a trailing newline (stable diff).
 func writeJSON(w io.Writer, v any) error {
 	data, err := json.MarshalIndent(v, "", "  ")

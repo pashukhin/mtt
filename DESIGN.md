@@ -874,3 +874,8 @@ docs/
 > authoritative and the snapshot is its structural map. Two layers: **A** (contract/persisted aggregates) —
 > identity by typed value (`TaskID`/`TypeName`/`StatusName`), the serialization/provider boundary; **B**
 > (core-derived resolved graph) — pointer links for traversal, never serialized.
+
+## Releasing
+
+Packaging + release process (cross-platform binaries via `make release`, a tag-triggered GitHub release
+workflow, `SHA256SUMS`) lives in [RELEASING.md](RELEASING.md). Pre-1.0 versions mirror the session.

@@ -37,15 +37,20 @@ func newShowCmd() *cobra.Command {
 				}
 				return err
 			}
+			cfg, _, err := yaml.Load(root)
+			if err != nil {
+				return err
+			}
+			statusDesc, onward := statusGuidance(cfg, task)
 			if jsonFlag(cmd) {
-				return writeJSON(cmd.OutOrStdout(), toTaskJSON(task))
+				return writeJSON(cmd.OutOrStdout(), toShowJSON(task, statusDesc, onward))
 			}
 			tasks, err := store.List()
 			if err != nil {
 				return err
 			}
 			idx := core.NewIndex(tasks)
-			_, err = fmt.Fprint(cmd.OutOrStdout(), formatTask(task, idx.Ancestors(task.ID), idx.Children(task.ID)))
+			_, err = fmt.Fprint(cmd.OutOrStdout(), formatTask(task, idx.Ancestors(task.ID), idx.Children(task.ID), statusDesc, onward))
 			return err
 		},
 	}
@@ -57,9 +62,15 @@ func newShowCmd() *cobra.Command {
 // path from the root down to and including the task itself (shown only when the
 // task has ancestors); the children line lists direct children (shown only when
 // present). The raw parent is not printed — it is the breadcrumb's tail.
-func formatTask(t mtt.Task, ancestors, children []mtt.Task) string {
+func formatTask(t mtt.Task, ancestors, children []mtt.Task, statusDesc string, onward []mtt.Transition) string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "%s  %s  [%s]\n", t.ID, t.Type, t.Status)
+	if statusDesc != "" {
+		fmt.Fprintf(&b, "  ▸ %s\n", statusDesc)
+	}
+	if len(onward) > 0 {
+		fmt.Fprintf(&b, "  next:     %s\n", formatNextMoves(onward))
+	}
 	if t.Title != "" {
 		fmt.Fprintf(&b, "  title:    %s\n", t.Title)
 	}

@@ -131,3 +131,14 @@ keeps `runRmSingle` (verbatim `removed <id>`, exit 4); multi/`-`/`--filter` → 
 (`tagArgs`): no marker → the single `applyTagSingle` path (`<id> <tag>…`, back-compat); a `-` or a filter flag
 → bulk (positionals are the tags, tasks from the selector, per-item `TagEditor` via `runBulk`). On `tag`, the
 `--tag` flag is the tag **filter** (distinct from the positional tags being added/removed).
+
+Flow guidance (session 008.95): `guidance.go` turns the flow's authored `description`s into inline agent
+instructions. `moveGuidance(cfg, type, from, to)` builds the block printed on **stdout** after a successful
+`runTransition` (status + sugar, text mode only — the `--json` move stays the task object): the traversed
+edge's `Description`, the destination status's `Description` (each `▸ …`), and `next: …` (onward moves via
+`formatNextMoves`). A blocked move prints nothing (no entry into the status). `mtt show` calls
+`statusGuidance(cfg, task)` (→ current status `Description` + `TransitionsFrom`) and renders it in the human
+block (a `▸` line + `next:` under the header via the extended `formatTask`) and in `--json` via `showJSON`
+(`toShowJSON` — **anonymously embeds `taskJSON`** so `list`/`edit`/`status --json` are byte-unchanged, adding
+`status_description`/`next` as `omitempty`). The pure `pkg/mtt` helpers `Type.StatusByName` /
+`Type.TransitionsFrom` back both paths (mirroring `StatusKind`/`FindTransition`).

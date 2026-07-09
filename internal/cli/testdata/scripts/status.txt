@@ -9,10 +9,17 @@ stdout 'created t1'
 # pipeline progress goes to stderr; command output is redirected to a file.
 exec mtt status t1 in_progress --log-file build.log
 stdout 't1: tbd → in_progress'
+# flow guidance printed inline on stdout: edge desc, status desc, and next moves
+stdout '▸ review the spec, create a branch'
+stdout '▸ do the work; commit as you go'
+stdout 'next: done \(quality gate\) · cancelled'
 stderr '\(exit 0,'
 grep '7' build.log
 exec mtt show t1
 stdout '\[in_progress\]'
+# show surfaces the current status's guidance: its description + onward moves
+stdout '▸ do the work; commit as you go'
+stdout 'next:.*done \(quality gate\) · cancelled'
 stdout 'history:'
 stdout 'tbd → in_progress'
 
@@ -24,9 +31,12 @@ stderr '\(exit 1,'
 exec mtt show t1
 stdout '\[in_progress\]'
 
-# --no-run bypasses the gate
+# --no-run bypasses the gate; guidance still prints (the move happened), and a
+# terminal status has no onward moves -> the edge desc shows but no "next:" line.
 exec mtt status t1 done --no-run
 stdout 't1: in_progress → done'
+stdout '▸ quality gate'
+! stdout 'next:'
 
 # invalid transition: done is terminal (no outgoing edge)
 ! exec mtt status t1 cancelled
@@ -44,11 +54,11 @@ types:
     parents: []
     statuses:
       - {name: tbd, kind: initial}
-      - {name: in_progress, kind: active}
+      - {name: in_progress, kind: active, description: "do the work; commit as you go"}
       - {name: done, kind: terminal}
       - {name: cancelled, kind: terminal}
     transitions:
-      - {from: tbd, to: in_progress, commands: ["echo $((3+4))"]}
+      - {from: tbd, to: in_progress, description: "review the spec, create a branch", commands: ["echo $((3+4))"]}
       - {from: tbd, to: cancelled}
-      - {from: in_progress, to: done, commands: ["false"]}
+      - {from: in_progress, to: done, description: "quality gate", commands: ["false"]}
       - {from: in_progress, to: cancelled}
