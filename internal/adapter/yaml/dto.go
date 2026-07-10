@@ -56,6 +56,7 @@ type ymlStatus struct {
 type ymlTransition struct {
 	From        string       `yaml:"from"`
 	To          string       `yaml:"to"`
+	Name        string       `yaml:"name,omitempty"`
 	Description string       `yaml:"description"`
 	Commands    []ymlCommand `yaml:"commands"`
 	Current     string       `yaml:"current,omitempty"`
@@ -128,7 +129,7 @@ func (yc ymlConfig) toDomain() (mtt.Config, map[string]string) {
 			for _, c := range yr.Commands {
 				cmds = append(cmds, c.toDomain())
 			}
-			t.Transitions = append(t.Transitions, mtt.Transition{From: mtt.StatusName(yr.From), To: mtt.StatusName(yr.To), Description: yr.Description, Commands: cmds, Current: mtt.CurrentAction(yr.Current)})
+			t.Transitions = append(t.Transitions, mtt.Transition{From: mtt.StatusName(yr.From), To: mtt.StatusName(yr.To), Name: yr.Name, Description: yr.Description, Commands: cmds, Current: mtt.CurrentAction(yr.Current)})
 		}
 		cfg.Types = append(cfg.Types, t)
 		prefixes[yt.Name] = yt.Prefix
