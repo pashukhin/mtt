@@ -89,7 +89,11 @@ func writeTypeBlock(b *strings.Builder, t mtt.Type, prefix string) {
 	}
 	b.WriteString("  transitions:\n")
 	for _, tr := range t.Transitions {
-		fmt.Fprintf(b, "    %s -> %s", tr.From, tr.To)
+		if tr.Name != "" {
+			fmt.Fprintf(b, "    [%s] %s -> %s", tr.Name, tr.From, tr.To)
+		} else {
+			fmt.Fprintf(b, "    %s -> %s", tr.From, tr.To)
+		}
 		if tr.Description != "" {
 			fmt.Fprintf(b, "  # %s", tr.Description)
 		}

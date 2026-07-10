@@ -53,6 +53,7 @@ type showJSON struct {
 // nextMoveJSON is one onward transition from the current status (the target and
 // its transition description, if any).
 type nextMoveJSON struct {
+	Name        string `json:"name,omitempty"`
 	To          string `json:"to"`
 	Description string `json:"description,omitempty"`
 }
@@ -81,7 +82,7 @@ type checkJSON struct {
 func toShowJSON(t mtt.Task, statusDesc string, onward []mtt.Transition) showJSON {
 	sj := showJSON{taskJSON: toTaskJSON(t), StatusDescription: statusDesc}
 	for _, e := range onward {
-		sj.Next = append(sj.Next, nextMoveJSON{To: string(e.To), Description: e.Description})
+		sj.Next = append(sj.Next, nextMoveJSON{Name: e.Name, To: string(e.To), Description: e.Description})
 	}
 	for _, h := range t.History {
 		hj := historyJSON{

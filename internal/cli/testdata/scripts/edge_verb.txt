@@ -6,13 +6,17 @@ exec mtt init
 cp named.yaml .mtt/config.yaml
 exec mtt types
 stdout 'review -> fix'
+# discoverability: the verb shows in `mtt types`
+stdout '\[decline\] review -> fix'
 
 exec mtt add 'a task' --no-parent
 stdout 'created t1'
 
-# move by STATUS name (existing behavior): tbd -> review
+# move by STATUS name (existing behavior): tbd -> review; the move footer's
+# next: shows the onward VERBS (decline → fix · approve → done)
 exec mtt review t1
 stdout 't1: tbd → review'
+stdout 'decline → fix'
 
 # move by EDGE name (new): `decline` is the review->fix edge
 exec mtt decline t1
