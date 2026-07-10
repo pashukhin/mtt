@@ -217,6 +217,14 @@ The §9 open items were settled (see the reconciled spec
   worth it" case — the §4 headline).
 - **set/clear:** `current: set` + the idempotent branch on the entry edge `tbd → speccing`; `current: clear`
   on `→ done` and `→ cancelled`; `phase` carries neither (a phase isn't taken into work).
+- **Hardened by an adversarial spec review (2026-07-10)** — three corrections folded into the reconciled spec:
+  **(1)** the §4 phase gate's `! … | grep -q .` form is **fail-open** (no `pipefail`; a missing/erroring `mtt`
+  → empty stdout → passes) — replaced with the **fail-closed** `out=$(mtt list … --ids) && test -z "$out"`;
+  **(2)** gate commands must be **single-quoted / block** YAML scalars — double-quoting breaks `\.mtt/`
+  (`Load` fails), and a plain `! …` scalar has its `!` dropped as a YAML tag (silent inversion), so
+  `TestRepoDogfoodConfig` asserts **exact** command strings; **(3)** the full-shape flow otherwise **traps** a
+  submitted session (no path to `cancelled` from a review cycle) — `cancel` also fires from the three `_fix`
+  statuses (review/human_review reach it via `decline → _fix → cancel`).
 - **Two findings that reshaped E and F:**
   - **(E → global `require:{who}`)** mtt's `require` is **project-global only** (`Settings.Require`), not
     per-edge — "require on the human-review edges" needs a core change (out of scope). v1 uses global

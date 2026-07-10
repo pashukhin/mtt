@@ -25,8 +25,9 @@ logic change (the s008.5…s008.98 enablers already made self-host practical).
 
 1. **A committed `.mtt/config.yaml`** for this repo: two custom types (`phase`/`session`) whose flow gates are
    **task-aware** — a session-branch is created on the entry edge `→ speccing` via the `{{.ID}}` placeholder,
-   `make check` gates the implementation-review edges, an artifact-presence proxy gates the spec/plan review
-   edges, and a `phase` can't close while it has open child sessions (a gate that queries mtt's own task graph).
+   `make check` gates the implementation-review edges, a coarse proxy (uncommitted work outside `.mtt/`) gates
+   the spec/plan review edges, and a `phase` can't close while it has open child sessions (a fail-closed gate
+   that queries mtt's own task graph).
 2. **Migrate the forward (open) backlog** onto mtt as committed `.mtt/tasks/*.yaml`: a Phase-4 phase with its
    open sessions (references / comments / actor-profiles / coding-demo + dangerous-ops attribution) and bare
    Phase-5…8 phase containers. Completed sessions are **not** backfilled (git + `sessions/*.md` are their record).
@@ -84,14 +85,18 @@ The committed `.mtt/config.yaml` wires **real** gates (the point of dogfood — 
 | edge | name | gate | description (agent runbook) |
 |---|---|---|---|
 | `tbd → in_progress` | `start` | — | "phase work has begun" |
-| `in_progress → done` | `finish` | `! mtt list --parent {{.ID}} --kind initial --kind active --ids \| grep -q .` | "close the phase — all its sessions are terminal (gate: no open child sessions)" |
+| `in_progress → done` | `finish` | `out=$(mtt list --parent {{.ID}} --kind initial --kind active --ids) && test -z "$out"` | "close the phase — all its sessions are terminal (gate: no open child sessions)" |
 | `tbd → cancelled` | `cancel` | — | "abandon the phase" |
 | `in_progress → cancelled` | `cancel` | — | "abandon the phase" |
 
 The `finish` gate is the §4 headline: it shells out to **`mtt` itself** and gates on the task graph — `mtt list
---parent {{.ID}} --kind initial --kind active --ids` prints open direct children; `grep -q .` is 0 iff any
-exist; `!` flips it, so the gate **blocks** the phase's close while a child session is open. Read-only ⇒ SEC2-safe
-(below). Needs `mtt` on `PATH` (`make install`); checks **direct** children only (recursive = YAGNI).
+--parent {{.ID}} --kind initial --kind active --ids` prints the open direct children into `$out`; `test -z "$out"`
+passes only when it is empty, so the gate **blocks** the phase's close while a child session is open. **Fail-closed
+(improves on the §4 sketch):** the `&&` short-circuits when `mtt` is absent or `mtt list` errors (a non-zero
+command substitution — e.g. `mtt` not on `PATH`, or the audit's A1 corrupt-file case), so it **blocks** rather
+than silently closing. The note's `! mtt list … | grep -q .` form is **fail-open** (no `pipefail`; empty stdout
+for *any* reason → `grep` exits 1 → `!` → 0 → passes), so this spec deliberately does not use it. Read-only ⇒
+SEC2-safe (below). Needs `mtt` on `PATH` (`make install`); checks **direct** children only (recursive = YAGNI).
 
 #### `session` flow (15 statuses — full per-artifact review cycle, decision A/D)
 
@@ -114,9 +119,22 @@ Each of the three artifact stages (**design → plan → implementation**) is
 | `<do>_human_review → <next-do>` | `approve` | — | impl→done: **clear** |
 | `<do>_human_review → <do>_fix` | `decline` | — | — |
 | `<do>_fix → <do>_review` | `submit` | same as first submit (proxy / `make check`) | — |
-| `{tbd,speccing,planning,in_progress} → cancelled` | `cancel` | — | **clear** |
+| `{tbd,speccing,planning,in_progress,spec_fix,plan_fix,impl_fix} → cancelled` | `cancel` | — | **clear** |
 
 where `<next-do>` is `spec_human_review→planning`, `plan_human_review→in_progress`, `impl_human_review→done`.
+
+- **Abandon path (no forward-trap).** `submit` is one-way out of a `do` status, so without care a session that
+  entered a review cycle could never reach `cancelled` (only loop or advance). `cancel` therefore fires from the
+  three `do` statuses, `tbd`, **and the three `_fix` statuses**; the `_review`/`_human_review` statuses reach
+  `cancelled` in one step (`decline → _fix → cancel`). So every in-flight status can be abandoned.
+- **YAML authoring of gate commands (trap — verified against `yaml.v3`).** Author every gate command as a
+  **single-quoted** YAML scalar (or a literal block scalar), **never double-quoted** and **never a plain scalar
+  starting with `!`**. Double-quoting breaks the proxy — `\.mtt/` is an invalid escape → `Load` fails and the
+  whole config is unloadable — and the shipped `coding.yaml` uses the double-quoted `["! make test"]`
+  convention, so this is the *easy* mistake. A plain scalar beginning `! …` has its `!` parsed as a YAML tag and
+  **silently dropped** (which is why the phase gate above avoids the `!`-form entirely). `TestRepoDogfoodConfig`
+  guards this by asserting the **exact** command strings (including any leading `!` and the `\.mtt/`), never
+  substrings.
 
 - **Edge names** `start / submit / approve / decline / cancel` are **disjoint from all status names**, **unique
   per source status**, and every `(from,to)` pair is **unique** — the three s008.98 invariants hold, so the
@@ -128,8 +146,11 @@ where `<next-do>` is `spec_human_review→planning`, `plan_human_review→in_pro
   `make check` per impl submit/resubmit; `command_timeout: 10m` (headroom for a first-run lint + `-race`
   compile; the code default is 5m).
 - **Artifact-presence proxy (spec/plan)** — `git status --porcelain | grep -qv '\.mtt/'` exits 0 iff there is
-  an **uncommitted change outside `.mtt/`** (i.e. the spec/plan doc exists in the working tree). It excludes
-  `.mtt/` because the accumulating `.mtt/tasks/*.yaml` churn (committed only with the session PR — S4) would
+  an **uncommitted change outside `.mtt/`** (a **coarse** proxy: *some* uncommitted work exists outside `.mtt/`,
+  keyed to the uncommitted-until-review convention below — it cannot distinguish a spec from a plan from any
+  unrelated dirty file; decision F accepts this). It fails **closed** on a git error (a non-zero `git status`
+  short-circuits the pipe). It excludes `.mtt/` because the accumulating `.mtt/tasks/*.yaml` churn (committed
+  only with the session PR — S4) would
   otherwise make a bare `grep -q .` trivially pass (finding **F**, below). **Semantics (documented):** the
   artifact stays **uncommitted until its `_human_review` approves** — the review is over the working tree; the
   commit happens after sign-off / with the session PR. (impl is unaffected — it gates on `make check`, and code
@@ -165,6 +186,11 @@ a self-approval of a `_human_review` edge is **visible** in history as `by: <the
 faithful to E's intent within the global-only capability). `why` is left optional (`--why` where it matters — a
 project-global `require:{why}` would force `--why` on every one of 15+ moves, too heavy). The dangerous-ops
 attribution session (migrated below) is where per-edge/forced attribution gets designed properly.
+
+**Setup / first-run papercut (documented, not a blocker):** because `require` is global, it applies to *every*
+edge (incl. the mechanical `submit`/`decline`/`cancel`), and `--no-run` does **not** bypass it — so each agent
+must set `author` in `config.local.yaml` (gitignored) or `MTT_BY`/`--by` **before the first move**, or moves
+exit 2 on a fresh checkout. A one-time setup step; noted in the dogfood docs.
 
 ## Architecture (resolved)
 
@@ -223,7 +249,11 @@ No child sessions are pre-split under a session (a session's breakdown emerges i
     (`in_progress → impl_review`, `impl_fix → impl_review`) gate on `make check`; the spec/plan submit edges
     carry the `grep -qv '\.mtt/'` proxy; `impl_human_review → done` has `current: clear`; the named edges
     (`start`/`submit`/`approve`/`decline`/`cancel`) exist and satisfy the disjointness/uniqueness invariants.
-  - the `phase` flow's `in_progress → done` (`finish`) carries the self-ref `mtt list … | grep -q .` gate.
+    Gate assertions compare the **exact** command strings (the `make check`, the proxy including `\.mtt/`, the
+    fail-closed phase gate) — **not** substrings — so a YAML-mangled (double-quote-broken) or inverted
+    (`!`-dropped) gate is caught by the guard, not discovered at runtime.
+  - the `phase` flow's `in_progress → done` (`finish`) carries the fail-closed self-ref gate
+    (`out=$(mtt list … --ids) && test -z "$out"`).
   - the project sets `require: {who: true}`.
   A CI-forever guard against a broken committed config (`Config.Validate` runs on `add`/`types`, **not** on
   `Load` — this test is the **sole** guard, S6). Red before `.mtt/config.yaml` exists → green after.
@@ -232,8 +262,9 @@ No child sessions are pre-split under a session (a session's breakdown emerges i
   the real *mechanism* with **fake** commands — proves: `mtt types` validates (run **before** the first move —
   §9 precondition); the entry edge runs `git switch -c feat/{{.ID}}` → the branch exists (`git symbolic-ref
   --short HEAD`, guarded `[!exec:git] skip`, `git symbolic-ref` for the unborn branch — s007 lesson) and sets
-  `current`; a `→ <review>` edge with a **failing** gate command **blocks** (exit 3, task unchanged, no history);
-  with a **passing** gate command **moves** and **clears** `current` on the terminal edge. Proves the mechanism,
+  `current`; a `→ <review>` edge with a **failing** gate command **blocks** (non-zero — task unchanged, no
+  history; the exact exit 3 is unit-tested, `testscript` asserts only non-zero); with a **passing** gate command
+  **moves** and **clears** `current` on the terminal edge. Proves the mechanism,
   not the real `make check` / mtt-self-ref gate (a temp dir has no Makefile — the s006/s007/s008 e2e strategy).
 - `make check` green.
 

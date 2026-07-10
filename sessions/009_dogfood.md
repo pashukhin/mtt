@@ -24,8 +24,12 @@ data + docs, ~no production logic change.
       `start/submit/approve/decline/cancel` (disjoint from status names). **`make check`** on every edge into
       `impl_review`; **proxy** `git status --porcelain | grep -qv '\.mtt/'` on the spec/plan submit edges
       (artifact uncommitted until `_human_review` approves); `current:clear` on `→ done` and `→ cancelled`.
-    - **`phase` (4 statuses):** `tbd → in_progress → done` (+`cancelled`); no branch/current; `finish` gate on
-      `→ done`: `! mtt list --parent {{.ID}} --kind initial --kind active --ids | grep -q .` (§4, read-only).
+      `cancel` fires from `{tbd,speccing,planning,in_progress,spec_fix,plan_fix,impl_fix}` (no forward-trap — a
+      review cycle reaches `cancelled` via `decline → _fix → cancel`). Gate commands are **single-quoted** YAML
+      scalars (double-quote breaks `\.mtt/`; a plain `!` scalar is silently dropped — verified vs yaml.v3).
+    - **`phase` (4 statuses):** `tbd → in_progress → done` (+`cancelled`); no branch/current; **fail-closed**
+      `finish` gate on `→ done`: `out=$(mtt list --parent {{.ID}} --kind initial --kind active --ids) && test -z "$out"`
+      (§4, read-only; the `! … | grep -q .` form is fail-open when `mtt` is missing/errors — avoided).
   - **Forward backlog migrated** to committed `.mtt/tasks/*.yaml` (via `./bin/mtt add …`): Phase-4 phase (`p1`) +
     sessions (references **high** / comments / actor-profiles / coding-demo **low** / **dangerous-ops
     attribution**); bare Phase-5…8 phases (`p2`–`p5`, `--priority low`). All `tbd`; ordering via **priorities**,
