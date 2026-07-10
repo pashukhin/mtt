@@ -50,7 +50,25 @@ name first, then target status — safe because the two namespaces are disjoint,
      already returns the *first* match, so a second parallel edge is dead code today — and it is what lets an
      edge name resolve to its `to` and reuse the existing gate path without touching `core.Transitioner`.
      **Non-breaking (verified 2026-07-10):** every shipped `default`/`coding` template type already has unique
-     `(from,to)` pairs, so the new invariant rejects no existing config.
+     `(from,to)` pairs, and all 10 e2e txtar configs + both goldens are clean, so the new invariant rejects no
+     existing config.
+
+### Precondition / trust model (spec-review MAJOR, made explicit)
+
+The "core untouched, rides the existing gate path" property is **conditional on invariants #1–#3 holding**, and
+`Config.Validate()` runs **only** on `mtt add` / `mtt types` — **not** on the transition path (`yaml.Load` does
+not validate either; the s006/s008 rule: "a config-time invariant only bites where `Config.Validate` is
+called"). So the CLI resolves `edge` **by name**, but `core.Transitioner` re-finds the edge by `(from,to)` via
+`FindTransition` (as does `applyCurrent` for the `set/clear` action). These agree **iff `(from,to)` is unique
+(#3)**. On a hand-broken config that violates #3 and was never re-validated, `mtt do decline` could resolve the
+named edge yet run a *different* `(from,to)` edge's gate commands — silently. This is the **same** pre-existing
+trust boundary the shipped `applyCurrent`/`FindTransition` already rely on (config validated at author time,
+trusted on the hot path); the feature inherits it, it does not widen it. We deliberately do **not** re-validate
+on the move (a behavior change out of scope) and do **not** touch core (route-by-`to` is the point). Two in-scope
+mitigations: (a) state this precondition in DESIGN's flow section; (b) the feature e2e runs `mtt types` (which
+validates) before the first `mtt do`/sugar move, and a dedicated validation e2e proves a #2/#3-violating config
+is rejected at `mtt add`/`mtt types` — so any normal workflow (which always `add`s through `Validate`) surfaces
+a broken config immediately.
 
 ## Adapter (`yaml`)
 
@@ -78,12 +96,28 @@ status `to`, then the gate path is unchanged.
   ([status.go:21](../../../internal/cli/status.go#L21)): `Args` 1-or-2, id resolved via `resolveTaskID`
   (explicit id > current), a local `--no-run` (the sugar cannot bypass the gate; the explicit form can, like
   `status`). It `Get`s the task to read its current status, resolves `typ.FindTransitionByName(task.Status,
-  edge)`, and on a hit calls `runTransition(..., edge.To, noRun)`. On a miss it returns
-  `fmt.Errorf("%w: no action %q from status %q (available: %s)", core.ErrInvalidTransition, edge, task.Status,
-  <named edges from task.Status>)` → **exit 6**, symmetric with an invalid `mtt status` move and doubling as
-  discoverability-in-an-error. `do` is **edge-name-only** (no status fallback) — one resolution mode per
-  explicit command. A registered `do` command wins the sugar on a name clash (documented; a status literally
-  named `do` would be shadowed — acceptable).
+  edge)`, and on a hit calls `runTransition(..., edge.To, noRun)`. `do` inherits everything `runTransition`
+  already does — `--json` (the task object on success), the `require:{who,why}` pre-gate check
+  (`ErrMissingAttribution`, exit 2), and the U2 blocked-gate output tail + hint (exit 3) — no extra wiring.
+  **Edge-resolution failure paths (spec-review MINOR, pinned down):**
+  - **missing id** — `Get`/`resolveTaskID` failure wraps `mtt.ErrNotFound` via `taskNotFound(id)`
+    ([errors.go:11](../../../internal/cli/errors.go#L11)) → **exit 4** (uniform with `status`/`show`/…).
+  - **unknown type** (config drift, `TypeByName` miss) — an explicit `do` **errors** (a plain
+    `fmt.Errorf("unknown type %q for task %q", …)` → exit 1); it does **not** silently decline the way the sugar
+    `classifyStatusMove` does (the sugar declines to keep "unknown command" semantics; the explicit form must
+    report).
+  - **edge not found** from `task.Status` — `fmt.Errorf("%w: no action %q from status %q; available: %s",
+    core.ErrInvalidTransition, edge, task.Status, <comma-joined named edges from task.Status>)` → **exit 6**,
+    symmetric with an invalid `mtt status` move and doubling as discoverability-in-an-error. Keep the wrapped
+    message aligned with the sentinel wording (`transition not allowed by the flow`) so exit-6 errors read
+    consistently (existing e2e assert `not allowed`). When the current status has **no named edges** at all, use
+    `no named actions from status %q` (avoid a dangling `available: `).
+  - The redundant `Get` (`do` reads `task.Status`; `core.Transition` `Get`s again; `resolveTaskID` a third time
+    on the current path) is accepted — cheap for a single-user local CLI, same as the sugar today.
+
+  `do` is **edge-name-only** (no status fallback) — one resolution mode per explicit command. A registered `do`
+  command wins the sugar on a name clash (documented; a status literally named `do` would be shadowed —
+  acceptable).
 
 ## Discoverability (the ergonomic payoff — in scope)
 
@@ -110,11 +144,14 @@ status `to`, then the gate path is unchanged.
 - **Unit (`yaml`):** `toDomain` maps `ymlTransition.Name` (a small config fixture, like the `Status.Default`
   test).
 - **Unit (`cli`):** `nextMoveJSON` carries `name` (omitempty); `mtt do` unknown-edge error wraps
-  `ErrInvalidTransition` (exit 6) and lists available actions.
-- **e2e (`testscript`):** a `coding`-style scratch config with a named edge (`review → fix` named `decline`,
-  gated) — `mtt do decline` and the sugar `mtt decline` both move + run the gate; a blocked gate still exits 3;
-  `mtt do <bad>` exits non-zero and lists the actions; `mtt types` shows the verb. A validation e2e: an
-  edge-name==status-name (or duplicate `(from,to)`) config is rejected by `mtt add`/`mtt types`.
+  `ErrInvalidTransition` (exit 6) and lists available actions; a missing id → `taskNotFound` (exit 4).
+- **e2e (`testscript`):** a scratch config with a named edge (`review → fix` named `decline`, gated) — run
+  `mtt types` **first** (validation runs there; catches a broken config before any move — see the Precondition
+  note), then `mtt do decline` and the sugar `mtt decline` both move + run the gate. Cover the inherited
+  behaviors so `do` provably matches `status`: a blocked gate exits 3 (with the U2 tail/hint); `do --no-run`
+  bypasses the gate; under `require:{who,why}`, `do` without `--who/--why` exits 2; `do --json` prints the task
+  object. `mtt do <bad>` exits 6 and lists the actions. A **validation e2e**: an edge-name==status-name config
+  and a duplicate-`(from,to)` config are each rejected at `mtt add`/`mtt types`.
 
 ## Acceptance
 
