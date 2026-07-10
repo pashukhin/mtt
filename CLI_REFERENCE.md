@@ -6,7 +6,7 @@ The complete **target** command surface of the `mtt` CLI, derived from [DESIGN.m
 two purposes: a reference for humans and agents, and a way to sanity-check the design from the CLI angle
 (man/usage) rather than from requirements.
 
-**Status:** this is the target command surface. **Implemented today (through session 008.9, `0.8.9-dev`):**
+**Status:** this is the target command surface. **Implemented today (through session 008.97, `0.8.97-dev`):**
 `version`, `init`, `types`, `add`, `show`, `list`, `edit`, `tree`, `dep add/rm/list`, `ready`, `roadmap`,
 `status` (plus the `mtt <status> <id>` verb sugar), `use`, `rm`, `tag add/rm` — with a **task-set selector**
 (explicit ids | stdin `-` | `--filter`) + an **`--ids`** output on `list`/`ready` powering **bulk** `tag add/rm`

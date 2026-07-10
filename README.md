@@ -4,7 +4,7 @@
 
 > 🇷🇺 Читать по-русски: [README.ru.md](README.ru.md)
 
-> **Status:** working alpha (`0.8.9-dev`). Phases 1–3 are implemented — `init`, `add`/`show`/`list`/`edit`,
+> **Status:** working alpha (`0.8.97-dev`). Phases 1–3 are implemented — `init`, `add`/`show`/`list`/`edit`,
 > hierarchy (`tree`), dependencies (`dep`/`ready`), and the **flow gate** (`mtt status <id> <new>` or the
 > `mtt <status> <id>` sugar run a transition's commands and block on a red gate, writing history; structured
 > commands + rollback included).
