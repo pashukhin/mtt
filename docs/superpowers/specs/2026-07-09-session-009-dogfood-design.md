@@ -86,7 +86,14 @@ Statuses (kind): `tbd`(initial) · `speccing`,`spec_review`,`spec_human_review`,
 `planning`,`plan_review`,`plan_human_review`,`plan_fix`(active) ·
 `in_progress`,`impl_review`,`impl_human_review`,`impl_fix`(active) · `done`,`cancelled`(terminal). (15)
 
-**Edge pattern** (same for the three stages; the gate differs — proxy for spec/plan, `make check` for impl):
+**Edge pattern** (same for the three stages; the gate differs — proxy for spec/plan, `make check` for impl).
+**Stem legend — NOT a literal substitution:** `<do>` ranges over the do-statuses `speccing`/`planning`/`in_progress`,
+whose review families use the stems `spec_`/`plan_`/`impl_` respectively — so `speccing → spec_review →
+spec_human_review` (`decline → spec_fix`), `planning → plan_*`, `in_progress → impl_*`. The do-status name and
+its family stem deliberately differ; **never author `speccing_review`/`in_progress_review`** etc. (the 15 status
+names are exactly those enumerated above). *(Alternative, if literal consistency is preferred: rename the
+do-statuses to `spec`/`plan`/`impl` so the pattern substitutes literally — not taken here, to keep the more
+descriptive gerund/`in_progress` names in the flow-guidance output.)*
 
 | edge | name | gate | current |
 |---|---|---|---|
@@ -108,8 +115,8 @@ where `<next-do>` is `spec_human_review→planning`, `plan_human_review→in_pro
   `cancelled` (edge name vs status name).
 - **Abandon path (no forward-trap).** `submit` is one-way out of a `do` status, so without care a task that
   entered a review cycle could never reach `cancelled`. `cancel` therefore fires from the three `do` statuses,
-  `tbd`, **and the three `_fix` statuses**; the `_review`/`_human_review` statuses reach `cancelled` in one step
-  (`decline → _fix → cancel`).
+  `tbd`, **and the three `_fix` statuses**; the `_review`/`_human_review` statuses reach `cancelled` in two moves
+  (`decline → _fix`, then `cancel`).
 - **`make check` is the only heavy gate** — on **every edge into `impl_review`** (`in_progress → impl_review`
   and `impl_fix → impl_review`), so `impl_review` is only ever entered on green; not repeated on `→ done`.
   Gate-cost (S5, accepted): ~1 full `make check` per impl submit/resubmit; `command_timeout: 10m` (headroom for
@@ -123,18 +130,22 @@ where `<next-do>` is `spec_human_review→planning`, `plan_human_review→in_pro
   approves** — the review is over the working tree; the commit happens after sign-off / with the PR. (impl is
   unaffected — it gates on `make check`, and code is committed per TDD cycle.)
 - **Branch on entry** — one branch per task: `git switch -c task/{{.ID}} || git switch task/{{.ID}}` on
-  `tbd → speccing` (DESIGN-canonical `task/` prefix). Idempotent (re-entering an existing branch is correct for
+  `tbd → speccing` (DESIGN-canonical `task/` prefix). **Namespace note:** mtt task-branches use `task/`, distinct
+  from the repo's manual `feat/`/`fix/`/`chore/` convention — deliberate (it marks an mtt-managed branch; the
+  placeholder whitelist can't derive a per-task feat/fix/chore prefix anyway). Switch to `feat/{{.ID}}` if a
+  single namespace is preferred. Idempotent (re-entering an existing branch is correct for
   re-taking a task into work), **no `rollback:`** (finding **S2/U1**: the `git branch -D` compensator is broken
   and a rollback only fires on a *later* command's failure — here the branch command is the only command on the
   edge). A task's spec + plan + code all live on its branch, over one or several work-sessions; one PR at `done`.
 
 **YAML authoring of gate commands (trap — verified against `yaml.v3`).** Author every gate command as a
-**single-quoted** YAML scalar (or a literal block scalar), **never double-quoted** and **never a plain scalar
-starting with `!`**. Double-quoting breaks the proxy — `\.mtt/` is an invalid escape → `Load` fails and the
-whole config is unloadable — and the shipped `coding.yaml` uses the double-quoted `["! make test"]` convention,
-so this is the *easy* mistake. A plain scalar beginning `! …` has its `!` parsed as a YAML tag and **silently
-dropped** (inverting the gate). `TestRepoDogfoodConfig` guards this by asserting the **exact** command strings
-(including any leading `!` and the `\.mtt/`), never substrings.
+**single-quoted** YAML scalar (or a literal block scalar), **never double-quoted**. Double-quoting breaks the
+proxy — `\.mtt/` is an invalid escape → `Load` fails and the whole config is unloadable — and the shipped
+`coding.yaml` uses the double-quoted `["! make test"]` convention, so this is the *easy* mistake. *(General
+caution for any future gate — none in this single-`task` config uses it: a **plain** scalar beginning `! …` has
+its `!` parsed as a YAML tag and **silently dropped**, inverting the gate; quote those too.)*
+`TestRepoDogfoodConfig` guards this by asserting the **exact** command strings (the proxy including `\.mtt/`, the
+`make check`), never substrings.
 
 **Bootstrap caveats (documented):** mtt-minted ids (`t1`…) differ from the docs' historical `sNNN` labels (the
 mtt id is the going-forward identity); the branch carries **no slug** (`task/t1`, not `task/t1-references`) —
@@ -190,7 +201,9 @@ final status. Between `add` and the squash-merge the task is invisible on `main`
 Created with the built binary (`./bin/mtt add …`, scripted deterministically), the resulting `.mtt/tasks/*.yaml`
 committed. Everything is `tbd`; `current` unset. Ordering in `mtt roadmap` comes from **priority** (+ real
 `depends_on` where they exist); ties are recency-ordered (S3), so **`mtt roadmap` is hand-run and eyeballed
-before committing** `.mtt/tasks/*.yaml`.
+before committing** `.mtt/tasks/*.yaml`. The `add` script is **dependency-ordered** — a task's `--depends-on`
+targets are added **before** it (`core.Adder` validates each target exists, wrapping `ErrNotFound`), so a
+forward reference fails the `add`.
 
 - **Active queue** (no `backlog` tag): `references` (**high**), `comments` (medium), `actor profiles` (medium),
   `coding-template demo` (low), `dangerous-ops attribution` (priority set so the roadmap reads sensibly — verified
@@ -201,9 +214,11 @@ before committing** `.mtt/tasks/*.yaml`.
   finalized during implementation by reading `TASKS.md`, so the freeze empties both the active plan and the
   design backlog into mtt.
 
-Note: backlog tasks (`tbd`, no deps) will surface in `mtt ready`; there is no "exclude tag" filter, so
-`mtt list --tag backlog` is the backlog view and `ready` shows everything workable (accepted for v1; a
-"hide-tag-from-ready" filter is itself a backlog item).
+Note (queue noise, accepted for v1): backlog tasks (`tbd`, no deps) are technically `ready`, and there is **no
+exclude-tag filter**, so `mtt ready` shows everything workable (backlog included). The practical **"what next?"
+view is `mtt roadmap`** — it is **priority-ordered**, so the low-priority backlog sinks to the bottom, below the
+active queue; `mtt list --tag backlog` is the backlog-only view. A true `--exclude-tag` (or a `ready` that hides
+a tag) is a near-term follow-up — itself a `backlog` item.
 
 ## Acceptance (must pass)
 
@@ -225,7 +240,9 @@ Note: backlog tasks (`tbd`, no deps) will surface in `mtt ready`; there is no "e
   `Load` — this test is the **sole** guard, S6). Red before `.mtt/config.yaml` exists → green after.
 - **Mechanism e2e (`testscript` `dogfood.txt`):** a **scratch** config (txtar `-- gated.yaml --` `cp`'d over
   `.mtt/config.yaml`) — a **minimal valid flow** (`initial → active → terminal`, not all 15 statuses) mirroring
-  the *mechanism* with **fake** commands — proves: `mtt types` validates (run **before** the first move — §9
+  the *mechanism* with **fake** commands, and **no `require`** in the scratch config (a `require` without an
+  author would exit 2 *before* the gate and pass the "blocks" step for the wrong reason; attribution is tested
+  elsewhere) — proves: `mtt types` validates (run **before** the first move — §9
   precondition); the entry edge runs `git switch -c task/{{.ID}}` → the branch exists (`git symbolic-ref --short
   HEAD`, guarded `[!exec:git] skip`, `git symbolic-ref` for the unborn branch — s007 lesson) and sets `current`;
   a `→ <review>` edge with a **failing** gate command **blocks** (non-zero — task unchanged, no history; the

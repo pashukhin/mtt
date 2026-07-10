@@ -21,6 +21,11 @@ structure is **deps + tags + priority** (no hierarchy). Epics are product-valid 
     global **`require: {who: true}`**. `command_timeout: 10m`.
     - **`task` flow (15 statuses):** `tbd` → three artifact stages (design/plan/impl), each
       `do → _review (adversarial subagent) → _human_review (human) → next`, with `decline → _fix → _review`.
+      **Stem legend (not literal):** do-statuses `speccing`/`planning`/`in_progress`; their review families use
+      stems `spec_`/`plan_`/`impl_` (so `speccing→spec_review`, `in_progress→impl_review` — never
+      `speccing_review`). The 15 names, exactly: `tbd`; `speccing`, `spec_review`, `spec_human_review`,
+      `spec_fix`; `planning`, `plan_review`, `plan_human_review`, `plan_fix`; `in_progress`, `impl_review`,
+      `impl_human_review`, `impl_fix`; `done`, `cancelled`.
       Entry `tbd → speccing` (`start`): `current:set` + idempotent branch `git switch -c task/{{.ID}} || git
       switch task/{{.ID}}` (no rollback — U1). Named edges `start/submit/approve/decline/cancel` (disjoint from
       status names). **`make check`** on every edge into `impl_review`; **proxy** `git status --porcelain | grep
