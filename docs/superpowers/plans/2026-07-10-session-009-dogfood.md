@@ -406,6 +406,8 @@ git commit -m "test(s009): e2e dogfood.txt — task-flow branch/gate/current mec
 
 Notes: all tasks are created `tbd`; `current` stays unset. **Split:** the **active queue** carries no `backlog` tag (priority-ordered); the **backlog** (further-out chunks + design think-items + self-host meta-tasks) carries `--tag backlog --priority low`. The `add` script must be **dependency-ordered** if any `--depends-on` is used (targets must exist first) — the migration below uses **no artificial deps** (sequencing is by priority), so order is free.
 
+**Title hygiene (verified footgun):** `mtt add` extracts `#hashtag`s from the title/description (s008.7), so a `#<token>` silently becomes a tag — invisible in the `taskLine`/`roadmap` verification. Migration titles must contain **no `#`** (`#2` → a stray `2` tag). Keep each title a **single-quoted single argv** so flag-looking substrings (`--who`/`--no-run`/`;` in the dangerous-ops title) never reach pflag.
+
 - [ ] **Step 1: Build the binary**
 
 Run: `make build`
@@ -443,7 +445,7 @@ Read `TASKS.md` "Later (think)" and the former Phases 5–8; add each as a `back
 ./bin/mtt add 'SEC1 — kill the process group on gate timeout (Setpgid)' --priority low --tag backlog
 ./bin/mtt add 'roadmap heap — replace per-pop sort (O(N^2 log N)); fix at volume' --priority low --tag backlog
 # self-host meta (this session surfaced these)
-./bin/mtt add 'migrate agent-process rules into the flow descriptions (self-instructing runbook — flow-note insight #2)' --priority low --tag backlog
+./bin/mtt add 'migrate agent-process rules into the flow descriptions (self-instructing runbook — flow-note insight 2)' --priority low --tag backlog
 ./bin/mtt add 'ready/list --exclude-tag filter (de-noise the queue: hide backlog from ready)' --priority low --tag backlog
 ```
 
