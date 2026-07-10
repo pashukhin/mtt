@@ -47,3 +47,20 @@ func (t Type) TransitionsFrom(status StatusName) []Transition {
 	}
 	return out
 }
+
+// FindTransitionByName returns the edge leaving `from` whose Name equals `name`,
+// if any. Name-agnostic (the domain knows no specific verb string). An empty
+// name never matches — unnamed edges are not addressable by name. Config.Validate
+// enforces name uniqueness per source status, so at most one edge matches. Used
+// by the edge-verb sugar (`mtt <name>`) and `mtt do <name>`.
+func (t Type) FindTransitionByName(from StatusName, name string) (Transition, bool) {
+	if name == "" {
+		return Transition{}, false
+	}
+	for _, e := range t.Transitions {
+		if e.From == from && e.Name == name {
+			return e, true
+		}
+	}
+	return Transition{}, false
+}

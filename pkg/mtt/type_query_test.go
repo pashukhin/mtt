@@ -77,3 +77,27 @@ func TestTransitionsFrom(t *testing.T) {
 		t.Fatalf("TransitionsFrom(ghost) = %+v; want empty (unknown)", got)
 	}
 }
+
+func TestFindTransitionByName(t *testing.T) {
+	typ := Type{Flow: Flow{Transitions: []Transition{
+		{From: "review", To: "fix", Name: "decline"},
+		{From: "review", To: "done", Name: "approve"},
+		{From: "qa", To: "fix", Name: "decline"}, // same name, different source
+		{From: "tbd", To: "review"},              // unnamed
+	}}}
+	if e, ok := typ.FindTransitionByName("review", "decline"); !ok || e.To != "fix" {
+		t.Fatalf("review/decline = %+v, %v; want -> fix", e, ok)
+	}
+	if e, ok := typ.FindTransitionByName("qa", "decline"); !ok || e.To != "fix" {
+		t.Fatalf("qa/decline = %+v, %v; want the qa-sourced edge", e, ok)
+	}
+	if _, ok := typ.FindTransitionByName("review", "cancel"); ok {
+		t.Fatal("review/cancel must miss")
+	}
+	if _, ok := typ.FindTransitionByName("tbd", "decline"); ok {
+		t.Fatal("tbd/decline must miss (decline is not out of tbd)")
+	}
+	if _, ok := typ.FindTransitionByName("tbd", ""); ok {
+		t.Fatal("empty name must never match")
+	}
+}
