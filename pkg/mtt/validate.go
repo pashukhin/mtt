@@ -56,6 +56,8 @@ func (t Type) validateFlow() []error {
 	}
 	in := make(map[StatusName]int)
 	out := make(map[StatusName]int)
+	pairs := make(map[string]bool)                    // (from,to) uniqueness per type
+	edgeNames := make(map[StatusName]map[string]bool) // edge-name uniqueness per source status
 	for _, tr := range t.Transitions {
 		if !known[tr.From] {
 			errs = append(errs, fmt.Errorf("type %q: transition from unknown status %q", t.Name, tr.From))
@@ -70,6 +72,23 @@ func (t Type) validateFlow() []error {
 			if !cmd.Valid() {
 				errs = append(errs, fmt.Errorf("type %q transition %q->%q: invalid command (empty/negative timeout or bad rollback)", t.Name, tr.From, tr.To))
 			}
+		}
+		key := string(tr.From) + "->" + string(tr.To)
+		if pairs[key] {
+			errs = append(errs, fmt.Errorf("type %q: duplicate transition %q->%q", t.Name, tr.From, tr.To))
+		}
+		pairs[key] = true
+		if tr.Name != "" {
+			if known[StatusName(tr.Name)] {
+				errs = append(errs, fmt.Errorf("type %q transition %q->%q: name %q collides with a status name", t.Name, tr.From, tr.To, tr.Name))
+			}
+			if edgeNames[tr.From] == nil {
+				edgeNames[tr.From] = make(map[string]bool)
+			}
+			if edgeNames[tr.From][tr.Name] {
+				errs = append(errs, fmt.Errorf("type %q status %q: duplicate transition name %q", t.Name, tr.From, tr.Name))
+			}
+			edgeNames[tr.From][tr.Name] = true
 		}
 		out[tr.From]++
 		in[tr.To]++
