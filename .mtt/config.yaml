@@ -1,0 +1,92 @@
+version: 1
+project:
+  name: mtt
+command_timeout: 10m
+require:
+  who: true
+types:
+  - name: task
+    prefix: t
+    parents: []
+    default: true
+    statuses:
+      - {name: tbd,               kind: initial}
+      - {name: speccing,          kind: active}
+      - {name: spec_review,       kind: active}
+      - {name: spec_human_review, kind: active}
+      - {name: spec_fix,          kind: active}
+      - {name: planning,          kind: active}
+      - {name: plan_review,       kind: active}
+      - {name: plan_human_review, kind: active}
+      - {name: plan_fix,          kind: active}
+      - {name: implementing,      kind: active}
+      - {name: impl_review,       kind: active}
+      - {name: impl_human_review, kind: active}
+      - {name: impl_fix,          kind: active}
+      - {name: done,              kind: terminal}
+      - {name: cancelled,         kind: terminal}
+    transitions:
+      # --- entry ---
+      - from: tbd
+        to: speccing
+        name: start
+        current: set
+        description: "create/enter the task branch; write the design spec to docs/superpowers/specs/, then `mtt submit`"
+        commands: ['git switch -c task/{{.ID}} || git switch task/{{.ID}}']
+      # --- design stage ---
+      - from: speccing
+        to: spec_review
+        name: submit
+        description: "spec written; run an adversarial subagent spec review"
+        commands: ['git status --porcelain | grep -qv ''\.mtt/''']
+      - {from: spec_review,       to: spec_human_review, name: approve, description: "agent review passed; get human sign-off on the spec"}
+      - {from: spec_review,       to: spec_fix,          name: decline, description: "review found issues; address them, then `mtt submit`"}
+      - {from: spec_human_review, to: planning,          name: approve, description: "spec approved; write the implementation plan (writing-plans)"}
+      - {from: spec_human_review, to: spec_fix,          name: decline, description: "human declined the spec; address feedback"}
+      - from: spec_fix
+        to: spec_review
+        name: submit
+        description: "spec fixes done; re-review"
+        commands: ['git status --porcelain | grep -qv ''\.mtt/''']
+      # --- plan stage ---
+      - from: planning
+        to: plan_review
+        name: submit
+        description: "plan written; run an adversarial subagent plan review"
+        commands: ['git status --porcelain | grep -qv ''\.mtt/''']
+      - {from: plan_review,       to: plan_human_review, name: approve, description: "agent review passed; get human sign-off on the plan"}
+      - {from: plan_review,       to: plan_fix,          name: decline, description: "review found issues; address them, then `mtt submit`"}
+      - {from: plan_human_review, to: implementing,      name: approve, description: "plan approved; implement test-first (TDD)"}
+      - {from: plan_human_review, to: plan_fix,          name: decline, description: "human declined the plan; address feedback"}
+      - from: plan_fix
+        to: plan_review
+        name: submit
+        description: "plan fixes done; re-review"
+        commands: ['git status --porcelain | grep -qv ''\.mtt/''']
+      # --- implementation stage ---
+      - from: implementing
+        to: impl_review
+        name: submit
+        description: "implementation done + make check green; run an adversarial code review"
+        commands: ['make check']
+      - {from: impl_review,       to: impl_human_review, name: approve, description: "code review passed; get human sign-off"}
+      - {from: impl_review,       to: impl_fix,          name: decline, description: "review found issues; address them, then `mtt submit`"}
+      - from: impl_human_review
+        to: done
+        name: approve
+        current: clear
+        description: "approved; squash-merge the PR into main"
+      - {from: impl_human_review, to: impl_fix,          name: decline, description: "human declined; address feedback"}
+      - from: impl_fix
+        to: impl_review
+        name: submit
+        description: "impl fixes done; re-review"
+        commands: ['make check']
+      # --- cancel (from tbd, the do-statuses, and the _fix statuses; no forward-trap) ---
+      - {from: tbd,          to: cancelled, name: cancel, current: clear, description: "abandon the task"}
+      - {from: speccing,     to: cancelled, name: cancel, current: clear, description: "abandon the task"}
+      - {from: planning,     to: cancelled, name: cancel, current: clear, description: "abandon the task"}
+      - {from: implementing, to: cancelled, name: cancel, current: clear, description: "abandon the task"}
+      - {from: spec_fix,     to: cancelled, name: cancel, current: clear, description: "abandon the task"}
+      - {from: plan_fix,     to: cancelled, name: cancel, current: clear, description: "abandon the task"}
+      - {from: impl_fix,     to: cancelled, name: cancel, current: clear, description: "abandon the task"}
