@@ -404,6 +404,20 @@ Commands come from config (trusted, like a Makefile/git hooks), not from the net
 > it), aggregating all missing fields into one `ErrMissingAttribution` → exit `2`. `-v`/`--log-file` became
 > root-persistent; `--no-run` stays local to `mtt status` (the sugar cannot bypass the gate).
 
+> **Shipped (s008.98, named transitions + edge-verb sugar):** a transition may carry an optional
+> **`Name`** (`pkg/mtt.Transition.Name` — the only domain change, a plain open label like `Description`),
+> giving a semantic verb for the **edge out of the current status** (`decline` for `review → fix`). This
+> completes a **resolution triad**: move by **target status** (explicit `mtt status [<id>] <status>`, sugar
+> `mtt <status> [<id>]`) and move by **edge name** (explicit `mtt do [<id>] <edge>`, sugar `mtt <edge> [<id>]`).
+> The pure `Type.FindTransitionByName(from, name)` resolves an edge name to its target status, and the CLI rides
+> the **existing** `runTransition(to)` — `core.Transitioner` and the gate path are **untouched**. Three new
+> structural invariants (`Config.Validate`) keep this safe: an edge `Name` is **unique per source status** and
+> **disjoint from status names** in the type (so the sugar's edge-first precedence never shadows a status), and
+> every `(from,to)` pair is **unique per type**. **Trust boundary (unchanged):** the move path does not
+> re-validate (validation runs on `add`/`types`), so route-by-`to` is correct exactly where these invariants
+> hold — the same boundary the shipped `applyCurrent`/`FindTransition` already rely on. `mtt types`, the
+> `next:` guidance, and `show --json`'s `next[].name` surface the verb.
+
 > **Deferred (backlog): dangerous ops must mandate `--who`/`--why`.** Flow-bypassing / risk actions —
 > `--no-run` over a transition whose edge has a **non-empty** command list (skipping a real gate), and later
 > `--force` / atomic aborts after side effects — should **force** attribution regardless of the project

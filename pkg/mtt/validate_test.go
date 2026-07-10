@@ -130,3 +130,61 @@ func TestValidateRejectsInvalidCommand(t *testing.T) {
 		t.Fatal("want error for a command with an empty run")
 	}
 }
+
+// validNamedType is a valid flow that also carries named edges (decline/approve
+// out of review). Used by the named-transition invariant tests (s008.98).
+func validNamedType() Type {
+	return Type{
+		Name: "task", Default: true,
+		Flow: Flow{
+			Statuses: []Status{
+				{Name: "tbd", Kind: KindInitial},
+				{Name: "review", Kind: KindActive},
+				{Name: "fix", Kind: KindActive},
+				{Name: "done", Kind: KindTerminal},
+			},
+			Transitions: []Transition{
+				{From: "tbd", To: "review"},
+				{From: "review", To: "fix", Name: "decline"},
+				{From: "review", To: "done", Name: "approve"},
+				{From: "fix", To: "review"},
+			},
+		},
+	}
+}
+
+func TestValidateNamedFlowOK(t *testing.T) {
+	if err := (Config{Types: []Type{validNamedType()}}).Validate(); err != nil {
+		t.Fatalf("valid named flow rejected: %v", err)
+	}
+}
+
+func TestValidateRejectsDuplicateEdgeNamePerSource(t *testing.T) {
+	typ := validNamedType()
+	// A second edge out of review also named "decline". To a self-loop so the ONLY
+	// new violation is the duplicate name (a distinct (from,to), review already
+	// has in/out edges so topology stays valid).
+	typ.Transitions = append(typ.Transitions, Transition{From: "review", To: "review", Name: "decline"})
+	err := (Config{Types: []Type{typ}}).Validate()
+	if err == nil || !strings.Contains(err.Error(), "duplicate transition name") {
+		t.Fatalf("want duplicate-name error, got: %v", err)
+	}
+}
+
+func TestValidateRejectsEdgeNameEqualToStatusName(t *testing.T) {
+	typ := validNamedType()
+	typ.Transitions[0].Name = "fix" // tbd->review named "fix" collides with the status "fix"
+	err := (Config{Types: []Type{typ}}).Validate()
+	if err == nil || !strings.Contains(err.Error(), "collides with a status name") {
+		t.Fatalf("want name/status collision error, got: %v", err)
+	}
+}
+
+func TestValidateRejectsDuplicateFromTo(t *testing.T) {
+	typ := validNamedType()
+	typ.Transitions = append(typ.Transitions, Transition{From: "review", To: "fix", Name: "reject"})
+	err := (Config{Types: []Type{typ}}).Validate()
+	if err == nil || !strings.Contains(err.Error(), `duplicate transition "review"->"fix"`) {
+		t.Fatalf("want duplicate-(from,to) error, got: %v", err)
+	}
+}

@@ -1,0 +1,61 @@
+# s008.98: explicit `mtt do [<id>] <edge>` — edge-name-only, inherits the gate,
+# --no-run, and --json from the shared runTransition. Validate first (mtt types).
+
+exec mtt init
+cp named.yaml .mtt/config.yaml
+exec mtt types
+
+exec mtt add 'task one' --no-parent
+stdout 'created t1'
+exec mtt review t1
+stdout 't1: tbd → review'
+
+# a bad edge from review -> exit 6, message aligned with the sentinel + lists actions
+! exec mtt do t1 nonesuch
+stderr 'not allowed by the flow'
+stderr 'available:'
+stderr 'decline'
+
+# good explicit edge move (gate passes)
+exec mtt do t1 decline
+stdout 't1: review → fix'
+exec mtt show t1
+stdout '\[fix\]'
+
+# --json emits the task object (inherited)
+exec mtt add 'task two' --no-parent
+stdout 'created t2'
+exec mtt review t2
+exec mtt --json do t2 decline
+stdout '"status": "fix"'
+
+# a FAILING gate blocks (exit 3); --no-run bypasses it (inherited)
+exec mtt add 'task three' --no-parent
+stdout 'created t3'
+exec mtt review t3
+! exec mtt do t3 approve
+stderr 'blocked'
+exec mtt show t3
+stdout '\[review\]'
+exec mtt do t3 approve --no-run
+stdout 't3: review → done'
+
+-- named.yaml --
+version: 1
+project:
+  name: demo
+types:
+  - name: task
+    prefix: t
+    parents: []
+    default: true
+    statuses:
+      - {name: tbd,    kind: initial}
+      - {name: review, kind: active}
+      - {name: fix,    kind: active}
+      - {name: done,   kind: terminal}
+    transitions:
+      - {from: tbd,    to: review}
+      - {from: review, to: fix,  name: decline, commands: ["true"]}
+      - {from: review, to: done, name: approve, commands: ["false"]}
+      - {from: fix,    to: review}

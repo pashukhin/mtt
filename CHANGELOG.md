@@ -32,6 +32,11 @@ First public release line. Shipped so far:
   its `✗` line and hints `-v`/`--log-file`; `mtt add --json` emits the created task; `mtt show --json` carries
   a `history` array (checks + attribution); discoverability — `status [<id>]` usage, the verb sugar in root
   help, and a `run 'mtt init'` hint outside a project; a tagline that names the gate/state-machine.
+- **Named transitions + edge-verb sugar (s008.98):** an optional `name:` on a transition gives a semantic verb
+  for the edge out of the current status — `mtt do [<id>] <edge>` (explicit) and `mtt <edge> [<id>]` (sugar),
+  symmetric to `mtt status`/`mtt <status>` (e.g. `mtt decline t1` for `review → fix`). Edge names show in
+  `mtt types`, the `next:` guidance, and `show --json` (`next[].name`). New flow validation: an edge name is
+  unique per source status, disjoint from status names, and every `(from,to)` pair is unique per type.
 
 ### Changed
 - The root tagline now names the executable-state-machine + gate feature (was "minimalist file-backed task

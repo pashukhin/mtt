@@ -218,6 +218,12 @@ comments (which enrich a full self-host but don't enable it). See sessions/READM
       [A2]; `add --json` emits the created task [U3]; help discoverability (`status [<id>]`, sugar in root
       help, `mtt init` hint) + a tagline naming the gate feature [U4/U5]; `rm -rf bin/.mtt`; split the
       per-command-timeout e2e out of the git-gated script + a `-v` streaming test.
+- [x] e5_t1e — **named transitions + edge-verb sugar (s008.98)** — **DONE 2026-07-10**: optional
+      `Transition.Name` gives a semantic verb for the edge out of the current status. `mtt do [<id>] <edge>`
+      (explicit) + `mtt <edge> [<id>]` (sugar) resolve by edge name via `Type.FindTransitionByName`, riding the
+      existing `runTransition` (core untouched). Three `validateFlow` invariants (name unique per source, name≠
+      status, `(from,to)` unique). Verbs shown in `mtt types` / `next:` / `show --json` `next[].name`. Spec+plan:
+      `docs/superpowers/{specs,plans}/2026-07-10-named-transitions*`.
 - [ ] e5_t2 — **dogfooding (s009)**: `mtt init` this repo, a config whose gates are task-aware, migrate the
       forward backlog onto mtt. **Starts by reconciling the spec with recorded decision A** (full session flow
       `tbd → speccing → planning → in_progress → review → done`; branch + `current: set` on `→ speccing` via

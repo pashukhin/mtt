@@ -54,6 +54,9 @@ func formatNextMoves(onward []mtt.Transition) string {
 	parts := make([]string, 0, len(onward))
 	for _, e := range onward {
 		s := string(e.To)
+		if e.Name != "" {
+			s = e.Name + " → " + string(e.To)
+		}
 		if e.Description != "" {
 			s += " (" + e.Description + ")"
 		}

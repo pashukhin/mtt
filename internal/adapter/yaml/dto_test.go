@@ -215,3 +215,37 @@ func TestToDomainRollbackDeepCopy(t *testing.T) {
 		t.Fatal("toDomain aliased the rollback pointer instead of deep-copying")
 	}
 }
+
+func TestToDomainMapsTransitionName(t *testing.T) {
+	src := `
+version: 1
+project: {name: demo}
+types:
+  - name: task
+    prefix: t
+    parents: []
+    default: true
+    statuses:
+      - {name: tbd,    kind: initial}
+      - {name: review, kind: active}
+      - {name: fix,    kind: active}
+      - {name: done,   kind: terminal}
+    transitions:
+      - {from: tbd,    to: review}
+      - {from: review, to: fix,  name: decline}
+      - {from: review, to: done, name: approve}
+      - {from: fix,    to: review}
+`
+	var yc ymlConfig
+	if err := goyaml.Unmarshal([]byte(src), &yc); err != nil {
+		t.Fatal(err)
+	}
+	cfg, _ := yc.toDomain()
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("named flow invalid: %v", err)
+	}
+	e, ok := cfg.Types[0].FindTransitionByName("review", "decline")
+	if !ok || e.To != "fix" {
+		t.Fatalf("name not mapped: %+v %v", e, ok)
+	}
+}

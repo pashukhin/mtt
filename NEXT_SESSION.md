@@ -4,7 +4,19 @@ A living handoff doc. Update it at the end of each session (what's done / what's
 
 ## Where we are
 
-- **Phase 0 (scaffold) + sessions 001–006 + 006.5 + 006.7 + 007 + 008 + 008.5 + 008.6 + 008.7 + 008.9 + 008.95 + 008.97 are DONE** (version `0.8.97-dev`, `make check` green).
+- **Phase 0 (scaffold) + sessions 001–006 + 006.5 + 006.7 + 007 + 008 + 008.5 + 008.6 + 008.7 + 008.9 + 008.95 + 008.97 + 008.98 are DONE** (version `0.8.98-dev`, `make check` green).
+  **Session 008.98 (named transitions + edge-verb sugar)** shipped an optional **`pkg/mtt.Transition.Name`**
+  (a plain open label like `Description` — the only domain change), giving a semantic verb for the **edge out of
+  the current status** (`decline` for `review → fix`). It completes a **resolution triad**: move by target
+  status (`mtt status [<id>] <status>` / sugar `mtt <status> [<id>]`) and by edge name (`mtt do [<id>] <edge>` /
+  sugar `mtt <edge> [<id>]`). The pure `Type.FindTransitionByName(from, name)` resolves a verb to its target
+  status; the CLI rides the **existing** `runTransition(to)` — **`core.Transitioner` and the gate path are
+  untouched**. Three new `validateFlow` invariants keep it safe (edge name unique per source, disjoint from
+  status names, `(from,to)` unique per type); `mtt types`/`next:`/`show --json` `next[].name` surface the verb.
+  `mtt do` is edge-name-only (miss → exit 6 listing the available actions). Two adversarial reviews (spec, plan)
+  each caught a real issue pre-code (the overstated "core untouched" precondition; the pre-existing
+  `type_query_test.go` that must be **appended**, not overwritten). Spec/plan:
+  `docs/superpowers/{specs,plans}/2026-07-10-named-transitions*`. Next: **s009 dogfood**.
   **Chore 008.97 (dogfood hardening)** shipped the small fixes dogfood would trip over daily: **U2** — a blocked
   gate echoes the failing command's output tail (~10 lines) under its `✗` line **and** hints `-v`/`--log-file`
   (exec `Runner` gained a `tailLines` knob + a `tailBuffer`; the CLI passes it only when output is hidden and
@@ -265,6 +277,31 @@ resolved graph, and open gaps. Two decisions locked there that shape s005:
 > After dogfood, `TASKS.md` freezes and mtt tracks its own work. Then references (s010), comments (s011),
 > actor profiles (s012). `advance`/`start`/`done` + modes + roles-on-edges + node-level status-actions +
 > cross-edge compensation stay **PARKED**.
+
+### Carry-over lessons (008.98 — named transitions + edge-verb sugar)
+- **Route the new form to the OLD path — don't touch the gate core.** An edge name is resolved (CLI-side) to
+  its target status `to`, then the existing `runTransition(to)` runs — so `mtt do`/`mtt <edge>` inherit the
+  gate, attribution (`require`→exit 2), `--no-run`, `--json`, and the U2 blocked-gate output for free, and
+  `core.Transitioner` is byte-unchanged. The enabling constraint is a validation: **`(from,to)` unique per
+  type** (so `FindTransition(from,to)` returns the same edge the name resolved to). Reuse-by-adapting-the-input
+  beats threading a new concept through the core.
+- **A "safe because disjoint / core untouched" claim is CONDITIONAL — say so.** `Config.Validate` runs on
+  `add`/`types`, **not** on the move path (the s006/s008 rule). So the three new invariants are trusted, not
+  enforced, on the hot path — exactly the boundary `applyCurrent`/`FindTransition` already rely on. Document the
+  precondition (spec + DESIGN) and make the e2e run `mtt types` (validates) before the first move + a dedicated
+  validation-rejection e2e; do **not** add re-validation to the move (out of scope, behavior change).
+- **Two adversarial subagent reviews (spec, then plan) again each caught a real defect a self-review missed**
+  (the s008.7 lesson holds): the spec's overstated precondition, and the plan's "create `type_query_test.go`"
+  when it already exists with 4 tests — a `Write` would **silently drop them and the gate stays green**. When a
+  plan says "create a test file", grep for it first; **append** the function, no `package`/`import` header.
+- **Disjoint namespaces make precedence a non-issue.** The sugar tries edge-name before status-name, but the
+  validation forbidding an edge name equal to a status name means an arg is at most one of the two — so the
+  order can't shadow anything and existing `mtt <status>` behavior is untouched (unnamed configs: every
+  `FindTransitionByName`/`edgeNameInAnyFlow` misses → identical fall-through).
+- **New optional flow-invariant fixtures: isolate the ONE violation.** Testing "duplicate edge name per source"
+  needed a second same-named edge whose `(from,to)` is still unique and whose target isn't initial (else it also
+  trips "initial needs 0 incoming"); a self-loop (`review→review`) was the clean isolator. Verify a rejection
+  fixture fails on exactly the intended invariant (the reviewer's first suggested target collided on `(from,to)`).
 
 ### Carry-over lessons (008.97 — dogfood hardening)
 - **An adversarial plan review earns its tokens before a multi-item chore.** The review caught three

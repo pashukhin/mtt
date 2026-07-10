@@ -30,7 +30,9 @@ beyond provider-specific checks.
   omitted, keeping existing files byte-unchanged. **Status `default`** (s008.97/A2): `ymlStatus.Default`
   (`yaml:"default,omitempty"`) maps to `mtt.Status.Default` in `toDomain`, so a `default: true` marker on an
   initial status is honored by `Type.InitialStatus()` via `Load` (previously silently dropped; the fallback
-  first-initial always won).
+  first-initial always won). **Transition `name`** (s008.98): `ymlTransition.Name` (`yaml:"name,omitempty"`,
+  after `to`) maps to `mtt.Transition.Name` — the edge verb for the `mtt <edge>` sugar / `mtt do`; a plain copy,
+  validity (uniqueness/disjointness) is a `Config.Validate` concern, not a load-time one.
 - No flow/ready/traversal logic here (that is `core`, later). Templates are the **only** home of default type/status names.
 - `.mtt/config.yaml` is edited only through this adapter (determinism + validation).
 - `NewCurrent(root)` / `Current` — implements `mtt.CurrentStore` (session 006.7), owning **only** the top-level

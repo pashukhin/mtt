@@ -154,6 +154,17 @@ JSON surfaces (session 008.97/U3): `mtt add --json` emits the created task via t
 human view renders. History rides `showJSON` only (embedded `taskJSON` stays lean, so `list`/`edit`/`status
 --json` are unchanged).
 
+Named transitions / edge-verb (session 008.98): a transition's optional `Name` gives a semantic verb for the
+edge out of the current status. **`mtt do [<id>] <edge>`** (`do.go`, `newDoCmd`) resolves the named edge via
+`Type.FindTransitionByName(task.Status, edge)` → its `To` → the shared `runTransition` (gate/attribution/`--json`
+inherited); edge-name-**only** (no status fallback); a miss is `doMissError` (wraps `core.ErrInvalidTransition`
+→ exit 6, lists `availableActions`). The **sugar `mtt <edge> [<id>]`** rides `classifyStatusMove`, which now
+tries `FindTransitionByName(task.Status, arg0)` **before** the target-status classification (disjoint namespaces
+make it safe). `edgeNameInAnyFlow` (`resolve.go`, beside `statusInAnyFlow`) lets the "no current / missing task"
+branches treat a bare edge verb as plausible (claim with an actionable error vs "unknown command"). Discoverability:
+`writeTypeBlock` prints `[name] from -> to`, `formatNextMoves` prints `name → to`, and `nextMoveJSON.Name`
+(omitempty) carries the verb in `show --json`. `core.Transitioner` is untouched (route-by-`to`).
+
 Discoverability + tagline (session 008.97/U4/U5): the root `Short:` names the gate/state-machine (the empty
 niche, not "file-backed tracker") and a root `Long:` documents the `mtt <status> [<id>]` sugar + current
 resolution + the `roadmap`/`ready`/`types` entry points; `status`'s `Use:` is `status [<id>] <new-status>`

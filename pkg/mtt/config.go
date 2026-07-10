@@ -48,6 +48,7 @@ type Transition struct {
 	From        StatusName
 	To          StatusName
 	Description string
+	Name        string // optional edge label — the verb for `mtt <name>` / `mtt do <name>` (empty = unnamed)
 	Commands    []Command
 	Current     CurrentAction // set|clear the personal current pointer when traversed (empty = no effect)
 }

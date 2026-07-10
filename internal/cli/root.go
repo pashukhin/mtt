@@ -13,7 +13,7 @@ import (
 )
 
 // version is the build version, overridable at build time via -ldflags.
-var version = "0.8.97-dev"
+var version = "0.8.98-dev"
 
 // NewRootCmd builds the root mtt command tree.
 func NewRootCmd() *cobra.Command {
@@ -44,7 +44,7 @@ and their gates). All commands support --json.`,
 	root.PersistentFlags().String("log-file", "", "write gate command output to a file")
 	root.AddCommand(newVersionCmd(), newInitCmd(), newTypesCmd(), newAddCmd(), newShowCmd(),
 		newListCmd(), newEditCmd(), newTreeCmd(), newDepCmd(), newReadyCmd(), newStatusCmd(),
-		newUseCmd(), newRmCmd(), newRoadmapCmd(), newTagCmd())
+		newUseCmd(), newRmCmd(), newRoadmapCmd(), newTagCmd(), newDoCmd())
 	return root
 }
 
@@ -99,7 +99,7 @@ func trySugarCurrent(cmd *cobra.Command, statusArg string) (bool, error) {
 		return false, nil
 	}
 	if !ok {
-		if statusInAnyFlow(cfg, statusArg) {
+		if statusInAnyFlow(cfg, statusArg) || edgeNameInAnyFlow(cfg, statusArg) {
 			return true, errors.New("no current task set; run `mtt use <id>` or give an id")
 		}
 		return false, nil
@@ -134,7 +134,7 @@ func trySugar(cmd *cobra.Command, statusArg, idArg string) (bool, error) {
 		// arg1 is not an existing task. If arg0 is a plausible status verb the user
 		// meant a status move on a missing task → not-found (exit 4), not an unknown
 		// command; otherwise decline (→ unknown command). Mirrors trySugarCurrent.
-		if errors.Is(err, mtt.ErrNotFound) && statusInAnyFlow(cfg, statusArg) {
+		if errors.Is(err, mtt.ErrNotFound) && (statusInAnyFlow(cfg, statusArg) || edgeNameInAnyFlow(cfg, statusArg)) {
 			return true, taskNotFound(id)
 		}
 		return false, nil
@@ -151,6 +151,11 @@ func classifyStatusMove(cmd *cobra.Command, root string, cfg mtt.Config, setting
 	typ, ok := cfg.TypeByName(task.Type)
 	if !ok {
 		return false, nil
+	}
+	// Edge-verb first: an edge named statusArg leaving the task's CURRENT status.
+	// Disjoint namespaces (Config.Validate) make this unobservable for status names.
+	if edge, ok := typ.FindTransitionByName(task.Status, statusArg); ok {
+		return true, runTransition(cmd, root, cfg, settings, task.ID, edge.To, false)
 	}
 	to, err := mtt.NewStatusName(statusArg)
 	if err != nil {

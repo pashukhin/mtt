@@ -52,6 +52,21 @@ func TestToShowJSON(t *testing.T) {
 	}
 }
 
+func TestNextMoveJSONCarriesName(t *testing.T) {
+	ts := time.Date(2026, 7, 7, 9, 0, 0, 0, time.UTC)
+	task := mtt.Task{ID: "t1", Type: "task", Status: "review", Created: ts, Updated: ts}
+	onward := []mtt.Transition{{To: "fix", Name: "decline", Description: "send back"}, {To: "done"}}
+	sj := toShowJSON(task, "", onward)
+	if len(sj.Next) != 2 || sj.Next[0].Name != "decline" || sj.Next[0].To != "fix" {
+		t.Fatalf("next[0] = %+v, want name=decline to=fix", sj.Next[0])
+	}
+	// an unnamed onward move omits name
+	data, _ := json.Marshal(sj.Next[1])
+	if strings.Contains(string(data), "name") {
+		t.Fatalf("unnamed move must omit name: %s", data)
+	}
+}
+
 func TestToShowJSONCarriesHistory(t *testing.T) {
 	ts := time.Date(2026, 7, 7, 9, 0, 0, 0, time.UTC)
 	task := mtt.Task{ID: "t1", Type: "task", Status: "done", Created: ts, Updated: ts,
