@@ -816,6 +816,29 @@ terms, with shell orchestration living in flow transitions" hinges on **command 
 transition can't create a per-task branch without them. Until then the plan is kept in this repo's docs;
 after dogfood we move mtt's development onto mtt itself. See sessions/README.md → "Roadmap regrouped".
 
+> **Shipped (s009): dogfooding / self-host.** This repo now tracks its own development in a committed
+> `.mtt/` (config + tasks). **Model — one axis:** we track the **product** (`task` = a unit of product
+> change), not the **process** (session/phase = how *we* work — that stays in `sessions/*.md` + git). A
+> **single `task` type** carries the full **15-status maturation flow** (`speccing → spec_review →
+> spec_human_review → planning → … → implementing → impl_review → impl_human_review → done`, `decline → _fix`,
+> `+cancelled`) — the flow is how a *task* matures (design → review → plan → review → build → review), and one
+> task may take several work-sessions to walk. Structure is **deps + tags + priority**, not hierarchy
+> (**epics** are product-valid but deferred; the §4 "close the epic when its children are done" self-ref gate
+> returns with them). **Task-aware gates:** a `task/{{.ID}}` branch + `current: set` on the entry edge; an
+> artifact-presence proxy `git status --porcelain | grep -qv '\.mtt/'` on the spec/plan review edges (the
+> artifact stays **uncommitted until human review** — the `.mtt/` churn would otherwise defeat a bare
+> `grep -q .`); **`make check`** on the implementation-review edges; `current: clear` on `→ done`/`→ cancelled`.
+> **Attribution:** project-global `require: {who}` (per-edge/role `require` needs a core change — parked roles
+> work; the migrated `dangerous-ops` task is its first trigger). **Trust (SEC2):** gates invoke **read-only**
+> `mtt` only — never an mtt transition (recursion). **Commit discipline (S4):** `.mtt` mutations commit with
+> the task's PR. **Backlog** = `tbd` tasks tagged `backlog` (promotion = drop the tag). **Authoring caveat:**
+> gate commands are **single-quoted** YAML scalars (double-quoting breaks `\.mtt/` → `Load` fails). The
+> committed config is guarded by `TestRepoDogfoodConfig` (the **sole** load-time validation — `Config.Validate`
+> runs on `add`/`types`, not `Load`). **Bootstrap caveats:** mtt ids (`t1`…) ≠ the docs' historical `sNNN`
+> labels; the branch carries no slug (placeholder whitelist); s009 itself ran on the manual
+> `feat/s009-dogfood` (the config governs *future* tasks). See the spec
+> `docs/superpowers/specs/2026-07-09-session-009-dogfood-design.md`.
+
 **Later (backlog):**
 
 - later — **re-parenting** (`mtt reparent`/`move`): change a task's `parent`; enabled by flat, position-free IDs.

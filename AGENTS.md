@@ -122,3 +122,26 @@ Start a session by refining its plan (superpowers), then work test-first; branch
 PR → squash. The roadmap and current target live in [sessions/README.md](sessions/README.md); the design
 backlog stays in [DESIGN.md](DESIGN.md) / [TASKS.md](TASKS.md). After phase 4 the backlog itself moves
 onto mtt (dogfooding).
+
+## Working under mtt (self-host)
+
+Since **s009** this repo tracks its own work in a committed `.mtt/` (config + tasks). `TASKS.md` is frozen;
+the live queue is mtt. Practical rules:
+
+- **The backlog is in mtt.** `mtt roadmap` is the "what next?" view (priority-ordered — low-priority
+  `backlog`-tagged items sink to the bottom); `mtt list --tag backlog` is the backlog-only view. A task is the
+  unit of **product** change (`task` type, single); sessions/phases (how *we* work) stay in `sessions/*.md` —
+  they are **not** mtt tasks. Promote a backlog item by dropping the tag: `mtt tag rm <id> backlog`.
+- **The task flow is gated** (`mtt types` shows it): a task matures `speccing → …review… → planning → …
+  → implementing → …review… → done` (`decline → _fix`, `+cancelled`). Move a task by **edge verb**
+  (`mtt <edge> <id>` — `start`/`submit`/`approve`/`decline`/`cancel`) or target status
+  (`mtt status <id> <status>`). Entry (`start`) creates+enters the task branch **`task/{{.ID}}`** (a distinct
+  namespace from manual `feat/`/`fix/`/`chore/` branches) and sets `current`; `→ done` clears it.
+- **Attribution is required.** The committed config sets `require: {who}`, enforced on **every** move
+  (`--no-run` does **not** bypass it) — so **before your first move on a fresh checkout**, set your author:
+  `author:` in `.mtt/config.local.yaml` (gitignored) or `MTT_BY=<you>` / `--by <you>`, else moves exit 2.
+- **Commit `.mtt` with the task's PR (S4).** Every `add`/move rewrites `.mtt/tasks/*.yaml`; commit those with
+  the branch, and after `approve → done` run `git add .mtt && git commit` so the task lands in its final status.
+- **Config is code (SEC2).** Review `.mtt/config.yaml` diffs like a Makefile; a gate may invoke **read-only**
+  `mtt` only (never an mtt transition). Gate commands are **single-quoted** YAML scalars (double-quoting breaks
+  `\.mtt/`). The committed config is guarded by `TestRepoDogfoodConfig` — keep it green.

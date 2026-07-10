@@ -82,8 +82,32 @@ Plan: `docs/superpowers/plans/2026-07-10-session-009-dogfood.md` (written next).
 
 ## Plan (refine at session start — test-first)
 
-- [ ] (written by writing-plans next)
+- [x] Plan written + adversarially reviewed: `docs/superpowers/plans/2026-07-10-session-009-dogfood.md`.
 
-## Done (fill during/after the session)
+## Done
 
-<pending>
+Shipped on `feat/s009-dogfood` (version `0.8.98-dev → 0.9.0-dev`):
+
+- **Re-modelled mid-session** from a two-tier `phase`/`session` draft to a **single `task` type** (product axis,
+  not process — see the flow-note §11 + the "Model note" in the spec). The rich 15-status flow stayed, re-read as
+  a task's maturation.
+- **`.mtt/config.yaml`** (committed): one `task` type, 15-status gated maturation flow (`speccing → spec_review →
+  spec_human_review → planning → … → implementing → impl_review → impl_human_review → done`, `decline → _fix`,
+  `+cancelled`); gates = branch `task/{{.ID}}` + `current:set` on entry, `git status --porcelain | grep -qv
+  '\.mtt/'` proxy on spec/plan review edges, `make check` on impl-review edges, `current:clear` on
+  `→done`/`→cancelled`; project-global `require:{who}`; `command_timeout: 10m`. Named edges
+  `start`/`submit`/`approve`/`decline`/`cancel`.
+- **`TestRepoDogfoodConfig`** (`internal/adapter/yaml/dogfood_test.go`) — the sole load-time guard (FindRoot →
+  Load → Validate + exact-string edge assertions). Genuine red→green.
+- **e2e `dogfood.txt`** (`internal/cli/testdata/scripts/`) — proves the branch/gate/current mechanism on a
+  minimal scratch flow (fake commands, no `require`), via the s008.98 edge-verb sugar.
+- **Migration** (flat, via `./bin/mtt add`): active queue `t1` references (high) / `t5` dangerous-ops (high) /
+  `t2` comments, `t3` profiles (medium) / `t4` coding-demo (low); 15 `backlog`-tagged tasks (`t6`–`t20`: former
+  Phases 5–8 + design think-items + self-host meta). Roadmap hand-run + tags audited.
+- **Docs:** DESIGN.md/.ru "Shipped (s009)" note; **AGENTS.md "Working under mtt (self-host)"** section;
+  CLI_REFERENCE minimal mention; **`TASKS.md` frozen** (banner + `e5_t2 ✅`); sessions/README (009 ✅, 009.5
+  next); NEXT_SESSION (Where we are + carry-over 009); flow-note §11.
+- **Process:** brainstorm → two adversarial subagent reviews (spec, then plan; each caught real pre-code
+  defects) → strict TDD. `make check` green.
+
+Next: **chore s009.5 (release positioning) → user-triggered tag `v0.9.0`**.
