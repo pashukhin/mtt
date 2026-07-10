@@ -1,0 +1,58 @@
+# s009 dogfood: prove the task-flow mechanism (entry branch + current:set, a
+# blocking/passing gate, current:clear) on a scratch config with fake commands.
+# The real config's make check / git gates need a real repo (s006/s007/s008
+# strategy). Exercises the s008.98 edge-verb sugar (mtt start / mtt submit).
+[!exec:git] skip
+
+exec git init
+
+exec mtt init
+cp gated.yaml .mtt/config.yaml
+
+# precondition: the config validates before the first move (mtt types validates).
+exec mtt types
+stdout 'task'
+
+exec mtt add 'demo task'
+stdout 'created t1'
+
+# entry edge 'start': creates+enters the branch and sets current.
+exec mtt start t1
+stdout 't1: tbd → speccing'
+exec git symbolic-ref --short HEAD
+stdout 'task/t1'
+exec mtt use
+stdout 't1'
+
+# gate BLOCKS when the fake gate command fails (no 'proceed' file): non-zero,
+# task unchanged (still speccing), current still set.
+! exec mtt submit t1
+exec mtt show t1
+stdout 'speccing'
+exec mtt use
+stdout 't1'
+
+# gate PASSES once the command succeeds: moves to done and clears current.
+exec touch proceed
+exec mtt submit t1
+stdout 't1: speccing → done'
+exec mtt use
+stdout 'no current task'
+
+-- gated.yaml --
+version: 1
+project:
+  name: dogfood-demo
+command_timeout: 5m
+types:
+  - name: task
+    prefix: t
+    parents: []
+    default: true
+    statuses:
+      - {name: tbd,      kind: initial}
+      - {name: speccing, kind: active}
+      - {name: done,     kind: terminal}
+    transitions:
+      - {from: tbd,      to: speccing, name: start,  current: set,   commands: ['git switch -c task/{{.ID}} || git switch task/{{.ID}}']}
+      - {from: speccing, to: done,     name: submit, current: clear, commands: ['test -f proceed']}
