@@ -6,7 +6,7 @@ The complete **target** command surface of the `mtt` CLI, derived from [DESIGN.m
 two purposes: a reference for humans and agents, and a way to sanity-check the design from the CLI angle
 (man/usage) rather than from requirements.
 
-**Status:** this is the target command surface. **Implemented today (through session 008.97, `0.8.97-dev`):**
+**Status:** this is the target command surface. **Implemented today (through session 008.98, `0.8.98-dev`):**
 `version`, `init`, `types`, `add`, `show`, `list`, `edit`, `tree`, `dep add/rm/list`, `ready`, `roadmap`,
 `status` (plus the `mtt <status> <id>` verb sugar), `use`, `rm`, `tag add/rm` — with a **task-set selector**
 (explicit ids | stdin `-` | `--filter`) + an **`--ids`** output on `list`/`ready` powering **bulk** `tag add/rm`
@@ -191,7 +191,8 @@ comment tree, and the transition `history` (audit trail) print once those land i
 
 - `<id>` — the task to show.
 - `--json` — the task object plus **`status_description`** (omitempty), **`next`** (an array of
-  `{to, description?}` onward moves, omitempty), and **`history`** (an array of
+  `{name?, to, description?}` onward moves, omitempty — `name` is the edge verb for `mtt do`, session 008.98),
+  and **`history`** (an array of
   `{at, by?, role?, why?, from, to, checks?:[{cmd, exit}]}` transition entries, omitempty — session 008.97/U3,
   so the JSON consumer sees the checks + attribution the human view renders). The structured, queryable form of
   the flow guidance + audit. The shared `list`/`edit` `--json` view is unaffected (these fields are `show`-only).
@@ -343,6 +344,22 @@ codes, and `--who`/`--why`). A real command always wins a name clash (e.g. there
 move is an `unknown command` (exit `1`). The sugar takes
 no gate-control flags (`--no-run`/`-v`/`--log-file` remain on `mtt status`); it is forward-compatible — its
 semantics can grow single-edge → `advance` later without a surface change.
+
+### `mtt do [<id>] <edge>` — move along a named edge  *(session 008.98, implemented)*
+Move a task across the **named edge** leaving its current status — the explicit form for working *in terms of
+the current status* (a semantic verb like `decline`/`approve`), symmetric to `mtt status` for moves by target
+status. A transition may carry an optional **`name:`** in the config; `mtt do <edge>` finds the edge with that
+name out of the task's current status and moves to its target, running the same gate/attribution/`--json` as
+`mtt status` (it rides the same path). The id is optional (resolves to the current task). Edge-name-**only** —
+no status fallback; an unknown edge from the current status exits `6` (invalid transition) and **lists the
+available named actions**. `--no-run` bypasses the gate (like `status`). `mtt types` lists each edge's name.
+
+- **Verb sugar `mtt <edge> [<id>]`** (session 008.98) — the shorthand for `mtt do`, mirroring `mtt <status>`:
+  `mtt decline t1` ≡ `mtt do t1 decline`. Resolved by the same fallback-routing; an edge name out of the task's
+  current status is tried **before** a target-status name (safe — see the namespace rules below).
+- **Namespace rules (enforced by `Config.Validate`, i.e. on `mtt add`/`mtt types`):** an edge `name` is unique
+  per source status, is **disjoint from status names** in the type (so the sugar never shadows a status), and
+  every `(from,to)` pair is unique per type.
 
 ### `mtt use [<id>] [--clear]` — the current task (working context)  *(session 006.7, implemented)*
 git-`HEAD`-for-tasks: a personal **current task** pointer (in `config.local.yaml`, gitignored) so you stop
