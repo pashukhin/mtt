@@ -198,3 +198,31 @@ Still open for the brainstorm: exact edge names + gate placement across the thre
 `phase` gets the self-ref "children done" gate on v1 (B: sparingly); the set/clear edges; and whether v1 folds
 the two review substages into one to cut status count, splitting later (start-simpler-and-enrich vs author the
 full shape up front).
+
+## 10. Resolved in the s009 brainstorm (2026-07-10)
+
+The §9 open items were settled (see the reconciled spec
+[specs/2026-07-09-session-009-dogfood-design.md](../specs/2026-07-09-session-009-dogfood-design.md) Q3):
+
+- **Full shape, not folded.** v1 authors the **full 15-status** `session` flow — each artifact stage keeps a
+  separate `_review` (adversarial subagent) and `_human_review` (human) status. Rationale: max history-as-signal
+  (agent-review and human-review are distinct events, each `_fix` bounce counts). (Chosen over the leaner
+  12/9-status folds.)
+- **Edge names:** `start` (entry, → speccing) / `submit` (do → review, and fix → review) / `approve` /
+  `decline` / `cancel`. All disjoint from status names, unique per source, `(from,to)` unique — the s008.98
+  invariants hold, so edge-verb sugar (`mtt approve s1`) is unambiguous.
+- **Gate placement:** `make check` on **every edge into `impl_review`** (not repeated on `→ done`); an
+  artifact-presence **proxy** `git status --porcelain | grep -qv '\.mtt/'` on the spec/plan submit edges
+  (instruction-only was the alternative); `phase → done` **takes** the self-ref gate (decision B's "clearly
+  worth it" case — the §4 headline).
+- **set/clear:** `current: set` + the idempotent branch on the entry edge `tbd → speccing`; `current: clear`
+  on `→ done` and `→ cancelled`; `phase` carries neither (a phase isn't taken into work).
+- **Two findings that reshaped E and F:**
+  - **(E → global `require:{who}`)** mtt's `require` is **project-global only** (`Settings.Require`), not
+    per-edge — "require on the human-review edges" needs a core change (out of scope). v1 uses global
+    `require:{who}` (auto-satisfied by `config.local author`, so `by:` is always recorded and self-approval is
+    visible); per-edge/role `require` is the parked roles work E names as its trigger.
+  - **(F → `.mtt`-excluding proxy)** a bare `git status --porcelain | grep -q .` is **defeated** because the
+    accumulating `.mtt/tasks/*.yaml` churn (committed only with the PR — S4) always dirties the tree; excluding
+    `.mtt/` makes the proxy meaningful, with the documented semantics that the artifact stays **uncommitted
+    until `_human_review` approves**.
