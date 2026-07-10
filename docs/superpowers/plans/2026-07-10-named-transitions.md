@@ -53,13 +53,12 @@
 
 - [ ] **Step 1: Write the failing test**
 
-Add to `pkg/mtt/type_query_test.go` (create the file if absent — `package mtt`, import `testing` and this package's types are in-package so no import of `mtt` needed; it IS package `mtt`):
+**IMPORTANT (plan-review MINOR): `pkg/mtt/type_query_test.go` ALREADY EXISTS** (`package mtt`, 4 tests:
+`TestAcceptsParent`/`TestStatusKind`/`TestStatusByName`/`TestTransitionsFrom`, `import "testing"`). **APPEND only
+the function below** — do NOT `Write` the file (that silently drops the 4 existing tests and the gate stays
+green), and do NOT re-add a `package`/`import` header.
 
 ```go
-package mtt
-
-import "testing"
-
 func TestFindTransitionByName(t *testing.T) {
 	typ := Type{Flow: Flow{Transitions: []Transition{
 		{From: "review", To: "fix", Name: "decline"},
