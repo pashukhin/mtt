@@ -38,14 +38,16 @@ func toTaskJSON(t mtt.Task) taskJSON {
 }
 
 // showJSON is `mtt show --json`: the task view plus the flow guidance for its
-// current status (the status's description + the onward moves). It anonymously
-// embeds taskJSON so those fields stay top-level and the shared list/edit/status
-// `--json` (which use taskJSON directly) are untouched. Both guidance fields are
-// omitempty, so a status with no description and no onward moves adds nothing.
+// current status (the status's description + the onward moves) and the task's
+// transition history. It anonymously embeds taskJSON so those fields stay
+// top-level and the shared list/edit/status `--json` (which use taskJSON
+// directly) are untouched. All added fields are omitempty, so a status with no
+// description, no onward moves, and no history adds nothing.
 type showJSON struct {
 	taskJSON
 	StatusDescription string         `json:"status_description,omitempty"`
 	Next              []nextMoveJSON `json:"next,omitempty"`
+	History           []historyJSON  `json:"history,omitempty"`
 }
 
 // nextMoveJSON is one onward transition from the current status (the target and
@@ -55,12 +57,41 @@ type nextMoveJSON struct {
 	Description string `json:"description,omitempty"`
 }
 
+// historyJSON is one transition audit entry in `mtt show --json` (session
+// 008.97/U3): the human view renders history, so the JSON consumer needs it too
+// (checks + attribution).
+type historyJSON struct {
+	At     string      `json:"at"`
+	By     string      `json:"by,omitempty"`
+	Role   string      `json:"role,omitempty"`
+	Why    string      `json:"why,omitempty"`
+	From   string      `json:"from"`
+	To     string      `json:"to"`
+	Checks []checkJSON `json:"checks,omitempty"`
+}
+
+// checkJSON is one gate command result (the command and its exit code).
+type checkJSON struct {
+	Cmd  string `json:"cmd"`
+	Exit int    `json:"exit"`
+}
+
 // toShowJSON builds the show view from a task, its current status's description,
-// and the onward transitions. Next stays nil (omitted) when there are none.
+// and the onward transitions. Next/History stay nil (omitted) when empty.
 func toShowJSON(t mtt.Task, statusDesc string, onward []mtt.Transition) showJSON {
 	sj := showJSON{taskJSON: toTaskJSON(t), StatusDescription: statusDesc}
 	for _, e := range onward {
 		sj.Next = append(sj.Next, nextMoveJSON{To: string(e.To), Description: e.Description})
+	}
+	for _, h := range t.History {
+		hj := historyJSON{
+			At: h.At.UTC().Format(time.RFC3339), By: h.By, Role: h.Role, Why: h.Why,
+			From: string(h.From), To: string(h.To),
+		}
+		for _, c := range h.Checks {
+			hj.Checks = append(hj.Checks, checkJSON{Cmd: c.Cmd, Exit: c.Exit})
+		}
+		sj.History = append(sj.History, hj)
 	}
 	return sj
 }

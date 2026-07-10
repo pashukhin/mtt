@@ -72,6 +72,9 @@ explicit ones.`,
 			if err != nil {
 				return err
 			}
+			if jsonFlag(cmd) {
+				return writeJSON(cmd.OutOrStdout(), toTaskJSON(task))
+			}
 			_, err = fmt.Fprintf(cmd.OutOrStdout(), "created %s\n", task.ID)
 			return err
 		},

@@ -146,3 +146,10 @@ block (a `▸` line + `next:` under the header via the extended `formatTask`) an
 (`toShowJSON` — **anonymously embeds `taskJSON`** so `list`/`edit`/`status --json` are byte-unchanged, adding
 `status_description`/`next` as `omitempty`). The pure `pkg/mtt` helpers `Type.StatusByName` /
 `Type.TransitionsFrom` back both paths (mirroring `StatusKind`/`FindTransition`).
+
+JSON surfaces (session 008.97/U3): `mtt add --json` emits the created task via the shared `toTaskJSON`
+(instead of the plain `created <id>`), so an agent reads the fresh id from JSON. `mtt show --json` gains a
+`history` array (`historyJSON`/`checkJSON` in `json.go`, `omitempty`) built by `toShowJSON` from `Task.History`
+— entries `{at, by?, role?, why?, from, to, checks?:[{cmd, exit}]}`, surfacing the checks + attribution the
+human view renders. History rides `showJSON` only (embedded `taskJSON` stays lean, so `list`/`edit`/`status
+--json` are unchanged).
