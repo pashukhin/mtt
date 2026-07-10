@@ -84,16 +84,15 @@ flow is the task's maturation, three artifact stages (**design → plan → impl
 
 Statuses (kind): `tbd`(initial) · `speccing`,`spec_review`,`spec_human_review`,`spec_fix`(active) ·
 `planning`,`plan_review`,`plan_human_review`,`plan_fix`(active) ·
-`in_progress`,`impl_review`,`impl_human_review`,`impl_fix`(active) · `done`,`cancelled`(terminal). (15)
+`implementing`,`impl_review`,`impl_human_review`,`impl_fix`(active) · `done`,`cancelled`(terminal). (15)
 
 **Edge pattern** (same for the three stages; the gate differs — proxy for spec/plan, `make check` for impl).
-**Stem legend — NOT a literal substitution:** `<do>` ranges over the do-statuses `speccing`/`planning`/`in_progress`,
-whose review families use the stems `spec_`/`plan_`/`impl_` respectively — so `speccing → spec_review →
-spec_human_review` (`decline → spec_fix`), `planning → plan_*`, `in_progress → impl_*`. The do-status name and
-its family stem deliberately differ; **never author `speccing_review`/`in_progress_review`** etc. (the 15 status
-names are exactly those enumerated above). *(Alternative, if literal consistency is preferred: rename the
-do-statuses to `spec`/`plan`/`impl` so the pattern substitutes literally — not taken here, to keep the more
-descriptive gerund/`in_progress` names in the flow-guidance output.)*
+**Stem legend — NOT a literal substitution:** the three do-statuses are the gerunds
+`speccing`/`planning`/`implementing`, whose review families use the abbreviated stems `spec_`/`plan_`/`impl_`
+respectively — so `speccing → spec_review → spec_human_review` (`decline → spec_fix`), `planning → plan_*`,
+`implementing → impl_*`. The do-status (gerund) and its family stem (abbreviation) deliberately differ;
+**never author `speccing_review`/`implementing_review`** etc. (the 15 status names are exactly those enumerated
+above).
 
 | edge | name | gate | current |
 |---|---|---|---|
@@ -104,9 +103,9 @@ descriptive gerund/`in_progress` names in the flow-guidance output.)*
 | `<do>_human_review → <next-do>` | `approve` | — | impl→done: **clear** |
 | `<do>_human_review → <do>_fix` | `decline` | — | — |
 | `<do>_fix → <do>_review` | `submit` | same as first submit (proxy / `make check`) | — |
-| `{tbd,speccing,planning,in_progress,spec_fix,plan_fix,impl_fix} → cancelled` | `cancel` | — | **clear** |
+| `{tbd,speccing,planning,implementing,spec_fix,plan_fix,impl_fix} → cancelled` | `cancel` | — | **clear** |
 
-where `<next-do>` is `spec_human_review→planning`, `plan_human_review→in_progress`, `impl_human_review→done`.
+where `<next-do>` is `spec_human_review→planning`, `plan_human_review→implementing`, `impl_human_review→done`.
 (26 edges total: 1 entry + 6×3 stage edges + 7 cancel.)
 
 - **Edge names** `start / submit / approve / decline / cancel` are **disjoint from all status names**, **unique
@@ -117,7 +116,7 @@ where `<next-do>` is `spec_human_review→planning`, `plan_human_review→in_pro
   entered a review cycle could never reach `cancelled`. `cancel` therefore fires from the three `do` statuses,
   `tbd`, **and the three `_fix` statuses**; the `_review`/`_human_review` statuses reach `cancelled` in two moves
   (`decline → _fix`, then `cancel`).
-- **`make check` is the only heavy gate** — on **every edge into `impl_review`** (`in_progress → impl_review`
+- **`make check` is the only heavy gate** — on **every edge into `impl_review`** (`implementing → impl_review`
   and `impl_fix → impl_review`), so `impl_review` is only ever entered on green; not repeated on `→ done`.
   Gate-cost (S5, accepted): ~1 full `make check` per impl submit/resubmit; `command_timeout: 10m` (headroom for
   a first-run lint + `-race` compile; the code default is 5m).
@@ -210,9 +209,12 @@ forward reference fails the `add`.
   by the hand-run). Each carries a one-line description mirroring its `sessions/README.md` / TASKS row + area
   tags.
 - **Backlog** (tag `backlog`, `--priority low`): the former Phases 5–8 as coarse tasks (KB + search, Gantt +
-  query, mtt-ui, external adapters) and the design think-items ("Later (think)"). The exact enumeration is
-  finalized during implementation by reading `TASKS.md`, so the freeze empties both the active plan and the
-  design backlog into mtt.
+  query, mtt-ui, external adapters); the design think-items ("Later (think)"); and forward-looking self-host
+  tasks — notably **"migrate more of AGENTS.md's agent-process rules into the flow `description`s"** (the
+  self-instructing runbook — flow-note insight #2: the flow tells the agent what to do at each state, so the
+  process lives in the config, not a separate doc) and **"an `--exclude-tag` / `ready` de-noise filter"**. The
+  exact enumeration is finalized during implementation by reading `TASKS.md`, so the freeze empties both the
+  active plan and the design backlog into mtt.
 
 Note (queue noise, accepted for v1): backlog tasks (`tbd`, no deps) are technically `ready`, and there is **no
 exclude-tag filter**, so `mtt ready` shows everything workable (backlog included). The practical **"what next?"
@@ -230,7 +232,7 @@ a tag) is a near-term follow-up — itself a `backlog` item.
   - exactly **one** type (`task`), `default: true`, prefix `t`.
   - the flow has the **15 statuses** with the right kinds; the entry edge `tbd → speccing` carries the
     `git switch … task/{{.ID}}` branch command **and** `current: set`; the edges into `impl_review`
-    (`in_progress → impl_review`, `impl_fix → impl_review`) gate on `make check`; the spec/plan submit edges
+    (`implementing → impl_review`, `impl_fix → impl_review`) gate on `make check`; the spec/plan submit edges
     carry the `grep -qv '\.mtt/'` proxy; `impl_human_review → done` has `current: clear`; the named edges
     (`start`/`submit`/`approve`/`decline`/`cancel`) exist and satisfy the disjointness/uniqueness invariants.
     Gate assertions compare the **exact** command strings (the `make check`, the proxy including `\.mtt/`) — not
@@ -267,8 +269,11 @@ a tag) is a near-term follow-up — itself a `backlog` item.
 ## Docs sync (same session)
 
 `DESIGN.md`/`.ru` (a "Dogfooding / self-host" note incl. the bootstrap caveat + SEC2 read-only-gate rule + the
-S4 commit-discipline line + the process-vs-product model note); `CLI_REFERENCE.md`/`.ru` (a brief self-host
-mention if warranted — likely minimal); `docs/architecture/model.go` (a note only if a decision touches the
+S4 commit-discipline line + the process-vs-product model note); **`AGENTS.md`** — a new **"Working under mtt
+(self-host)"** section: the `task` flow + gates, **`task/{{.ID}}` branches** (a deliberate new namespace for
+mtt-driven work, alongside the manual `feat/`/`fix/`/`chore/` for non-task branches), the one-time
+`require:{who}` **author setup** (`config.local`/`MTT_BY`), and how to move a task / promote a `backlog` item
+(drop the tag); `CLI_REFERENCE.md`/`.ru` (a brief self-host mention if warranted — likely minimal); `docs/architecture/model.go` (a note only if a decision touches the
 contract — none expected); **`TASKS.md` frozen** (a banner + `e5_t2 ✅`; the task plan is superseded by mtt, the
 design backlog migrated as `backlog` tasks); `sessions/README.md` (009 ✅, 010 ← next); `NEXT_SESSION.md`
 ("Where we are" + "Next task = s010 references" + "Carry-over lessons (009)"); `sessions/009_dogfood.md` (Done
