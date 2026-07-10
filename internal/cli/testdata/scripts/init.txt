@@ -29,9 +29,10 @@ stdout 'bugfix'
 stdout 'refactor'
 stdout 'make test'
 
-# types outside a project errors
+# types outside a project errors — and the error points the way out (U4).
 cd $WORK/empty
 ! exec mtt types
 stderr 'not initialized'
+stderr 'mtt init'
 
 -- empty/.keep --

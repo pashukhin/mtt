@@ -127,3 +127,39 @@ func TestVersionCommand(t *testing.T) {
 		t.Fatalf("version wrote to stderr: %q", errBuf.String())
 	}
 }
+
+func TestRootShortNamesTheGate(t *testing.T) {
+	// U5: the first line an agent reads should name the killer feature (the empty
+	// niche), not the crowded "file-backed tracker" category.
+	s := NewRootCmd().Short
+	if !strings.Contains(s, "state machine") || !strings.Contains(strings.ToLower(s), "gate") {
+		t.Fatalf("root Short must name the gate/state-machine feature: %q", s)
+	}
+}
+
+func TestRootHelpMentionsSugar(t *testing.T) {
+	// U4: the verb sugar (mtt <status> [<id>]) must be discoverable from --help,
+	// since mtt's adoption theory is "the agent learns from the CLI itself".
+	root := NewRootCmd()
+	var out bytes.Buffer
+	root.SetOut(&out)
+	root.SetArgs([]string{"--help"})
+	if err := root.Execute(); err != nil {
+		t.Fatalf("execute --help: %v", err)
+	}
+	if !strings.Contains(out.String(), "<status>") {
+		t.Fatalf("root help must mention the verb sugar: %s", out.String())
+	}
+}
+
+func TestProjectRootNoDirHintsInit(t *testing.T) {
+	// U4: an explicit --dir with no .mtt/ names `mtt init`. Root sets
+	// SilenceErrors=true, so assert the RETURNED error (a stderr buffer stays empty).
+	dir := t.TempDir()
+	root := NewRootCmd()
+	root.SetArgs([]string{"--dir", dir, "list"})
+	err := root.Execute()
+	if err == nil || !strings.Contains(err.Error(), "mtt init") {
+		t.Fatalf("no-project error must name `mtt init`, got: %v", err)
+	}
+}

@@ -25,8 +25,14 @@ const gateTailLines = 10
 func newStatusCmd() *cobra.Command {
 	var noRun bool
 	cmd := &cobra.Command{
-		Use:   "status <id> <new-status>",
+		Use:   "status [<id>] <new-status>",
 		Short: "Move a task across one flow edge (runs & gates the edge's commands)",
+		Long: `Move a task across ONE flow edge, running (and gating on) that edge's commands.
+
+The id is optional: when omitted it resolves to the current task ('mtt use <id>').
+The shorthand 'mtt <new-status> [<id>]' does the same move (e.g. 'mtt done t1' or,
+on the current task, 'mtt done'). A red gate blocks the move (exit 3) and leaves
+the task untouched; re-run with -v or --log-file to see the failing command's output.`,
 		Args: func(_ *cobra.Command, args []string) error {
 			if len(args) != 1 && len(args) != 2 {
 				return errors.New("provide a target status (and optionally a task id): mtt status [<id>] <new-status>")

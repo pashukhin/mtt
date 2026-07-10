@@ -131,6 +131,9 @@ Configuration).
 - `--template <name>` — starter config: `default` (epic/task/subtask, no commands) or `coding`
   (feature/bugfix/refactor, each with a gated per-type Definition of Done). Default: `default`.
 
+Running any other command outside a project (no `.mtt/` found by discovery, or a `--dir` without one) errors
+with a `run 'mtt init' to create one` hint (session 008.97/U4).
+
 ### `mtt version` — print the version  *(phase 0, implemented)*
 Prints the build version. No arguments.
 

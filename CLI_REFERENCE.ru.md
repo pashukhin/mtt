@@ -130,6 +130,9 @@ transitions:
 - `--template <name>` — стартовый конфиг: `default` (epic/task/subtask, без команд) или `coding`
   (feature/bugfix/refactor, у каждого свой гейтящий per-type Definition of Done). По умолчанию: `default`.
 
+Любая другая команда вне проекта (`.mtt/` не найден при discovery или `--dir` без него) падает с подсказкой
+`run 'mtt init' to create one` (сессия 008.97/U4).
+
 ### `mtt version` — напечатать версию  *(фаза 0, реализовано)*
 Печатает версию сборки. Без аргументов.
 

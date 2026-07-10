@@ -153,3 +153,10 @@ JSON surfaces (session 008.97/U3): `mtt add --json` emits the created task via t
 — entries `{at, by?, role?, why?, from, to, checks?:[{cmd, exit}]}`, surfacing the checks + attribution the
 human view renders. History rides `showJSON` only (embedded `taskJSON` stays lean, so `list`/`edit`/`status
 --json` are unchanged).
+
+Discoverability + tagline (session 008.97/U4/U5): the root `Short:` names the gate/state-machine (the empty
+niche, not "file-backed tracker") and a root `Long:` documents the `mtt <status> [<id>]` sugar + current
+resolution + the `roadmap`/`ready`/`types` entry points; `status`'s `Use:` is `status [<id>] <new-status>`
+(the id is optional) with a `Long:` covering the sugar. `projectRoot` appends `(run 'mtt init' to create one)`
+to **both** no-project errors — the explicit `--dir` case (inline) and the discovery case (wrapping
+`yaml.ErrNotInitialized` with `%w`, so `errors.Is` still matches — the CLI, not the adapter, owns the hint).
