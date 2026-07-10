@@ -50,6 +50,7 @@ type ymlStatus struct {
 	Name        string `yaml:"name"`
 	Kind        string `yaml:"kind"`
 	Description string `yaml:"description"`
+	Default     bool   `yaml:"default,omitempty"`
 }
 
 type ymlTransition struct {
@@ -120,7 +121,7 @@ func (yc ymlConfig) toDomain() (mtt.Config, map[string]string) {
 	for _, yt := range yc.Types {
 		t := mtt.Type{Name: mtt.TypeName(yt.Name), Description: yt.Description, Parents: toTypeNames(yt.Parents), Default: yt.Default}
 		for _, ys := range yt.Statuses {
-			t.Statuses = append(t.Statuses, mtt.Status{Name: mtt.StatusName(ys.Name), Kind: mtt.StatusKind(ys.Kind), Description: ys.Description})
+			t.Statuses = append(t.Statuses, mtt.Status{Name: mtt.StatusName(ys.Name), Kind: mtt.StatusKind(ys.Kind), Description: ys.Description, Default: ys.Default})
 		}
 		for _, yr := range yt.Transitions {
 			cmds := make([]mtt.Command, 0, len(yr.Commands))

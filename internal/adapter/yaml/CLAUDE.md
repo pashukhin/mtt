@@ -27,7 +27,10 @@ beyond provider-specific checks.
   round-trip the same way via `ymlTask.Tags` (`yaml:"tags,omitempty"`, after `parent`) — a plain `[]string`
   copy, **no adapter change** and **no sort** (the adapter copies `Tags` verbatim; the normalized+sorted-set
   invariant lives in `core.canonicalTags`). Golden `task_tags.yaml` locks the field position; unset tags are
-  omitted, keeping existing files byte-unchanged.
+  omitted, keeping existing files byte-unchanged. **Status `default`** (s008.97/A2): `ymlStatus.Default`
+  (`yaml:"default,omitempty"`) maps to `mtt.Status.Default` in `toDomain`, so a `default: true` marker on an
+  initial status is honored by `Type.InitialStatus()` via `Load` (previously silently dropped; the fallback
+  first-initial always won).
 - No flow/ready/traversal logic here (that is `core`, later). Templates are the **only** home of default type/status names.
 - `.mtt/config.yaml` is edited only through this adapter (determinism + validation).
 - `NewCurrent(root)` / `Current` — implements `mtt.CurrentStore` (session 006.7), owning **only** the top-level
