@@ -110,7 +110,7 @@ func (s *Store) List() ([]mtt.Task, error) {
 		}
 		task, err := yt.toDomain()
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("%s: %w", path, err)
 		}
 		tasks = append(tasks, task)
 	}
@@ -131,5 +131,9 @@ func (s *Store) Get(id mtt.TaskID) (mtt.Task, error) {
 	if err := goyaml.Unmarshal(data, &yt); err != nil {
 		return mtt.Task{}, fmt.Errorf("parse %s: %w", path, err)
 	}
-	return yt.toDomain()
+	task, err := yt.toDomain()
+	if err != nil {
+		return mtt.Task{}, fmt.Errorf("%s: %w", path, err)
+	}
+	return task, nil
 }

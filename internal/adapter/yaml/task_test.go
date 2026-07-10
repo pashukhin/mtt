@@ -4,12 +4,57 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/pashukhin/mtt/pkg/mtt"
 )
 
 var _ mtt.TaskStore = (*Store)(nil)
+
+func TestListNamesCorruptFile(t *testing.T) {
+	root := initDefault(t)
+	// A zero-byte task file (the mint-window / crash artifact from A1): Unmarshal
+	// yields a zero DTO, toDomain fails on the empty id. The List error must name
+	// the offending file so it is a one-command fix at volume.
+	bad := filepath.Join(root, ".mtt", "tasks", "t99.yaml")
+	if err := os.MkdirAll(filepath.Dir(bad), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(bad, nil, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	_, err := NewTaskStore(root).List()
+	if err == nil {
+		t.Fatal("List over a zero-byte task file must error")
+	}
+	if !strings.Contains(err.Error(), "t99.yaml") {
+		t.Fatalf("List error must name the offending file, got: %v", err)
+	}
+}
+
+func TestGetNamesCorruptFile(t *testing.T) {
+	root := initDefault(t)
+	// A non-empty but domain-invalid file (empty id) — corrupt, not absent. The
+	// wrapped error must NOT be ErrNotFound (that would mis-map to exit 4).
+	bad := filepath.Join(root, ".mtt", "tasks", "t98.yaml")
+	if err := os.MkdirAll(filepath.Dir(bad), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(bad, []byte("type: task\nstatus: tbd\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	_, err := NewTaskStore(root).Get("t98")
+	if err == nil {
+		t.Fatal("Get over a corrupt task file must error")
+	}
+	if errors.Is(err, mtt.ErrNotFound) {
+		t.Fatalf("a corrupt file is not ErrNotFound (that would mis-map to exit 4): %v", err)
+	}
+	if !strings.Contains(err.Error(), "t98.yaml") {
+		t.Fatalf("Get error must name the offending file, got: %v", err)
+	}
+}
 
 func initDefault(t *testing.T) string {
 	t.Helper()
