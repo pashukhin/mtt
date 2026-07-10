@@ -1,0 +1,38 @@
+# U2: a blocked gate surfaces WHY it failed — the failing command's output tail
+# under the ✗ line, plus a -v/--log-file hint on the error. No git needed.
+
+exec mtt init
+cp gated.yaml .mtt/config.yaml
+
+exec mtt add 'do a thing'
+stdout 'created t1'
+
+# The tbd -> done gate prints 169 (= 13*13, absent from the command text) then
+# fails: the move blocks (exit 3), the OUTPUT tail is echoed on stderr, and the
+# error carries the -v/--log-file hint.
+! exec mtt done t1
+stderr '169'
+stderr 'hint: re-run with -v'
+stderr 'blocked'
+
+# The task stayed put.
+exec mtt show t1
+stdout '\[tbd\]'
+
+-- gated.yaml --
+version: 1
+project:
+  name: demo
+types:
+  - name: task
+    prefix: t
+    parents: []
+    default: true
+    statuses:
+      - {name: tbd,  kind: initial}
+      - {name: wip,  kind: active}
+      - {name: done, kind: terminal}
+    transitions:
+      - {from: tbd, to: done, commands: ["echo $((13*13)); exit 1"]}
+      - {from: tbd, to: wip}
+      - {from: wip, to: done}

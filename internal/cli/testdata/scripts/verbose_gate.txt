@@ -1,0 +1,38 @@
+# T7: `-v` streams the gate command's own output to stderr (the previously
+# untested --verbose branch). No git needed. Needle 123 (= 100+23) is OUTPUT-only:
+# the command text is `echo $((100+23))`, so a hit proves streaming, not the
+# ▶/✓ progress line. The gate PASSES (exit 0), so the U2 failure-tail never fires.
+
+exec mtt init
+cp gated.yaml .mtt/config.yaml
+
+exec mtt add 'do a thing'
+stdout 'created t1'
+
+# Without -v, the command's own output is hidden (only ▶/✓ progress on stderr).
+exec mtt in_progress t1
+! stderr '123'
+
+exec mtt add 'do another'
+stdout 'created t2'
+
+# With -v, the passing gate command's stdout is streamed to stderr.
+exec mtt -v in_progress t2
+stderr '123'
+
+-- gated.yaml --
+version: 1
+project:
+  name: demo
+types:
+  - name: task
+    prefix: t
+    parents: []
+    default: true
+    statuses:
+      - {name: tbd,         kind: initial}
+      - {name: in_progress, kind: active}
+      - {name: done,        kind: terminal}
+    transitions:
+      - {from: tbd,         to: in_progress, commands: ["echo $((100+23))"]}
+      - {from: in_progress, to: done,        commands: ["true"]}

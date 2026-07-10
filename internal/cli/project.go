@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 	"os"
 
@@ -25,7 +26,7 @@ func resolveDir(cmd *cobra.Command) string {
 func projectRoot(cmd *cobra.Command) (string, error) {
 	if dir := resolveDir(cmd); dir != "" {
 		if !yaml.HasProject(dir) {
-			return "", fmt.Errorf("no .mtt/ in %q", dir)
+			return "", fmt.Errorf("no .mtt/ in %q (run 'mtt init' to create one)", dir)
 		}
 		return dir, nil
 	}
@@ -33,7 +34,15 @@ func projectRoot(cmd *cobra.Command) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("getwd: %w", err)
 	}
-	return yaml.FindRoot(cwd)
+	root, err := yaml.FindRoot(cwd)
+	if err != nil {
+		if errors.Is(err, yaml.ErrNotInitialized) {
+			// Keep the sentinel (errors.Is still matches) but point the way out.
+			return "", fmt.Errorf("%w (run 'mtt init' to create one)", err)
+		}
+		return "", err
+	}
+	return root, nil
 }
 
 // baseDir resolves the base directory for init: --dir/MTT_DIR if set, else the

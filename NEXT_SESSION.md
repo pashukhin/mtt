@@ -4,7 +4,21 @@ A living handoff doc. Update it at the end of each session (what's done / what's
 
 ## Where we are
 
-- **Phase 0 (scaffold) + sessions 001–006 + 006.5 + 006.7 + 007 + 008 + 008.5 + 008.6 + 008.7 + 008.9 + 008.95 are DONE** (version `0.8.9-dev`, `make check` green).
+- **Phase 0 (scaffold) + sessions 001–006 + 006.5 + 006.7 + 007 + 008 + 008.5 + 008.6 + 008.7 + 008.9 + 008.95 + 008.97 are DONE** (version `0.8.97-dev`, `make check` green).
+  **Chore 008.97 (dogfood hardening)** shipped the small fixes dogfood would trip over daily: **U2** — a blocked
+  gate echoes the failing command's output tail (~10 lines) under its `✗` line **and** hints `-v`/`--log-file`
+  (exec `Runner` gained a `tailLines` knob + a `tailBuffer`; the CLI passes it only when output is hidden and
+  `%w`-wraps `ErrBlocked` with the hint, preserving exit 3); **A1/T1** — YAML `List`/`Get` name the offending
+  file on a corrupt/zero-byte task (not-found path untouched); **A2** — `Status.Default` mapped in the YAML DTO
+  (was silently dropped); **U3** — `add --json` emits the created task, `show --json` carries a `history` array
+  (rides `showJSON` only, `list`/`edit`/`status --json` byte-unchanged); **U4/U5** — root `Short` names the
+  gate/state-machine + a root `Long` documents the sugar/entry-points, `status` `Use` = `status [<id>]
+  <new-status>`, both no-project errors hint `mtt init` (discovery case wraps `ErrNotInitialized` at the CLI);
+  **S7** `rm -rf bin/.mtt`; **T6** split the gitless per-command-timeout+scalar e2e (`command_timeout.txt`) out
+  of the git-only `structured_commands.txt`; **T7** a `-v` streaming e2e. Adversarial plan review caught 3
+  blockers pre-code (valid 3-status e2e flow; output-only test needles; `tailBuffer.kept` not `lines_`). No new
+  port, no domain-shape change. Plan: `docs/superpowers/plans/2026-07-10-s008.97-hardening.md`. Next: **s009
+  dogfood**, then chore s009.5 (release positioning) → tag `v0.9.0`.
   **Chore 008.95 (release prep)** shipped first-release groundwork (version-neutral — no runtime change, so
   `0.8.9-dev` stays): **`make release`** (5-platform GOOS/GOARCH cross-compile → `dist/` version-stamped raw
   binaries + `SHA256SUMS`; `VERSION` required; out of `make check`, non-hermetic like `smoke`),
@@ -221,23 +235,20 @@ resolved graph, and open gaps. Two decisions locked there that shape s005:
   at its boundary (`toDomain` fails fast on a corrupt empty `id`/`type`/`status`). s005 is written against the
   typed contract. Constructors reject empty, no transform; `Ref.ID` stays `string`; `NoteSlug` deferred (KB).
 
-## Next task — chore 008.97 (dogfood hardening), then s009 (dogfood)
+## Next task — s009 (dogfood); chore 008.97 is DONE
 
 > **Roadmap regrouped 2026-07-10** after a deep product/UX/architecture analysis. Read the two analysis notes
 > first — every item below is specified there with repro, file anchors, fix sketch, and acceptance:
 > `docs/superpowers/notes/2026-07-09-positioning-and-agent-ux-analysis.md` (R*/U* items) and
 > `docs/superpowers/notes/2026-07-09-s009-readiness-and-architecture-audit.md` (S*/A* items).
 >
-> **Next up is chore s008.97 — dogfood hardening** (e5_t1d): the small fixes dogfood would otherwise trip
-> over daily. Scope: **U2** (a blocked gate surfaces the failing command's output tail, or at least hints
-> `-v`/`--log-file`), **A1** (yaml `List`/`Get` errors name the offending file; corrupt/zero-byte task files
-> locked by tests), **A2** (map `Status.Default` in the YAML DTO — today silently dropped), **U3**
-> (`add --json` emits the created task; consider `history` in `show --json`), **U4/U5** (help discoverability:
-> `status [<id>]` usage, verb sugar in root help, `mtt init` hint on "no .mtt/", a tagline naming the gate
-> feature), plus `rm -rf bin/.mtt` and two test-debt items (split the per-command-timeout e2e out of the
-> git-gated script; a `-v` streaming test). Version bump `0.8.9-dev → 0.8.97-dev`.
+> **✅ Chore s008.97 — dogfood hardening (DONE, e5_t1d):** shipped U2 (blocked-gate output tail + `-v`/`--log-file`
+> hint), A1/T1 (yaml `List`/`Get` name the corrupt file), A2 (`Status.Default` DTO mapping), U3 (`add --json`
+> task + `show --json` history), U4/U5 (help discoverability + gate tagline), S7 (`rm -rf bin/.mtt`), T6/T7
+> (gitless timeout e2e split + `-v` streaming e2e). Version `0.8.9-dev → 0.8.97-dev`. See the "Where we are"
+> bullet above + `sessions/008.97_hardening.md`. **Carry-over lessons below.**
 >
-> **Then s009 dogfood** (e5_t2) — the spec EXISTS
+> **Next up is s009 dogfood** (e5_t2) — the spec EXISTS
 > (`docs/superpowers/specs/2026-07-09-session-009-dogfood-design.md`) but **must first be reconciled with
 > recorded decision A** (audit note S1): the full session flow `tbd → speccing → planning → in_progress →
 > review → done`, branch + `current: set` on `→ speccing`, `make check` on `→ review`/`→ done`; switch the
@@ -254,6 +265,44 @@ resolved graph, and open gaps. Two decisions locked there that shape s005:
 > After dogfood, `TASKS.md` freezes and mtt tracks its own work. Then references (s010), comments (s011),
 > actor profiles (s012). `advance`/`start`/`done` + modes + roles-on-edges + node-level status-actions +
 > cross-edge compensation stay **PARKED**.
+
+### Carry-over lessons (008.97 — dogfood hardening)
+- **An adversarial plan review earns its tokens before a multi-item chore.** The review caught three
+  execute-time blockers a self-review missed: (1) an e2e's gated `.mtt/config.yaml` must be a **valid flow** —
+  `mtt add` runs `Config.Validate`, and a 2-status `initial→terminal` flow lacks an active status and is
+  rejected, so the whole script dies at the first `exec mtt add`; use `initial→active→terminal` even for a
+  minimal gate demo. (2) A gate-output test needle must be **output-only** — the runner always prints `▶ <cmd>`
+  / `✗ <cmd>` to progress, so a needle that is a substring of the command text matches the progress line and
+  proves nothing (and a negated assert can never pass). Use arithmetic expansion (`echo $((13*13))` → `169`,
+  absent from the command text). (3) `revive var-naming` (active via golangci v2 default) rejects underscores
+  in identifiers — a struct field `lines_` reds the gate; name it `kept`.
+- **A stderr buffer is empty under `SilenceErrors: true`.** The root sets it, so cobra prints nothing to
+  `SetErr`; only `cli.Execute` prints (to real stderr). A unit test for an error message must assert the
+  **returned** error (`root.Execute()` → `err.Error()`), not a `bytes.Buffer` set via `SetErr`. The e2e harness
+  is different — it runs `cli.Execute`, which *does* print, so `stderr '…'` works there.
+- **Display-only diagnostics belong in the adapter that owns the progress writer; the actionable hint in the
+  CLI.** U2's output tail is echoed by the exec `Runner` (it already prints `▶`/`✓`/`✗`), gated on a
+  `tailLines` knob the CLI sets only when output is hidden; the `-v`/`--log-file` **hint** is a CLI `%w`-wrap of
+  `ErrBlocked` (preserving exit 3 via `errors.Is`). Both gated on the same `hidden = !verbose && logFile==""`,
+  so `-v` runs get neither (live output already visible — no duplication). `runReport` takes a `showTail bool`
+  so `Run` echoes but best-effort `Compensate` never does.
+- **A CLI-owned error hint keeps the adapter clean.** The `mtt init` suggestion on a no-project error wraps the
+  adapter sentinel (`yaml.ErrNotInitialized`) with `%w` **at the CLI** (`projectRoot`), not in the adapter — so
+  `errors.Is` still matches and the adapter carries no knowledge of the CLI verb `mtt init`. The `%w` wrap also
+  keeps the `not initialized` substring, so existing substring e2e survive.
+- **Additive JSON on the show-only view, not the shared one.** `show --json` history rides `showJSON` (which
+  embeds `taskJSON` anonymously), so `list`/`edit`/`status --json` (which marshal `taskJSON` directly) stay
+  byte-unchanged — the same pattern as the s008.95 `status_description`/`next` fields. `add --json` reuses the
+  shared `toTaskJSON`.
+- **Wrap `toDomain` errors with the file path, but keep `ErrNotFound` distinct.** A1's `List`/`Get` wrap
+  (`%s: %w`, path + err) only fires for a *corrupt* file (empty id, bad time) — the *absent*-file branch returns
+  `mtt.ErrNotFound` **before** `toDomain`, so exit 4 is preserved. Lock it with a test asserting the corrupt
+  error is **not** `errors.Is(ErrNotFound)`.
+- **A DTO-field-drop is a whole class of silent bug.** `Status.Default` existed in the domain, was validated,
+  and was resolved by `InitialStatus()` — but the YAML DTO (`ymlStatus`) had no field and `toDomain` never
+  mapped it, so `default: true` was silently dropped and the fallback (first initial) always won. Test the fix
+  **via `Load`/`toDomain`** (the path that was broken), not only a hand-built `mtt.Config`. Audit the other
+  optional DTO fields the same way when a domain knob "does nothing".
 
 ### Carry-over lessons (008.9 — batch & pipeline)
 - **cobra validates `Args` BEFORE `RunE`, on the flag-stripped positionals — a context-sensitive command needs

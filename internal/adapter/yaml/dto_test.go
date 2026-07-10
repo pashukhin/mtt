@@ -51,6 +51,44 @@ func TestToDomain(t *testing.T) {
 	}
 }
 
+func TestToDomainMapsStatusDefault(t *testing.T) {
+	// Two initials; the SECOND is marked default. Without the DTO mapping the
+	// fallback (first initial in config order) wins — the bug A2 fixes.
+	src := `
+version: 1
+project: {name: demo}
+types:
+  - name: task
+    prefix: t
+    parents: []
+    default: true
+    statuses:
+      - {name: triage,  kind: initial}
+      - {name: tbd,     kind: initial, default: true}
+      - {name: doing,   kind: active}
+      - {name: done,    kind: terminal}
+    transitions:
+      - {from: triage, to: doing}
+      - {from: tbd,    to: doing}
+      - {from: doing,  to: done}
+`
+	var yc ymlConfig
+	if err := goyaml.Unmarshal([]byte(src), &yc); err != nil {
+		t.Fatal(err)
+	}
+	cfg, _ := yc.toDomain()
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("two-initial config invalid: %v", err)
+	}
+	init, ok := cfg.Types[0].InitialStatus()
+	if !ok {
+		t.Fatal("no initial status resolved")
+	}
+	if init.Name != "tbd" {
+		t.Fatalf("InitialStatus = %q, want the default-marked %q (Status.Default was dropped)", init.Name, "tbd")
+	}
+}
+
 func TestCheckPrefixes(t *testing.T) {
 	cfg := mtt.Config{Types: []mtt.Type{{Name: "a", Default: true}, {Name: "b"}}}
 	if err := checkPrefixes(cfg, map[string]string{"a": "x", "b": "x"}); err == nil || !strings.Contains(err.Error(), "already used") {

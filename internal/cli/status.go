@@ -15,14 +15,24 @@ import (
 	"github.com/pashukhin/mtt/pkg/mtt"
 )
 
+// gateTailLines is how many trailing lines of a FAILED gate command the CLI asks
+// the runner to echo (U2) when the command's own output is otherwise hidden.
+const gateTailLines = 10
+
 // newStatusCmd builds `mtt status <id> <new>`: one gated flow transition. Its
 // only local flag is --no-run (the sugar path deliberately cannot bypass the
 // gate); --verbose/--log-file are root-persistent and shared with the sugar.
 func newStatusCmd() *cobra.Command {
 	var noRun bool
 	cmd := &cobra.Command{
-		Use:   "status <id> <new-status>",
+		Use:   "status [<id>] <new-status>",
 		Short: "Move a task across one flow edge (runs & gates the edge's commands)",
+		Long: `Move a task across ONE flow edge, running (and gating on) that edge's commands.
+
+The id is optional: when omitted it resolves to the current task ('mtt use <id>').
+The shorthand 'mtt <new-status> [<id>]' does the same move (e.g. 'mtt done t1' or,
+on the current task, 'mtt done'). A red gate blocks the move (exit 3) and leaves
+the task untouched; re-run with -v or --log-file to see the failing command's output.`,
 		Args: func(_ *cobra.Command, args []string) error {
 			if len(args) != 1 && len(args) != 2 {
 				return errors.New("provide a target status (and optionally a task id): mtt status [<id>] <new-status>")
@@ -71,7 +81,16 @@ func runTransition(cmd *cobra.Command, root string, cfg mtt.Config, settings yam
 		return err
 	}
 	defer closeOut()
-	runner := exec.NewRunner(root, settings.CommandTimeout, cmd.ErrOrStderr(), cmdOut)
+	// When the commands' own output is otherwise hidden, ask the runner to echo a
+	// failing command's output tail (so a blocked gate shows why), and append a
+	// hint to the block error; with -v/--log-file the output is already visible,
+	// so neither fires (no duplication).
+	hidden := !verbose && logFile == ""
+	tail := 0
+	if hidden {
+		tail = gateTailLines
+	}
+	runner := exec.NewRunner(root, settings.CommandTimeout, cmd.ErrOrStderr(), cmdOut, tail)
 
 	tr := core.NewTransitioner(yaml.NewTaskStore(root), cfg, runner, time.Now)
 	task, err := tr.Transition(id, to, core.TransitionOptions{
@@ -79,6 +98,9 @@ func runTransition(cmd *cobra.Command, root string, cfg mtt.Config, settings yam
 		RequireWho: settings.Require.Who, RequireWhy: settings.Require.Why,
 	})
 	if err != nil {
+		if hidden && errors.Is(err, core.ErrBlocked) {
+			return fmt.Errorf("%w\n  hint: re-run with -v or --log-file to see the command's full output", err)
+		}
 		return err
 	}
 	if err := applyCurrent(root, cfg, task, id); err != nil {

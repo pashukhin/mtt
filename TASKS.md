@@ -210,7 +210,7 @@ comments (which enrich a full self-host but don't enable it). See sessions/READM
       `--force`; `Remove` is a thin wrapper — single `rm <id>` keeps exit-4). Spec/plan:
       `docs/superpowers/{specs,plans}/2026-07-09-session-008.9-batch*`. Version `0.8.7-dev` → `0.8.9-dev`. Bulk
       `status`/verbs/`edit`/`dep` stay **later** (gates + partial-success + atomicity).
-- [ ] e5_t1d — **dogfood hardening (chore, s008.97)** — added 2026-07-10 from the deep-analysis notes
+- [x] e5_t1d — **dogfood hardening (chore, s008.97)** — **DONE 2026-07-10** — added from the deep-analysis notes
       (`docs/superpowers/notes/2026-07-09-positioning-and-agent-ux-analysis.md` U*,
       `…-s009-readiness-and-architecture-audit.md` A*): a blocked gate surfaces the failing command's output
       tail (or hints `-v`/`--log-file`) [U2]; yaml `List`/`Get` errors name the offending file, corrupt/

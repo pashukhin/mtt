@@ -1,0 +1,14 @@
+# U3: `mtt add --json` emits the created task object (not the plain `created t1`),
+# so an agent gets the fresh id without parsing prose (`... --json | jq -r .id`).
+
+exec mtt init
+
+# The default type requires a parent, so create the first task with --no-parent.
+exec mtt --json add 'first task' --no-parent
+stdout '"id": "t1"'
+stdout '"status": "tbd"'
+! stdout 'created t1'
+
+# Without --json, the plain ack is unchanged.
+exec mtt add 'second task' --no-parent
+stdout 'created t2'

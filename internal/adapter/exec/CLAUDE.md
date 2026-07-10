@@ -5,7 +5,7 @@ transition's `commands` as gates.
 
 ## Responsibilities
 
-- `NewRunner(dir, timeout, progress, cmdOut)` / `Run(commands []mtt.Command)` — run each command with
+- `NewRunner(dir, timeout, progress, cmdOut, tailLines)` / `Run(commands []mtt.Command)` — run each command with
   `cwd=dir`, in order, **stopping at the first non-zero exit**. The effective timeout per command is
   `cmd.Timeout` when set, else the constructor `timeout` (the adapter global `command_timeout`) as a
   **fallback** (`context.WithTimeout`) — so a tight per-command timeout fails fast independent of the global
@@ -20,7 +20,11 @@ transition's `commands` as gates.
 - **Two output streams, separate concerns.** `progress` (always) gets the live pipeline lines
   `▶ <cmd>` / `✓|✗ <cmd> (exit N, <elapsed>)` — per-command wall-clock timing, display-only (not persisted).
   `cmdOut` gets each command's own stdout/stderr (the CLI passes `io.Discard` by default, stderr with `-v`,
-  and/or a file with `--log-file`). Nil writers default to `io.Discard`.
+  and/or a file with `--log-file`). Nil writers default to `io.Discard`. **`tailLines > 0` (s008.97/U2):** `Run`
+  tees a command's output into a bounded ring buffer (`tailBuffer`) and, on a **failure**, echoes the last
+  `tailLines` lines to `progress` under the `✗` line — so a blocked gate shows *why* even when output is hidden.
+  Hidden-by-default holds for **succeeding** commands (nothing echoed). `Compensate` never echoes a tail. The
+  CLI passes `tailLines>0` only when output is otherwise hidden (`!-v && no --log-file`), else `0`.
 - A **non-zero exit is data** (a `Check`), not a Go error; the returned `error` signals only an
   **operational** failure (the command could not launch, or timed out — exit recorded as `-1`).
 - Cross-platform shell seam `shell(cmd)`: `sh -c` on Unix, `cmd /c` on Windows. Commands are trusted

@@ -6,7 +6,7 @@ The complete **target** command surface of the `mtt` CLI, derived from [DESIGN.m
 two purposes: a reference for humans and agents, and a way to sanity-check the design from the CLI angle
 (man/usage) rather than from requirements.
 
-**Status:** this is the target command surface. **Implemented today (through session 008.9, `0.8.9-dev`):**
+**Status:** this is the target command surface. **Implemented today (through session 008.97, `0.8.97-dev`):**
 `version`, `init`, `types`, `add`, `show`, `list`, `edit`, `tree`, `dep add/rm/list`, `ready`, `roadmap`,
 `status` (plus the `mtt <status> <id>` verb sugar), `use`, `rm`, `tag add/rm` — with a **task-set selector**
 (explicit ids | stdin `-` | `--filter`) + an **`--ids`** output on `list`/`ready` powering **bulk** `tag add/rm`
@@ -131,6 +131,9 @@ Configuration).
 - `--template <name>` — starter config: `default` (epic/task/subtask, no commands) or `coding`
   (feature/bugfix/refactor, each with a gated per-type Definition of Done). Default: `default`.
 
+Running any other command outside a project (no `.mtt/` found by discovery, or a `--dir` without one) errors
+with a `run 'mtt init' to create one` hint (session 008.97/U4).
+
 ### `mtt version` — print the version  *(phase 0, implemented)*
 Prints the build version. No arguments.
 
@@ -153,7 +156,8 @@ Generates a completion script for `bash`/`zsh`/`fish`/`powershell`.
 
 ### `mtt add [title] [flags]` — create a task  *(phase 1, `add`/`show` shipped in session 002)*
 Create a task. Provide a `title` (positional) and/or `--description`; at least one is required. The
-adapter mints the ID — a flat, per-prefix ID such as `e1` or `t17` — and prints `created <id>`.
+adapter mints the ID — a flat, per-prefix ID such as `e1` or `t17` — and prints `created <id>` (or, with
+`--json`, the created task object — session 008.97).
 
 - `--type <name>` — task type from config (default: the type marked `default`).
 - `--parent <id>` — place the task under an existing parent (session 004). Validated: the parent exists and
@@ -186,9 +190,11 @@ lists direct children (`children: 2 (t1, t2)`), shown only when present. There i
 comment tree, and the transition `history` (audit trail) print once those land in later phases.
 
 - `<id>` — the task to show.
-- `--json` — the task object plus **`status_description`** (omitempty) and **`next`** (an array of
-  `{to, description?}` onward moves, omitempty) — the structured, queryable form of the flow guidance
-  (session 008.95). The shared `list`/`edit` `--json` view is unaffected (these fields are `show`-only).
+- `--json` — the task object plus **`status_description`** (omitempty), **`next`** (an array of
+  `{to, description?}` onward moves, omitempty), and **`history`** (an array of
+  `{at, by?, role?, why?, from, to, checks?:[{cmd, exit}]}` transition entries, omitempty — session 008.97/U3,
+  so the JSON consumer sees the checks + attribution the human view renders). The structured, queryable form of
+  the flow guidance + audit. The shared `list`/`edit` `--json` view is unaffected (these fields are `show`-only).
 - `--no-history` — *(later)* omit the history/audit trail.
 - `--no-comments` — *(later)* omit comments.
 
@@ -308,7 +314,10 @@ or the task object with `--json`. A transition not in the flow exits `6`. If the
 is unmet, it exits `2` **before** running the gate (see Configuration → `require`).
 
 The gate reports **live pipeline progress** to stderr (`▶ <cmd>` / `✓|✗ <cmd> (exit N, <elapsed>)`) as each
-command runs; the commands' own output is hidden by default.
+command runs; the commands' own output is hidden by default. On a **block**, the failing command's last ~10
+output lines are echoed under its `✗` line and the error carries a `hint: re-run with -v or --log-file …`
+(session 008.97) — so the agent sees *why* the gate failed without re-running it; use `-v`/`--log-file` for
+the full output.
 
 After a successful move, mtt prints the flow's **guidance** on stdout under the `from → to` line (session
 008.95): the traversed edge's `description` and the destination status's `description` (each as a `▸ …` line,
@@ -581,8 +590,10 @@ These are things this reference surfaces that are worth keeping consistent with 
 - **Capability-gated commands.** `dep*`, `comment*`, `note*`, `search`, and history rely on optional
   adapter capabilities; against a backend that lacks them they exit `5` (`ErrUnsupported`), not silently.
 - **`--json` everywhere.** Every command supports JSON output so agents can drive mtt without parsing
-  human text; mutations echo the resulting object. **Exception:** the create/delete acks (`created <id>` /
-  `removed <id>`) are plain text — a create prints only the minted id, and a delete has no object left to
-  echo; agents branch on the exit code (`0`/`4`).
+  human text; mutations echo the resulting object — including `add --json`, which emits the created task
+  (session 008.97/U3), so the fresh id is `mtt add … --json | jq -r .id` rather than parsed from prose.
+  **Exception:** the delete ack (`removed <id>`) stays plain text — a deleted task has no object left to
+  echo; the agent branches on the exit code (`0`/`4`). (The plain `created <id>` remains the default when
+  `--json` is *not* set.)
 - **`--role` is recorded, not enforced.** It writes into history now (the non-deferrable seam); role-based
   routing of `start`/`done` is deferred.

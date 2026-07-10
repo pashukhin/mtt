@@ -52,6 +52,25 @@ func TestToShowJSON(t *testing.T) {
 	}
 }
 
+func TestToShowJSONCarriesHistory(t *testing.T) {
+	ts := time.Date(2026, 7, 7, 9, 0, 0, 0, time.UTC)
+	task := mtt.Task{ID: "t1", Type: "task", Status: "done", Created: ts, Updated: ts,
+		History: []mtt.HistoryEntry{{At: ts, By: "agent", From: "tbd", To: "done",
+			Checks: []mtt.Check{{Cmd: "make check", Exit: 0}}}}}
+	sj := toShowJSON(task, "", nil)
+	if len(sj.History) != 1 || sj.History[0].To != "done" || sj.History[0].By != "agent" || sj.History[0].From != "tbd" {
+		t.Fatalf("history not mapped: %+v", sj.History)
+	}
+	if len(sj.History[0].Checks) != 1 || sj.History[0].Checks[0].Cmd != "make check" || sj.History[0].Checks[0].Exit != 0 {
+		t.Fatalf("checks not mapped: %+v", sj.History[0].Checks)
+	}
+	// A task with no history omits the field.
+	empty, _ := json.Marshal(toShowJSON(mtt.Task{ID: "t2", Type: "task", Status: "tbd", Created: ts, Updated: ts}, "", nil))
+	if strings.Contains(string(empty), "history") {
+		t.Fatalf("no-history task must omit the field: %s", empty)
+	}
+}
+
 func TestShowJSON(t *testing.T) {
 	dir := t.TempDir()
 	chdir(t, dir)

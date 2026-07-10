@@ -5,6 +5,7 @@
 package exec
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -21,41 +22,59 @@ import (
 // stdout/stderr to `cmdOut` (opt-in — the CLI passes io.Discard, stderr, or a
 // file). Timing is display-only (not persisted).
 type Runner struct {
-	dir      string
-	timeout  time.Duration
-	progress io.Writer
-	cmdOut   io.Writer
+	dir       string
+	timeout   time.Duration
+	progress  io.Writer
+	cmdOut    io.Writer
+	tailLines int
 }
 
 // NewRunner returns a Runner that executes commands with cwd=dir and the given
 // per-command timeout. progress receives the ▶/✓/✗ pipeline lines; cmdOut
-// receives the commands' own output. Nil writers default to io.Discard.
-func NewRunner(dir string, timeout time.Duration, progress, cmdOut io.Writer) *Runner {
+// receives the commands' own output. Nil writers default to io.Discard. When
+// tailLines > 0, Run echoes a FAILED command's last tailLines lines under its
+// ✗ line (so a blocked gate shows why it failed); 0 disables it. Compensate
+// never echoes a tail.
+func NewRunner(dir string, timeout time.Duration, progress, cmdOut io.Writer, tailLines int) *Runner {
 	if progress == nil {
 		progress = io.Discard
 	}
 	if cmdOut == nil {
 		cmdOut = io.Discard
 	}
-	return &Runner{dir: dir, timeout: timeout, progress: progress, cmdOut: cmdOut}
+	return &Runner{dir: dir, timeout: timeout, progress: progress, cmdOut: cmdOut, tailLines: tailLines}
 }
 
 // runReport runs one command, reports ▶ then ✓|✗ with timing to progress, and
 // returns its Check plus any operational error. Shared by Run and Compensate.
-func (r *Runner) runReport(cmd mtt.Command) (mtt.Check, error) {
+// When showTail && r.tailLines > 0, it tees the command's own output into a
+// bounded ring buffer and, on FAILURE, echoes the tail under the ✗ line — so a
+// blocked gate surfaces why it failed even when output is otherwise hidden.
+func (r *Runner) runReport(cmd mtt.Command, showTail bool) (mtt.Check, error) {
 	_, _ = fmt.Fprintf(r.progress, "▶ %s\n", cmd.Run)
 	start := time.Now()
 	timeout := cmd.Timeout
 	if timeout <= 0 {
 		timeout = r.timeout // fall back to the global command_timeout
 	}
-	exit, err := r.runOne(cmd.Run, timeout)
+	out := r.cmdOut
+	var tb *tailBuffer
+	if showTail && r.tailLines > 0 {
+		tb = &tailBuffer{max: r.tailLines}
+		out = io.MultiWriter(r.cmdOut, tb)
+	}
+	exit, err := r.runOne(cmd.Run, timeout, out)
 	elapsed := time.Since(start).Round(time.Millisecond)
 	mark := "✓"
 	if exit != 0 || err != nil {
 		mark = "✗"
 	}
 	_, _ = fmt.Fprintf(r.progress, "%s %s (exit %d, %s)\n", mark, cmd.Run, exit, elapsed)
+	if tb != nil && (exit != 0 || err != nil) {
+		for _, ln := range tb.lines() {
+			_, _ = fmt.Fprintf(r.progress, "    %s\n", ln)
+		}
+	}
 	return mtt.Check{Cmd: cmd.Run, Exit: exit}, err
 }
 
@@ -67,7 +86,7 @@ func (r *Runner) runReport(cmd mtt.Command) (mtt.Check, error) {
 func (r *Runner) Run(commands []mtt.Command) ([]mtt.Check, error) {
 	checks := make([]mtt.Check, 0, len(commands))
 	for _, cmd := range commands {
-		ck, err := r.runReport(cmd)
+		ck, err := r.runReport(cmd, true)
 		checks = append(checks, ck)
 		if err != nil {
 			return checks, err
@@ -90,7 +109,7 @@ func (r *Runner) Compensate(commands []mtt.Command) []mtt.Check {
 	_, _ = fmt.Fprintf(r.progress, "↩ compensating (%d command%s)\n", len(commands), plural(len(commands)))
 	checks := make([]mtt.Check, 0, len(commands))
 	for _, cmd := range commands {
-		ck, _ := r.runReport(cmd) // best-effort: ignore the operational error, never stop
+		ck, _ := r.runReport(cmd, false) // best-effort: ignore the op error, never stop, never echo a tail
 		checks = append(checks, ck)
 	}
 	return checks
@@ -107,14 +126,14 @@ func plural(n int) string {
 // runOne runs a single command with the given timeout, streaming its output to
 // cmdOut and returning its exit code. A clean non-zero exit yields (code, nil); a
 // timeout or launch failure yields (-1, error).
-func (r *Runner) runOne(cmd string, timeout time.Duration) (int, error) {
+func (r *Runner) runOne(cmd string, timeout time.Duration, out io.Writer) (int, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 	name, args := shell(cmd)
 	c := exec.CommandContext(ctx, name, args...)
 	c.Dir = r.dir
-	c.Stdout = r.cmdOut
-	c.Stderr = r.cmdOut
+	c.Stdout = out
+	c.Stderr = out
 	err := c.Run()
 	if err == nil {
 		return 0, nil
@@ -127,6 +146,49 @@ func (r *Runner) runOne(cmd string, timeout time.Duration) (int, error) {
 		return ee.ExitCode(), nil // clean non-zero exit: data, not an error
 	}
 	return -1, fmt.Errorf("command %q failed to run: %w", cmd, err)
+}
+
+// tailBuffer keeps the last `max` newline-delimited lines written to it (a ring
+// buffer), plus any trailing partial line. It lets the runner echo a FAILED gate
+// command's output tail without persisting output or buffering it unbounded.
+// (Field is `kept`, not `lines_` — revive var-naming rejects underscores.)
+type tailBuffer struct {
+	max     int
+	kept    []string
+	partial []byte
+}
+
+func (b *tailBuffer) Write(p []byte) (int, error) {
+	b.partial = append(b.partial, p...)
+	for {
+		i := bytes.IndexByte(b.partial, '\n')
+		if i < 0 {
+			break
+		}
+		b.push(string(b.partial[:i]))
+		b.partial = b.partial[i+1:]
+	}
+	return len(p), nil
+}
+
+func (b *tailBuffer) push(line string) {
+	b.kept = append(b.kept, line)
+	if len(b.kept) > b.max {
+		b.kept = b.kept[len(b.kept)-b.max:]
+	}
+}
+
+// lines returns the retained tail, including a trailing partial (unterminated)
+// line, capped at max.
+func (b *tailBuffer) lines() []string {
+	out := b.kept
+	if len(b.partial) > 0 {
+		out = append(append([]string(nil), out...), string(b.partial))
+		if len(out) > b.max {
+			out = out[len(out)-b.max:]
+		}
+	}
+	return out
 }
 
 // shell selects the platform shell that runs a command string: cmd /c on

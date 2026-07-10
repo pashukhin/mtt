@@ -28,6 +28,20 @@ First public release line. Shipped so far:
   `add` / `list` / `tree`.
 - **Batch & pipeline:** a task-set selector (explicit IDs | `--filter` | stdin `-`), `--ids` output on
   `list` / `ready`, and bulk `tag add/rm` + `rm` (subgraph-aware).
+- **Dogfood hardening (s008.97):** a blocked gate echoes the failing command's output tail (~10 lines) under
+  its `✗` line and hints `-v`/`--log-file`; `mtt add --json` emits the created task; `mtt show --json` carries
+  a `history` array (checks + attribution); discoverability — `status [<id>]` usage, the verb sugar in root
+  help, and a `run 'mtt init'` hint outside a project; a tagline that names the gate/state-machine.
+
+### Changed
+- The root tagline now names the executable-state-machine + gate feature (was "minimalist file-backed task
+  tracker").
+
+### Fixed
+- **YAML `List`/`Get` name the offending file** on a corrupt or zero-byte task file (was a pathless
+  `mtt: empty task id`); the not-found path is unchanged.
+- **`Status.Default` is honored through the YAML adapter** (mapped in the DTO; previously the marker on an
+  initial status was silently dropped and the first initial always won).
 
 ### Packaging
 - Cross-platform prebuilt binaries via `make release` + a tag-triggered GitHub release workflow;
