@@ -234,3 +234,26 @@ The §9 open items were settled (see the reconciled spec
     accumulating `.mtt/tasks/*.yaml` churn (committed only with the PR — S4) always dirties the tree; excluding
     `.mtt/` makes the proxy meaningful, with the documented semantics that the artifact stays **uncommitted
     until `_human_review` approves**.
+
+## 11. Re-modelled to a single `task` type (2026-07-10, supersedes the two-tier §9–§10 structure)
+
+A deeper brainstorm found the two-tier `phase`/`session` shape modelled the **wrong axis**. `session`/`phase`
+describe **how we work** (process — ephemeral, executed, not queued); `task`/`epic` describe **how the product
+changes** (the backlog). mtt should track the **product** axis. Decisions:
+
+- **One type `task`** (the unit of product change); **no hierarchy** — structure is **deps + tags + priority**.
+  `epic` (a group of related tasks) is product-valid but **deferred** ("enough with deps + tags for now");
+  when it returns, the §4 "close the epic when its children are done" self-ref gate rides the `epic` type.
+- **The full 15-status flow stays — re-read as a task's *maturation*** (design → review → plan → review → build
+  → review → done), not our session mechanics. A task may take one or several work-sessions to walk it; the flow
+  survives that (no 1:1 task↔session). This is why "keep the 15 statuses" and "single type" are consistent, not
+  contradictory.
+- **Consequences vs §10:** drop the `phase` type, its self-ref gate, `parents`/hierarchy, re-parenting, and the
+  "orphan backlog session" idea. **Keep** the whole gated flow (`make check` on impl-review; proxy on spec/plan;
+  branch **per task** `task/{{.ID}}` on entry; `require:{who}`; cancel-from-`_fix`; YAML single-quoting).
+  Backlog = `tbd` tasks tagged `backlog` (promotion = drop the tag + start; no re-parenting needed). The §4
+  self-ref-gate showcase leaves with `phase` (returns with `epic`); the killer feature is still dogfooded via
+  `make check` + proxy + branch. Migration becomes **flat** tasks + tags/priority/deps.
+
+The reconciled spec ([specs/2026-07-09-session-009-dogfood-design.md](../specs/2026-07-09-session-009-dogfood-design.md))
+is authoritative; this note's §1–§10 are the reasoning trail that led here.
