@@ -1,0 +1,51 @@
+# s008.98: the new flow invariants are surfaced by mtt types / mtt add
+# (Config.Validate runs there). A #2 (name==status) and a #3 (dup (from,to))
+# config are each rejected — with the intended error only.
+
+exec mtt init
+
+cp collide.yaml .mtt/config.yaml
+! exec mtt types
+stderr 'collides with a status name'
+
+cp dup.yaml .mtt/config.yaml
+! exec mtt types
+stderr 'duplicate transition "review"->"fix"'
+
+-- collide.yaml --
+version: 1
+project: {name: demo}
+types:
+  - name: task
+    prefix: t
+    parents: []
+    default: true
+    statuses:
+      - {name: tbd,    kind: initial}
+      - {name: review, kind: active}
+      - {name: fix,    kind: active}
+      - {name: done,   kind: terminal}
+    transitions:
+      - {from: tbd,    to: review, name: fix}
+      - {from: review, to: fix}
+      - {from: review, to: done}
+      - {from: fix,    to: done}
+-- dup.yaml --
+version: 1
+project: {name: demo}
+types:
+  - name: task
+    prefix: t
+    parents: []
+    default: true
+    statuses:
+      - {name: tbd,    kind: initial}
+      - {name: review, kind: active}
+      - {name: fix,    kind: active}
+      - {name: done,   kind: terminal}
+    transitions:
+      - {from: tbd,    to: review}
+      - {from: review, to: fix, name: decline}
+      - {from: review, to: fix, name: reject}
+      - {from: fix,    to: done}
+      - {from: review, to: done}
