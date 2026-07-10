@@ -1,0 +1,9 @@
+id: t15
+type: task
+title: export the status flow as Graphviz (mtt types --dot / mtt flow --graphviz)
+status: tbd
+priority: low
+tags:
+    - backlog
+created: "2026-07-10T13:53:10Z"
+updated: "2026-07-10T13:53:10Z"

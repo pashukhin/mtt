@@ -1,0 +1,9 @@
+id: t10
+type: task
+title: 'multi-agent concurrency cluster: monotonic id minting + lost-update/write-concurrency + subagent identity + roles-on-edges (decide together; trigger = 2nd writing agent on one store)'
+status: tbd
+priority: low
+tags:
+    - backlog
+created: "2026-07-10T13:53:10Z"
+updated: "2026-07-10T13:53:10Z"

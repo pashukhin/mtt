@@ -1,0 +1,9 @@
+id: t11
+type: task
+title: node-level status actions (custom verbs; blocked on the arg-resolution grammar)
+status: tbd
+priority: low
+tags:
+    - backlog
+created: "2026-07-10T13:53:10Z"
+updated: "2026-07-10T13:53:10Z"

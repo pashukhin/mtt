@@ -1,0 +1,9 @@
+id: t5
+type: task
+title: dangerous-ops attribution — force --who/--why on flow-bypassing / risk actions (--no-run over a real gate, --force); the parked roles seam, first concrete trigger
+status: tbd
+priority: high
+tags:
+    - core
+created: "2026-07-10T13:51:25Z"
+updated: "2026-07-10T13:51:25Z"
