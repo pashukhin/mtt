@@ -46,7 +46,11 @@ Flow gate (session 006): `mtt status <id> <new>` wires `yaml.Load` (→ `Setting
 `exec.NewRunner(root, timeout, progress, cmdOut)` + `core.Transitioner`; `--no-run` bypasses the gate.
 Gate execution reports **live pipeline progress** (`▶`/`✓`/`✗` + timing) to **stderr** always; the
 commands' own output is hidden by default, streamed to stderr with `-v`/`--verbose`, and/or written to a
-file with `--log-file` (`gateOutputWriter` builds the `io.Discard`/stderr/file/`MultiWriter`). **`Execute()`
+file with `--log-file` (`gateOutputWriter` builds the `io.Discard`/stderr/file/`MultiWriter`). **Blocked-gate
+visibility (s008.97/U2):** when output is otherwise hidden (`hidden = !verbose && logFile==""`), `runTransition`
+passes `gateTailLines` (10) to `exec.NewRunner` so the runner echoes the failing command's output tail, and
+wraps an `ErrBlocked` error with a `hint: re-run with -v or --log-file …` (the `%w` wrap preserves exit 3);
+with `-v`/`--log-file` neither fires (output already visible). **`Execute()`
 returns an `int` exit code** (`exitCode`: `core.ErrBlocked`→3, `core.ErrInvalidTransition`→6,
 `core.ErrMissingAttribution`→2, else 1); `main` and the testscript harness call `os.Exit(Execute())`.
 `mtt show` renders a `history:` audit section.

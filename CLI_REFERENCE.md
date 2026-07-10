@@ -308,7 +308,10 @@ or the task object with `--json`. A transition not in the flow exits `6`. If the
 is unmet, it exits `2` **before** running the gate (see Configuration → `require`).
 
 The gate reports **live pipeline progress** to stderr (`▶ <cmd>` / `✓|✗ <cmd> (exit N, <elapsed>)`) as each
-command runs; the commands' own output is hidden by default.
+command runs; the commands' own output is hidden by default. On a **block**, the failing command's last ~10
+output lines are echoed under its `✗` line and the error carries a `hint: re-run with -v or --log-file …`
+(session 008.97) — so the agent sees *why* the gate failed without re-running it; use `-v`/`--log-file` for
+the full output.
 
 After a successful move, mtt prints the flow's **guidance** on stdout under the `from → to` line (session
 008.95): the traversed edge's `description` and the destination status's `description` (each as a `▸ …` line,

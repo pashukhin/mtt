@@ -386,7 +386,9 @@ Commands come from config (trusted, like a Makefile/git hooks), not from the net
 > single-edge lookup in `Type.Transitions` suffices (no `ResolvedFlow` yet — it earns its keep in s007's
 > multi-edge `advance`). The `advance`/`start`/`done` meta-walk and modes are s007. The gate prints **live
 > pipeline progress** to stderr (`▶`/`✓`/`✗` + per-command timing); the commands' own output is hidden by
-> default, streamed with `-v`, and/or written with `--log-file`. `by` resolves `--by` > `MTT_BY` >
+> default, streamed with `-v`, and/or written with `--log-file` — **except that a blocked gate echoes the
+> failing command's last ~10 output lines under its `✗` line and hints `-v`/`--log-file`** (s008.97/U2), so
+> the agent sees *why* it failed without re-running the whole gate. `by` resolves `--by` > `MTT_BY` >
 > `config.local.yaml` `author` (the durable personal default; `role` stays flag/env only).
 
 > **Shipped (s006.5, attribution + verb sugar):** `--why` records a durable free-text reason on the
