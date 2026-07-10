@@ -254,6 +254,16 @@ comments (which enrich a full self-host but don't enable it). See sessions/READM
 - later — **export the status flow as Graphviz** (`mtt types --dot` / `mtt flow --graphviz`): render a
   type's flow — statuses (by `kind`) + transitions, annotated with attached `commands`/roles — as DOT for
   visualization. Cheap read-only view; pairs well with the observed-graph reconstruction above.
+- later — **placeholders in `description`s (not just `commands`)**: expand `{{.ID}}`/`{{.Type}}`/`{{.From}}`/
+  `{{.To}}` in status/transition `description`s at guidance-render time (`internal/cli/guidance.go`), so the
+  self-instructing runbook (s008.95) can show **exact values** in its instructions (e.g. `description: "commit
+  the spec to docs/…/{{.ID}}-*.md"` → the real id). Reuses the s007 `cmdContext` whitelist (structural, safe).
+  Nuances: a **status** description (shown by `mtt show`, no move) has only `.ID`/`.Type` (no from/to); a
+  **transition** description (shown on a move) has all four → two contexts. **Best-effort:** a malformed
+  template must NOT fail `show`/the move (guidance is advisory — render raw or skip on error), unlike a
+  *command* where an expansion error is exit 1. Surfaced in the s009 flow discussion (2026-07-10) — precise
+  agent instructions; also strengthens the "artifact exists" gate story (a `{{.ID}}`-keyed doc-path convention
+  becomes displayable).
 - later (think) — **argument-resolution grammar**: generalize the s006.5 `mtt <status> <id>` fallback into a
   coherent scheme for resolving positional args (command / status / role / id / …). Is `mtt <role> …` a
   form? What's the precedence and disambiguation when arg0 (or arg1+) could be several kinds? Decide the
