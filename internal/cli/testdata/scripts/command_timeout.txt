@@ -1,0 +1,48 @@
+# s007 per-command timeout fail-fast + scalar back-compat — NO git required
+# (split out of structured_commands.txt so gitless CI still exercises it, T6).
+
+exec mtt init
+cp gated.yaml .mtt/config.yaml
+
+exec mtt add 'implement feature'
+stdout 'created t1'
+
+# `mtt types` surfaces the per-command timeout on the done edge.
+exec mtt types
+stdout 'timeout 100ms'
+
+# in_progress -> done is `sleep 1` bounded by a tight 100ms per-command timeout
+# under a 5m global: it fails fast and blocks; the task stays in_progress.
+exec mtt in_progress t1
+stdout 't1: tbd → in_progress'
+! exec mtt done t1
+stderr 'blocked'
+exec mtt show t1
+stdout '\[in_progress\]'
+
+# back-compat: a bare-string command edge (tbd -> cancelled: ["true"]) still gates.
+exec mtt add 'scrap this'
+stdout 'created t2'
+exec mtt cancelled t2
+stdout 't2: tbd → cancelled'
+
+-- gated.yaml --
+version: 1
+project:
+  name: demo
+command_timeout: 5m
+types:
+  - name: task
+    prefix: t
+    parents: []
+    default: true
+    statuses:
+      - {name: tbd,         kind: initial}
+      - {name: in_progress, kind: active}
+      - {name: done,        kind: terminal}
+      - {name: cancelled,   kind: terminal}
+    transitions:
+      - {from: tbd,         to: in_progress, commands: ["true"]}
+      - {from: tbd,         to: cancelled,   commands: ["true"]}
+      - {from: in_progress, to: done,        commands: [{run: "sleep 1", timeout: 100ms}]}
+      - {from: in_progress, to: cancelled}
