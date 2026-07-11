@@ -127,7 +127,9 @@ edge **critical**: it forces `--who`/`--why` for that move only, unioned with th
 
 **`post:` per transition (t21).** A transition may carry a `post:` command list (same shape as `commands:`)
 that runs **after** the status is persisted — the finalization phase. This repo uses it to auto-commit `.mtt`
-on every move (`git add .mtt && git commit -m "{{.ID}}: {{.From}} → {{.To}}" -- .mtt`). Failure semantics
+on every move (`git add .mtt && git commit -m "{{.ID}}: {{.From}} → {{.To}}" -- .mtt`), and (c1) to **auto-push**:
+`approve` also runs `git push -u origin task/{{.ID}}` (the task branch, for the PR) and `deliver` runs
+`git push origin main` (finishing delivery). Failure semantics
 differ from the gate: a `post:` failure **keeps** the move (status already written) and exits **5** (`commands:`
 gate a failure → exit 3, status unchanged). `--no-run` skips **both** `commands:` and `post:`. Shown in
 `mtt types` as a `⇢` line under the edge.

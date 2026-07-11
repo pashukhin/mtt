@@ -22,7 +22,7 @@ types:
       - {name: implementing, kind: active, description: "implement test-first (TDD), make check green between commits, then `mtt submit`"}
       - {name: impl_review, kind: active, description: "run an adversarial code review; `mtt approve` when it passes, `mtt decline` to send back"}
       - {name: impl_fix, kind: active, description: "address review findings, then `mtt submit` to re-review"}
-      - {name: approved, kind: active, description: "open/update the PR titled '<this-task-id>: <title>', push (including this state change), ask the human to merge; after the squash-merge run `mtt deliver`; human-requested changes -> `mtt decline`"}
+      - {name: approved, kind: active, description: "open/update the PR titled '<this-task-id>: <title>' (the branch was auto-pushed), ask the human to merge; after the squash-merge run `mtt deliver`; human-requested changes -> `mtt decline`"}
       - {name: done, kind: terminal, description: "delivered to main"}
       - {name: cancelled, kind: terminal, description: "abandoned"}
     transitions:
@@ -83,7 +83,7 @@ types:
         commands: [{run: 'make check', timeout: 10m}]
         post:
           - 'git add .mtt && git commit -m "{{.ID}}: {{.From}} → {{.To}}" -- .mtt'
-      - {from: impl_review, to: approved, name: approve, description: "code review passed; open the PR and hand to the human", post: ['git add .mtt && git commit -m "{{.ID}}: {{.From}} → {{.To}}" -- .mtt']}
+      - {from: impl_review, to: approved, name: approve, description: "code review passed; open the PR and hand to the human", post: ['git add .mtt && git commit -m "{{.ID}}: {{.From}} → {{.To}}" -- .mtt', 'git push -u origin task/{{.ID}}']}
       - {from: impl_review, to: impl_fix, name: decline, description: "review found issues; address them, then `mtt submit`", post: ['git add .mtt && git commit -m "{{.ID}}: {{.From}} → {{.To}}" -- .mtt']}
       - from: impl_fix
         to: impl_review
@@ -111,6 +111,7 @@ types:
       # --- cancel (every non-terminal except the _review pairs; moves your tree to main) ---
         post:
           - 'git add .mtt && git commit -m "{{.ID}}: {{.From}} → {{.To}}" -- .mtt'
+          - 'git push origin main'
       - from: tbd
         to: cancelled
         name: cancel
@@ -200,7 +201,7 @@ types:
       - {name: implementing, kind: active, description: "implement test-first (TDD), make check green between commits, then `mtt submit`"}
       - {name: impl_review, kind: active, description: "run an adversarial code review; if the diff contains design decisions not recorded elsewhere — decline: it must be a `task`. `mtt approve` / `mtt decline`"}
       - {name: impl_fix, kind: active, description: "address review findings, then `mtt submit` to re-review"}
-      - {name: approved, kind: active, description: "open/update the PR titled '<this-task-id>: <title>', push (including this state change), ask the human to merge; after the squash-merge run `mtt deliver`; human-requested changes -> `mtt decline`"}
+      - {name: approved, kind: active, description: "open/update the PR titled '<this-task-id>: <title>' (the branch was auto-pushed), ask the human to merge; after the squash-merge run `mtt deliver`; human-requested changes -> `mtt decline`"}
       - {name: done, kind: terminal, description: "delivered to main"}
       - {name: cancelled, kind: terminal, description: "abandoned"}
     transitions:
@@ -221,7 +222,7 @@ types:
         commands: [{run: 'make check', timeout: 10m}]
         post:
           - 'git add .mtt && git commit -m "{{.ID}}: {{.From}} → {{.To}}" -- .mtt'
-      - {from: impl_review, to: approved, name: approve, description: "code review passed; open the PR and hand to the human", post: ['git add .mtt && git commit -m "{{.ID}}: {{.From}} → {{.To}}" -- .mtt']}
+      - {from: impl_review, to: approved, name: approve, description: "code review passed; open the PR and hand to the human", post: ['git add .mtt && git commit -m "{{.ID}}: {{.From}} → {{.To}}" -- .mtt', 'git push -u origin task/{{.ID}}']}
       - {from: impl_review, to: impl_fix, name: decline, description: "review found issues; address them, then `mtt submit`", post: ['git add .mtt && git commit -m "{{.ID}}: {{.From}} → {{.To}}" -- .mtt']}
       - from: impl_fix
         to: impl_review
@@ -247,6 +248,7 @@ types:
           - 'git log -n 200 --format=%s | grep "^{{.ID}}: " || { echo "no squash commit \"{{.ID}}: …\" on local main: git pull first, and check the PR/merge title started with \"{{.ID}}: \"" >&2; false; }'
         post:
           - 'git add .mtt && git commit -m "{{.ID}}: {{.From}} → {{.To}}" -- .mtt'
+          - 'git push origin main'
       - from: tbd
         to: cancelled
         name: cancel
