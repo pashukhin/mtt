@@ -1,0 +1,9 @@
+id: t32
+type: task
+title: 'Think: --no-run on context-switching edges (deliver/cancel) also skips git switch main — the terminal write strands on the current branch (signed footgun); warn in descriptions or forbid per-edge'
+status: tbd
+priority: low
+tags:
+    - backlog
+created: "2026-07-11T14:06:23Z"
+updated: "2026-07-11T14:06:23Z"

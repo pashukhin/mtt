@@ -1,0 +1,9 @@
+id: t37
+type: task
+title: durable edit audit — plain edits only bump updated; a queryable change-log without git archaeology
+status: tbd
+priority: low
+tags:
+    - backlog
+created: "2026-07-11T14:07:18Z"
+updated: "2026-07-11T14:07:18Z"

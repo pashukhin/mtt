@@ -1,0 +1,9 @@
+id: t33
+type: task
+title: 'team semantics of the YAML store — state visibility across branches (state-branch / auto-push / claim mechanics); note: branch protection on main would break the deliver/cancel post-push (exit 5) — the delivery tail assumes direct push'
+status: tbd
+priority: low
+tags:
+    - backlog
+created: "2026-07-11T14:07:18Z"
+updated: "2026-07-11T14:07:18Z"

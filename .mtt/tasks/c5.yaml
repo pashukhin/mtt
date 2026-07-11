@@ -1,0 +1,7 @@
+id: c5
+type: chore
+title: Push main on the cancel post (symmetry with deliver) — a cancelled state must not live only in the local checkout
+status: tbd
+priority: medium
+created: "2026-07-11T14:06:23Z"
+updated: "2026-07-11T14:06:23Z"

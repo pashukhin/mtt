@@ -1,0 +1,7 @@
+id: c4
+type: chore
+title: Scrub MTT_DIR/MTT_BY from the env in the cli test harness — an exported MTT_DIR deterministically reds make check (testscript cwd-discovery overridden) = a blocked submit gate; dress-rehearsal finding
+status: tbd
+priority: high
+created: "2026-07-11T14:06:23Z"
+updated: "2026-07-11T14:06:23Z"

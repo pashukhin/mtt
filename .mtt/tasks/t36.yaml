@@ -1,0 +1,9 @@
+id: t36
+type: task
+title: cancelled-blocker semantics revisit — a cancelled depends_on currently unblocks its dependent; reassess with live dogfood data
+status: tbd
+priority: low
+tags:
+    - backlog
+created: "2026-07-11T14:07:18Z"
+updated: "2026-07-11T14:07:18Z"

@@ -1,0 +1,9 @@
+id: t34
+type: task
+title: epics / hierarchy return — product-valid containers (+ re-parenting; the corrected fail-closed self-ref phase gate returns with them)
+status: tbd
+priority: low
+tags:
+    - backlog
+created: "2026-07-11T14:07:18Z"
+updated: "2026-07-11T14:07:18Z"
