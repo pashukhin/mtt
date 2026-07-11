@@ -856,9 +856,10 @@ after dogfood we move mtt's development onto mtt itself. See sessions/README.md 
 > the task file must exist on the tree); `cancel` and `deliver` write their terminal state ON main;
 > `approved → decline` returns to the task branch. Artifacts are **committed early** (id-keyed names
 > `docs/superpowers/specs|plans/<id>-<slug>.md` — the v1 uncommitted-until-review convention is dead).
-> **Conventions that remain:** the PR title starts with `<id>: `; push the `approved` state before the
-> merge. (Since t21, every move auto-commits `.mtt` via a per-edge `post:` action — the former manual
-> state-commits after `deliver`/`cancel` are gone.)
+> **Conventions that remain:** the PR title starts with `<id>: `; opening the PR (`gh pr create`) is the
+> one manual git step. (Since t21 every move auto-commits `.mtt` via a per-edge `post:` action, and since
+> c1 `approve` auto-pushes the task branch and `deliver` auto-pushes main — the former manual
+> state-commits and the push-before-merge convention are gone.)
 > **Attribution:** project-global `require: {who}` (per-edge/role `require` needs a core change — parked
 > roles work; the migrated `dangerous-ops` task is its first trigger). **Trust (SEC2):** gates invoke
 > **read-only** `mtt` only — never an mtt transition (recursion). **Known limits (recorded):** the
