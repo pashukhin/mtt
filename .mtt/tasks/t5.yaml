@@ -1,12 +1,12 @@
 id: t5
 type: task
 title: dangerous-ops attribution — force --who/--why on flow-bypassing / risk actions (--no-run over a real gate, --force); the parked roles seam, first concrete trigger
-status: approved
+status: done
 priority: high
 tags:
     - core
 created: "2026-07-10T13:51:25Z"
-updated: "2026-07-11T08:14:32Z"
+updated: "2026-07-11T08:43:10Z"
 history:
     - at: "2026-07-11T05:29:19Z"
       by: Grigorii Pashukhin
@@ -80,3 +80,12 @@ history:
       by: Grigorii Pashukhin
       from: impl_review
       to: approved
+    - at: "2026-07-11T08:43:10Z"
+      by: Grigorii Pashukhin
+      from: approved
+      to: done
+      checks:
+        - cmd: git switch main
+          exit: 0
+        - cmd: 'git log -n 200 --format=%s | grep "^t5: " || { echo "no squash commit \"t5: …\" on local main: git pull first, and check the PR/merge title started with \"t5: \"" >&2; false; }'
+          exit: 0
