@@ -32,12 +32,20 @@ beyond provider-specific checks.
   initial status is honored by `Type.InitialStatus()` via `Load` (previously silently dropped; the fallback
   first-initial always won). **Transition `name`** (s008.98): `ymlTransition.Name` (`yaml:"name,omitempty"`,
   after `to`) maps to `mtt.Transition.Name` — the edge verb for the `mtt <edge>` sugar / `mtt do`; a plain copy,
-  validity (uniqueness/disjointness) is a `Config.Validate` concern, not a load-time one.
+  validity (uniqueness/disjointness) is a `Config.Validate` concern, not a load-time one. **Per-edge `require`**
+  (t5): `ymlTransition.Require` (`yaml:"require,omitempty"`, reusing the existing `ymlRequire{who,why}` shape)
+  maps to `mtt.Transition.Require` in `toDomain` — decode-only (config is never marshaled), zero on edges that
+  omit it; `core` unions it with the global policy.
 - No flow/ready/traversal logic here (that is `core`, later). Templates are the **only** home of default type/status names.
 - A project's `.mtt/config.yaml` is normally produced by `Init` templates; this repo's own committed config
   is hand-authored, reviewed like code, and guarded by `TestRepoDogfoodConfig` (`dogfood_test.go` — a
   deliberately non-hermetic test: it pins the repo root via `go.mod` and loads a temp COPY of the committed
   config, bypassing the `config.local` overlay). Task files are written only through the adapter.
+- `NewAuditStore(root)` / `AuditStore` — implements `mtt.AuditStore` (t5), the append-only audit trail for
+  out-of-flow dangerous actions (`rm --force`). `Append` `MkdirAll`s `.mtt`, then writes **one JSON line** per
+  record (`O_APPEND|O_CREATE`) to `.mtt/audit.log`: `{at (RFC3339 UTC), who, why, action, id}` via a private
+  `auditLine` DTO (keeps `pkg/mtt` free of json tags). Append-only — no read/parse surface. The log is
+  committed with `.gitattributes` `merge=union` (append conflicts dissolve on branch merges).
 - `NewCurrent(root)` / `Current` — implements `mtt.CurrentStore` (session 006.7), owning **only** the top-level
   `current:` key of `.mtt/config.local.yaml`. Read/modify/write go through a **`yaml.Node`** (not a struct
   decode) so `author`, comments, and any other local keys survive a rewrite (the file is human-edited); the

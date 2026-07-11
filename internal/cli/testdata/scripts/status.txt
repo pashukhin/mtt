@@ -33,7 +33,7 @@ stdout '\[in_progress\]'
 
 # --no-run bypasses the gate; guidance still prints (the move happened), and a
 # terminal status has no onward moves -> the edge desc shows but no "next:" line.
-exec mtt status t1 done --no-run
+exec mtt status t1 done --no-run --who a --why 'bypass gate'
 stdout 't1: in_progress → done'
 stdout '▸ quality gate'
 ! stdout 'next:'

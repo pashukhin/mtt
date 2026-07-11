@@ -86,7 +86,12 @@ Dogfood enablers (session 008.5): `mtt rm` routes through `core.Remover`
 (reject-if-referenced; `--force` deletes despite refs); a **single explicit id** takes no current resolution
 (destructive); after a successful delete it clears the `current:` pointer if it named the deleted task
 (`yaml.NewCurrent`, now `clearCurrentIfMatches`). **(Since s008.9 `rm` is `ArbitraryArgs` — single vs bulk;
-see the Batch paragraph.)** `exitCode` now maps `mtt.ErrNotFound → 4`, applied **uniformly**: `taskNotFound(id)`
+see the Batch paragraph.)** **Dangerous-ops (t5):** both `rm` paths now `yaml.Load` (for `settings.Author`),
+`resolveAttribution(cmd, author)` (→ `by`/`why`; `--who`/`--why` are root-persistent so `rm` inherits them),
+and wire `core.NewRemover(store, yaml.NewAuditStore(root), time.Now)`. A `--force` without who+why is a
+**pre-flight** `ErrMissingAttribution` — `RemoveMany`'s **error return**, forwarded **raw** by both paths
+(never through `reportBulk`, whose plain `fmt.Errorf` would flatten to exit 1), so it maps to **exit 2** on
+single *and* bulk. `exitCode` now maps `mtt.ErrNotFound → 4`, applied **uniformly**: `taskNotFound(id)`
 (`errors.go`) wraps `ErrNotFound` and is used by `show`/`edit`/`tree`/`use`/`dep` (core wraps it in
 `transition`/`dependency`/`add`), so every single-task not-found exits 4. `mtt add --depends-on <id>…`
 (StringSlice, repeatable/csv) → `AddParams.DependsOn` (validation in `core.Adder`).

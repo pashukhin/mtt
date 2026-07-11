@@ -37,7 +37,7 @@ exec mtt review t3
 stderr 'blocked'
 exec mtt show t3
 stdout '\[review\]'
-exec mtt do t3 approve --no-run
+exec mtt do t3 approve --no-run --who a --why 'bypass gate'
 stdout 't3: review → done'
 
 -- named.yaml --

@@ -589,15 +589,17 @@ var NewTagEditor func(store TaskStore, now func() time.Time) TagEditor
 // found by reusing Index+DepGraph, deduped — so a delete never silently strands
 // references; --force overrides, leaving dangling refs (tolerated: Ready
 // conservative, Index orphans→roots). Delete is a store op on the base
-// TaskStore, not an embedded field. No clock (a delete records nothing).
+// TaskStore, not an embedded field. Since t5, --force forces who+why (pre-flight)
+// and records to the AuditStore before deleting, so NewRemover takes an AuditStore
+// + injected clock (a --force delete IS recorded; a plain delete still is not).
 // RemoveMany (s008.9) is the primary method: best-effort per id over ONE List
 // snapshot, with a SUBGRAPH-AWARE referenced-check (referents inside the id set
 // are ignored, so an epic + its children delete in one call without --force).
 // Remove is a thin wrapper over RemoveMany([id]) (set={id} ⇒ every referent
 // external ⇒ identical single-id semantics). [Remove s008.5; RemoveMany s008.9]
 type Remover interface {
-	Remove(id TaskID, force bool) error
-	RemoveMany(ids []TaskID, force bool) []RemoveResult
+	Remove(id TaskID, force bool, by, why string) error
+	RemoveMany(ids []TaskID, force bool, by, why string) ([]RemoveResult, error)
 }
 
 // RemoveResult is one task's outcome in a bulk delete (nil Err on success). [s008.9]
@@ -606,8 +608,9 @@ type RemoveResult struct {
 	Err error
 }
 
-// NewRemover wires the delete usecase — no store-beyond-TaskStore, no clock. [s008.5]
-var NewRemover func(store TaskStore) Remover
+// NewRemover wires the delete usecase — TaskStore + AuditStore + injected clock
+// (audit records --force deletes; who/why forced pre-flight). [s008.5; t5]
+var NewRemover func(store TaskStore, audit AuditStore, now func() time.Time) Remover
 
 // The task-set SELECTOR (explicit ids | stdin '-' | --filter, mutually exclusive)
 // and the --ids output on list/ready are CLI concerns (I/O + flags), NOT a core
@@ -631,6 +634,21 @@ var NewRemover func(store TaskStore) Remover
 type Runner interface {
 	Run(commands []Command) ([]Check, error)
 	Compensate(commands []Command) []Check // best-effort intra-pipeline compensation [s008]
+}
+
+// AuditEntry records one out-of-flow dangerous action (a --force destruction with
+// no task history to carry its attribution). [t5]
+type AuditEntry struct {
+	At     time.Time
+	Who    string
+	Why    string
+	Action string
+	TaskID TaskID
+}
+
+// AuditStore appends dangerous-action records; append-only (no read surface). [t5]
+type AuditStore interface {
+	Append(AuditEntry) error
 }
 
 // Transitioner applies a SINGLE flow edge (mtt status <id> <new>): validate the

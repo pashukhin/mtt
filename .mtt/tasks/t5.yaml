@@ -1,9 +1,82 @@
 id: t5
 type: task
 title: dangerous-ops attribution — force --who/--why on flow-bypassing / risk actions (--no-run over a real gate, --force); the parked roles seam, first concrete trigger
-status: tbd
+status: approved
 priority: high
 tags:
     - core
 created: "2026-07-10T13:51:25Z"
-updated: "2026-07-10T13:51:25Z"
+updated: "2026-07-11T08:14:32Z"
+history:
+    - at: "2026-07-11T05:29:19Z"
+      by: Grigorii Pashukhin
+      from: tbd
+      to: speccing
+      checks:
+        - cmd: git switch task/t5 || (git switch main && git switch -c task/t5)
+          exit: 0
+        - cmd: test -f .mtt/tasks/t5.yaml || { echo "task file absent on this branch — its add has not reached main (merge/commit the branch that created it first)" >&2; false; }
+          exit: 0
+    - at: "2026-07-11T06:43:15Z"
+      by: Grigorii Pashukhin
+      from: speccing
+      to: spec_review
+      checks:
+        - cmd: ls docs/superpowers/specs/t5-*.md
+          exit: 0
+    - at: "2026-07-11T06:51:49Z"
+      by: Grigorii Pashukhin
+      from: spec_review
+      to: spec_fix
+    - at: "2026-07-11T06:55:01Z"
+      by: Grigorii Pashukhin
+      from: spec_fix
+      to: spec_review
+      checks:
+        - cmd: ls docs/superpowers/specs/t5-*.md
+          exit: 0
+    - at: "2026-07-11T07:00:02Z"
+      by: Grigorii Pashukhin
+      from: spec_review
+      to: spec_human_review
+    - at: "2026-07-11T07:03:17Z"
+      by: Grigorii Pashukhin
+      from: spec_human_review
+      to: planning
+    - at: "2026-07-11T07:09:46Z"
+      by: Grigorii Pashukhin
+      from: planning
+      to: plan_review
+      checks:
+        - cmd: ls docs/superpowers/plans/t5-*.md
+          exit: 0
+    - at: "2026-07-11T07:20:52Z"
+      by: Grigorii Pashukhin
+      from: plan_review
+      to: plan_fix
+    - at: "2026-07-11T07:26:01Z"
+      by: Grigorii Pashukhin
+      from: plan_fix
+      to: plan_review
+      checks:
+        - cmd: ls docs/superpowers/plans/t5-*.md
+          exit: 0
+    - at: "2026-07-11T07:31:16Z"
+      by: Grigorii Pashukhin
+      from: plan_review
+      to: plan_human_review
+    - at: "2026-07-11T07:47:12Z"
+      by: Grigorii Pashukhin
+      from: plan_human_review
+      to: implementing
+    - at: "2026-07-11T08:07:01Z"
+      by: Grigorii Pashukhin
+      from: implementing
+      to: impl_review
+      checks:
+        - cmd: make check
+          exit: 0
+    - at: "2026-07-11T08:14:32Z"
+      by: Grigorii Pashukhin
+      from: impl_review
+      to: approved

@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/pashukhin/mtt/pkg/mtt"
 )
@@ -12,13 +13,19 @@ import (
 // referenced by others (a child via parent, or a dependent via depends_on) so a
 // delete never silently strands references; --force overrides, leaving the
 // references dangling (tolerated: Ready is conservative, Index orphans->roots).
-// No clock — a delete records nothing.
+// Under --force it FORCES who+why (pre-flight) and writes an audit record BEFORE
+// deleting (no destruction without a preceding record). now is injected for
+// deterministic audit timestamps.
 type Remover struct {
 	store mtt.TaskStore
+	audit mtt.AuditStore
+	now   func() time.Time
 }
 
-// NewRemover wires the usecase.
-func NewRemover(store mtt.TaskStore) *Remover { return &Remover{store: store} }
+// NewRemover wires the usecase with the audit port and an injected clock.
+func NewRemover(store mtt.TaskStore, audit mtt.AuditStore, now func() time.Time) *Remover {
+	return &Remover{store: store, audit: audit, now: now}
+}
 
 // RemoveResult is one task's outcome in a bulk delete.
 type RemoveResult struct {
@@ -26,19 +33,31 @@ type RemoveResult struct {
 	Err error // nil on success; wraps ErrNotFound / a load or referenced error
 }
 
-// Remove deletes a single id, returning the same error taxonomy as before. It is a
-// thin wrapper over RemoveMany (set={id}, so every referent is external — identical
-// reject semantics).
-func (r *Remover) Remove(id mtt.TaskID, force bool) error {
-	return r.RemoveMany([]mtt.TaskID{id}, force)[0].Err
+// Remove deletes a single id. Thin wrapper over RemoveMany([id]); it forwards the
+// pre-flight error and, absent that, the per-id result error. The empty-slice check
+// guards the [0] index on the pre-flight path.
+func (r *Remover) Remove(id mtt.TaskID, force bool, by, why string) error {
+	res, err := r.RemoveMany([]mtt.TaskID{id}, force, by, why)
+	if err != nil {
+		return err
+	}
+	return res[0].Err
 }
 
-// RemoveMany deletes each id best-effort. Existence is checked per id via store.Get
-// (preserving the not-found / load-error wordings), while Index+DepGraph are built
-// ONCE from a single List snapshot for the referenced-check. That check counts only
-// referents OUTSIDE the id set, so deleting a subtree in one call needs no --force.
-// force overrides an external referent.
-func (r *Remover) RemoveMany(ids []mtt.TaskID, force bool) []RemoveResult {
+// RemoveMany deletes each id best-effort. The error return is the PRE-FLIGHT
+// precondition failure (missing attribution under --force), returned before any
+// deletion with a nil results slice; the CLI forwards it raw (exit 2). Per-id
+// outcomes ride []RemoveResult. Existence is checked per id via store.Get; Index+
+// DepGraph are built ONCE from a single List snapshot for the referenced-check
+// (counting only referents OUTSIDE the id set, so deleting a subtree needs no
+// --force). Under --force each id is audited BEFORE it is deleted.
+func (r *Remover) RemoveMany(ids []mtt.TaskID, force bool, by, why string) ([]RemoveResult, error) {
+	if force {
+		if missing := missingAttributionFields(true, true, by, why); len(missing) > 0 {
+			return nil, fmt.Errorf("%w: %s", ErrMissingAttribution, strings.Join(missing, ", "))
+		}
+	}
+
 	ordered := dedupIDSlice(ids)
 	set := make(map[mtt.TaskID]bool, len(ordered))
 	for _, id := range ordered {
@@ -60,13 +79,16 @@ func (r *Remover) RemoveMany(ids []mtt.TaskID, force bool) []RemoveResult {
 
 	results := make([]RemoveResult, 0, len(ordered))
 	for _, id := range ordered {
-		results = append(results, RemoveResult{ID: id, Err: r.removeOne(id, force, set, idx, g, snapErr)})
+		results = append(results, RemoveResult{ID: id, Err: r.removeOne(id, force, by, why, set, idx, g, snapErr)})
 	}
-	return results
+	return results, nil
 }
 
-// removeOne deletes one id, applying the subgraph-aware referenced-check.
-func (r *Remover) removeOne(id mtt.TaskID, force bool, set map[mtt.TaskID]bool, idx Index, g DepGraph, snapErr error) error {
+// removeOne deletes one id. Under --force it appends the audit record FIRST; only on
+// a successful append does it delete (a failed append leaves the task — and the
+// current pointer — intact). Without --force the subgraph referenced-check runs and
+// no audit is written.
+func (r *Remover) removeOne(id mtt.TaskID, force bool, by, why string, set map[mtt.TaskID]bool, idx Index, g DepGraph, snapErr error) error {
 	if _, err := r.store.Get(id); err != nil {
 		if errors.Is(err, mtt.ErrNotFound) {
 			return fmt.Errorf("task %q: %w", id, mtt.ErrNotFound)
@@ -81,6 +103,11 @@ func (r *Remover) removeOne(id mtt.TaskID, force bool, set map[mtt.TaskID]bool, 
 			return fmt.Errorf("task %q is referenced by %s; use --force to delete anyway",
 				id, strings.Join(refs, ", "))
 		}
+		return r.store.Delete(id)
+	}
+	entry := mtt.AuditEntry{At: r.now().UTC().Truncate(time.Second), Who: by, Why: why, Action: "rm --force", TaskID: id}
+	if err := r.audit.Append(entry); err != nil {
+		return fmt.Errorf("audit append for %q: %w", id, err)
 	}
 	return r.store.Delete(id)
 }

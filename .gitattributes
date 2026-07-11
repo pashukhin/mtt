@@ -1,0 +1,2 @@
+# Append-only audit log: union-merge takes both sides' lines instead of conflicting.
+/.mtt/audit.log merge=union

@@ -1,0 +1,57 @@
+# t5 — dangerous-ops attribution: --no-run and rm --force force who+why.
+# Fixture config has NO global require.who and NO commands on edges, so no git is
+# needed and exit-2 is caused by the new code, not the global policy. No MTT_BY.
+
+exec mtt init
+cp danger.yaml .mtt/config.yaml
+exec mtt types
+stdout 'task'
+
+exec mtt add 'first task'
+stdout 'created t1'
+exec mtt add 'second task'
+stdout 'created t2'
+
+# --- rm --force without --why is rejected (exit 2); task still present ---
+! exec mtt rm t1 --force --who alice
+stderr 'missing required attribution'
+exec mtt show t1
+stdout 'first task'
+
+# --- bulk rm --force without --why is ALSO exit 2; nothing deleted (B1 guard) ---
+! exec mtt rm t1 t2 --force --who alice
+stderr 'missing required attribution'
+exec mtt show t1
+exec mtt show t2
+
+# --- rm --force with who+why deletes AND records to audit.log ---
+exec mtt rm t1 --force --who alice --why 'stale duplicate'
+stdout 'removed t1'
+grep '"id":"t1"' .mtt/audit.log
+grep '"action":"rm --force"' .mtt/audit.log
+grep '"why":"stale duplicate"' .mtt/audit.log
+
+# --- a --no-run transition without --why is rejected (exit 2) ---
+# Use `mtt status` (NOT the `mtt start` sugar): --no-run is local to status/do;
+# the edge-verb sugar hardcodes noRun=false and would reject the flag.
+! exec mtt status t2 speccing --no-run --who alice
+stderr 'missing required attribution'
+
+# --- --no-run with who+why passes ---
+exec mtt status t2 speccing --no-run --who alice --why 'ci down, forcing'
+stdout 't2: tbd . speccing'
+
+-- danger.yaml --
+version: 1
+project: {name: dangertest}
+types:
+  - name: task
+    prefix: t
+    default: true
+    statuses:
+      - {name: tbd, kind: initial, default: true}
+      - {name: speccing, kind: active}
+      - {name: done, kind: terminal}
+    transitions:
+      - {from: tbd, to: speccing, name: start}
+      - {from: speccing, to: done, name: finish}

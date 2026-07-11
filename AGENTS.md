@@ -148,6 +148,11 @@ the live queue is mtt. Practical rules:
   commit before asking for the merge, or deliver will find a stale status.
 - **Attribution is required** (`require: {who}`, every move, `--no-run` does not bypass): set `author:` in
   `.mtt/config.local.yaml` or `MTT_BY=<you>` before your first move.
+- **Dangerous ops force who+why (t5).** A gate bypass (`--no-run`) and a destructive `rm --force` each demand
+  **both** `--who` and `--why` (missing → exit 2), independent of the global `require` policy. `rm --force`
+  writes an audit record to `.mtt/audit.log` (JSONL, committed, `merge=union`) **before** deleting — no
+  destruction without a trail. A transition can also be marked critical in the config with a per-edge
+  `require: {who, why}` (unioned with the global policy — tighten-only).
 - **Commit `.mtt` with the branch.** Mid-flow moves (`start`/`submit`/`approve`/`decline`) rewrite
   `.mtt/tasks/*.yaml` on the task branch — commit them as you go (they ride the PR).
 - **Two manual steps remain** (until post-persist actions land): after `deliver` and after `cancel`, run

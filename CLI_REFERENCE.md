@@ -53,7 +53,7 @@ Run `mtt help [command]` or `mtt <command> -h` for built-in help.
 
 | Flag | Meaning |
 |---|---|
-| `--no-run` | Do not execute the transition's `commands` (bypass gates/actions). Emergency/debug. |
+| `--no-run` | Do not execute the transition's `commands` (bypass gates/actions). Emergency/debug. **Forces `--who`+`--why` (t5)** — you may skip the gate, but you must sign for it (missing → exit 2). |
 | `--stop` | **(default, advance-family)** Advance until the first failed gate or ambiguous fork; report where and why it stopped. |
 | `--atomic` | All-or-nothing **by status**: if any gate fails, don't change status and don't write transitions. Note: side effects of already-run commands are not rolled back (a rollback/compensation seam is planned — see DESIGN). |
 | `--force` | Advance/transition unconditionally, ignoring gates (generalizes `--no-run` and also overrides a single-edge gate on `status`). |
@@ -115,6 +115,15 @@ history `by` field — "who is acting" — used when neither `--by` nor `MTT_BY`
 `--who`/`--why` mandatory on a status change — validated **before** the gate runs and not bypassed by
 `--no-run`; `config.local` may only **tighten** it (a committed requirement cannot be relaxed locally). A
 violation aggregates all missing fields into one usage error (exit `2`). **Implemented (session 006.5)**.
+
+**`require` per transition** (under a `transitions[]` entry, e.g. `require: {who: true, why: true}`) marks that
+edge **critical**: it forces `--who`/`--why` for that move only, unioned with the global policy (tighten-only).
+**Implemented (t5).**
+
+**Dangerous ops force `--who`/`--why` (t5).** Independent of `require`, a **gate bypass** (`--no-run`) forces
+**both** who+why on any edge, and a destructive **`mtt rm --force`** forces who+why as a pre-flight check
+(exit `2` when missing, on both single and bulk). `rm --force` also appends an audit record to `.mtt/audit.log`
+(JSONL `{at, who, why, action, id}`, committed with `.gitattributes` `merge=union`) **before** deleting.
 
 ---
 
@@ -233,8 +242,14 @@ in the YAML adapter — see Notes).
 
 ### `mtt rm [<id>...] [-] [--force]` — delete tasks (hard delete)  *(session 008.5; bulk + selector in 008.9)*
 Permanently removes tasks (distinct from `cancel`, which is a terminal *status*, not removal). `rm` is for
-backlog hygiene — purging a mistaken or obsolete task. There is **no history** for a delete (the file is
-gone); the git commit that drops `.mtt/tasks/<id>.yaml` is the de-facto audit.
+backlog hygiene — purging a mistaken or obsolete task. A task has **no history** for a delete (the file is
+gone); the git commit that drops `.mtt/tasks/<id>.yaml`, plus the `.mtt/audit.log` record written by
+`--force` (see below), are the audit trail.
+
+**`--force` forces attribution (t5).** Because it destroys a task despite inbound references, `mtt rm --force`
+requires **both** `--who` and `--why` (missing → **exit 2**, nothing deleted — a pre-flight check on single
+*and* bulk) and appends `{at, who, why, action: "rm --force", id}` to `.mtt/audit.log` **before** each delete.
+A plain `rm` (no `--force`) is unchanged (reject-if-referenced; no attribution, no audit).
 
 **Task-set selector (session 008.9).** `rm` takes a set from **one** of three mutually-exclusive sources:
 explicit ids (`mtt rm t1 t2`), stdin `-` (ids one per line — `mtt list … --ids | mtt rm -`), or a `--filter`
