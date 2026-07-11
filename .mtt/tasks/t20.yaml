@@ -2,8 +2,8 @@ id: t20
 type: task
 title: 'ready/list --exclude-tag filter (de-noise the queue: hide backlog from ready)'
 status: tbd
-priority: low
+priority: medium
 tags:
     - backlog
 created: "2026-07-10T13:53:10Z"
-updated: "2026-07-10T13:53:10Z"
+updated: "2026-07-11T09:13:37Z"
