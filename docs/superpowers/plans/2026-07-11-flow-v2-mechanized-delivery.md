@@ -152,8 +152,8 @@ func TestRepoDogfoodConfig(t *testing.T) {
 	}
 
 	// spec/plan submit edges: exact glob gates.
-	for _, sp := range [][3]mtt.StatusName{
-		{"speccing", "spec_review", ""}, {"spec_fix", "spec_review", ""},
+	for _, sp := range [][2]mtt.StatusName{
+		{"speccing", "spec_review"}, {"spec_fix", "spec_review"},
 	} {
 		assertRuns(t, task, namedEdge(t, task, sp[0], sp[1], "submit"), cmdSpecGlob)
 	}
@@ -275,7 +275,7 @@ func assertCancels(t *testing.T, typ mtt.Type, froms []mtt.StatusName) {
 }
 ```
 
-Note: `mtt.Transition.Name` is a `string` per s008.98 — if it is a named type, cast the comparisons accordingly (check `pkg/mtt/config.go`). `Settings.CommandTimeout` and `Settings.Prefixes` exist per `load.go` — but check WHERE the 5m default is applied: if `Load` leaves `CommandTimeout` zero when the `command_timeout:` key is absent (default applied at the runner/CLI instead), change the assert to expect the actual `Load` behavior for an absent key (the intent of the assert: the config must NOT carry its own global override anymore).
+Note (verified against source by the plan review): `Transition.Name` is a plain `string`; `Load` itself applies the 5m default when `command_timeout:` is absent, so the `settings.CommandTimeout == 5*time.Minute` assert is correct as written.
 
 - [ ] **Step 2: Run to verify it FAILS against the v1 config**
 
@@ -533,8 +533,8 @@ Expected: PASS
 
 - [ ] **Step 5: Sanity-render both flows**
 
-Run: `make build && ./bin/mtt types | head -30`
-Expected: `task` block with 15 statuses and `[start]`/`[submit]`/`[deliver]` edge names; then `chore` block. No error.
+Run: `make build && ./bin/mtt types | grep -c '\[deliver\]'`
+Expected: `2` (one deliver edge per type; the full render is ~90 lines — spot-check with `./bin/mtt types | head -30` if curious, the chore block is beyond line 30).
 
 - [ ] **Step 6: Full gate + commit**
 
@@ -584,7 +584,7 @@ exec mtt types
 stdout 'task'
 
 exec mtt add 'demo task'
-stdout '"id": "t1"'
+stdout 'created t1'
 
 # attribution is enforced per-move: without MTT_BY the move exits BEFORE the
 # gate with the attribution error (m2: pin the cause, not just non-zero).
@@ -639,7 +639,7 @@ stdout 'no current task'
 # entry edge re-enter path (second alternative): a pre-existing branch is
 # re-entered, not re-created.
 exec mtt add 'second demo'
-stdout '"id": "t2"'
+stdout 'created t2'
 exec git switch -c task/t2
 exec git switch main
 exec mtt start t2
@@ -691,7 +691,6 @@ t1: demo task (#1)
 ```
 
 Notes for the implementer:
-- `mtt add` under `--json`? No — `add` prints JSON only with `--json`; the plain form prints `created t1`. If the plain form is used, replace the two `stdout '"id": "t1"'` asserts with `stdout 'created t1'` / `stdout 'created t2'` — check the actual output of `mtt add` first (s008.97 changed `--json` only).
 - The scratch entry edge intentionally omits the `test -f .mtt/tasks/...` guard (the M2a case needs a second branch to stage — covered by the guard-test string assert instead; the e2e proves the switch mechanics).
 - `cp trace.log merge.log` happens while on `task/t1` (we `git switch task/t1` first) so the deliver's own `git switch main` is exercised from the branch posture; untracked files travel.
 
@@ -734,13 +733,17 @@ Expected: `PR_TITLE`
 - Modify: `AGENTS.md` (stale preamble at ~lines 122-124; "Working under mtt" section; the "don't hand-edit" storage invariant at ~line 80)
 - Modify: `internal/adapter/yaml/CLAUDE.md` (config-authoring invariant; guard-test mention)
 
-- [ ] **Step 1: Fix the stale preamble.** In AGENTS.md, replace the sentence
-`The roadmap and current target live in [sessions/README.md](sessions/README.md); the design backlog stays in [DESIGN.md](DESIGN.md) / [TASKS.md](TASKS.md). After phase 4 the backlog itself moves onto mtt (dogfooding).`
+- [ ] **Step 1: Fix the stale preamble.** In AGENTS.md, the target sentence is HARD-WRAPPED across lines
+~122-124 — edit across the wrap, do not search for it as one line. Replace
+`The roadmap and current target live in [sessions/README.md](sessions/README.md); the design
+backlog stays in [DESIGN.md](DESIGN.md) / [TASKS.md](TASKS.md). After phase 4 the backlog itself moves
+onto mtt (dogfooding).`
 with:
 `The roadmap and current target live in mtt itself (see "Working under mtt" below); sessions/README.md keeps the narrative history. TASKS.md is frozen history since s009.`
 
-- [ ] **Step 2: Scope the hand-edit rule.** In AGENTS.md "Storage invariants", replace
-`In the YAML adapter, .mtt/ is committed and is the source of truth; don't hand-edit files.`
+- [ ] **Step 2: Scope the hand-edit rule.** In AGENTS.md "Storage invariants", replace (note the backticks
+around `` `.mtt/` `` in the file)
+``In the YAML adapter, `.mtt/` is committed and is the source of truth; don't hand-edit files.``
 with:
 `In the YAML adapter, .mtt/ is committed and is the source of truth. Task files are written only by mtt — don't hand-edit them. The repo's .mtt/config.yaml is the exception: it is hand-authored, reviewed like code (see "Working under mtt"), and guarded by TestRepoDogfoodConfig.`
 
@@ -771,6 +774,8 @@ the live queue is mtt. Practical rules:
   commit before asking for the merge, or deliver will find a stale status.
 - **Attribution is required** (`require: {who}`, every move, `--no-run` does not bypass): set `author:` in
   `.mtt/config.local.yaml` or `MTT_BY=<you>` before your first move.
+- **Commit `.mtt` with the branch.** Mid-flow moves (`start`/`submit`/`approve`/`decline`) rewrite
+  `.mtt/tasks/*.yaml` on the task branch — commit them as you go (they ride the PR).
 - **Two manual steps remain** (until post-persist actions land): after `deliver` and after `cancel`, run
   `git add .mtt && git commit` on main — the state write is otherwise uncommitted and would ride the next
   task's branch.
@@ -779,8 +784,9 @@ the live queue is mtt. Practical rules:
   guarded by `TestRepoDogfoodConfig` — keep it green.
 ```
 
-- [ ] **Step 4: yaml CLAUDE.md.** In `internal/adapter/yaml/CLAUDE.md` Boundaries, replace
-`.mtt/config.yaml is edited only through this adapter (determinism + validation).`
+- [ ] **Step 4: yaml CLAUDE.md.** In `internal/adapter/yaml/CLAUDE.md` Boundaries, replace (backticks in
+the file as shown)
+``- `.mtt/config.yaml` is edited only through this adapter (determinism + validation).``
 with:
 `A project's .mtt/config.yaml is normally produced by Init templates; this repo's own committed config is hand-authored, reviewed like code, and guarded by TestRepoDogfoodConfig (dogfood_test.go — a deliberately non-hermetic test: it pins the repo root via go.mod and loads a temp COPY of the committed config, bypassing the config.local overlay). Task files are written only through the adapter.`
 
@@ -878,6 +884,11 @@ Then REPLACE the current "Next task" block's post-s009 content with:
 >    dead-assert cleanups listed in the 2026-07-10 review (see the flow-v2 spec's findings table).
 > Then work the queue: `mtt roadmap` (t1 references is next), driving each item through flow v2 — the first
 > live run of `start → … → deliver`.
+>
+> **Still standing (sessions are not mtt tasks): chore s009.5 — release positioning → the user-triggered
+> `v0.9.0` tag** (R0–R3 positioning pass, `pkg/mtt.ErrUnsupported`, stale-`current` exit-code decision,
+> security doc lines — see TASKS.md e5_t2a and the 2026-07-09 analysis notes). It follows the post-merge
+> follow-ups; the v0.9.0 tag waits for it.
 ```
 
 ### Carry-over lessons (s009 flow v2)
@@ -909,8 +920,8 @@ git commit -m "docs(s009): session record fixed (status, CLI_REFERENCE claim), f
 - [ ] **Step 2:** Re-run the two suites explicitly:
 `go test ./internal/adapter/yaml/ -run TestRepoDogfoodConfig -v` → PASS;
 `go test ./internal/cli -run 'TestScripts/dogfood' -v` → PASS.
-- [ ] **Step 3:** `./bin/mtt roadmap | head -5` — unchanged queue (20 tbd tasks; the config change must not
-affect them).
+- [ ] **Step 3:** `./bin/mtt roadmap | wc -l` → `20`, and `./bin/mtt roadmap | head -3` shows t1 (references)
+first — unchanged queue; the config change must not affect the 20 committed tbd tasks.
 - [ ] **Step 4:** Push and update the PR:
 
 ```bash
