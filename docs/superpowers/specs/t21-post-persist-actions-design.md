@@ -92,28 +92,36 @@ success-render block (`:106-122`, including the `--json` early-return at `:109-1
 `return nil`) runs only on `err == nil`. The new shape:
 
 ```go
-task, err := tr.Transition(...)
-postFailed := errors.Is(err, core.ErrPostAction)
-if err != nil && !postFailed {
+task, txErr := tr.Transition(...)          // NB: dedicated var — never reuse it for the Fprintf writes below
+postFailed := errors.Is(txErr, core.ErrPostAction)
+if txErr != nil && !postFailed {
     // existing failure handling (blocked-gate hint for ErrBlocked, etc.)
-    if hidden && errors.Is(err, core.ErrBlocked) { return fmt.Errorf("%w\n  hint: …", err) }
-    return err
+    if hidden && errors.Is(txErr, core.ErrBlocked) { return fmt.Errorf("%w\n  hint: …", txErr) }
+    return txErr
 }
-// err == nil OR postFailed: the move IS persisted → render it.
+// txErr == nil OR postFailed: the move IS persisted → render it.
 if e := applyCurrent(root, cfg, task, id); e != nil { return fmt.Errorf("…current…: %w", e) }
 if jsonFlag(cmd) {
     if e := writeJSON(cmd.OutOrStdout(), toTaskJSON(task)); e != nil { return e }
-    return err // B2: nil on success, ErrPostAction on post-failure → exit 5 preserved even in --json
+    return txErr // B2: nil on success, ErrPostAction on post-failure → exit 5 preserved even in --json
 }
-// text mode: print "<id>: from → to" + moveGuidance (existing)
-…
+// text mode: print "<id>: from → to" + moveGuidance — use a LOCAL `e`, NOT txErr:
+if _, e := fmt.Fprintf(out, "%s: %s → %s\n", id, last.From, last.To); e != nil { return e }
+if g := moveGuidance(...); g != "" {
+    if _, e := fmt.Fprint(out, g); e != nil { return e }
+}
 if postFailed {
-    fmt.Fprintf(cmd.ErrOrStderr(), "move applied, but a post-action failed: %v\n", err)
+    _, _ = fmt.Fprintf(cmd.ErrOrStderr(), "move applied, but a post-action failed: %v\n", txErr)
 }
-return err // nil on success, ErrPostAction on post-failure
+return txErr // nil on success, ErrPostAction on post-failure
 ```
 
-- **`--json` (B2):** the JSON branch emits the persisted task object as today, then **returns `err`** (not
+**MAJOR-fix note:** the transition error is held in `txErr` and the text-print `Fprintf`s use a **local `e`** —
+today's code reuses `err` for those writes (`status.go:114,118`), which would clobber `ErrPostAction` to `nil`
+and defeat exit 5 in text mode. Do **not** reuse the transition error var for the render writes. The stderr
+`Fprintf` return is explicitly discarded (`_, _ =`) to satisfy errcheck.
+
+- **`--json` (B2):** the JSON branch emits the persisted task object as today, then **returns `txErr`** (not
   `nil`), so `ErrPostAction` still maps to **exit 5**. The failure is never swallowed. (The move object is
   honest — the status *did* change; the non-zero exit signals the post failure. Adding an error field to the
   JSON is optional and out of scope.)
@@ -122,10 +130,6 @@ return err // nil on success, ErrPostAction on post-failure
 - `mtt types` (`writeTypeBlock`): render a post phase under an edge as `⇢ <post.Run>` (+ `(timeout …)`),
   **after** the `$ <command>` lines and the `↩ <rollback>` line (order: `$` gate → `↩` rollback → `⇢` post) —
   mirrors the existing rollback render (`types.go:109`). Discoverability; cheap.
-- `exitCode` (`root.go`): add `case errors.Is(err, core.ErrPostAction): return 5` (5 is free; 3 stays
-  pre-gate block = status unchanged).
-- `mtt types` (`writeTypeBlock`): render a post phase under an edge (e.g. `⇢ <post.Run>` + `(timeout …)`),
-  mirroring how `commands` and the `↩ rollback` line render — discoverability, optional but cheap.
 
 ## 7. Repo config + docs (mechanizing our own pain)
 
@@ -173,8 +177,10 @@ return err // nil on success, ErrPostAction on post-failure
 - **`internal/cli` e2e** `post_actions.txt`: an edge whose `post:` is `[echo POSTRAN]` → the move prints and
   the post runs (assert both the move line and `POSTRAN`); an edge whose `post:` is a failing command (`false`)
   → **exit 5**, and `mtt show` confirms the status **did** change (move kept); the **same failing edge with
-  `--json`** → **exit 5** too (B2 — the failure isn't swallowed in JSON mode); the failing edge with `--no-run`
-  → exit 0 and no post output (M1).
+  `--json`** → **exit 5** too (B2 — the failure isn't swallowed in JSON mode); the failing edge with `--no-run --who a
+  --why b` → exit 0 and no post output (M1). **Note the `--who`/`--why`:** since t5, `--no-run` forces who+why
+  (`transition.go` ORs `NoRun` into `effWho`/`effWhy`), so a `--no-run` move without them exits 2, not 0 — the
+  test must supply them to actually exercise the post-skip.
 - **`TestRepoDogfoodConfig`** (M3): add the spot assertion (every edge carries the expected `post`).
 - **Guard:** `make check` green.
 
