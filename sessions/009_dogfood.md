@@ -1,6 +1,6 @@
 # 009 — Dogfood / self-host
 
-Status: planned   ·   Branch: `feat/s009-dogfood`
+Status: done   ·   Branch: `feat/s009-dogfood`
 
 ## Target
 
@@ -100,14 +100,26 @@ Shipped on `feat/s009-dogfood` (version `0.8.98-dev → 0.9.0-dev`):
 - **`TestRepoDogfoodConfig`** (`internal/adapter/yaml/dogfood_test.go`) — the sole load-time guard (FindRoot →
   Load → Validate + exact-string edge assertions). Genuine red→green.
 - **e2e `dogfood.txt`** (`internal/cli/testdata/scripts/`) — proves the branch/gate/current mechanism on a
-  minimal scratch flow (fake commands, no `require`), via the s008.98 edge-verb sugar.
+  minimal scratch flow (fake commands), via the s008.98 edge-verb sugar; rewritten for flow v2 (born-main
+  entry, `require` active with pinned block causes, delivery tail).
 - **Migration** (flat, via `./bin/mtt add`): active queue `t1` references (high) / `t5` dangerous-ops (high) /
   `t2` comments, `t3` profiles (medium) / `t4` coding-demo (low); 15 `backlog`-tagged tasks (`t6`–`t20`: former
   Phases 5–8 + design think-items + self-host meta). Roadmap hand-run + tags audited.
 - **Docs:** DESIGN.md/.ru "Shipped (s009)" note; **AGENTS.md "Working under mtt (self-host)"** section;
-  CLI_REFERENCE minimal mention; **`TASKS.md` frozen** (banner + `e5_t2 ✅`); sessions/README (009 ✅, 009.5
-  next); NEXT_SESSION (Where we are + carry-over 009); flow-note §11.
+  **`TASKS.md` frozen** (banner + `e5_t2 ✅`); sessions/README (009 ✅, 009.5 next); NEXT_SESSION (Where we
+  are + carry-over 009); flow-note §11. (CLI_REFERENCE was NOT touched — an earlier revision of this record
+  claimed a "minimal mention" that never landed; corrected.)
 - **Process:** brainstorm → two adversarial subagent reviews (spec, then plan; each caught real pre-code
   defects) → strict TDD. `make check` green.
+- **Flow v2 (same PR, post-review):** the adversarial branch review (10 confirmed findings) triggered a
+  redesign — delivery tail (`approved → deliver → done` verified against the squash trace on main; `done` =
+  "in main"), second type `chore` (design-closed work), id-keyed artifact gates replacing the porcelain proxy
+  (+ commit-early convention), mechanized branch context (start from main / cancel + deliver write on main /
+  decline returns to branch), per-command 10m timeout on `make check`, guard test v2 (overlay-proof, full
+  cancel matrix + edge counts + description guards), e2e v2 (born-main entry, require active, block causes
+  pinned, delivery tail), repo squash setting flipped to `PR_TITLE`. Spec:
+  `docs/superpowers/specs/2026-07-11-flow-v2-mechanized-delivery-design.md`; plan:
+  `docs/superpowers/plans/2026-07-11-flow-v2-mechanized-delivery.md`.
 
-Next: **chore s009.5 (release positioning) → user-triggered tag `v0.9.0`**.
+Next: **post-merge follow-ups (see NEXT_SESSION), then chore s009.5 (release positioning) → user-triggered
+tag `v0.9.0`**.
