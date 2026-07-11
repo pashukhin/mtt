@@ -1,10 +1,10 @@
 id: t19
 type: task
 title: migrate agent-process rules into the flow descriptions (self-instructing runbook — flow-note insight 2)
-status: speccing
+status: spec_review
 priority: high
 created: "2026-07-10T13:53:10Z"
-updated: "2026-07-11T12:58:25Z"
+updated: "2026-07-11T12:59:26Z"
 history:
     - at: "2026-07-11T12:58:25Z"
       by: Grigorii Pashukhin
@@ -14,4 +14,11 @@ history:
         - cmd: git switch task/t19 || (git switch main && git switch -c task/t19)
           exit: 0
         - cmd: test -f .mtt/tasks/t19.yaml || { echo "task file absent on this branch — its add has not reached main (merge/commit the branch that created it first)" >&2; false; }
+          exit: 0
+    - at: "2026-07-11T12:59:26Z"
+      by: Grigorii Pashukhin
+      from: speccing
+      to: spec_review
+      checks:
+        - cmd: ls docs/superpowers/specs/t19-*.md
           exit: 0
