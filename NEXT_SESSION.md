@@ -288,6 +288,11 @@ resolved graph, and open gaps. Two decisions locked there that shape s005:
 >    all single-task ops; multi-assignee providers) via `mtt edit`.
 > 4. The remaining small review-fix items (dead asserts, e2e overlap trims — see the 2026-07-10 review
 >    summaries in the flow-v2 spec's findings table) as type `chore`.
+> 5. **`chore`: scrub `MTT_DIR`/`MTT_BY` from the env in the cli test harness** (dress-rehearsal finding,
+>    2026-07-11): the testscript suite inherits the caller's env, so a user with `MTT_DIR` exported gets a
+>    deterministically RED `make check` (scripts' cwd-discovery is overridden) — and under flow v2 a red
+>    check is a blocked `mtt submit` gate. Repro: `MTT_DIR=<anywhere> make check`. Fix in the
+>    `internal/cli` testscript setup (unset/override both vars), not in user docs.
 >
 > **Then chore s009.5 — release positioning** (e5_t2a): README/DESIGN "why not harness hooks?" + 2026-scan
 > refresh + AGENTS.md adoption snippet (R0–R3), `pkg/mtt.ErrUnsupported` (A7), the stale-`current` exit-code
@@ -316,6 +321,10 @@ resolved graph, and open gaps. Two decisions locked there that shape s005:
   distinguish an attribution exit-2 from a gate exit-3.
 - **Descriptions are load-bearing** (the self-instructing runbook): guard-test them like commands — a flow
   edit must not be able to gut them silently.
+- **Gates inherit the caller's env** (dress-rehearsal finding): an exported `MTT_DIR` leaks through the
+  `make check` gate into the testscript suite and reds it deterministically (cwd-discovery overridden).
+  Prefer cwd-discovery + `config.local` `author:` over `MTT_DIR`/`MTT_BY` exports when working under mtt;
+  the harness-side scrub is queued (post-merge follow-up #5).
 
 ### Carry-over lessons (009 — dogfood / self-host)
 - **Model the right axis: product vs process.** The two-tier `phase`/`session` draft encoded *our workflow*
