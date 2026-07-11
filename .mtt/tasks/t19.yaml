@@ -1,10 +1,10 @@
 id: t19
 type: task
 title: migrate agent-process rules into the flow descriptions (self-instructing runbook — flow-note insight 2)
-status: spec_human_review
+status: planning
 priority: high
 created: "2026-07-10T13:53:10Z"
-updated: "2026-07-11T13:07:03Z"
+updated: "2026-07-11T13:19:44Z"
 history:
     - at: "2026-07-11T12:58:25Z"
       by: Grigorii Pashukhin
@@ -37,3 +37,7 @@ history:
       by: Grigorii Pashukhin
       from: spec_review
       to: spec_human_review
+    - at: "2026-07-11T13:19:44Z"
+      by: Grigorii Pashukhin
+      from: spec_human_review
+      to: planning
