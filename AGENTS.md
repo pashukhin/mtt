@@ -77,7 +77,9 @@ Requires: Go 1.23+, `golangci-lint` v2, `goimports`.
 ## Storage invariants
 
 - Read/write storage **only through a port** (`TaskStore`/`KnowledgeStore`), never directly.
-- In the YAML adapter, `.mtt/` is committed and is the source of truth; don't hand-edit files.
+- In the YAML adapter, `.mtt/` is committed and is the source of truth. Task files are written only by
+  mtt — don't hand-edit them. The repo's `.mtt/config.yaml` is the exception: it is hand-authored,
+  reviewed like code (see "Working under mtt"), and guarded by `TestRepoDogfoodConfig`.
 - IDs are **flat, per-prefix** (`e1`, `t17`) and independent of `title` **and of position** — re-parenting
   changes only the `parent` field, never the ID. (Hierarchy is stored in `parent`, computed for display.)
 - File writes are atomic (temp + rename); a new ID is created via `O_EXCL`.
@@ -119,6 +121,38 @@ Work in **compact sessions** — each small and ending with something practical 
 verifiable** (a user-runnable command with an e2e test). One file per session in
 [sessions/](sessions/) (`NNN_<slug>.md`): write the target up front, fill in what was actually done.
 Start a session by refining its plan (superpowers), then work test-first; branch `feat/sNNN-<slug>` →
-PR → squash. The roadmap and current target live in [sessions/README.md](sessions/README.md); the design
-backlog stays in [DESIGN.md](DESIGN.md) / [TASKS.md](TASKS.md). After phase 4 the backlog itself moves
-onto mtt (dogfooding).
+PR → squash. The roadmap and current target live in mtt itself (see "Working under mtt" below);
+sessions/README.md keeps the narrative history. TASKS.md is frozen history since s009.
+
+## Working under mtt (self-host)
+
+Since **s009** this repo tracks its own work in a committed `.mtt/` (config + tasks). `TASKS.md` is frozen;
+the live queue is mtt. Practical rules:
+
+- **The backlog is in mtt.** `mtt roadmap` is the "what next?" view; `mtt list --tag backlog` is the
+  backlog-only view; promote by `mtt tag rm <id> backlog`. A task is the unit of **product** change;
+  sessions/phases (how *we* work) stay in `sessions/*.md` — they are not mtt tasks.
+- **Two types (`mtt types` shows both flows).** `task` = design is OPEN (spec → plan → implement, each stage
+  reviewed by an agent, spec/plan also by the human). `chore` = design is ALREADY FIXED elsewhere (a review
+  finding, a recorded decision, docs sync) — implement → review → deliver. If a chore's diff turns out to
+  contain design decisions, the reviewer declines it: cancel and recreate as a task.
+- **Move by edge verb** (`mtt start/submit/approve/decline/deliver/cancel [<id>]`) or `mtt status`. The flow
+  mechanizes the git context: `start` re-enters or creates `task/<id>` from main; `deliver` and `cancel`
+  move your tree to main and write the terminal state there; `approved → decline` returns you to the task
+  branch. Mid-flight resumption is a plain `git switch task/<id>` (start only fires from tbd).
+- **Artifacts are id-keyed and committed early.** A task's spec/plan live at
+  `docs/superpowers/specs|plans/<id>-<slug>.md` (the submit gates check exactly that); commit them as you
+  go — nothing requires an uncommitted tree.
+- **Delivery is verified.** The PR title starts with `<id>: ` (the repo squash setting propagates it to the
+  squash subject); `mtt deliver` checks that trace on local main — pull first. Push the `approved` state
+  commit before asking for the merge, or deliver will find a stale status.
+- **Attribution is required** (`require: {who}`, every move, `--no-run` does not bypass): set `author:` in
+  `.mtt/config.local.yaml` or `MTT_BY=<you>` before your first move.
+- **Commit `.mtt` with the branch.** Mid-flow moves (`start`/`submit`/`approve`/`decline`) rewrite
+  `.mtt/tasks/*.yaml` on the task branch — commit them as you go (they ride the PR).
+- **Two manual steps remain** (until post-persist actions land): after `deliver` and after `cancel`, run
+  `git add .mtt && git commit` on main — the state write is otherwise uncommitted and would ride the next
+  task's branch.
+- **Config is code (SEC2).** Review `.mtt/config.yaml` diffs like a Makefile; a gate may invoke read-only
+  `mtt` only (never an mtt transition). Gate commands are single-quoted YAML scalars. The committed config is
+  guarded by `TestRepoDogfoodConfig` — keep it green.

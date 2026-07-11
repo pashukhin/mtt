@@ -816,6 +816,40 @@ terms, with shell orchestration living in flow transitions" hinges on **command 
 transition can't create a per-task branch without them. Until then the plan is kept in this repo's docs;
 after dogfood we move mtt's development onto mtt itself. See sessions/README.md → "Roadmap regrouped".
 
+> **Shipped (s009, revised by the flow-v2 spec): dogfooding / self-host.** This repo tracks its own
+> development in a committed `.mtt/` (config + tasks). **Model — one axis:** we track the **product** (a
+> task = a unit of product change), not the **process** (session/phase = how *we* work — that stays in
+> `sessions/*.md` + git); structure is **deps + tags + priority**, not hierarchy (**epics** are
+> product-valid but deferred; the §4 self-ref gate returns with them). **TWO types.** `task` (design
+> OPEN): `tbd → speccing → spec_review → spec_human_review ⇄ spec_fix → planning → plan_review →
+> plan_human_review ⇄ plan_fix → implementing → impl_review ⇄ impl_fix → approved → done` (+`cancelled`);
+> `chore` (design ALREADY FIXED elsewhere — a review finding, a recorded decision, docs sync): the impl
+> stage + delivery tail only. Gates check **form, never content** (content = the review statuses):
+> id-keyed artifact presence (`ls docs/superpowers/specs/<id>-*.md`) on spec/plan submits, `make check`
+> (per-command 10m timeout) on impl submits, and a **verified delivery** — `deliver` moves the tree to
+> main and greps the squash subject (`<id>: …` — the PR title, propagated by the repo's
+> `squash_merge_commit_title=PR_TITLE` setting) from local `git log`, so **`done` truthfully means "in
+> main"**. Branch context is mechanized: `start` re-enters or creates `task/{{.ID}}` from main (guarded:
+> the task file must exist on the tree); `cancel` and `deliver` write their terminal state ON main;
+> `approved → decline` returns to the task branch. Artifacts are **committed early** (id-keyed names
+> `docs/superpowers/specs|plans/<id>-<slug>.md` — the v1 uncommitted-until-review convention is dead).
+> **Conventions that remain:** the PR title starts with `<id>: `; push the `approved` state before the
+> merge; two interim manual state-commits (after `deliver`/`cancel`) until post-persist actions land.
+> **Attribution:** project-global `require: {who}` (per-edge/role `require` needs a core change — parked
+> roles work; the migrated `dangerous-ops` task is its first trigger). **Trust (SEC2):** gates invoke
+> **read-only** `mtt` only — never an mtt transition (recursion). **Known limits (recorded):** the
+> human's impl-stage act leaves no mtt history entry — the audit is git's merge trace (spec/plan human
+> sign-offs keep theirs); a mid-flight blocked task has no parking status (it rests where it is);
+> cross-branch stale reads are the documented lost-update class (multi-agent cluster). **Backlog** =
+> `tbd` tasks tagged `backlog` (promotion = drop the tag). **Authoring caveat:** gate commands are
+> **single-quoted** YAML scalars. The committed config is guarded by `TestRepoDogfoodConfig` (the
+> **sole** load-time validation — `Config.Validate` runs on `add`/`types`, not `Load`; the guard loads a
+> temp copy, bypassing the `config.local` overlay). **Bootstrap caveats:** mtt ids (`t1`…) ≠ the docs'
+> historical `sNNN` labels; the branch carries no slug (placeholder whitelist); s009 itself ran on the
+> manual `feat/s009-dogfood` (the config governs *future* tasks). Specs:
+> `docs/superpowers/specs/2026-07-09-session-009-dogfood-design.md` (model, migration) +
+> `docs/superpowers/specs/2026-07-11-flow-v2-mechanized-delivery-design.md` (the flow, authoritative).
+
 **Later (backlog):**
 
 - later — **re-parenting** (`mtt reparent`/`move`): change a task's `parent`; enabled by flat, position-free IDs.

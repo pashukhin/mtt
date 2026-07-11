@@ -1,0 +1,240 @@
+package yaml
+
+import (
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+	"time"
+
+	"github.com/pashukhin/mtt/pkg/mtt"
+)
+
+// Exact gate strings — byte-for-byte copies of .mtt/config.yaml. A mangled or
+// inverted gate must fail HERE, not at runtime.
+const (
+	cmdEntrySwitch = `git switch task/{{.ID}} || (git switch main && git switch -c task/{{.ID}})`
+	cmdEntryGuard  = `test -f .mtt/tasks/{{.ID}}.yaml || { echo "task file absent on this branch — its add has not reached main (merge/commit the branch that created it first)" >&2; false; }`
+	cmdSpecGlob    = `ls docs/superpowers/specs/{{.ID}}-*.md`
+	cmdPlanGlob    = `ls docs/superpowers/plans/{{.ID}}-*.md`
+	cmdMakeCheck   = `make check`
+	cmdDeclineBack = `git switch task/{{.ID}}`
+	cmdSwitchMain  = `git switch main`
+	cmdDeliverLog  = `git log -n 200 --format=%s | grep "^{{.ID}}: " || { echo "no squash commit \"{{.ID}}: …\" on local main: git pull first, and check the PR/merge title started with \"{{.ID}}: \"" >&2; false; }`
+	cmdCancelGuard = `test -f .mtt/tasks/{{.ID}}.yaml || { echo "task file absent on main — its add has not reached main (merge/commit the branch that created it first)" >&2; false; }`
+)
+
+// TestRepoDogfoodConfig is the SOLE guard of this repo's committed
+// .mtt/config.yaml (Config.Validate runs on add/types, never on Load). It
+// pins the root to THIS repo (go.mod beside .mtt), copies the committed
+// config into a temp root, and loads it THERE — the gitignored
+// .mtt/config.local.yaml overlay can neither redden nor mask the committed
+// artifact — then asserts the full flow-v2 shape for both types.
+func TestRepoDogfoodConfig(t *testing.T) {
+	root, err := FindRoot(".")
+	if err != nil {
+		t.Fatalf("FindRoot: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(root, "go.mod")); err != nil {
+		t.Fatalf("found root %q is not this repo (no go.mod): %v", root, err)
+	}
+	raw, err := os.ReadFile(filepath.Join(root, ".mtt", "config.yaml"))
+	if err != nil {
+		t.Fatalf("read committed config: %v", err)
+	}
+	tmp := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(tmp, ".mtt"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(tmp, ".mtt", "config.yaml"), raw, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg, settings, err := Load(tmp)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("Validate: %v", err)
+	}
+
+	if len(cfg.Types) != 2 {
+		t.Fatalf("types = %d, want 2 (task, chore)", len(cfg.Types))
+	}
+	task, chore := cfg.Types[0], cfg.Types[1]
+	if task.Name != "task" || chore.Name != "chore" {
+		t.Fatalf("type names = %q, %q; want task, chore", task.Name, chore.Name)
+	}
+	if !task.Default || chore.Default {
+		t.Fatalf("default flags: task=%v chore=%v, want true/false", task.Default, chore.Default)
+	}
+	if settings.Prefixes["task"] != "t" || settings.Prefixes["chore"] != "c" {
+		t.Fatalf("prefixes = %v, want task:t chore:c", settings.Prefixes)
+	}
+	if !settings.Require.Who {
+		t.Fatalf("require.who must be true")
+	}
+	if settings.CommandTimeout != 5*time.Minute {
+		t.Fatalf("global command_timeout = %v, want the 5m code default (D8)", settings.CommandTimeout)
+	}
+
+	taskKinds := map[mtt.StatusName]mtt.StatusKind{
+		"tbd": mtt.KindInitial, "speccing": mtt.KindActive,
+		"spec_review": mtt.KindActive, "spec_human_review": mtt.KindActive,
+		"spec_fix": mtt.KindActive, "planning": mtt.KindActive,
+		"plan_review": mtt.KindActive, "plan_human_review": mtt.KindActive,
+		"plan_fix": mtt.KindActive, "implementing": mtt.KindActive,
+		"impl_review": mtt.KindActive, "impl_fix": mtt.KindActive,
+		"approved": mtt.KindActive,
+		"done":     mtt.KindTerminal, "cancelled": mtt.KindTerminal,
+	}
+	choreKinds := map[mtt.StatusName]mtt.StatusKind{
+		"tbd": mtt.KindInitial, "implementing": mtt.KindActive,
+		"impl_review": mtt.KindActive, "impl_fix": mtt.KindActive,
+		"approved": mtt.KindActive,
+		"done":     mtt.KindTerminal, "cancelled": mtt.KindTerminal,
+	}
+	assertKinds(t, task, taskKinds)
+	assertKinds(t, chore, choreKinds)
+
+	if got := len(task.Transitions); got != 27 {
+		t.Fatalf("task transitions = %d, want 27", got)
+	}
+	if got := len(chore.Transitions); got != 11 {
+		t.Fatalf("chore transitions = %d, want 11", got)
+	}
+
+	// entry edges: name/current + exact two-command pipeline (both types).
+	for _, tc := range []struct {
+		typ mtt.Type
+		to  mtt.StatusName
+	}{{task, "speccing"}, {chore, "implementing"}} {
+		e := edge(t, tc.typ, "tbd", tc.to)
+		if e.Name != "start" || e.Current != mtt.CurrentSet {
+			t.Fatalf("%s entry = {name:%q current:%q}, want {start set}", tc.typ.Name, e.Name, e.Current)
+		}
+		assertRuns(t, tc.typ, e, cmdEntrySwitch, cmdEntryGuard)
+	}
+
+	// spec/plan submit edges: exact glob gates.
+	for _, sp := range [][2]mtt.StatusName{
+		{"speccing", "spec_review"}, {"spec_fix", "spec_review"},
+	} {
+		assertRuns(t, task, namedEdge(t, task, sp[0], sp[1], "submit"), cmdSpecGlob)
+	}
+	for _, sp := range [][2]mtt.StatusName{
+		{"planning", "plan_review"}, {"plan_fix", "plan_review"},
+	} {
+		assertRuns(t, task, namedEdge(t, task, sp[0], sp[1], "submit"), cmdPlanGlob)
+	}
+
+	// impl submit edges: make check with the 10m per-command timeout (D8), both types.
+	for _, tc := range []mtt.Type{task, chore} {
+		for _, from := range []mtt.StatusName{"implementing", "impl_fix"} {
+			e := namedEdge(t, tc, from, "impl_review", "submit")
+			if len(e.Commands) != 1 || e.Commands[0].Run != cmdMakeCheck {
+				t.Fatalf("%s %s->impl_review = %+v, want single %q", tc.Name, from, e.Commands, cmdMakeCheck)
+			}
+			if e.Commands[0].Timeout != 10*time.Minute {
+				t.Fatalf("%s %s->impl_review timeout = %v, want 10m", tc.Name, from, e.Commands[0].Timeout)
+			}
+		}
+	}
+
+	// delivery tail (both types): approve, decline-back-to-branch, deliver.
+	for _, tc := range []mtt.Type{task, chore} {
+		if e := namedEdge(t, tc, "impl_review", "approved", "approve"); len(e.Commands) != 0 {
+			t.Fatalf("%s impl_review->approved must carry no commands", tc.Name)
+		}
+		assertRuns(t, tc, namedEdge(t, tc, "approved", "impl_fix", "decline"), cmdDeclineBack)
+		d := namedEdge(t, tc, "approved", "done", "deliver")
+		if d.Current != mtt.CurrentClear {
+			t.Fatalf("%s deliver current = %q, want clear", tc.Name, d.Current)
+		}
+		assertRuns(t, tc, d, cmdSwitchMain, cmdDeliverLog)
+	}
+
+	// full cancel matrix (no forward-trap): every non-terminal except _review pairs.
+	taskCancels := []mtt.StatusName{"tbd", "speccing", "planning", "implementing", "spec_fix", "plan_fix", "impl_fix", "approved"}
+	choreCancels := []mtt.StatusName{"tbd", "implementing", "impl_fix", "approved"}
+	assertCancels(t, task, taskCancels)
+	assertCancels(t, chore, choreCancels)
+
+	// descriptions are load-bearing (self-instructing runbook): all present,
+	// plus the two key instruction strings.
+	for _, tc := range []mtt.Type{task, chore} {
+		for _, s := range tc.Statuses {
+			if strings.TrimSpace(s.Description) == "" {
+				t.Fatalf("%s status %q has no description", tc.Name, s.Name)
+			}
+		}
+		for _, tr := range tc.Transitions {
+			if strings.TrimSpace(tr.Description) == "" {
+				t.Fatalf("%s edge %s->%s has no description", tc.Name, tr.From, tr.To)
+			}
+		}
+	}
+	if s, _ := chore.StatusByName("impl_review"); !strings.Contains(s.Description, "it must be a") {
+		t.Fatalf("chore impl_review description lost the type-boundary police line: %q", s.Description)
+	}
+	if d := namedEdge(t, task, "approved", "done", "deliver"); !strings.Contains(d.Description, "pull main") {
+		t.Fatalf("task deliver description lost the pull-main hint: %q", d.Description)
+	}
+}
+
+func assertKinds(t *testing.T, typ mtt.Type, want map[mtt.StatusName]mtt.StatusKind) {
+	t.Helper()
+	if len(typ.Statuses) != len(want) {
+		t.Fatalf("%s statuses = %d, want %d", typ.Name, len(typ.Statuses), len(want))
+	}
+	for name, kind := range want {
+		s, ok := typ.StatusByName(name)
+		if !ok {
+			t.Fatalf("%s status %q missing", typ.Name, name)
+		}
+		if s.Kind != kind {
+			t.Fatalf("%s status %q kind = %q, want %q", typ.Name, name, s.Kind, kind)
+		}
+	}
+}
+
+func edge(t *testing.T, typ mtt.Type, from, to mtt.StatusName) mtt.Transition {
+	t.Helper()
+	tr, ok := typ.FindTransition(from, to)
+	if !ok {
+		t.Fatalf("%s edge %s -> %s missing", typ.Name, from, to)
+	}
+	return tr
+}
+
+func namedEdge(t *testing.T, typ mtt.Type, from, to mtt.StatusName, name string) mtt.Transition {
+	t.Helper()
+	tr := edge(t, typ, from, to)
+	if tr.Name != name {
+		t.Fatalf("%s edge %s->%s name = %q, want %q", typ.Name, from, to, tr.Name, name)
+	}
+	return tr
+}
+
+func assertRuns(t *testing.T, typ mtt.Type, tr mtt.Transition, want ...string) {
+	t.Helper()
+	if len(tr.Commands) != len(want) {
+		t.Fatalf("%s edge %s->%s: %d commands, want %d", typ.Name, tr.From, tr.To, len(tr.Commands), len(want))
+	}
+	for i, w := range want {
+		if tr.Commands[i].Run != w {
+			t.Fatalf("%s edge %s->%s cmd[%d] = %q, want %q", typ.Name, tr.From, tr.To, i, tr.Commands[i].Run, w)
+		}
+	}
+}
+
+func assertCancels(t *testing.T, typ mtt.Type, froms []mtt.StatusName) {
+	t.Helper()
+	for _, from := range froms {
+		e := namedEdge(t, typ, from, "cancelled", "cancel")
+		if e.Current != mtt.CurrentClear {
+			t.Fatalf("%s cancel from %s: current = %q, want clear", typ.Name, from, e.Current)
+		}
+		assertRuns(t, typ, e, cmdSwitchMain, cmdCancelGuard)
+	}
+}

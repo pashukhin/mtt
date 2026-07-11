@@ -1,5 +1,11 @@
 # TASKS
 
+> **🧊 FROZEN (s009, 2026-07-10).** The task plan is superseded by mtt itself (self-host): the live queue is
+> `mtt roadmap` / `mtt list` in this repo's committed `.mtt/`, and the design backlog migrated as
+> `backlog`-tagged tasks. This file is now a **historical record** of the bootstrap plan — do not add new work
+> here; add it in mtt (`mtt add …`). See [DESIGN.md](DESIGN.md) → "Shipped (s009): dogfooding / self-host" and
+> [AGENTS.md](AGENTS.md) → "Working under mtt".
+
 Bootstrap tracker until self-hosting. Once tasks + hierarchy + dependencies exist (end of phase 4),
 mtt's development moves onto mtt itself, and this file is frozen.
 
@@ -224,11 +230,15 @@ comments (which enrich a full self-host but don't enable it). See sessions/READM
       existing `runTransition` (core untouched). Three `validateFlow` invariants (name unique per source, name≠
       status, `(from,to)` unique). Verbs shown in `mtt types` / `next:` / `show --json` `next[].name`. Spec+plan:
       `docs/superpowers/{specs,plans}/2026-07-10-named-transitions*`.
-- [ ] e5_t2 — **dogfooding (s009)**: `mtt init` this repo, a config whose gates are task-aware, migrate the
-      forward backlog onto mtt. **Starts by reconciling the spec with recorded decision A** (full session flow
-      `tbd → speccing → planning → in_progress → review → done`; branch + `current: set` on `→ speccing` via
-      the idempotent `git switch -c … || git switch …`; `make check` on `→ review`/`→ done`) — see the audit
-      note items S1–S5.
+- [x] e5_t2 — **dogfooding (s009)** ✅ **DONE 2026-07-10**: committed `.mtt/` (config + tasks) makes mtt track
+      its own development. Re-modelled from the two-tier draft to a **single `task` type** (product axis, not
+      process) carrying the full **15-status maturation flow** (`speccing → …review… → planning → …→
+      implementing → …review… → done`, `decline → _fix`, `+cancelled`); task-aware gates (branch `task/{{.ID}}`
+      + `current` on entry, `grep -qv '.mtt/'` proxy on spec/plan review, `make check` on impl-review),
+      `require: {who}`; flat migration (active queue + `backlog`-tagged); `TestRepoDogfoodConfig` guard + e2e
+      `dogfood.txt`. Two adversarial reviews (spec, plan). Version `0.9.0-dev`. Spec/plan:
+      `docs/superpowers/{specs,plans}/2026-07-*-session-009-dogfood*`; `sessions/009_dogfood.md`. **This file is
+      now frozen (banner above).**
 - [ ] e5_t2a — **release positioning (chore, s009.5)**: README/DESIGN "why not harness hooks?" + refresh the
       2026 competitive scan + a copy-pasteable AGENTS.md adoption snippet (R0–R3); ship `pkg/mtt.ErrUnsupported`
       (the `Delete` godoc already references it — A7); decide the stale-`current` exit code (A5);
@@ -254,6 +264,16 @@ comments (which enrich a full self-host but don't enable it). See sessions/READM
 - later — **export the status flow as Graphviz** (`mtt types --dot` / `mtt flow --graphviz`): render a
   type's flow — statuses (by `kind`) + transitions, annotated with attached `commands`/roles — as DOT for
   visualization. Cheap read-only view; pairs well with the observed-graph reconstruction above.
+- later — **placeholders in `description`s (not just `commands`)**: expand `{{.ID}}`/`{{.Type}}`/`{{.From}}`/
+  `{{.To}}` in status/transition `description`s at guidance-render time (`internal/cli/guidance.go`), so the
+  self-instructing runbook (s008.95) can show **exact values** in its instructions (e.g. `description: "commit
+  the spec to docs/…/{{.ID}}-*.md"` → the real id). Reuses the s007 `cmdContext` whitelist (structural, safe).
+  Nuances: a **status** description (shown by `mtt show`, no move) has only `.ID`/`.Type` (no from/to); a
+  **transition** description (shown on a move) has all four → two contexts. **Best-effort:** a malformed
+  template must NOT fail `show`/the move (guidance is advisory — render raw or skip on error), unlike a
+  *command* where an expansion error is exit 1. Surfaced in the s009 flow discussion (2026-07-10) — precise
+  agent instructions; also strengthens the "artifact exists" gate story (a `{{.ID}}`-keyed doc-path convention
+  becomes displayable).
 - later (think) — **argument-resolution grammar**: generalize the s006.5 `mtt <status> <id>` fallback into a
   coherent scheme for resolving positional args (command / status / role / id / …). Is `mtt <role> …` a
   form? What's the precedence and disambiguation when arg0 (or arg1+) could be several kinds? Decide the

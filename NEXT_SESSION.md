@@ -4,7 +4,25 @@ A living handoff doc. Update it at the end of each session (what's done / what's
 
 ## Where we are
 
-- **Phase 0 (scaffold) + sessions 001–006 + 006.5 + 006.7 + 007 + 008 + 008.5 + 008.6 + 008.7 + 008.9 + 008.95 + 008.97 + 008.98 are DONE** (version `0.8.98-dev`, `make check` green).
+- **Phase 0 (scaffold) + sessions 001–006 + 006.5 + 006.7 + 007 + 008 + 008.5 + 008.6 + 008.7 + 008.9 + 008.95 + 008.97 + 008.98 + 009 are DONE** (version `0.9.0-dev`, `make check` green).
+  **Session 009 (dogfood / self-host)** — this repo now tracks its own development in a committed `.mtt/`
+  (config + tasks). **Revised to FLOW V2 in the same PR** (post-review redesign: delivery tail with a
+  verified `done` = "in main", second type `chore`, id-keyed artifact gates, mechanized branch context — see
+  `docs/superpowers/specs/2026-07-11-flow-v2-mechanized-delivery-design.md` and "Next task" below). It was
+  **re-modelled mid-session** from a two-tier `phase`/`session` draft to the **product axis** (the key
+  insight: `session`/`phase` = how *we* work = process; `task`/`epic` = how the *product*
+  changes = the backlog — mtt tracks the **product** axis). The `task` type carries the full **15-status
+  maturation flow** (`speccing → spec_review → spec_human_review → planning → … → implementing → impl_review →
+  impl_human_review → done`, `decline → _fix`, `+cancelled`); structure is **deps + tags + priority** (no
+  hierarchy — epics deferred). **Task-aware gates:** branch `task/{{.ID}}` + `current:set` on entry, artifact
+  proxy `git status --porcelain | grep -qv '\.mtt/'` on spec/plan review edges, **`make check`** on impl-review
+  edges, `current:clear` on `→done`/`→cancelled`; project-global `require:{who}`. The forward backlog migrated
+  flat (active queue t1–t5 + 15 `backlog`-tagged tasks). Guarded by **`TestRepoDogfoodConfig`** (the sole
+  load-time config validation) + e2e `dogfood.txt`. Two adversarial subagent reviews (spec, then plan) each
+  caught real defects pre-code (a fail-open self-ref gate + a YAML double-quote/`!`-tag trap in the spec; a
+  `#2`-in-a-title spurious-tag in the plan). `TASKS.md` is now **frozen**; the live queue is `mtt roadmap`.
+  Spec/plan: `docs/superpowers/{specs,plans}/2026-07-*-session-009-dogfood*`. Next: **chore s009.5 (release
+  positioning) → user-triggered tag `v0.9.0`**.
   **Session 008.98 (named transitions + edge-verb sugar)** shipped an optional **`pkg/mtt.Transition.Name`**
   (a plain open label like `Description` — the only domain change), giving a semantic verb for the **edge out of
   the current status** (`decline` for `review → fix`). It completes a **resolution triad**: move by target
@@ -247,36 +265,95 @@ resolved graph, and open gaps. Two decisions locked there that shape s005:
   at its boundary (`toDomain` fails fast on a corrupt empty `id`/`type`/`status`). s005 is written against the
   typed contract. Constructors reject empty, no transform; `Ref.ID` stays `string`; `NoteSlug` deferred (KB).
 
-## Next task — s009 (dogfood); chore 008.97 is DONE
+## Next task — post-merge follow-ups, then s009.5 (release positioning); s009 dogfood is DONE
 
-> **Roadmap regrouped 2026-07-10** after a deep product/UX/architecture analysis. Read the two analysis notes
-> first — every item below is specified there with repro, file anchors, fix sketch, and acceptance:
-> `docs/superpowers/notes/2026-07-09-positioning-and-agent-ux-analysis.md` (R*/U* items) and
-> `docs/superpowers/notes/2026-07-09-s009-readiness-and-architecture-audit.md` (S*/A* items).
+> **✅ s009 — dogfood / self-host (DONE, e5_t2), revised to FLOW V2 in the same PR** (post-review redesign —
+> see `docs/superpowers/specs/2026-07-11-flow-v2-mechanized-delivery-design.md`): committed `.mtt/` with **two
+> types** — `task` (design open: spec → plan → implement, 15 statuses incl. the delivery tail `approved →
+> deliver → done`, where `deliver` verifies the squash trace on main so `done` = "in main") and `chore`
+> (design already fixed elsewhere: implement → review → deliver). Flat backlog migration (active `t1`–`t5` +
+> 15 `backlog`-tagged), `TestRepoDogfoodConfig` guard v2 (overlay-proof), e2e `dogfood.txt` v2, repo squash
+> setting = `PR_TITLE`, version `0.9.0-dev`. `TASKS.md` is **frozen**; the live queue is `mtt roadmap`.
 >
-> **✅ Chore s008.97 — dogfood hardening (DONE, e5_t1d):** shipped U2 (blocked-gate output tail + `-v`/`--log-file`
-> hint), A1/T1 (yaml `List`/`Get` name the corrupt file), A2 (`Status.Default` DTO mapping), U3 (`add --json`
-> task + `show --json` history), U4/U5 (help discoverability + gate tagline), S7 (`rm -rf bin/.mtt`), T6/T7
-> (gitless timeout e2e split + `-v` streaming e2e). Version `0.8.9-dev → 0.8.97-dev`. See the "Where we are"
-> bullet above + `sessions/008.97_hardening.md`. **Carry-over lessons below.**
->
-> **Next up is s009 dogfood** (e5_t2) — the spec EXISTS
-> (`docs/superpowers/specs/2026-07-09-session-009-dogfood-design.md`) but **must first be reconciled with
-> recorded decision A** (audit note S1): the full session flow `tbd → speccing → planning → in_progress →
-> review → done`, branch + `current: set` on `→ speccing`, `make check` on `→ review`/`→ done`; switch the
-> branch command to the idempotent `git switch -c feat/{{.ID}} || git switch feat/{{.ID}}` (S2 — the
-> documented `git branch -D` rollback pattern is broken, see U1); give bare phases `--priority low` and
-> hand-run `mtt roadmap` before committing the migration (S3); record the gate-cost decision (S5) and the
-> "who commits .mtt mutations" process line (S4). Add a "dangerous-ops attribution" session to the migrated
-> backlog — it is the elevated TASKS think-item and the ideal first self-hosted session.
+> **First actions after PR #23 squash-merges** (each is an `mtt add` on main; commit `.mtt` after the batch):
+> 1. `mtt add 'post-persist actions — after: commands on transitions (run AFTER the task-file write; retires
+>    the two manual state-commits and S4)' --priority high` — type `task` (design open: ordering, failure
+>    semantics, rollback interplay).
+> 2. `mtt add 'team semantics of the YAML store — state visibility across branches (state-branch / auto-push
+>    / claim mechanics)' --tag backlog --priority low`
+> 3. Migration completeness (review finding #7): `mtt add` the orphaned items — `epics/hierarchy return (+
+>    re-parenting, corrected self-ref phase gate)`, `advance + modes + cross-edge compensation (parked —
+>    unpark trigger recorded)`, `cancelled-blocker semantics revisit`, `durable edit audit`, `boards/views`
+>    — all `--tag backlog --priority low`; widen t18's title with the dropped sub-items (resolve current for
+>    all single-task ops; multi-assignee providers) via `mtt edit`.
+> 4. The remaining small review-fix items (dead asserts, e2e overlap trims — see the 2026-07-10 review
+>    summaries in the flow-v2 spec's findings table) as type `chore`.
+> 5. **`chore`: scrub `MTT_DIR`/`MTT_BY` from the env in the cli test harness** (dress-rehearsal finding,
+>    2026-07-11): the testscript suite inherits the caller's env, so a user with `MTT_DIR` exported gets a
+>    deterministically RED `make check` (scripts' cwd-discovery is overridden) — and under flow v2 a red
+>    check is a blocked `mtt submit` gate. Repro: `MTT_DIR=<anywhere> make check`. Fix in the
+>    `internal/cli` testscript setup (unset/override both vars), not in user docs.
 >
 > **Then chore s009.5 — release positioning** (e5_t2a): README/DESIGN "why not harness hooks?" + 2026-scan
 > refresh + AGENTS.md adoption snippet (R0–R3), `pkg/mtt.ErrUnsupported` (A7), the stale-`current` exit-code
-> decision (A5), config-review-as-code + Windows-honesty doc lines — then the user-triggered **`v0.9.0`** tag.
+> decision (A5), config-review-as-code + Windows-honesty doc lines — then the **user-triggered `v0.9.0` tag**.
+> (Specified in `docs/superpowers/notes/2026-07-09-positioning-and-agent-ux-analysis.md` (R*/U*) and
+> `…-s009-readiness-and-architecture-audit.md` (S*/A*), with repro + fix sketch + acceptance. s009.5 is a
+> session, not an mtt task — it lives here, not in the queue.)
 >
-> After dogfood, `TASKS.md` freezes and mtt tracks its own work. Then references (s010), comments (s011),
-> actor profiles (s012). `advance`/`start`/`done` + modes + roles-on-edges + node-level status-actions +
-> cross-edge compensation stay **PARKED**.
+> Then work the queue: references (**`t1` in mtt** / s010), comments (s011), actor profiles (s012) — tracked
+> in mtt (`mtt roadmap`), not here — driving each through flow v2 (the first live `start → … → deliver` run).
+> `advance`/`start-done meta-walk` + modes + roles-on-edges + node-level status-actions + cross-edge
+> compensation stay **PARKED** (roles-on-edges and node-actions are migrated as `t10`/`t11`; advance/modes/
+> compensation get their backlog task in step 3 above).
+
+### Carry-over lessons (009 flow v2 — mechanized delivery)
+- **GitHub `squash_merge_commit_title=COMMIT_OR_PR_TITLE` takes the subject FROM THE COMMIT on
+  single-commit PRs** — any convention keyed to "the PR title reaches the squash subject" requires the
+  `PR_TITLE` repo setting (verified live via `gh api`; now flipped).
+- **Commands run PRE-write:** an edge that must land its state write elsewhere does it by switching the
+  tree BEFORE the write (`git switch main` on deliver/cancel), and a `test -f` guard after the switch
+  converts a would-be not-found-after-side-effects into a diagnosed block.
+- **`git switch` in testscript needs a BORN branch + identity:** `git init -b main`,
+  `git config user.name/user.email`, one `--allow-empty` commit — otherwise `git switch main` exits 128
+  from an unborn HEAD.
+- **A blocked-move e2e must pin the CAUSE (stderr text):** with `require` active, `! exec` alone cannot
+  distinguish an attribution exit-2 from a gate exit-3.
+- **Descriptions are load-bearing** (the self-instructing runbook): guard-test them like commands — a flow
+  edit must not be able to gut them silently.
+- **Gates inherit the caller's env** (dress-rehearsal finding): an exported `MTT_DIR` leaks through the
+  `make check` gate into the testscript suite and reds it deterministically (cwd-discovery overridden).
+  Prefer cwd-discovery + `config.local` `author:` over `MTT_DIR`/`MTT_BY` exports when working under mtt;
+  the harness-side scrub is queued (post-merge follow-up #5).
+
+### Carry-over lessons (009 — dogfood / self-host)
+- **Model the right axis: product vs process.** The two-tier `phase`/`session` draft encoded *our workflow*
+  (brainstorm → plan → implement → review) as the tracked item's flow — a category error. `session`/`phase` are
+  **how we work** (ephemeral, executed, not queued); `task`/`epic` are **how the product changes** (the
+  backlog). mtt tracks the **product** axis → **one `task` type**. The rich 15-status flow survived, re-read as a
+  *task's maturation* (a task may span several work-sessions). This surfaced only by questioning "what are we
+  actually tracking?" mid-design — worth doing before committing to a shape.
+- **Two adversarial subagent reviews (spec, then plan) each caught real, empirically-verified defects a
+  self-review missed** (the recurring lesson). Spec: a **fail-open** self-ref gate (`! mtt list … | grep -q .`
+  passes when `mtt` is missing — no `pipefail`) → fail-closed `out=$(…) && test -z "$out"`; a **YAML quoting
+  trap** (a double-quoted gate breaks `\.mtt/` → `Load` fails; a plain `!`-leading scalar drops the `!` as a
+  tag) → single-quote gate scalars + assert **exact** command strings. Plan: a migration title containing `#2`
+  silently **extracts a `2` tag** (s008.7 hashtag extraction) → scrub `#` from titles. The plan reviewer
+  reproduced the whole plan end-to-end (built + ran + reverted) — high-value before a data-heavy session.
+- **The committed config's guard test is the SOLE load-time validation.** `Config.Validate` runs on
+  `add`/`types`, never on `Load` — so `TestRepoDogfoodConfig` (FindRoot → Load → Validate + exact-string edge
+  assertions) is what a CI catch a broken committed `.mtt/config.yaml`. Assert exact gate strings, not
+  substrings, so a YAML-mangled/inverted gate fails the guard, not runtime. `FindRoot(".")` from the yaml
+  package dir reaches the repo root (go test runs each package in its own dir); committing a repo-root `.mtt/`
+  did **not** break existing tests (they use `t.TempDir()` / `$WORK`).
+- **Backlog lives in mtt as `tbd` tasks tagged `backlog`** (promotion = `mtt tag rm <id> backlog`). Cost: they
+  are technically `ready` and there is no exclude-tag filter, so **`mtt roadmap` (priority-ordered) is the "what
+  next" view** (low backlog sinks); `list --tag backlog` is the backlog view. An `--exclude-tag`/`ready` filter
+  is itself a migrated backlog item.
+- **`require:{who}` is project-global, not per-edge** — enforced on every move (`--no-run` doesn't bypass), so a
+  fresh checkout needs `author` in `config.local`/`MTT_BY` before the first move (else exit 2). Per-edge/role
+  `require` is the parked roles work; the migrated `dangerous-ops` task is its first concrete trigger. `mtt add`
+  does **not** check `require` (only `Transitioner` does), so the migration ran without author setup.
 
 ### Carry-over lessons (008.98 — named transitions + edge-verb sugar)
 - **Route the new form to the OLD path — don't touch the gate core.** An edge name is resolved (CLI-side) to

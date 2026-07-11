@@ -1,0 +1,9 @@
+id: t13
+type: task
+title: 'performance: roadmap heap (replace the per-pop sort) + graph-topology scale stress'
+status: tbd
+priority: low
+tags:
+    - backlog
+created: "2026-07-10T13:53:10Z"
+updated: "2026-07-10T13:53:10Z"

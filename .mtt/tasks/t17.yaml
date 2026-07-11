@@ -1,0 +1,9 @@
+id: t17
+type: task
+title: reconstruct the observed status graph from tasks history (read-only aggregation)
+status: tbd
+priority: low
+tags:
+    - backlog
+created: "2026-07-10T13:53:10Z"
+updated: "2026-07-10T13:53:10Z"

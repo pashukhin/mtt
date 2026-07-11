@@ -1,0 +1,9 @@
+id: t12
+type: task
+title: argument-resolution grammar — generalize the mtt <status>/<edge> sugar (before more sugar forms)
+status: tbd
+priority: low
+tags:
+    - backlog
+created: "2026-07-10T13:53:10Z"
+updated: "2026-07-10T13:53:10Z"

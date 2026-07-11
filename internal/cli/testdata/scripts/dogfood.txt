@@ -1,0 +1,128 @@
+# s009 flow-v2 e2e: prove the mechanism on a scratch config with fake commands —
+# entry (re-enter-or-create-from-main, current:set), a blocking/passing gate
+# (with require:{who} active — the real config's per-move policy), and the
+# delivery tail (deliver moves the tree to main, verifies the merge trace,
+# clears current). Real make check / squash gates need a real repo (s006-s008
+# e2e strategy). Exercises the s008.98 edge-verb sugar.
+[!exec:git] skip
+
+# v2 entry needs a BORN main + git identity (M1): -b main + an initial commit.
+exec git init -b main
+exec git config user.email test@example.com
+exec git config user.name tester
+exec git commit --allow-empty -m init
+
+env MTT_BY=tester
+
+exec mtt init
+cp gated.yaml .mtt/config.yaml
+
+# precondition: the config validates (mtt types runs Validate).
+exec mtt types
+stdout 'task'
+
+exec mtt add 'demo task'
+stdout 'created t1'
+
+# attribution is enforced per-move: without MTT_BY the move exits BEFORE the
+# gate with the attribution error (m2: pin the cause, not just non-zero).
+env MTT_BY=
+! exec mtt start t1
+stderr 'missing required attribution'
+env MTT_BY=tester
+
+# entry edge 'start' (create-from-main path): creates+enters task/t1, sets current.
+exec mtt start t1
+stdout 't1: tbd → speccing'
+exec git symbolic-ref --short HEAD
+stdout 'task/t1'
+exec mtt use
+stdout 't1'
+
+# gate BLOCKS (no 'proceed' file): cause pinned to the gate (not attribution),
+# status unchanged (header-anchored — the history line would also match a bare
+# regexp), NO new history entry, current still set.
+! exec mtt submit t1
+stderr 'transition blocked by a failed gate'
+exec mtt show t1
+stdout '\[speccing\]'
+! stdout 'speccing → approved'
+exec mtt use
+stdout 't1'
+
+# gate PASSES: speccing → approved.
+exec touch proceed
+exec mtt submit t1
+stdout 't1: speccing → approved'
+
+# deliver BLOCKS while the merge trace is absent (fake git-log stand-in file),
+# but the tree HAS moved to main (documented side effect m4).
+! exec mtt deliver t1
+stderr 'no merge trace'
+exec git symbolic-ref --short HEAD
+stdout 'main'
+exec mtt show t1
+stdout '\[approved\]'
+
+# the squash lands (fake trace); deliver moves to done on main, clears current.
+exec git switch task/t1
+cp trace.log merge.log
+exec mtt deliver t1
+stdout 't1: approved → done'
+exec git symbolic-ref --short HEAD
+stdout 'main'
+exec mtt use
+stdout 'no current task'
+
+# entry edge re-enter path (second alternative): a pre-existing branch is
+# re-entered, not re-created.
+exec mtt add 'second demo'
+stdout 'created t2'
+exec git switch -c task/t2
+exec git switch main
+exec mtt start t2
+stdout 't2: tbd → speccing'
+exec git symbolic-ref --short HEAD
+stdout 'task/t2'
+
+-- gated.yaml --
+version: 1
+project:
+  name: dogfood-demo
+require:
+  who: true
+types:
+  - name: task
+    prefix: t
+    parents: []
+    default: true
+    statuses:
+      - {name: tbd,      kind: initial,  description: "queued"}
+      - {name: speccing, kind: active,   description: "work, then submit"}
+      - {name: approved, kind: active,   description: "awaiting merge"}
+      - {name: done,     kind: terminal, description: "delivered"}
+      - {name: cancelled, kind: terminal, description: "abandoned"}
+    transitions:
+      - from: tbd
+        to: speccing
+        name: start
+        current: set
+        description: "enter or create the task branch"
+        commands: ['git switch task/{{.ID}} || (git switch main && git switch -c task/{{.ID}})']
+      - from: speccing
+        to: approved
+        name: submit
+        description: "fake artifact gate"
+        commands: ['test -f proceed']
+      - from: approved
+        to: done
+        name: deliver
+        current: clear
+        description: "fake delivery: switch main + merge trace"
+        commands:
+          - 'git switch main'
+          - 'grep "^{{.ID}}: " merge.log || { echo "no merge trace" >&2; false; }'
+      - {from: tbd,      to: cancelled, name: cancel, current: clear, description: "abandon"}
+      - {from: speccing, to: cancelled, name: cancel, current: clear, description: "abandon"}
+-- trace.log --
+t1: demo task (#1)
