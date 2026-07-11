@@ -60,7 +60,9 @@ func (tr *Transitioner) Transition(id mtt.TaskID, to mtt.StatusName, opts Transi
 		return mtt.Task{}, fmt.Errorf("%w: %s cannot move %s → %s (allowed from %s: %s)",
 			ErrInvalidTransition, id, t.Status, to, t.Status, strings.Join(allowedTargets(typ, t.Status), ", "))
 	}
-	if missing := missingAttribution(opts); len(missing) > 0 {
+	effWho := opts.RequireWho || edge.Require.Who || opts.NoRun
+	effWhy := opts.RequireWhy || edge.Require.Why || opts.NoRun
+	if missing := missingAttributionFields(effWho, effWhy, opts.By, opts.Why); len(missing) > 0 {
 		return mtt.Task{}, fmt.Errorf("%w: %s", ErrMissingAttribution, strings.Join(missing, ", "))
 	}
 	from := t.Status
@@ -112,14 +114,15 @@ func allowedTargets(typ mtt.Type, from mtt.StatusName) []string {
 	return out
 }
 
-// missingAttribution reports which required attribution fields (who/why) are
-// absent, aggregated so the caller can fix them all in one shot.
-func missingAttribution(opts TransitionOptions) []string {
+// missingAttributionFields reports which required attribution fields (who/why) are
+// absent, aggregated so the caller fixes them all at once. The single home for the
+// who/why check, shared by the transition path and the rm --force pre-flight.
+func missingAttributionFields(reqWho, reqWhy bool, by, why string) []string {
 	var missing []string
-	if opts.RequireWho && opts.By == "" {
+	if reqWho && by == "" {
 		missing = append(missing, "who")
 	}
-	if opts.RequireWhy && opts.Why == "" {
+	if reqWhy && why == "" {
 		missing = append(missing, "why")
 	}
 	return missing

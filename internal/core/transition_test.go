@@ -246,7 +246,8 @@ func TestTransitionNoRunSkipsExpansion(t *testing.T) {
 	// A template that would fail expansion; --no-run must skip expansion + gate.
 	tr := NewTransitioner(store, flowCfg([]string{"echo {{.Title}}"}, nil), &fakeRunner{}, testClock)
 
-	got, err := tr.Transition("t1", "in_progress", TransitionOptions{NoRun: true})
+	// --no-run forces who+why (t5); supply them so this test exercises expansion-skip.
+	got, err := tr.Transition("t1", "in_progress", TransitionOptions{NoRun: true, By: "a", Why: "bypass"})
 	if err != nil {
 		t.Fatalf("--no-run must skip expansion; err = %v", err)
 	}
@@ -260,7 +261,8 @@ func TestTransitionNoRunBypassesRunner(t *testing.T) {
 	runner := &fakeRunner{err: errors.New("must not be called")}
 	tr := NewTransitioner(store, flowCfg([]string{"make test"}, nil), runner, testClock)
 
-	got, err := tr.Transition("t1", "in_progress", TransitionOptions{NoRun: true})
+	// --no-run forces who+why (t5); supply them so this test exercises runner-bypass.
+	got, err := tr.Transition("t1", "in_progress", TransitionOptions{NoRun: true, By: "a", Why: "bypass"})
 	if err != nil {
 		t.Fatalf("Transition: %v", err)
 	}
@@ -349,5 +351,45 @@ func TestTransitionBestEffortCompensatorFailureKeepsBlocked(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "compensated 1 command (1 failed)") {
 		t.Fatalf("summary should report the failed compensator: %v", err)
+	}
+}
+
+func TestTransition_NoRunForcesWhoAndWhy(t *testing.T) {
+	store := newMemStore(baseTask()) // t1 @ tbd
+	cfg := flowCfg(nil, nil)         // edge tbd→in_progress: no commands, no require
+	tr := NewTransitioner(store, cfg, &fakeRunner{}, testClock)
+
+	// (b) missing why (By present) → error mentions why
+	_, err := tr.Transition("t1", "in_progress", TransitionOptions{By: "alice", NoRun: true})
+	if !errors.Is(err, ErrMissingAttribution) || !strings.Contains(err.Error(), "why") {
+		t.Fatalf("no-run without why: want ErrMissingAttribution mentioning why, got %v", err)
+	}
+
+	// (b′) non-vacuous who: RequireWho=false AND By="" → who forced solely by --no-run
+	_, err = tr.Transition("t1", "in_progress", TransitionOptions{Why: "bypass ci", NoRun: true})
+	if !errors.Is(err, ErrMissingAttribution) || !strings.Contains(err.Error(), "who") {
+		t.Fatalf("no-run without who: want ErrMissingAttribution mentioning who, got %v", err)
+	}
+
+	// success: both present → moves, Why recorded
+	got, err := tr.Transition("t1", "in_progress", TransitionOptions{By: "alice", Why: "bypass ci", NoRun: true})
+	if err != nil {
+		t.Fatalf("no-run with who+why: unexpected error %v", err)
+	}
+	if w := got.History[len(got.History)-1].Why; w != "bypass ci" {
+		t.Fatalf("Why not recorded: got %q", w)
+	}
+}
+
+func TestTransition_PerEdgeRequireUnionsWithGlobal(t *testing.T) {
+	store := newMemStore(baseTask())
+	cfg := flowCfg(nil, nil)
+	cfg.Types[0].Transitions[0].Require = mtt.Require{Why: true} // tbd→in_progress requires why
+	tr := NewTransitioner(store, cfg, &fakeRunner{}, testClock)
+
+	// global who + edge why → both required; give only who → missing why
+	_, err := tr.Transition("t1", "in_progress", TransitionOptions{By: "alice", RequireWho: true})
+	if !errors.Is(err, ErrMissingAttribution) || !strings.Contains(err.Error(), "why") {
+		t.Fatalf("union: want missing why, got %v", err)
 	}
 }

@@ -51,6 +51,15 @@ type Transition struct {
 	Name        string // optional edge label — the verb for `mtt <name>` / `mtt do <name>` (empty = unnamed)
 	Commands    []Command
 	Current     CurrentAction // set|clear the personal current pointer when traversed (empty = no effect)
+	Require     Require       // per-edge required attribution (zero = none); unioned with global + --no-run
+}
+
+// Require is a required-attribution policy: who/why must be supplied. Used as the
+// project-global default and as a per-edge (Transition) override; the two are
+// unioned (tighten-only) — see core.Transitioner.
+type Require struct {
+	Who bool
+	Why bool
 }
 
 // DefaultType returns the type marked default, or the first type when none is
