@@ -22,7 +22,7 @@ types:
       - {name: implementing, kind: active, description: "implement test-first (TDD), make check green between commits, then `mtt submit`"}
       - {name: impl_review, kind: active, description: "run an adversarial code review; `mtt approve` when it passes, `mtt decline` to send back"}
       - {name: impl_fix, kind: active, description: "address review findings, then `mtt submit` to re-review"}
-      - {name: approved, kind: active, description: "open/update the PR titled '<this-task-id>: <title>', push (including this state change), ask the human to merge; after the squash-merge run `mtt deliver`; human-requested changes -> `mtt decline`"}
+      - {name: approved, kind: active, description: "open/update the PR titled '<this-task-id>: <title>' (the branch was auto-pushed), ask the human to merge; after the squash-merge run `mtt deliver`; human-requested changes -> `mtt decline`"}
       - {name: done, kind: terminal, description: "delivered to main"}
       - {name: cancelled, kind: terminal, description: "abandoned"}
     transitions:
@@ -201,7 +201,7 @@ types:
       - {name: implementing, kind: active, description: "implement test-first (TDD), make check green between commits, then `mtt submit`"}
       - {name: impl_review, kind: active, description: "run an adversarial code review; if the diff contains design decisions not recorded elsewhere — decline: it must be a `task`. `mtt approve` / `mtt decline`"}
       - {name: impl_fix, kind: active, description: "address review findings, then `mtt submit` to re-review"}
-      - {name: approved, kind: active, description: "open/update the PR titled '<this-task-id>: <title>', push (including this state change), ask the human to merge; after the squash-merge run `mtt deliver`; human-requested changes -> `mtt decline`"}
+      - {name: approved, kind: active, description: "open/update the PR titled '<this-task-id>: <title>' (the branch was auto-pushed), ask the human to merge; after the squash-merge run `mtt deliver`; human-requested changes -> `mtt decline`"}
       - {name: done, kind: terminal, description: "delivered to main"}
       - {name: cancelled, kind: terminal, description: "abandoned"}
     transitions:
