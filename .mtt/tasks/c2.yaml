@@ -1,8 +1,18 @@
 id: c2
 type: chore
 title: 'AGENTS.md doc-bug sweep: scope the push rule to flow post-actions, drop the stale approved-push line, model-agnostic commit trailer'
-status: tbd
+status: implementing
 priority: high
 created: "2026-07-11T12:58:07Z"
-updated: "2026-07-11T13:05:42Z"
+updated: "2026-07-11T13:47:30Z"
 description: Scope the AGENTS.md push rule to flow post-actions; make the commit trailer model-agnostic; VERIFY the stale approved-push line is gone after t19 (AGENTS.md, DESIGN.md dogfood note + ru mirror). Lands AFTER t19, rebases on it.
+history:
+    - at: "2026-07-11T13:47:30Z"
+      by: Grigorii Pashukhin
+      from: tbd
+      to: implementing
+      checks:
+        - cmd: git switch task/c2 || (git switch main && git switch -c task/c2)
+          exit: 0
+        - cmd: test -f .mtt/tasks/c2.yaml || { echo "task file absent on this branch — its add has not reached main (merge/commit the branch that created it first)" >&2; false; }
+          exit: 0
