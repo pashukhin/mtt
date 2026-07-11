@@ -1,9 +1,9 @@
 # CLAUDE.md — mtt
 
 Thin entry point for agents. Full rules — in [AGENTS.md](AGENTS.md), architecture — in
-[DESIGN.md](DESIGN.md), task plan — in [TASKS.md](TASKS.md).
+[DESIGN.md](DESIGN.md), the live queue — `mtt roadmap` ([TASKS.md](TASKS.md) is frozen history).
 
-**Read at the start of a session:** AGENTS.md → DESIGN.md → TASKS.md.
+**Read at the start of a session:** AGENTS.md → DESIGN.md → `mtt roadmap`.
 
 ## What it is
 
@@ -16,7 +16,8 @@ external pairing (Jira+Confluence, etc.) can be plugged in via an adapter.
 - **Test before code** (TDD: red → green → refactor). `make check` green before commit.
 - Fanatically: **SOLID, DRY, KISS, clean architecture** (hexagonal). Dependencies point inward:
   `cli → core → port ← adapter`; the contract (domain types + ports) lives in the public `pkg/mtt`.
-- Per-task branch → PR → CI green → squash into `main`.
+- Per-task branch → PR → CI green → squash into `main` (the flow creates and pushes the branch; see
+  AGENTS.md "Working under mtt").
 - Storage **only through a port** (`TaskStore`/`KnowledgeStore`); YAML adapter by default.
 - Every package under `internal/` keeps its own thin `CLAUDE.md` current.
 
