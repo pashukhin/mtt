@@ -39,7 +39,7 @@ This is also the **first concrete trigger** for the parked "roles" seam. t5 deli
 | D4 | **`--no-run` forces who + why ALWAYS** (unconditional — even on an edge with no commands). Simpler; no "has-commands" probe. |
 | D5 | **Architecture (approach A):** policy lives in `core`; the audit log is a first-class **driven port** (`mtt.AuditStore`) with a YAML/JSONL adapter. |
 | D6 | **audit.log format:** **JSON Lines** — one JSON object per line (append-safe, greppable, `.log` ⇒ line-oriented). |
-| D7 | **audit.log in git:** **committed** + `.gitattributes` `merge=union` (real, durable, team-visible audit; union-merge dissolves append conflicts in the branch-per-task flow). |
+| D7 | **audit.log in git:** **committed** + `.gitattributes` `merge=union` (real, durable, team-visible audit; union-merge takes both sides' lines on branch merges — caveats in §5.3: no sort/dedup). |
 
 **Unifying rule (the invariant):** the *effective* required attribution for an action is the **OR** of all
 sources — global policy ∨ per-edge `require` ∨ bypass (`--no-run`) ∨ destruction (`rm --force`). Sources can
@@ -162,6 +162,24 @@ Other behavior:
 - A clock (`now func() time.Time`) is injected (deterministic tests), matching sibling usecases.
 - `store.Delete` is the existing `TaskStore` method the current `RemoveMany` already calls (see [`remove.go`](../../../internal/core/remove.go)); only its **ordering** relative to `Append` is new.
 
+**`Remove` wrapper body (avoid the empty-slice `[0]` panic).** Today the wrapper is
+`return r.RemoveMany([]mtt.TaskID{id}, force)[0].Err` ([`remove.go:33`](../../../internal/core/remove.go#L33)).
+With the pre-flight error return, on a missing-attribution failure the `[]RemoveResult` is empty, so the new
+body MUST check the error first:
+```go
+res, err := r.RemoveMany([]mtt.TaskID{id}, force, by, why)
+if err != nil { return err } // pre-flight (ErrMissingAttribution) — res is empty
+return res[0].Err
+```
+
+**Attribution aggregation is a shared seam (DRY).** The transition path aggregates the missing `who`/`why`
+via `missingAttribution(TransitionOptions)` ([`transition.go:117`](../../../internal/core/transition.go#L117)),
+which takes `TransitionOptions` — not raw `by`/`why`. The rm pre-flight needs the same "which fields are
+missing" message. Factor the field-level check into a small shared helper (e.g.
+`missingAttributionFields(reqWho, reqWhy bool, by, why string) []string`) that **both** `missingAttribution`
+(force `reqWho/reqWhy = true` for a `force` rm) and the transition path call, so the two produce identical
+wording (`missing required attribution: who, why`) from one source.
+
 ## 5. Adapter (`internal/adapter/yaml`)
 
 ### 5.1 Per-edge require DTO
@@ -237,6 +255,10 @@ feature is still fully tested. Decided at implementation time.
   recorded attempt (a spurious line is safer than a silent destruction) and surfaced as `RemoveResult.Err`. The
   audit failure is never swallowed. Net guarantee: **no `--force` destruction without a preceding record.**
 - `--no-run` forces who+why **before** the (skipped) gate — a clean fail-fast before the status changes.
+- **`--json` on the rm pre-flight:** a missing-attribution `--force` error is a **hard precondition** (like a
+  usage error), returned before `reportBulk`, so `mtt rm … --force --json` (no `--why`) prints the plain
+  stderr error and exits 2 — **no** JSON array. This matches how other hard precondition failures behave (the
+  per-item `--json` array is only for outcomes that were actually attempted).
 
 ## 9. Testing (TDD: red → green → refactor)
 
@@ -279,9 +301,10 @@ feature is still fully tested. Decided at implementation time.
 **Signature-churn (M3) — do not understate.** Changing `NewRemover`/`Remove`/`RemoveMany` ripples to:
 - the architecture reference [`docs/architecture/model.go:599-610`](../../../docs/architecture/model.go#L599-L610)
   — `Remove`/`RemoveMany`/`NewRemover` declarations must be updated to the new shapes (kept in sync by design);
-- **~11 call sites** of `NewRemover`/`Remove`/`RemoveMany` across `internal/core/remove_test.go` and
-  `internal/cli/rm.go` — all must thread the new `audit`, `now`, `by`, `why` args and the `RemoveMany` error
-  return.
+- **~13 call sites** — `internal/core/remove_test.go` (~11 `NewRemover`) + `internal/cli/rm.go` (2:
+  [`:37`](../../../internal/cli/rm.go#L37), [`:64`](../../../internal/cli/rm.go#L64)), plus the internal
+  wrapper at [`remove.go:33`](../../../internal/core/remove.go#L33) — all must thread the new `audit`, `now`,
+  `by`, `why` args and the `RemoveMany` error return.
 
 ## 11. Out of scope (explicit)
 
