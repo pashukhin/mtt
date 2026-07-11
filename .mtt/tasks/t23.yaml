@@ -1,0 +1,12 @@
+id: t23
+type: task
+title: 'mtt init: clarify + extend — default-config review + scaffold an AGENTS.md runbook'
+status: tbd
+priority: medium
+tags:
+    - backlog
+    - dx
+    - flow
+created: "2026-07-11T09:34:57Z"
+updated: "2026-07-11T09:34:57Z"
+description: 'Two threads surfaced in the s009 t5 session. (1) DEFAULT CONFIG: `mtt init` ships an epic/task/subtask hierarchy where `task` REQUIRES a parent — a smoke test hit "type task requires a parent; use --parent". The default templates ergonomics need review vs what a fresh project actually wants (a flat task/chore default like this repo dogfoods? a gentler onboarding default? keep the hierarchy but make the entry type root?). (2) BOOTSTRAP THE RUNBOOK: `mtt init` should help a new project adopt the workflow — emit or scaffold an AGENTS.md "Working under mtt" section so a fresh project agents know the flow (attribution, gates, dangerous-ops, the per-move commit) WITHOUT hand-authoring it. Design-open: what the default config should be, whether/how init writes/updates AGENTS.md (new file vs merge into an existing one), and how this relates to t19 (self-instructing runbook in flow descriptions) and the prime directive "mechanize the process into mtt". From the s009 t5 retro.'
