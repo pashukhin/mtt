@@ -5,6 +5,11 @@ Architecture and decisions live in [DESIGN.md](DESIGN.md). This file is about ho
 
 ## TL;DR
 
+0. **Mechanize the process into mtt.** If any part of *how we work* can live in mtt — a flow gate, a status, a
+   status/edge **description**, a **dependency**, a priority, or (later) a **post-action** — move it there
+   instead of keeping it a manual convention. The tool encodes the process; agents and humans shouldn't have
+   to remember it. Every recurring manual tick between transitions is a bug against this rule — file it (see
+   "Working under mtt").
 1. Work on a per-task branch, not on `main`.
 2. **Test before code** (TDD: red → green → refactor). `make check` must be **green** before you commit.
 3. Fanatically: **SOLID, DRY, KISS, clean architecture** (see "Principles").
