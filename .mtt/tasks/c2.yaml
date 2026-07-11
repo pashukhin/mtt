@@ -1,10 +1,10 @@
 id: c2
 type: chore
 title: 'AGENTS.md doc-bug sweep: scope the push rule to flow post-actions, drop the stale approved-push line, model-agnostic commit trailer'
-status: impl_fix
+status: impl_review
 priority: high
 created: "2026-07-11T12:58:07Z"
-updated: "2026-07-11T13:52:29Z"
+updated: "2026-07-11T13:53:05Z"
 description: Scope the AGENTS.md push rule to flow post-actions; make the commit trailer model-agnostic; VERIFY the stale approved-push line is gone after t19 (AGENTS.md, DESIGN.md dogfood note + ru mirror). Lands AFTER t19, rebases on it.
 history:
     - at: "2026-07-11T13:47:30Z"
@@ -27,3 +27,10 @@ history:
       by: Grigorii Pashukhin
       from: impl_review
       to: impl_fix
+    - at: "2026-07-11T13:53:05Z"
+      by: Grigorii Pashukhin
+      from: impl_fix
+      to: impl_review
+      checks:
+        - cmd: make check
+          exit: 0
