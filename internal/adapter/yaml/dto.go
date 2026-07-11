@@ -61,6 +61,7 @@ type ymlTransition struct {
 	Commands    []ymlCommand `yaml:"commands"`
 	Current     string       `yaml:"current,omitempty"`
 	Require     ymlRequire   `yaml:"require,omitempty"`
+	Post        []ymlCommand `yaml:"post,omitempty"`
 }
 
 // ymlCommand is one gate command on disk. It accepts either a bare scalar (a
@@ -130,7 +131,11 @@ func (yc ymlConfig) toDomain() (mtt.Config, map[string]string) {
 			for _, c := range yr.Commands {
 				cmds = append(cmds, c.toDomain())
 			}
-			t.Transitions = append(t.Transitions, mtt.Transition{From: mtt.StatusName(yr.From), To: mtt.StatusName(yr.To), Name: yr.Name, Description: yr.Description, Commands: cmds, Current: mtt.CurrentAction(yr.Current), Require: mtt.Require{Who: yr.Require.Who, Why: yr.Require.Why}})
+			post := make([]mtt.Command, 0, len(yr.Post))
+			for _, c := range yr.Post {
+				post = append(post, c.toDomain())
+			}
+			t.Transitions = append(t.Transitions, mtt.Transition{From: mtt.StatusName(yr.From), To: mtt.StatusName(yr.To), Name: yr.Name, Description: yr.Description, Commands: cmds, Current: mtt.CurrentAction(yr.Current), Require: mtt.Require{Who: yr.Require.Who, Why: yr.Require.Why}, Post: post})
 		}
 		cfg.Types = append(cfg.Types, t)
 		prefixes[yt.Name] = yt.Prefix
