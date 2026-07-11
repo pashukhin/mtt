@@ -1,12 +1,12 @@
 id: c1
 type: chore
 title: 'Auto-push in the flow: git push on approve (task branch) + deliver (main) via post:'
-status: approved
+status: done
 priority: medium
 tags:
     - flow
 created: "2026-07-11T12:21:29Z"
-updated: "2026-07-11T12:33:34Z"
+updated: "2026-07-11T12:37:35Z"
 history:
     - at: "2026-07-11T12:21:56Z"
       by: Grigorii Pashukhin
@@ -28,3 +28,12 @@ history:
       by: Grigorii Pashukhin
       from: impl_review
       to: approved
+    - at: "2026-07-11T12:37:35Z"
+      by: Grigorii Pashukhin
+      from: approved
+      to: done
+      checks:
+        - cmd: git switch main
+          exit: 0
+        - cmd: 'git log -n 200 --format=%s | grep "^c1: " || { echo "no squash commit \"c1: …\" on local main: git pull first, and check the PR/merge title started with \"c1: \"" >&2; false; }'
+          exit: 0
