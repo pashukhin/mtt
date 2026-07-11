@@ -208,6 +208,14 @@ func TestRepoDogfoodConfig(t *testing.T) {
 	if d := namedEdge(t, task, "approved", "done", "deliver"); !strings.Contains(d.Description, "pull main") {
 		t.Fatalf("task deliver description lost the pull-main hint: %q", d.Description)
 	}
+	if s, _ := task.StatusByName("speccing"); !strings.Contains(s.Description, "superpowers:brainstorming") {
+		t.Fatalf("task speccing description lost the brainstorm step: %q", s.Description)
+	}
+	for _, tc := range []mtt.Type{task, chore} {
+		if s, _ := tc.StatusByName("approved"); !strings.Contains(s.Description, "gh pr create") {
+			t.Fatalf("%s approved description lost the PR command: %q", tc.Name, s.Description)
+		}
+	}
 }
 
 func assertKinds(t *testing.T, typ mtt.Type, want map[mtt.StatusName]mtt.StatusKind) {

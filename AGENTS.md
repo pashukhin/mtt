@@ -52,13 +52,13 @@ make lint      # golangci-lint run
 
 Requires: Go 1.23+, `golangci-lint` v2, `goimports`.
 
-## Definition of Done (per task)
+## Definition of Done
 
-- [ ] Test written **before** the code (TDD: red → green → refactor).
-- [ ] Self-check from "Principles" passed (layer cleanliness, DRY, KISS, SRP).
-- [ ] `make check` green locally.
-- [ ] `DESIGN.md` and the affected `CLAUDE.md` updated if behavior/data model changed.
-- [ ] Branch → PR → CI green → squash-merge into `main`.
+The DoD **is the flow**: each status prints its instructions on entry and in `mtt show` (`mtt types`
+shows the type + edge map; status descriptions appear only on entry/`mtt show`). What remains on the
+agent: **test-before-code** (TDD: red → green → refactor), the **Principles self-check** above, and
+**docs-sync judgment** (`DESIGN.md` and the affected `CLAUDE.md` updated when behavior changes) — the
+`impl_review` status reminds you of all three.
 
 ## Quality gate
 
@@ -114,20 +114,20 @@ Requires: Go 1.23+, `golangci-lint` v2, `goimports`.
 
 ## Git
 
-- Branches: `feat/…`, `fix/…`, `chore/…`. Small commits, imperative mood.
+- Branches: mtt work runs on flow-created `task/<id>` branches; `feat/…`, `fix/…`, `chore/…` remain for
+  non-task exceptions (bootstrap/infra). Small commits, imperative mood.
 - Don't push or create a remote without an explicit request from the user.
 - Commit under the user's configured git identity (don't override it).
 - Commit trailer:
   `Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>`
 
-## Sessions
+## Sessions → tasks
 
-Work in **compact sessions** — each small and ending with something practical and **immediately
-verifiable** (a user-runnable command with an e2e test). One file per session in
-[sessions/](sessions/) (`NNN_<slug>.md`): write the target up front, fill in what was actually done.
-Start a session by refining its plan (superpowers), then work test-first; branch `feat/sNNN-<slug>` →
-PR → squash. The roadmap and current target live in mtt itself (see "Working under mtt" below);
-sessions/README.md keeps the narrative history. TASKS.md is frozen history since s009.
+The unit of work is an **mtt task** on a flow-created `task/<id>` branch; the method steps (brainstorm →
+spec → plan → TDD → reviews) are printed by the flow itself at each status. `sessions/*.md` is the
+narrative archive for process milestones (its future is t31), not a per-task requirement; the roadmap and
+current target live in mtt (`mtt roadmap`); sessions/README.md keeps the pre-s009 history and TASKS.md is
+frozen history since s009.
 
 ## Working under mtt (self-host)
 
@@ -137,20 +137,12 @@ the live queue is mtt. Practical rules:
 - **The backlog is in mtt.** `mtt roadmap` is the "what next?" view; `mtt list --tag backlog` is the
   backlog-only view; promote by `mtt tag rm <id> backlog`. A task is the unit of **product** change;
   sessions/phases (how *we* work) stay in `sessions/*.md` — they are not mtt tasks.
-- **Two types (`mtt types` shows both flows).** `task` = design is OPEN (spec → plan → implement, each stage
-  reviewed by an agent, spec/plan also by the human). `chore` = design is ALREADY FIXED elsewhere (a review
-  finding, a recorded decision, docs sync) — implement → review → deliver. If a chore's diff turns out to
-  contain design decisions, the reviewer declines it: cancel and recreate as a task.
-- **Move by edge verb** (`mtt start/submit/approve/decline/deliver/cancel [<id>]`) or `mtt status`. The flow
-  mechanizes the git context: `start` re-enters or creates `task/<id>` from main; `deliver` and `cancel`
-  move your tree to main and write the terminal state there; `approved → decline` returns you to the task
-  branch. Mid-flight resumption is a plain `git switch task/<id>` (start only fires from tbd).
-- **Artifacts are id-keyed and committed early.** A task's spec/plan live at
-  `docs/superpowers/specs|plans/<id>-<slug>.md` (the submit gates check exactly that); commit them as you
-  go — nothing requires an uncommitted tree.
-- **Delivery is verified.** The PR title starts with `<id>: ` (the repo squash setting propagates it to the
-  squash subject); `mtt deliver` checks that trace on local main — pull first. Push the `approved` state
-  commit before asking for the merge, or deliver will find a stale status.
+- **Two types — pick by the type description** (`mtt types`). Beyond that, the flow itself tells you what
+  to do at every status (printed on entry and by `mtt show`): method steps, artifact paths, gates, git
+  context — follow the printed guidance, don't memorize it. Mid-flight resumption is a plain
+  `git switch task/<id>` (`start` only fires from tbd).
+- **Delivery is verified** — the `deliver` edge explains itself; the PR-title→squash-subject propagation
+  rationale lives in DESIGN.md's dogfood note.
 - **Attribution is required** (`require: {who}`, every move, `--no-run` does not bypass): set `author:` in
   `.mtt/config.local.yaml` or `MTT_BY=<you>` before your first move.
 - **Dangerous ops force who+why (t5).** A gate bypass (`--no-run`) and a destructive `rm --force` each demand

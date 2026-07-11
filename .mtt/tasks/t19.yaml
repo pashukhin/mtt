@@ -1,7 +1,80 @@
 id: t19
 type: task
 title: migrate agent-process rules into the flow descriptions (self-instructing runbook — flow-note insight 2)
-status: tbd
+status: approved
 priority: high
 created: "2026-07-10T13:53:10Z"
-updated: "2026-07-11T12:58:07Z"
+updated: "2026-07-11T13:38:11Z"
+history:
+    - at: "2026-07-11T12:58:25Z"
+      by: Grigorii Pashukhin
+      from: tbd
+      to: speccing
+      checks:
+        - cmd: git switch task/t19 || (git switch main && git switch -c task/t19)
+          exit: 0
+        - cmd: test -f .mtt/tasks/t19.yaml || { echo "task file absent on this branch — its add has not reached main (merge/commit the branch that created it first)" >&2; false; }
+          exit: 0
+    - at: "2026-07-11T12:59:26Z"
+      by: Grigorii Pashukhin
+      from: speccing
+      to: spec_review
+      checks:
+        - cmd: ls docs/superpowers/specs/t19-*.md
+          exit: 0
+    - at: "2026-07-11T13:04:56Z"
+      by: Grigorii Pashukhin
+      from: spec_review
+      to: spec_fix
+    - at: "2026-07-11T13:05:42Z"
+      by: Grigorii Pashukhin
+      from: spec_fix
+      to: spec_review
+      checks:
+        - cmd: ls docs/superpowers/specs/t19-*.md
+          exit: 0
+    - at: "2026-07-11T13:07:03Z"
+      by: Grigorii Pashukhin
+      from: spec_review
+      to: spec_human_review
+    - at: "2026-07-11T13:19:44Z"
+      by: Grigorii Pashukhin
+      from: spec_human_review
+      to: planning
+    - at: "2026-07-11T13:20:27Z"
+      by: Grigorii Pashukhin
+      from: planning
+      to: plan_review
+      checks:
+        - cmd: ls docs/superpowers/plans/t19-*.md
+          exit: 0
+    - at: "2026-07-11T13:26:34Z"
+      by: Grigorii Pashukhin
+      from: plan_review
+      to: plan_fix
+    - at: "2026-07-11T13:27:14Z"
+      by: Grigorii Pashukhin
+      from: plan_fix
+      to: plan_review
+      checks:
+        - cmd: ls docs/superpowers/plans/t19-*.md
+          exit: 0
+    - at: "2026-07-11T13:28:14Z"
+      by: Grigorii Pashukhin
+      from: plan_review
+      to: plan_human_review
+    - at: "2026-07-11T13:31:22Z"
+      by: Grigorii Pashukhin
+      from: plan_human_review
+      to: implementing
+    - at: "2026-07-11T13:34:05Z"
+      by: Grigorii Pashukhin
+      from: implementing
+      to: impl_review
+      checks:
+        - cmd: make check
+          exit: 0
+    - at: "2026-07-11T13:38:11Z"
+      by: Grigorii Pashukhin
+      from: impl_review
+      to: approved
