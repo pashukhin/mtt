@@ -1,12 +1,12 @@
 id: c1
 type: chore
 title: 'Auto-push in the flow: git push on approve (task branch) + deliver (main) via post:'
-status: impl_review
+status: approved
 priority: medium
 tags:
     - flow
 created: "2026-07-11T12:21:29Z"
-updated: "2026-07-11T12:28:47Z"
+updated: "2026-07-11T12:33:34Z"
 history:
     - at: "2026-07-11T12:21:56Z"
       by: Grigorii Pashukhin
@@ -24,3 +24,7 @@ history:
       checks:
         - cmd: make check
           exit: 0
+    - at: "2026-07-11T12:33:34Z"
+      by: Grigorii Pashukhin
+      from: impl_review
+      to: approved
