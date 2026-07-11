@@ -1,10 +1,10 @@
 id: c2
 type: chore
 title: 'AGENTS.md doc-bug sweep: scope the push rule to flow post-actions, drop the stale approved-push line, model-agnostic commit trailer'
-status: approved
+status: done
 priority: high
 created: "2026-07-11T12:58:07Z"
-updated: "2026-07-11T13:55:59Z"
+updated: "2026-07-11T13:58:52Z"
 description: Scope the AGENTS.md push rule to flow post-actions; make the commit trailer model-agnostic; VERIFY the stale approved-push line is gone after t19 (AGENTS.md, DESIGN.md dogfood note + ru mirror). Lands AFTER t19, rebases on it.
 history:
     - at: "2026-07-11T13:47:30Z"
@@ -49,3 +49,12 @@ history:
       by: Grigorii Pashukhin
       from: impl_review
       to: approved
+    - at: "2026-07-11T13:58:52Z"
+      by: Grigorii Pashukhin
+      from: approved
+      to: done
+      checks:
+        - cmd: git switch main
+          exit: 0
+        - cmd: 'git log -n 200 --format=%s | grep "^c2: " || { echo "no squash commit \"c2: …\" on local main: git pull first, and check the PR/merge title started with \"c2: \"" >&2; false; }'
+          exit: 0
