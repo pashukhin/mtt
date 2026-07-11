@@ -589,7 +589,9 @@ var NewTagEditor func(store TaskStore, now func() time.Time) TagEditor
 // found by reusing Index+DepGraph, deduped — so a delete never silently strands
 // references; --force overrides, leaving dangling refs (tolerated: Ready
 // conservative, Index orphans→roots). Delete is a store op on the base
-// TaskStore, not an embedded field. No clock (a delete records nothing).
+// TaskStore, not an embedded field. Since t5, --force forces who+why (pre-flight)
+// and records to the AuditStore before deleting, so NewRemover takes an AuditStore
+// + injected clock (a --force delete IS recorded; a plain delete still is not).
 // RemoveMany (s008.9) is the primary method: best-effort per id over ONE List
 // snapshot, with a SUBGRAPH-AWARE referenced-check (referents inside the id set
 // are ignored, so an epic + its children delete in one call without --force).
