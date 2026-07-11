@@ -358,6 +358,7 @@ git commit -m "feat(t5): AuditStore port + JSONL .mtt/audit.log adapter"
 - Modify: `internal/core/remove.go`
 - Modify: `internal/cli/rm.go`
 - Modify: `docs/architecture/model.go` (`Remover` interface + `NewRemover` var, ~598-611)
+- Modify: `internal/cli/testdata/scripts/rm.txt` (add `--who/--why` to its `--force`-on-referenced line, now exit 2)
 - Test: `internal/core/remove_test.go`
 
 **Interfaces:**
@@ -806,10 +807,10 @@ types:
 
 > `grep` is the testscript builtin (regexp match against a file); `stdout 't2: tbd . speccing'` uses `.` to match the `→` rune (output is `t2: tbd → speccing`, `status.go:114`). `encoding/json` emits spaceless `"id":"t1"`, so the greps match.
 
-- [ ] **Step 2: Run the e2e — verify it fails.**
+- [ ] **Step 2: Run the e2e — verify it PASSES (regression lock).**
 
 Run: `go test ./internal/cli/ -run 'TestScripts/dangerous' -v`
-Expected: PASS already if Tasks 1+3 are done (the behavior is wired). To see it as a genuine red, run this task's file BEFORE Task 3 lands; in normal order it is a regression lock. If it FAILS, read the runner output — most likely a fixture-seeding mismatch (adjust `cp`/archive to match `dogfood.txt` exactly).
+Expected: PASS — the behavior is already wired by Tasks 1+3, so this e2e is a green-on-arrival integration lock, not a classic red→green (the failing-first rigor lives in the unit tests of Tasks 1 and 3). If it FAILS, read the runner output — most likely a fixture-seeding mismatch (adjust `cp`/archive to match `dogfood.txt` exactly).
 
 > NOTE: because the behavior is implemented in Tasks 1+3, this e2e is a **characterization/lock** test, not a classic red→green. That is acceptable for an integration guard. If executing strictly TDD, author `dangerous.txt` immediately after Task 1 (the `--no-run` half) and extend it in Task 3 (the `rm` half); this plan keeps it whole here for cohesion.
 
@@ -865,7 +866,7 @@ git commit -m "docs(t5): dangerous-ops attribution — DESIGN/CLI_REFERENCE/AGEN
 
 ## Notes for the implementer
 
-- **Order & atomicity:** Task 1 and Task 2 are independent (Task 1 touches transition; Task 2 adds the port). Task 3 needs both and is **atomic** (core + cli + model in one commit) so the signature churn never breaks `go build ./...`. Task 4 is independent of 1-3. Task 5 needs 1+3. Task 6 last.
+- **Order & atomicity:** Task 1 and Task 2 are independent (Task 1 touches transition; Task 2 adds the port). Task 3 needs both and is **atomic** (core + cli + model in one commit) so the signature churn never breaks `go build ./...`. Task 4 depends only on Task 1 (it consumes `mtt.Require`); independent of Tasks 2-3. Task 5 needs 1+3. Task 6 last.
 - **`--no-run` needs no CLI change** — Task 1's core union covers `mtt status --no-run` and `mtt do --no-run` (both call `Transitioner.Transition`). The sugar `mtt <status>` hardcodes `noRun=false` and cannot bypass; do NOT add `--no-run` to it (and do NOT test `--no-run` via `mtt start`).
 - **Reuse the real test helpers** (`newMemStore`, `baseTask`, `testClock`, `&fakeRunner{}`, `flowCfg`) — do not invent `newFakeStore`/`fixedNow`/`cfgWithEdge`. `memStore` lives in `dependency_test.go`; adding a `deleted` method there or in `remove_test.go` is fine (same package).
 - **Anti-vacuity discipline:** keep `RequireWho=false` + `By=""` in who-forcing unit assertions (Task 1) and no `MTT_BY`/no global `require.who` in the e2e (Task 5), or the test proves nothing.
