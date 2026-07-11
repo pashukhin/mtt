@@ -11,18 +11,18 @@ types:
     description: "A unit of product change whose design is OPEN — decisions to make and record (spec + plan artifacts, each reviewed). If the what+how are already decided and recorded elsewhere, use `chore`."
     statuses:
       - {name: tbd, kind: initial, description: "queued; `mtt start` to take into work"}
-      - {name: speccing, kind: active, description: "write the design spec to docs/superpowers/specs/<this-task-id>-<slug>.md (commit early and often), then `mtt submit`"}
+      - {name: speccing, kind: active, description: "brainstorm first (superpowers:brainstorming), then write the design spec — a decision record — to docs/superpowers/specs/<this-task-id>-<slug>.md (commit early and often), then `mtt submit`"}
       - {name: spec_review, kind: active, description: "run an adversarial subagent review of the spec; `mtt approve` when it passes, `mtt decline` to send back"}
       - {name: spec_human_review, kind: active, description: "get human sign-off on the spec; `mtt approve` or `mtt decline`"}
       - {name: spec_fix, kind: active, description: "address spec findings, then `mtt submit` to re-review"}
-      - {name: planning, kind: active, description: "write the implementation plan to docs/superpowers/plans/<this-task-id>-<slug>.md, then `mtt submit`"}
+      - {name: planning, kind: active, description: "write the implementation plan (superpowers:writing-plans) to docs/superpowers/plans/<this-task-id>-<slug>.md, then `mtt submit`"}
       - {name: plan_review, kind: active, description: "run an adversarial subagent review of the plan; `mtt approve` when it passes, `mtt decline` to send back"}
       - {name: plan_human_review, kind: active, description: "get human sign-off on the plan; `mtt approve` or `mtt decline`"}
       - {name: plan_fix, kind: active, description: "address plan findings, then `mtt submit` to re-review"}
       - {name: implementing, kind: active, description: "implement test-first (TDD), make check green between commits, then `mtt submit`"}
-      - {name: impl_review, kind: active, description: "run an adversarial code review; `mtt approve` when it passes, `mtt decline` to send back"}
+      - {name: impl_review, kind: active, description: "run an adversarial code review: the AGENTS.md Principles self-check + Go conventions, and DESIGN.md/CLAUDE.md updated if behavior changed; `mtt approve` when it passes, `mtt decline` to send back"}
       - {name: impl_fix, kind: active, description: "address review findings, then `mtt submit` to re-review"}
-      - {name: approved, kind: active, description: "open/update the PR titled '<this-task-id>: <title>' (the branch was auto-pushed), ask the human to merge; after the squash-merge run `mtt deliver`; human-requested changes -> `mtt decline`"}
+      - {name: approved, kind: active, description: "open/update the PR: gh pr create --title '<this-task-id>: <title>' (the branch was auto-pushed), ask the human to merge; after the squash-merge run `mtt deliver`; human-requested changes -> `mtt decline`"}
       - {name: done, kind: terminal, description: "delivered to main"}
       - {name: cancelled, kind: terminal, description: "abandoned"}
     transitions:
@@ -199,9 +199,9 @@ types:
     statuses:
       - {name: tbd, kind: initial, description: "queued; `mtt start` to take into work"}
       - {name: implementing, kind: active, description: "implement test-first (TDD), make check green between commits, then `mtt submit`"}
-      - {name: impl_review, kind: active, description: "run an adversarial code review; if the diff contains design decisions not recorded elsewhere — decline: it must be a `task`. `mtt approve` / `mtt decline`"}
+      - {name: impl_review, kind: active, description: "run an adversarial code review: the AGENTS.md Principles self-check + Go conventions, and DESIGN.md/CLAUDE.md updated if behavior changed; if the diff contains design decisions not recorded elsewhere — decline: it must be a `task` (cancel this chore and recreate). `mtt approve` / `mtt decline`"}
       - {name: impl_fix, kind: active, description: "address review findings, then `mtt submit` to re-review"}
-      - {name: approved, kind: active, description: "open/update the PR titled '<this-task-id>: <title>' (the branch was auto-pushed), ask the human to merge; after the squash-merge run `mtt deliver`; human-requested changes -> `mtt decline`"}
+      - {name: approved, kind: active, description: "open/update the PR: gh pr create --title '<this-task-id>: <title>' (the branch was auto-pushed), ask the human to merge; after the squash-merge run `mtt deliver`; human-requested changes -> `mtt decline`"}
       - {name: done, kind: terminal, description: "delivered to main"}
       - {name: cancelled, kind: terminal, description: "abandoned"}
     transitions:
