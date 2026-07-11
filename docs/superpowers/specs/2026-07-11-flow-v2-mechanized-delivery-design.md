@@ -63,9 +63,15 @@ commands: ['ls docs/superpowers/specs/{{.ID}}-*.md']
 `done` must mean "in main". New status **`approved`** (= agent review passed, awaiting the human
 merge) and edge verb **`deliver`**:
 
-- **New process convention (P2, accepted): the PR title — and therefore the squash-commit subject —
-  starts with the task id:** `t1: references — …`, `c3: fix stale AGENTS preamble`. The colon makes
-  the match prefix-safe (`^t1:` cannot match `t10:`).
+- **New process convention (P2, accepted): the PR title starts with the task id:**
+  `t1: references — …`, `c3: fix stale AGENTS preamble`. The colon makes the match prefix-safe
+  (`^t1:` cannot match `t10:`).
+- **Repo-setting prerequisite (adversarial review B2, verified live):** the repo currently has
+  `squash_merge_commit_title: COMMIT_OR_PR_TITLE` — for a **single-commit PR** GitHub then takes the
+  squash subject from the commit, NOT the PR title, so the deliver gate would false-block exactly on
+  small chores. **Acceptance requires flipping the repo setting to `PR_TITLE`** ("Default to pull
+  request title") so the convention actually reaches the squash subject. A human editing the merge
+  dialog subject can still break the trace — the gate's hint text names both causes (below).
 - `deliver` runs standing wherever; its commands mechanize the delivery form-check and put the state
   write on main:
 
@@ -77,31 +83,58 @@ merge) and edge verb **`deliver`**:
   description: "after the PR is squash-merged: pull main, then deliver (writes done on main)"
   commands:
     - 'git switch main'
-    - 'git log -n 50 --format=%s | grep "^{{.ID}}: " || { echo "no squash commit \"{{.ID}}: …\" on local main — git pull first" >&2; false; }'
+    - 'git log -n 200 --format=%s | grep "^{{.ID}}: " || { echo "no squash commit \"{{.ID}}: …\" on local main: git pull first, and check the PR/merge title started with \"{{.ID}}: \"" >&2; false; }'
 ```
 
   The first command moves the working tree to main **before** the task-file write (commands run
   pre-write), so `status: done` lands on main. The second fails closed with a self-explanatory stderr
   line (shown by the s008.97 tail) when the merge hasn't landed on the *local* main yet — no network
   in gates, per the security posture.
-- Human rejection at the PR stage is expressible: `approved --decline--> impl_fix`.
+- Human rejection at the PR stage is expressible: `approved --decline--> impl_fix`, and this edge
+  carries `commands: ['git switch task/{{.ID}}']` — it is naturally run while standing on main (where
+  the rejection was discovered), and without the switch the `impl_fix` write would strand on main
+  while the branch still says `approved` (adversarial review M3 — the same resurrect-class hole D5
+  fixes for cancel). **General convention, now explicit:** every mid-flow edge assumes the working
+  tree is on the task branch; the three edges where that is naturally false (`deliver`,
+  `approved→decline`, `cancel`) each carry the switch that makes it true.
 
 ### D4 — Entry edge: re-enter first, else branch from main
 
 ```yaml
-commands: ['git switch task/{{.ID}} || (git switch main && git switch -c task/{{.ID}})']
+commands:
+  - 'git switch task/{{.ID}} || (git switch main && git switch -c task/{{.ID}})'
+  - 'test -f .mtt/tasks/{{.ID}}.yaml || { echo "task file absent on this branch — its add has not reached main (merge/commit the branch that created it first)" >&2; false; }'
 ```
 
 Re-entering an existing task branch stays first (idempotent retake); a **new** branch is always born
 from main. A dirty tree that conflicts makes `git switch` fail closed. With D2's commit-early
-convention the tree is normally clean at `start`.
+convention the tree is normally clean at `start`. The second command closes adversarial-review M2a: a
+task `add`-ed on another unmerged branch is absent from main, so after the switch the write target
+would vanish and `Update` would fail with a misleading not-found **after** the branch side effect —
+the guard converts that into a diagnosed block. (A task added on main but not yet committed passes:
+`git switch` carries the untracked file.) Mid-flight resumption is NOT `start` (it only fires from
+`tbd`) — re-entering a half-done task next session is a plain `git switch task/<id>`, one of the named
+conventions in D10.
 
 ### D5 — Cancel lands on main
 
-Every cancel edge gets `commands: ['git switch main']` (pre-write), so the `cancelled` write lands on
-main — not on the branch that is about to be abandoned. `current: clear` stays. The state commit on
-main is one of the two interim manual steps (D10). Cancel sources (no forward-trap): every
-non-terminal status except the `_review` pairs — including **`approved`** (PR closed without merge).
+Every cancel edge gets (pre-write):
+
+```yaml
+commands:
+  - 'git switch main'
+  - 'test -f .mtt/tasks/{{.ID}}.yaml || { echo "task file absent on main — its add has not reached main (merge/commit the branch that created it first)" >&2; false; }'
+```
+
+so the `cancelled` write lands on main — not on the branch that is about to be abandoned — and the
+M2a case (task never reached main) blocks with a diagnosis instead of failing not-found after the
+switch. `current: clear` stays. The state commit on main is one of the two interim manual steps
+(D10). Cancel sources (no forward-trap): every non-terminal status except the `_review` pairs —
+including **`approved`** (PR closed without merge). **Known cost (review M4, accepted):** cancel —
+like `deliver` — moves the working tree to main from wherever you stand; cancelling an unrelated task
+mid-work ends your working context (or fail-closes on conflicting dirt). The edge `description` warns
+("moves your tree to main"); with commit-early the switch is cheap, and grooming cancels typically
+happen standing on main anyway, where the switch is a no-op.
 
 ### D6 — Second type `chore` (P3-justified: guaranteed different flow)
 
@@ -117,10 +150,13 @@ only: mechanized (`make check`) + one agent review + the human merge.
 
 ```
 tbd --start--> implementing --submit--> impl_review --approve--> approved --deliver--> done
-                    ^                        |decline               |decline
-                    |                        v                      v
-                    +-------submit------- impl_fix <----------------+          (+cancelled)
+                                          ^     |decline            |decline
+                                          |     v                   v
+                                          +--submit-- impl_fix <----+          (+cancelled)
 ```
+
+(The resubmit edge is `impl_fix → impl_review` — same as `task`'s; an earlier draft's diagram was
+ambiguous about this. Both readings pass `Validate`, so the diagram, not the validator, is the spec.)
 
 - `start`/`submit(make check)`/`deliver`/cancels — identical mechanics to `task` (the types share the
   delivery tail; they differ in the head, which is what P3 requires).
@@ -148,7 +184,11 @@ mid-cycle human sign-offs that remain are the genuinely separate acts: `spec_hum
 
 **Flagged for user review**: v1's three human sign-offs become two + the merge itself. The
 alternative (keep `impl_human_review` *and* add `approved`, 16 statuses) double-models the merge and
-was rejected in the D6 discussion for `chore`; consistency argues for the collapse.
+was rejected in the D6 discussion for `chore`; consistency argues for the collapse. **Named
+consequence (review m3):** in the impl stage the human's act no longer leaves an mtt `history` entry —
+`approve` and `deliver` both record the agent's `by:`; the human audit trail for implementation lives
+in git's merge trace (the squash commit the deliver gate verifies), while spec/plan human sign-offs
+keep their mtt history entries. Accepted trade if D7 is approved; recorded in the DESIGN.md note.
 
 ### D8 — Timeout policy (review finding #9)
 
@@ -173,8 +213,19 @@ its headroom. (First use of the s007 map form in the committed config — it is 
   entry** after a blocked move (the spec's own promise), scratch config gains `require: {who: true}`
   (the real config's per-move policy is exercised), and the scratch flow mirrors the v2 tail
   (`approved`/`deliver` with a fake merge-trace check, e.g. grep over a file standing in for
-  `git log`). Keep fake/cheap commands (s006–s008 e2e strategy).
+  `git log`). Keep fake/cheap commands (s006–s008 e2e strategy). **Script preamble requirements
+  (review M1, empirically demonstrated):** the v2 entry command needs a BORN `main` — `git init -b
+  main` (or symbolic-ref), `git config user.name/user.email` (testscript strips identity), and one
+  initial commit, or `git switch main` exits 128 and the entry edge can never pass. **Attribution
+  discipline in the script (review m2, restoring the s009 caution):** with `require` on, set
+  `env MTT_BY=…` up top, and pin the block *cause* in assertions (stderr text distinguishes a gate
+  block from an attribution exit-2 — `! exec` alone cannot).
 - The dead `task.Default` assert is dropped or made meaningful (assert on the parsed type set).
+- **Descriptions are guarded (review m8):** the guard test asserts every status and edge of both
+  flows carries a non-empty `description`, and spot-checks the two load-bearing instruction strings
+  (the chore `impl_review` type-boundary police line; the deliver pull-first hint) — the
+  self-instructing-runbook thesis rides on descriptions, so a flow edit must not be able to gut them
+  silently.
 
 ### D10 — Follow-up product tasks (created in mtt right after PR #23 merges)
 
@@ -188,13 +239,24 @@ its headroom. (First use of the s007 map form in the committed config — it is 
    adjacent to t10 (multi-agent cluster) but distinct: t10 is store-level concurrency, this is
    git-topology-level visibility.
 
-**Interim manual steps (exactly two, both temporary until #1):** commit the state write on main after
-`deliver`; commit the state write on main after `cancel`. Everything else that AGENTS.md's
-"Working under mtt" section currently prescribes as discipline either becomes mechanized by this
-design (branch-from-main, artifact presence, delivery verification) or dies with the uncommitted
-convention. The section shrinks accordingly (finding #8's contradictions get fixed in the same pass:
-the stale "backlog stays in TASKS.md" preamble, the yaml CLAUDE.md hand-edit/never-marshaled
-invariants rewritten to bless the hand-authored committed config, guard-test mention added).
+**Interim manual steps (two, both temporary until #1)** — commit the state write on main after
+`deliver`; commit the state write on main after `cancel`. Known failure mode if forgotten (review
+m1): the uncommitted state file silently rides the next `start`'s branch and lands with the *next*
+task's PR — named in the docs pass, retired by post-persist actions.
+
+**Named conventions that remain (review m6 — discipline only where mechanization can't reach):**
+(1) the PR title starts with `<id>: ` (enforced only at `deliver` — late but diagnosable; the D3 repo
+setting makes it reach the squash subject); (2) push the `approved` state commit before asking the
+human to merge (else a post-merge `deliver` on main finds the task still at `impl_review` — review
+M2b; re-running `approve` on main recovers); (3) mid-flight resumption is a plain
+`git switch task/<id>` (D4 note). Everything else that AGENTS.md's "Working under mtt" section
+currently prescribes as discipline either becomes mechanized by this design (branch-from-main,
+artifact presence, delivery verification) or dies with the uncommitted convention. The section
+shrinks accordingly (finding #8's contradictions get fixed in the same pass: the stale "backlog stays
+in TASKS.md" preamble, the yaml CLAUDE.md hand-edit/never-marshaled invariants rewritten to bless the
+hand-authored committed config, guard-test mention added). The cross-branch stale-read/last-writer
+hazard (review M2c) is the recorded A3/lost-update class — owned by the two follow-up tasks, noted in
+the DESIGN known-limits paragraph.
 
 ## Flow v2 — full shape summary
 
@@ -240,8 +302,12 @@ implementing, spec_fix, plan_fix, impl_fix, approved — each: switch-main, curr
 - The 20 committed tasks unaffected (all `tbd`; no status renames touch them; `impl_human_review`
   never occurs in task files).
 - Docs: DESIGN.md/.ru flow-v2 note (incl. "done = in main", the PR-title and artifact-name
-  conventions, the two interim manual steps, F5 mid-flight-parking known limit); AGENTS.md
+  conventions, the interim manual steps + named conventions, and the known limits: F5 — a task
+  blocked mid-flight, e.g. `implementing` waiting on an external dependency, has no parking status
+  and simply rests where it is; M2c — cross-branch stale-read/last-writer, the A3 class); AGENTS.md
   "Working under mtt" rewritten smaller; finding-#8 contradictions fixed; spec/session files updated.
+- **Repo setting flipped to `squash_merge_commit_title: PR_TITLE`** (D3 prerequisite — verified via
+  `gh api`; without it single-commit PRs break the deliver trace).
 - `make check` green; PR #23 CI green.
 
 ## Out of scope
