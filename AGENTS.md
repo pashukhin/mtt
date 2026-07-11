@@ -158,11 +158,11 @@ the live queue is mtt. Practical rules:
   writes an audit record to `.mtt/audit.log` (JSONL, committed, `merge=union`) **before** deleting — no
   destruction without a trail. A transition can also be marked critical in the config with a per-edge
   `require: {who, why}` (unioned with the global policy — tighten-only).
-- **Commit `.mtt` with the branch.** Mid-flow moves (`start`/`submit`/`approve`/`decline`) rewrite
-  `.mtt/tasks/*.yaml` on the task branch — commit them as you go (they ride the PR).
-- **Two manual steps remain** (until post-persist actions land): after `deliver` and after `cancel`, run
-  `git add .mtt && git commit` on main — the state write is otherwise uncommitted and would ride the next
-  task's branch.
+- **Moves auto-commit `.mtt` (t21).** Every edge carries a `post:` action (`git add .mtt && git commit …
+  -- .mtt`) that runs **after** the status is persisted, so a move commits its own `.mtt/tasks/*.yaml` change
+  — no manual `git add .mtt && git commit` after `start`/`submit`/`approve`/`decline`, and none after
+  `deliver`/`cancel` (their pre-gate `git switch main` runs first, so the post commit lands on main). If a post
+  action fails, the move is **kept** (status persisted) and mtt exits **5** — finish the commit by hand.
 - **Config is code (SEC2).** Review `.mtt/config.yaml` diffs like a Makefile; a gate may invoke read-only
-  `mtt` only (never an mtt transition). Gate commands are single-quoted YAML scalars. The committed config is
-  guarded by `TestRepoDogfoodConfig` — keep it green.
+  `mtt` only (never an mtt transition). Gate/post commands are single-quoted YAML scalars. The committed config
+  is guarded by `TestRepoDogfoodConfig` — keep it green.

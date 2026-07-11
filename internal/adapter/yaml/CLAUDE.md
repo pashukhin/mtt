@@ -35,7 +35,9 @@ beyond provider-specific checks.
   validity (uniqueness/disjointness) is a `Config.Validate` concern, not a load-time one. **Per-edge `require`**
   (t5): `ymlTransition.Require` (`yaml:"require,omitempty"`, reusing the existing `ymlRequire{who,why}` shape)
   maps to `mtt.Transition.Require` in `toDomain` — decode-only (config is never marshaled), zero on edges that
-  omit it; `core` unions it with the global policy.
+  omit it; `core` unions it with the global policy. **Per-edge `post`** (t21): `ymlTransition.Post []ymlCommand`
+  (`yaml:"post,omitempty"`, reusing `ymlCommand` scalar-or-map) maps to `mtt.Transition.Post` beside `Commands`
+  — the finalization commands `core` runs after persist; decode-only, absent on edges that omit it.
 - No flow/ready/traversal logic here (that is `core`, later). Templates are the **only** home of default type/status names.
 - A project's `.mtt/config.yaml` is normally produced by `Init` templates; this repo's own committed config
   is hand-authored, reviewed like code, and guarded by `TestRepoDogfoodConfig` (`dogfood_test.go` — a
