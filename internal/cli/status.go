@@ -93,33 +93,45 @@ func runTransition(cmd *cobra.Command, root string, cfg mtt.Config, settings yam
 	runner := exec.NewRunner(root, settings.CommandTimeout, cmd.ErrOrStderr(), cmdOut, tail)
 
 	tr := core.NewTransitioner(yaml.NewTaskStore(root), cfg, runner, time.Now)
-	task, err := tr.Transition(id, to, core.TransitionOptions{
+	task, txErr := tr.Transition(id, to, core.TransitionOptions{
 		Role: role, By: by, Why: why, NoRun: noRun,
 		RequireWho: settings.Require.Who, RequireWhy: settings.Require.Why,
 	})
-	if err != nil {
-		if hidden && errors.Is(err, core.ErrBlocked) {
-			return fmt.Errorf("%w\n  hint: re-run with -v or --log-file to see the command's full output", err)
+	// ErrPostAction (t21): the move IS persisted (only the post phase failed) — fall
+	// through to render it, then surface the post error + exit 5. Any other error
+	// means no move: return it (with the blocked-gate hint).
+	postFailed := errors.Is(txErr, core.ErrPostAction)
+	if txErr != nil && !postFailed {
+		if hidden && errors.Is(txErr, core.ErrBlocked) {
+			return fmt.Errorf("%w\n  hint: re-run with -v or --log-file to see the command's full output", txErr)
 		}
-		return err
+		return txErr
 	}
 	if err := applyCurrent(root, cfg, task, id); err != nil {
 		return fmt.Errorf("transition applied but updating the current pointer failed: %w", err)
 	}
 	if jsonFlag(cmd) {
-		return writeJSON(cmd.OutOrStdout(), toTaskJSON(task))
+		if err := writeJSON(cmd.OutOrStdout(), toTaskJSON(task)); err != nil {
+			return err
+		}
+		return txErr // nil on success, ErrPostAction on post-failure → exit 5 even in --json
 	}
 	last := task.History[len(task.History)-1]
 	out := cmd.OutOrStdout()
-	if _, err = fmt.Fprintf(out, "%s: %s → %s\n", id, last.From, last.To); err != nil {
-		return err
+	// NB: local `e` for the render writes — never txErr, or a successful write would
+	// clobber ErrPostAction to nil and lose exit 5 in text mode.
+	if _, e := fmt.Fprintf(out, "%s: %s → %s\n", id, last.From, last.To); e != nil {
+		return e
 	}
 	if g := moveGuidance(cfg, task.Type, last.From, last.To); g != "" {
-		if _, err = fmt.Fprint(out, g); err != nil {
-			return err
+		if _, e := fmt.Fprint(out, g); e != nil {
+			return e
 		}
 	}
-	return nil
+	if postFailed {
+		_, _ = fmt.Fprintf(cmd.ErrOrStderr(), "move applied, but a post-action failed: %v\n", txErr)
+	}
+	return txErr
 }
 
 // applyCurrent moves the personal current-task pointer per the edge just

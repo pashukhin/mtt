@@ -1,0 +1,57 @@
+# t21 — per-edge post: runs after persist; failure → move kept + rendered + surfaced.
+exec mtt init
+cp post.yaml .mtt/config.yaml
+exec mtt types
+stdout 'task'
+
+exec mtt add 'a task'
+stdout 'created t1'
+
+# a passing post runs and its output is visible (-v streams gate/post output)
+exec mtt start t1 -v
+stdout 't1: tbd → speccing'
+stderr 'POSTRAN'
+
+# a failing post → move is KEPT and RENDERED, plus the post-failure surfaced.
+# These distinguish the restructured CLI from the old one: the OLD runTransition
+# early-returns the error and prints "error: …" WITHOUT the move line; only the new
+# code renders the move THEN surfaces "move applied, but a post-action failed".
+! exec mtt submit t1
+stdout 't1: speccing → review'
+stderr 'move applied, but a post-action failed'
+exec mtt show t1
+stdout '\[review\]'
+
+# --json on the failing post STILL emits the task object (RED before Step 4: the old
+# CLI returns before the JSON branch) and stays non-zero.
+exec mtt add 'b task'
+exec mtt start t2
+! exec mtt submit t2 --json
+stdout '"status": *"review"'
+exec mtt show t2
+stdout '\[review\]'
+
+-- post.yaml --
+version: 1
+project: {name: posttest}
+types:
+  - name: task
+    prefix: t
+    default: true
+    statuses:
+      - {name: tbd, kind: initial, default: true}
+      - {name: speccing, kind: active}
+      - {name: review, kind: active}
+      - {name: done, kind: terminal}
+    transitions:
+      - from: tbd
+        to: speccing
+        name: start
+        post:
+          - 'echo POSTRAN'
+      - from: speccing
+        to: review
+        name: submit
+        post:
+          - 'false'
+      - {from: review, to: done, name: approve}
