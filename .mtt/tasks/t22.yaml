@@ -1,0 +1,12 @@
+id: t22
+type: task
+title: Gate review artifacts on approve edges (persist adversarial reviews)
+status: tbd
+priority: medium
+tags:
+    - backlog
+    - core
+    - flow
+created: "2026-07-11T08:45:27Z"
+updated: "2026-07-11T08:45:27Z"
+description: 'Today the spec/plan/impl `approve` edges have NO gate — the adversarial subagent review lives only in the agent transcript, so "a review happened" is a promise, not an invariant. Persist each review to docs/superpowers/reviews/<id>-{spec,plan,impl}.md and gate the approve edge on `ls` of that file — the exact pattern that already gates `submit` on the spec/plan artifact. Design-open: file naming/format, which approve edges (all three?), whether decline also writes a file, how re-reviews (rev2/rev3) accumulate, and how the human sign-off (spec_human_review/plan_human_review) relates. From the s009 t5 session retro.'
