@@ -111,8 +111,8 @@ func TestTransition_PostExpandsPlaceholders(t *testing.T) {
 	if _, err := NewTransitioner(store, cfg, runner, testClock).Transition("t1", "in_progress", TransitionOptions{}); err != nil {
 		t.Fatalf("unexpected: %v", err)
 	}
-	if runner.gotCmds[0].Run != "echo t1" {
-		t.Fatalf("post placeholder not expanded: %q", runner.gotCmds[0].Run)
+	if len(runner.gotCmds) != 1 || runner.gotCmds[0].Run != "echo t1" {
+		t.Fatalf("post placeholder not expanded: %+v", runner.gotCmds)
 	}
 }
 
@@ -151,8 +151,11 @@ func TestTransition_NoPostUnchanged(t *testing.T) {
 	if _, err := NewTransitioner(store, flowCfg(nil, nil), runner, testClock).Transition("t1", "in_progress", TransitionOptions{}); err != nil {
 		t.Fatalf("unexpected: %v", err)
 	}
-	if runner.called {
-		t.Fatal("no pre-commands and no post → runner must not be called")
+	// NB: the pre-gate calls runner.Run(nil) even for a zero-command edge (it sets
+	// `called`), so assert on gotCmds, NOT `called`: with no post, the only Run is
+	// the empty pre-gate → gotCmds is nil/len 0. (A post phase would overwrite it.)
+	if len(runner.gotCmds) != 0 {
+		t.Fatalf("no post → post runner not invoked; got %+v", runner.gotCmds)
 	}
 }
 ```
@@ -160,7 +163,9 @@ func TestTransition_NoPostUnchanged(t *testing.T) {
 - [ ] **Step 4: Run — verify they fail.**
 
 Run: `go test ./internal/core/ -run 'TestTransition_(Post|NoRunSkipsPost|NoPostUnchanged)' -v`
-Expected: FAIL (`Post` field unknown until Step 1 compiles, then behavior fails — post never runs).
+Expected: the `Post*` tests FAIL — post never runs yet, so `gotCmds` is empty and no `ErrPostAction` is
+returned. (`NoRunSkipsPost` and `NoPostUnchanged` already PASS — there's no post code to skip, so they're
+inert until Step 5; that's fine, the group reddens on the `Post*` failures.)
 
 - [ ] **Step 5: Add the post phase.** In `internal/core/transition.go`, replace the final line `return tr.store.Update(t)` with:
 
@@ -202,7 +207,10 @@ Update the `Transition` method godoc to note: "On `ErrPostAction` the returned t
 		}
 ```
 
-- [ ] **Step 7: Mirror in the architecture reference.** In `docs/architecture/model.go`: add `Post []Command // finalization commands run AFTER persist (t21)` to `Transition` (line ~216); add `ErrPostAction` to the sentinels prose near the Transitioner block (~line 662), noting it carries a valid persisted task.
+- [ ] **Step 7: Mirror in the architecture reference.** In `docs/architecture/model.go`'s `Transition`
+  (lines ~211-218, which has no `Require`/`Name` — mirror is lean), add `Post []Command // finalization commands
+  run AFTER persist (t21)` **after `Commands`**; add `ErrPostAction` to the sentinels prose near the
+  Transitioner block (~line 662), noting it carries a valid persisted task.
 
 - [ ] **Step 8: Run — verify green.**
 
@@ -337,16 +345,24 @@ exec mtt start t1 -v
 stdout 't1: tbd → speccing'
 stderr 'POSTRAN'
 
-# a failing post → exit 5, but the move is KEPT (status advanced)
+# a failing post → move is KEPT and RENDERED, plus the post-failure surfaced.
+# These assertions distinguish the restructured CLI from the old one: the OLD
+# runTransition early-returns the error and prints "error: …" WITHOUT the move
+# line; only the new code renders the move THEN surfaces "move applied, but a
+# post-action failed". (testscript's `! exec` only checks non-zero, so exit 5 vs 1
+# is not directly assertable — the render is what proves the deliverable.)
 ! exec mtt submit t1
-stderr 'post-action failed'
+stdout 't1: speccing → review'
+stderr 'move applied, but a post-action failed'
 exec mtt show t1
 stdout '\[review\]'
 
-# --json on the failing post also exits non-zero (not swallowed); needs a task in speccing
+# --json on the failing post STILL emits the task object (RED before Step 4: the old
+# CLI returns before the JSON branch) and stays non-zero.
 exec mtt add 'b task'
 exec mtt start t2
 ! exec mtt submit t2 --json
+stdout '"status": *"review"'
 exec mtt show t2
 stdout '\[review\]'
 
@@ -381,7 +397,10 @@ types:
 - [ ] **Step 2: Run — verify it fails.**
 
 Run: `go test ./internal/cli/ -run 'TestScripts/post_actions' -v`
-Expected: FAIL (post not wired in the CLI yet; submit's failing post doesn't exit 5 the intended way).
+Expected: FAIL — the **render** assertions fail: the old `runTransition` early-returns `ErrPostAction`
+(`status.go:100-104`), so the failing `submit` prints `error: mtt: post-action failed …` WITHOUT the
+`t1: speccing → review` move line, and the `--json` case returns before the JSON branch (no `"status": "review"`
+emitted). (`! exec` alone can't see exit 5 — the render lines are what catch the missing restructure.)
 
 - [ ] **Step 3: Add exit 5.** In `internal/cli/root.go`'s `exitCode`, add before `default`:
 
@@ -432,7 +451,11 @@ Expected: FAIL (post not wired in the CLI yet; submit's failing post doesn't exi
 
 > Note: local `e` for the render writes — never reuse `txErr` (a successful write would clobber `ErrPostAction` to nil and defeat exit 5 in text mode).
 
-- [ ] **Step 5: (optional) `mtt types` render.** In `internal/cli/types.go`'s `writeTypeBlock`, after the `↩ <rollback>` line, add a `⇢ <post.Run>` line per `edge.Post` (+ `(timeout …)` when set), mirroring the rollback render. Skip if it complicates the task; not required for correctness.
+- [ ] **Step 5: (optional) `mtt types` render.** In `internal/cli/types.go`'s `writeTypeBlock`, add a **new**
+  `for _, p := range tr.Post` loop **after** the `commands` loop (which ends ~`types.go:114`; the `↩ rollback`
+  line is *inside* that commands loop, so `Post` needs its own loop, not an append inside it) — print
+  `⇢ <p.Run>` (+ `(timeout …)` when set), mirroring the rollback render. Skip if it complicates the task; not
+  required for correctness.
 
 - [ ] **Step 6: Run — verify green.**
 
@@ -472,7 +495,10 @@ Do this for all edges: `start`, the three `submit`, the `approve` edges, the `de
 Run: `bin/mtt types` (after `go build -o bin/mtt ./cmd/mtt`)
 Expected: no validation error; the flow prints (each edge now shows a `⇢` post line if Task 3 Step 5 was done).
 
-- [ ] **Step 3: Add the guard assertion.** In `internal/adapter/yaml/dogfood_test.go` (`TestRepoDogfoodConfig`), assert every transition carries the expected `post` (e.g. iterate all `Transitions`, require `len(tr.Post) == 1` and the `Run` matches the committed line). Run:
+- [ ] **Step 3: Add the guard assertion.** In `internal/adapter/yaml/dogfood_test.go` (`TestRepoDogfoodConfig`),
+  define a named const for the exact committed post line (mirroring the file's existing `cmd…` consts) and
+  iterate all `Transitions` of both types asserting `len(tr.Post) == 1 && tr.Post[0].Run == <that const>` — so a
+  dropped or drifted block reddens on the literal. Run:
 
 ```bash
 go test ./internal/adapter/yaml/ -run TestRepoDogfoodConfig -v
