@@ -1,0 +1,9 @@
+id: c1
+type: chore
+title: 'Auto-push in the flow: git push on approve (task branch) + deliver (main) via post:'
+status: tbd
+priority: medium
+tags:
+    - flow
+created: "2026-07-11T12:21:29Z"
+updated: "2026-07-11T12:21:29Z"
