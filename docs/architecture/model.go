@@ -633,6 +633,21 @@ type Runner interface {
 	Compensate(commands []Command) []Check // best-effort intra-pipeline compensation [s008]
 }
 
+// AuditEntry records one out-of-flow dangerous action (a --force destruction with
+// no task history to carry its attribution). [t5]
+type AuditEntry struct {
+	At     time.Time
+	Who    string
+	Why    string
+	Action string
+	TaskID TaskID
+}
+
+// AuditStore appends dangerous-action records; append-only (no read surface). [t5]
+type AuditStore interface {
+	Append(AuditEntry) error
+}
+
 // Transitioner applies a SINGLE flow edge (mtt status <id> <new>): validate the
 // current status → to against the type's transitions, gate on the edge's Commands
 // via Runner (ErrBlocked on a non-zero exit; the task is left unchanged), append
