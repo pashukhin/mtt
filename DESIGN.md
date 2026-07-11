@@ -418,11 +418,20 @@ Commands come from config (trusted, like a Makefile/git hooks), not from the net
 > hold — the same boundary the shipped `applyCurrent`/`FindTransition` already rely on. `mtt types`, the
 > `next:` guidance, and `show --json`'s `next[].name` surface the verb.
 
-> **Deferred (backlog): dangerous ops must mandate `--who`/`--why`.** Flow-bypassing / risk actions —
-> `--no-run` over a transition whose edge has a **non-empty** command list (skipping a real gate), and later
-> `--force` / atomic aborts after side effects — should **force** attribution regardless of the project
-> `require` setting (you may skip the gate, but you must sign for it). Independent of the global `require`
-> knob; ties into the s007+ structured-commands / rollback risk surface. Not built now.
+> **Shipped (t5): dangerous ops mandate `--who`/`--why`.** Flow-bypassing / risk actions force attribution
+> regardless of the project `require` setting (you may skip the gate, but you must sign for it). The
+> **effective** required-attribution is the union `global ∨ per-edge ∨ --no-run` — tighten-only:
+> - a **`--no-run`** bypass forces **both** who+why on any edge (checked in `core.Transitioner` before the
+>   gate; covers `mtt status`/`mtt do`);
+> - a transition can be marked **critical** with a per-edge `require: {who, why}` in the config
+>   (`mtt.Transition.Require`, decoded by the YAML adapter, unioned in core);
+> - a destructive **`rm --force`** forces who+why as a **pre-flight** precondition (`core.Remover`,
+>   `ErrMissingAttribution` → exit 2 on single *and* bulk) and, per id, writes an audit record to
+>   `.mtt/audit.log` **before** deleting — no destruction without a trail. The log is a new driven port
+>   (`mtt.AuditStore`), JSONL (`{at, who, why, action, id}`), committed with `.gitattributes` `merge=union`.
+>
+> Roles / authorization ("who *may* do X") stay parked — t5 is attribution only. `init --force` is out
+> (bootstrap, no `.mtt/` history yet).
 
 > Caveat (for planning): commands with side effects (creating a branch) go **after** the checks; if one
 > fails after a side effect, we don't commit the transition, but the side effect already happened — that's
