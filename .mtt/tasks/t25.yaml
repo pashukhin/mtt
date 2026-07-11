@@ -1,0 +1,11 @@
+id: t25
+type: task
+title: 'Auto-push in the flow (deliver→main, approved→task branch) via post:'
+status: tbd
+priority: medium
+tags:
+    - backlog
+    - flow
+created: "2026-07-11T12:09:50Z"
+updated: "2026-07-11T12:09:50Z"
+description: 'Prime-directive follow-up to t21 (mechanize the process into mtt): the last manual git step is `git push` — after `deliver` (push origin main to finish delivery) and at `approved` (push -u origin task/<id> for the PR; the edge description already says "push including this state change"). t21 §11 deliberately deferred push as outward — this task revisits that. Design-open: (1) SCOPE — only deliver + approved, or mid-flow too? (task branches live locally until approved, so one push at approved carries all prior commits — mid-flow push is likely noise). (2) OUTWARD — auto-push without confirmation on deliver/approved: acceptable for this flow? any guard? (3) UPSTREAM — first branch push needs -u origin task/<id>; deliver push origin main. (4) FAILURE — a push post-action failing → ErrPostAction/exit 5 with the move already persisted (t21 semantics cover this; operator pushes by hand). (5) INTERACTION with t21 post: — push runs as a post command AFTER the git commit (e.g. post: [git add .mtt && git commit …, git push …]). From the s009 t21 delivery retro.'
