@@ -447,7 +447,9 @@ Commands come from config (trusted, like a Makefile/git hooks), not from the net
 > CLI exit **5** — mtt never rolls back a persisted move for a post hiccup). `--no-run` skips **both** phases.
 > Why not a global default `post`? Precedence/merge/opt-out questions we deferred (t24) — per-edge only for now.
 > The `git switch` in `deliver`/`start`/`cancel` is exactly why a naive "persist → run everything → roll back"
-> single phase can't work: context switches must precede persist, commits must follow it.
+> single phase can't work: context switches must precede persist, commits must follow it. **(c1) auto-push**
+> extends this: `approve` post also `git push -u origin task/<id>` (the PR branch), `deliver` post also
+> `git push origin main` — so the only manual git step left is `gh pr create` (title/body are a judgement call).
 
 > **Shipped (s008): rollback / compensation (intra-pipeline).** A gate command may declare a `rollback:`
 > compensator (a scalar or `{run, timeout}`, itself placeholder-expanded); when a **later** command in the
