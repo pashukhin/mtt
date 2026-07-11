@@ -1,14 +1,14 @@
 id: t21
 type: task
 title: Post-persist flow actions (auto-commit .mtt after a move)
-status: spec_review
+status: spec_fix
 priority: high
 tags:
     - backlog
     - core
     - flow
 created: "2026-07-11T08:45:27Z"
-updated: "2026-07-11T10:32:06Z"
+updated: "2026-07-11T10:40:18Z"
 description: 'The most frequent manual tick in a dogfood session is `git add .mtt && git commit` after every mid-flow move (~12x in the t5 session), because gate commands run BEFORE the status is persisted, so no gate can commit the new state. AGENTS.md documents the "two manual steps" after deliver/cancel for the same reason. Introduce POST-persist actions (run AFTER the status write) so a move auto-commits its own .mtt change. Design-open: hook model (per-edge post-commands vs one global post-move hook), ordering + error handling (a failed post-action must not lose the persisted status), interaction with the tree/branch moves deliver/cancel already do, and whether push stays manual (outward). From the s009 t5 session retro.'
 history:
     - at: "2026-07-11T09:36:50Z"
@@ -27,3 +27,7 @@ history:
       checks:
         - cmd: ls docs/superpowers/specs/t21-*.md
           exit: 0
+    - at: "2026-07-11T10:40:18Z"
+      by: Grigorii Pashukhin
+      from: spec_review
+      to: spec_fix
