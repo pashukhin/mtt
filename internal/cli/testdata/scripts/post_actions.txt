@@ -31,6 +31,15 @@ stdout '"status": *"review"'
 exec mtt show t2
 stdout '\[review\]'
 
+# --no-run skips BOTH phases (M1): the failing-post 'submit' edge with --no-run
+# (+ --who/--why, which t5 forces on any --no-run) exits 0, NOT 5 — proving the
+# post phase was skipped. Use `mtt status` (the sugar can't take --no-run).
+exec mtt add 'c task'
+exec mtt status t3 speccing --no-run --who a --why b
+stdout 't3: tbd → speccing'
+exec mtt status t3 review --no-run --who a --why b
+stdout 't3: speccing → review'
+
 -- post.yaml --
 version: 1
 project: {name: posttest}
