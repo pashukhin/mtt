@@ -73,6 +73,11 @@ func (t Type) validateFlow() []error {
 				errs = append(errs, fmt.Errorf("type %q transition %q->%q: invalid command (empty/negative timeout or bad rollback)", t.Name, tr.From, tr.To))
 			}
 		}
+		for _, cmd := range tr.Post {
+			if !cmd.Valid() {
+				errs = append(errs, fmt.Errorf("type %q transition %q->%q: invalid post command (empty/negative timeout or bad rollback)", t.Name, tr.From, tr.To))
+			}
+		}
 		key := string(tr.From) + "->" + string(tr.To)
 		if pairs[key] {
 			errs = append(errs, fmt.Errorf("type %q: duplicate transition %q->%q", t.Name, tr.From, tr.To))

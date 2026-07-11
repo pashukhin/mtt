@@ -52,6 +52,7 @@ type Transition struct {
 	Commands    []Command
 	Current     CurrentAction // set|clear the personal current pointer when traversed (empty = no effect)
 	Require     Require       // per-edge required attribution (zero = none); unioned with global + --no-run
+	Post        []Command     // commands run AFTER persist (finalization, e.g. git commit); non-transactional (t21)
 }
 
 // Require is a required-attribution policy: who/why must be supplied. Used as the

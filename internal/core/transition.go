@@ -42,7 +42,10 @@ func NewTransitioner(store mtt.TaskStore, cfg mtt.Config, runner Runner, now fun
 // Transition moves id across one edge to `to`. Errors: task not found; unknown
 // type (config drift); ErrInvalidTransition (no such edge); ErrBlocked (a gate
 // command exited non-zero or the runner failed). On a block the task is not
-// changed and no history is written.
+// changed and no history is written. ErrPostAction (t21) is the SINGLE case where a
+// non-nil error carries a VALID persisted task: the move happened (pre-gate passed,
+// status written) but the post phase failed — callers keep the task and surface the
+// error (exit 5). --no-run skips both the pre-gate and the post phase.
 func (tr *Transitioner) Transition(id mtt.TaskID, to mtt.StatusName, opts TransitionOptions) (mtt.Task, error) {
 	t, err := tr.store.Get(id)
 	if err != nil {
@@ -93,7 +96,30 @@ func (tr *Transitioner) Transition(id mtt.TaskID, to mtt.StatusName, opts Transi
 		At: ts, By: opts.By, Role: opts.Role, Why: opts.Why, From: from, To: to, Checks: checks,
 	})
 	t.Updated = ts
-	return tr.store.Update(t)
+	updated, uerr := tr.store.Update(t)
+	if uerr != nil {
+		return mtt.Task{}, uerr
+	}
+	// POST phase (t21): after persist, gated by !NoRun. A post failure returns the
+	// PERSISTED task with ErrPostAction — the move is kept (finalization only). This
+	// is the single case where Transition returns a valid task with a non-nil error.
+	if opts.NoRun || len(edge.Post) == 0 {
+		return updated, nil
+	}
+	expanded, eerr := expandCommands(edge.Post, cmdContext{
+		ID: string(t.ID), Type: string(t.Type), From: string(from), To: string(to),
+	})
+	if eerr != nil {
+		return updated, fmt.Errorf("%w: expand post for %s (%s->%s): %v", ErrPostAction, id, from, to, eerr)
+	}
+	pchecks, rerr := tr.runner.Run(expanded)
+	if rerr != nil {
+		return updated, fmt.Errorf("%w: %v", ErrPostAction, rerr)
+	}
+	if _, c, failed := firstFailure(pchecks); failed {
+		return updated, fmt.Errorf("%w: command %q exited %d", ErrPostAction, c.Cmd, c.Exit)
+	}
+	return updated, nil
 }
 
 // findTransition returns the edge from → to in typ's flow, if any. Delegates to

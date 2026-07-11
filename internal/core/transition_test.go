@@ -18,11 +18,23 @@ type fakeRunner struct {
 	gotCmds    []mtt.Command
 	compCmds   []mtt.Command // commands passed to Compensate (nil = never called)
 	compChecks []mtt.Check   // canned Compensate result (nil = all succeed)
+	failSubstr string        // when set (and no canned checks/err): derive one check per command, exit 1 if Run contains it — lets the empty pre-gate pass while the post phase fails (t21)
 }
 
 func (f *fakeRunner) Run(commands []mtt.Command) ([]mtt.Check, error) {
 	f.called = true
 	f.gotCmds = commands
+	if f.checks == nil && f.err == nil && f.failSubstr != "" {
+		out := make([]mtt.Check, len(commands))
+		for i, c := range commands {
+			exit := 0
+			if strings.Contains(c.Run, f.failSubstr) {
+				exit = 1
+			}
+			out[i] = mtt.Check{Cmd: c.Run, Exit: exit}
+		}
+		return out, nil
+	}
 	return f.checks, f.err
 }
 
@@ -391,5 +403,95 @@ func TestTransition_PerEdgeRequireUnionsWithGlobal(t *testing.T) {
 	_, err := tr.Transition("t1", "in_progress", TransitionOptions{By: "alice", RequireWho: true})
 	if !errors.Is(err, ErrMissingAttribution) || !strings.Contains(err.Error(), "why") {
 		t.Fatalf("union: want missing why, got %v", err)
+	}
+}
+
+func TestTransition_PostRunsAfterPersist(t *testing.T) {
+	store := newMemStore(baseTask())
+	cfg := flowCfg(nil, nil) // edge0 tbd→in_progress, no pre-commands
+	cfg.Types[0].Transitions[0].Post = strCmds([]string{"echo hi"})
+	runner := &fakeRunner{}
+	got, err := NewTransitioner(store, cfg, runner, testClock).Transition("t1", "in_progress", TransitionOptions{})
+	if err != nil {
+		t.Fatalf("unexpected: %v", err)
+	}
+	if got.Status != "in_progress" {
+		t.Fatalf("status = %q, want in_progress", got.Status)
+	}
+	if len(runner.gotCmds) != 1 || runner.gotCmds[0].Run != "echo hi" {
+		t.Fatalf("post not run: %+v", runner.gotCmds)
+	}
+	if reloaded, _ := store.Get("t1"); reloaded.Status != "in_progress" {
+		t.Fatalf("not persisted: %q", reloaded.Status)
+	}
+}
+
+func TestTransition_PostFailureKeepsMove(t *testing.T) {
+	store := newMemStore(baseTask())
+	cfg := flowCfg(nil, nil)
+	cfg.Types[0].Transitions[0].Post = strCmds([]string{"false"})
+	runner := &fakeRunner{failSubstr: "false"} // empty pre-gate passes; the post "false" fails
+	_, err := NewTransitioner(store, cfg, runner, testClock).Transition("t1", "in_progress", TransitionOptions{})
+	if !errors.Is(err, ErrPostAction) {
+		t.Fatalf("want ErrPostAction, got %v", err)
+	}
+	if reloaded, _ := store.Get("t1"); reloaded.Status != "in_progress" {
+		t.Fatalf("post failure must not roll back; status = %q", reloaded.Status)
+	}
+}
+
+func TestTransition_PostExpandsPlaceholders(t *testing.T) {
+	store := newMemStore(baseTask())
+	cfg := flowCfg(nil, nil)
+	cfg.Types[0].Transitions[0].Post = strCmds([]string{"echo {{.ID}}"})
+	runner := &fakeRunner{}
+	if _, err := NewTransitioner(store, cfg, runner, testClock).Transition("t1", "in_progress", TransitionOptions{}); err != nil {
+		t.Fatalf("unexpected: %v", err)
+	}
+	if len(runner.gotCmds) != 1 || runner.gotCmds[0].Run != "echo t1" {
+		t.Fatalf("post placeholder not expanded: %+v", runner.gotCmds)
+	}
+}
+
+func TestTransition_PostExpandErrorIsPostAction(t *testing.T) {
+	store := newMemStore(baseTask())
+	cfg := flowCfg(nil, nil)
+	cfg.Types[0].Transitions[0].Post = strCmds([]string{"echo {{.Nope}}"}) // unknown field → template error
+	_, err := NewTransitioner(store, cfg, &fakeRunner{}, testClock).Transition("t1", "in_progress", TransitionOptions{})
+	if !errors.Is(err, ErrPostAction) {
+		t.Fatalf("expand error must be ErrPostAction, got %v", err)
+	}
+}
+
+func TestTransition_NoRunSkipsPost(t *testing.T) {
+	store := newMemStore(baseTask())
+	cfg := flowCfg(nil, nil)
+	cfg.Types[0].Transitions[0].Post = strCmds([]string{"echo hi"})
+	runner := &fakeRunner{}
+	// --no-run forces who+why (t5); supply them.
+	got, err := NewTransitioner(store, cfg, runner, testClock).Transition("t1", "in_progress",
+		TransitionOptions{NoRun: true, By: "a", Why: "b"})
+	if err != nil {
+		t.Fatalf("unexpected: %v", err)
+	}
+	if runner.called {
+		t.Fatal("--no-run must skip the post phase")
+	}
+	if got.Status != "in_progress" {
+		t.Fatalf("persist must still happen; status = %q", got.Status)
+	}
+}
+
+func TestTransition_NoPostUnchanged(t *testing.T) {
+	store := newMemStore(baseTask())
+	runner := &fakeRunner{}
+	if _, err := NewTransitioner(store, flowCfg(nil, nil), runner, testClock).Transition("t1", "in_progress", TransitionOptions{}); err != nil {
+		t.Fatalf("unexpected: %v", err)
+	}
+	// The pre-gate calls runner.Run(nil) even for a zero-command edge (it sets
+	// `called`), so assert on gotCmds, NOT `called`: with no post, the only Run is
+	// the empty pre-gate → gotCmds is nil/len 0. (A post phase would overwrite it.)
+	if len(runner.gotCmds) != 0 {
+		t.Fatalf("no post → post runner not invoked; got %+v", runner.gotCmds)
 	}
 }

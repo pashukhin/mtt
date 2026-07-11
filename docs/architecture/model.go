@@ -218,6 +218,7 @@ type Transition struct {
 	To          StatusName
 	Description string
 	Commands    []Command
+	Post        []Command     // finalization commands run AFTER persist (t21); failure → ErrPostAction, move kept
 	Current     CurrentAction // set|clear the personal current pointer when traversed [shipped s006.7]
 }
 
@@ -661,7 +662,9 @@ type AuditStore interface {
 // CLI's inline flow guidance: a status's Description + its onward moves shown after a
 // move and in `mtt show`), NOT ResolvedFlow (that earns its keep in s007's multi-edge Advancer). Sentinels ErrBlocked /
 // ErrInvalidTransition live in core (flow is core policy); the CLI maps them to
-// exit codes 3 / 6. [shipped s006]
+// exit codes 3 / 6. [shipped s006] ErrPostAction (t21) — a post: command failed
+// AFTER persist — is the ONE case Transition returns a valid (persisted) task with a
+// non-nil error; the CLI keeps the move and maps it to exit 5.
 type Transitioner interface {
 	Transition(id TaskID, to StatusName, opts TransitionOptions) (Task, error)
 }
