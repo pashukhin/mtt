@@ -34,7 +34,10 @@ beyond provider-specific checks.
   after `to`) maps to `mtt.Transition.Name` — the edge verb for the `mtt <edge>` sugar / `mtt do`; a plain copy,
   validity (uniqueness/disjointness) is a `Config.Validate` concern, not a load-time one.
 - No flow/ready/traversal logic here (that is `core`, later). Templates are the **only** home of default type/status names.
-- `.mtt/config.yaml` is edited only through this adapter (determinism + validation).
+- A project's `.mtt/config.yaml` is normally produced by `Init` templates; this repo's own committed config
+  is hand-authored, reviewed like code, and guarded by `TestRepoDogfoodConfig` (`dogfood_test.go` — a
+  deliberately non-hermetic test: it pins the repo root via `go.mod` and loads a temp COPY of the committed
+  config, bypassing the `config.local` overlay). Task files are written only through the adapter.
 - `NewCurrent(root)` / `Current` — implements `mtt.CurrentStore` (session 006.7), owning **only** the top-level
   `current:` key of `.mtt/config.local.yaml`. Read/modify/write go through a **`yaml.Node`** (not a struct
   decode) so `author`, comments, and any other local keys survive a rewrite (the file is human-edited); the
