@@ -1,0 +1,7 @@
+id: c2
+type: chore
+title: 'AGENTS.md doc-bug sweep: scope the push rule to flow post-actions, drop the stale approved-push line, model-agnostic commit trailer'
+status: tbd
+priority: high
+created: "2026-07-11T12:58:07Z"
+updated: "2026-07-11T12:58:07Z"
