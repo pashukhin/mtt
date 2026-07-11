@@ -596,8 +596,8 @@ var NewTagEditor func(store TaskStore, now func() time.Time) TagEditor
 // Remove is a thin wrapper over RemoveMany([id]) (set={id} ⇒ every referent
 // external ⇒ identical single-id semantics). [Remove s008.5; RemoveMany s008.9]
 type Remover interface {
-	Remove(id TaskID, force bool) error
-	RemoveMany(ids []TaskID, force bool) []RemoveResult
+	Remove(id TaskID, force bool, by, why string) error
+	RemoveMany(ids []TaskID, force bool, by, why string) ([]RemoveResult, error)
 }
 
 // RemoveResult is one task's outcome in a bulk delete (nil Err on success). [s008.9]
@@ -606,8 +606,9 @@ type RemoveResult struct {
 	Err error
 }
 
-// NewRemover wires the delete usecase — no store-beyond-TaskStore, no clock. [s008.5]
-var NewRemover func(store TaskStore) Remover
+// NewRemover wires the delete usecase — TaskStore + AuditStore + injected clock
+// (audit records --force deletes; who/why forced pre-flight). [s008.5; t5]
+var NewRemover func(store TaskStore, audit AuditStore, now func() time.Time) Remover
 
 // The task-set SELECTOR (explicit ids | stdin '-' | --filter, mutually exclusive)
 // and the --ids output on list/ready are CLI concerns (I/O + flags), NOT a core

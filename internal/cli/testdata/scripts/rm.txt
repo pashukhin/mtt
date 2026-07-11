@@ -21,8 +21,8 @@ stderr 'referenced by t2'
 exec mtt show t1
 stdout 't1  task  \[tbd\]'
 
-# --force deletes t1 despite the reference
-exec mtt rm t1 --force
+# --force deletes t1 despite the reference (forces who+why since t5)
+exec mtt rm t1 --force --who a --why 'stale'
 stdout 'removed t1'
 ! exec mtt show t1
 stderr 'not found'

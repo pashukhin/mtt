@@ -2,6 +2,7 @@ package cli
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/spf13/cobra"
 
@@ -34,7 +35,19 @@ func newRmCmd() *cobra.Command {
 			if dryRun {
 				return previewBulk(cmd, ids)
 			}
-			results := core.NewRemover(yaml.NewTaskStore(root)).RemoveMany(ids, force)
+			_, settings, err := yaml.Load(root)
+			if err != nil {
+				return err
+			}
+			_, by, why, err := resolveAttribution(cmd, settings.Author)
+			if err != nil {
+				return err
+			}
+			remover := core.NewRemover(yaml.NewTaskStore(root), yaml.NewAuditStore(root), time.Now)
+			results, err := remover.RemoveMany(ids, force, by, why)
+			if err != nil {
+				return err // pre-flight ErrMissingAttribution → exit 2 (raw, not via reportBulk)
+			}
 			items := make([]bulkItem, 0, len(results))
 			for _, r := range results {
 				items = append(items, bulkItem{id: r.ID, err: r.Err})
@@ -61,7 +74,16 @@ func runRmSingle(cmd *cobra.Command, root, idArg string, force, dryRun bool) err
 	if dryRun {
 		return previewBulk(cmd, []mtt.TaskID{id})
 	}
-	if err := core.NewRemover(yaml.NewTaskStore(root)).Remove(id, force); err != nil {
+	_, settings, err := yaml.Load(root)
+	if err != nil {
+		return err
+	}
+	_, by, why, err := resolveAttribution(cmd, settings.Author)
+	if err != nil {
+		return err
+	}
+	remover := core.NewRemover(yaml.NewTaskStore(root), yaml.NewAuditStore(root), time.Now)
+	if err := remover.Remove(id, force, by, why); err != nil {
 		return err
 	}
 	if err := clearCurrentIfMatches(root, id); err != nil {
