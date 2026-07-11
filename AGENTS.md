@@ -116,10 +116,12 @@ agent: **test-before-code** (TDD: red → green → refactor), the **Principles 
 
 - Branches: mtt work runs on flow-created `task/<id>` branches; `feat/…`, `fix/…`, `chore/…` remain for
   non-task exceptions (bootstrap/infra). Small commits, imperative mood.
-- Don't push or create a remote without an explicit request from the user.
+- The flow's `post:` actions push automatically (`approve` pushes the task branch, `deliver` pushes
+  main). Outside the flow, don't push or create a remote without an explicit request from the user.
 - Commit under the user's configured git identity (don't override it).
 - Commit trailer:
-  `Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>`
+  the acting model's own line, `Co-Authored-By: <acting model name> <noreply@anthropic.com>` — truthful
+  attribution, never another model's name.
 
 ## Sessions → tasks
 
