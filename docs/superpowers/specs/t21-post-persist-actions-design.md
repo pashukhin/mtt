@@ -39,9 +39,14 @@ the **pre** phase already exists (s008 compensation); the **post** phase is deli
 
 - `Transition.Post []Command` — new field, **reusing** the existing `Command` value object (`{Run, Timeout,
   Rollback}`). Empty = no post phase. Placed after `Require` in the struct.
-- `Config.Validate` extends the transition check to `Post[].Valid()` (same rule as `Commands`). A post
-  command's `Rollback` is **ignored at run time** (the post phase is not compensated — D4); `Valid()` still
-  accepts the shape (a leaf rollback) for symmetry — documented, not specially enforced.
+- `Config.Validate` extends the transition check to `Post[].Valid()` (same rule as `Commands`), with a
+  **distinct error string** — `invalid post command …` (not "invalid command …"), so an operator can tell which
+  list is malformed (the parallel `Commands` loop keeps its wording).
+- A post command's `Rollback` is **ignored at run time** (the post phase is not compensated — D4). Note the
+  asymmetry: `expandCommands` still expands `Rollback.Run` for a post command (it recurses over the whole
+  `Command`), so a malformed post-rollback *template* surfaces as `ErrPostAction` at expand time even though the
+  rollback would never run. Acceptable (fail-fast on a bad template); documented so no one relies on a post
+  rollback executing.
 
 ## 4. Core (`internal/core`)
 
@@ -49,19 +54,29 @@ the **pre** phase already exists (s008 compensation); the **post** phase is deli
   failed."
 - `Transitioner.Transition` gains a **post phase after `store.Update`**. New order:
   ```
-  validate edge → attribution → pre-gate(commands) → persist(store.Update) → [POST: run(edge.Post)]
+  validate edge → attribution → [!NoRun: pre-gate(commands)] → persist(store.Update) → [!NoRun & len(Post)>0: POST run(edge.Post)]
   ```
-  Post phase (only when `len(edge.Post) > 0`):
+  **`--no-run` skips BOTH phases (M1).** The post phase runs **only when `!opts.NoRun`** — same guard as the
+  pre-gate. `--no-run` means "bypass the edge's commands", and `post:` are commands, so it skips them too.
+  Rationale: otherwise `mtt status <id> done --no-run` would skip `deliver`'s pre-gate `git switch main` yet
+  still run the post `git commit`, committing `done` on the **task branch** (the exact wrong-branch failure the
+  two-phase model exists to prevent). With `--no-run` the persist still happens; finalization is the operator's
+  job (the escape hatch's whole point). `from`/`to`/`t.ID`/`t.Type` are all in scope after `store.Update`, so
+  the post `cmdContext{ID, Type, From, To}` is built from the same values as the pre-gate.
+  Post phase (only when `!opts.NoRun && len(edge.Post) > 0`):
   - `expandCommands(edge.Post, cmdContext{ID, Type, From, To})` — the **same** expander and the **same**
-    context as the pre-gate (`From` = pre-move status, `To` = new status → correct for a
+    context as the pre-gate (`From` = pre-move status `from`, `To` = new status → correct for a
     `"{{.ID}}: {{.From}} → {{.To}}"` commit subject). An expand error → `(persisted, ErrPostAction)`.
   - `runner.Run(expanded)` — the **same** `Runner` port. An operational error or a non-zero check
     (`firstFailure`) → `(persisted, ErrPostAction)` wrapping the cause.
   - **No compensation, no rollback, no second `Update`.** Post checks are **not** written to history (persist
-    already happened; the failure is surfaced in-band, not recorded).
+    already happened; the failure is surfaced in-band, not recorded — see §11 on the observability trade-off).
   - On success → `(persisted, nil)` (unchanged from today).
-- `persisted` is the task returned by `store.Update` — always the real, persisted state, so the CLI can render
-  the move even when `ErrPostAction` is returned.
+- **New return contract (M2), stated explicitly:** today every error path returns `mtt.Task{}` (`err ⇒ no
+  move`, codified in the `Transition` godoc + `internal/core/CLAUDE.md`). `ErrPostAction` is the **single**
+  exception: it returns the **persisted** task *with* a non-nil error (the move happened; only the finalization
+  failed). This must be documented in the method godoc, `docs/architecture/model.go`'s `Transitioner` block,
+  and `internal/core/CLAUDE.md`. The sole caller is `internal/cli/status.go` (§6).
 
 ## 5. Adapter (`internal/adapter/yaml`)
 
@@ -71,12 +86,42 @@ the **pre** phase already exists (s008 compensation); the **post** phase is deli
 
 ## 6. CLI (`internal/cli`)
 
-- `runTransition`: after `tr.Transition(...)` returns `(task, err)`:
-  - `err == nil` → the existing success path (apply current pointer, print `<id>: from → to` + guidance).
-  - `errors.Is(err, ErrPostAction)` → the **move happened**: run the same success rendering (`applyCurrent`,
-    print the move + guidance), **then** write `move applied, but a post-action failed: <cause>` to stderr and
-    **return the error** (so the process exits non-zero). `task` is the persisted state.
-  - any other error → the existing failure handling (blocked-gate hint for `ErrBlocked`, etc.).
+**`runTransition` restructure (B3 — this is a real control-flow change, not an add-on).** Today `runTransition`
+returns on *any* non-nil error from `tr.Transition` (`status.go:100-105`), discarding `task`, and the
+success-render block (`:106-122`, including the `--json` early-return at `:109-111` and the terminal
+`return nil`) runs only on `err == nil`. The new shape:
+
+```go
+task, err := tr.Transition(...)
+postFailed := errors.Is(err, core.ErrPostAction)
+if err != nil && !postFailed {
+    // existing failure handling (blocked-gate hint for ErrBlocked, etc.)
+    if hidden && errors.Is(err, core.ErrBlocked) { return fmt.Errorf("%w\n  hint: …", err) }
+    return err
+}
+// err == nil OR postFailed: the move IS persisted → render it.
+if e := applyCurrent(root, cfg, task, id); e != nil { return fmt.Errorf("…current…: %w", e) }
+if jsonFlag(cmd) {
+    if e := writeJSON(cmd.OutOrStdout(), toTaskJSON(task)); e != nil { return e }
+    return err // B2: nil on success, ErrPostAction on post-failure → exit 5 preserved even in --json
+}
+// text mode: print "<id>: from → to" + moveGuidance (existing)
+…
+if postFailed {
+    fmt.Fprintf(cmd.ErrOrStderr(), "move applied, but a post-action failed: %v\n", err)
+}
+return err // nil on success, ErrPostAction on post-failure
+```
+
+- **`--json` (B2):** the JSON branch emits the persisted task object as today, then **returns `err`** (not
+  `nil`), so `ErrPostAction` still maps to **exit 5**. The failure is never swallowed. (The move object is
+  honest — the status *did* change; the non-zero exit signals the post failure. Adding an error field to the
+  JSON is optional and out of scope.)
+- **`exitCode`** (`root.go`): add `case errors.Is(err, core.ErrPostAction): return 5` (5 is free; 3 stays
+  pre-gate block = status unchanged).
+- `mtt types` (`writeTypeBlock`): render a post phase under an edge as `⇢ <post.Run>` (+ `(timeout …)`),
+  **after** the `$ <command>` lines and the `↩ <rollback>` line (order: `$` gate → `↩` rollback → `⇢` post) —
+  mirrors the existing rollback render (`types.go:109`). Discoverability; cheap.
 - `exitCode` (`root.go`): add `case errors.Is(err, core.ErrPostAction): return 5` (5 is free; 3 stays
   pre-gate block = status unchanged).
 - `mtt types` (`writeTypeBlock`): render a post phase under an edge (e.g. `⇢ <post.Run>` + `(timeout …)`),
@@ -84,17 +129,22 @@ the **pre** phase already exists (s008 compensation); the **post** phase is deli
 
 ## 7. Repo config + docs (mechanizing our own pain)
 
-- Add to the committed `.mtt/config.yaml`, on **every edge** (each one changes the status and must commit it —
-  `start`, the three `submit`, the `approve` edges, the `decline` edges, `deliver`, and the `cancel` edges):
+- Add to the committed `.mtt/config.yaml`, on **every edge** (each changes the status and must commit it —
+  `start`, the three `submit`, the `approve` edges, the `decline` edges, `deliver`, and the `cancel` edges; ~38
+  edges across `task`+`chore`). **The command MUST be a single-quoted YAML scalar** (B1 — the repo rule,
+  AGENTS.md; an unquoted scalar with the `: ` inside `{{.ID}}: ` is parsed as a mapping and hard-errors
+  `yaml.Load` for the whole config), and use a **`-- .mtt` pathspec** so it commits only `.mtt` and never
+  sweeps up unrelated staged files (nit — footgun):
   ```yaml
   post:
-    - git add .mtt && git commit -m "{{.ID}}: {{.From}} → {{.To}}"
+    - 'git add .mtt && git commit -m "{{.ID}}: {{.From}} → {{.To}}" -- .mtt'
   ```
   For `deliver`/`cancel` the pre-gate already ran `git switch main`, so the post commit lands on `main` —
-  which **removes the two manual steps**.
-- Update `TestRepoDogfoodConfig` if it asserts anything the new `post:` blocks touch (it pins transition
-  **counts**, not `post` — so a `post` add doesn't redden it; add a spot assertion only if we want the field
-  guarded, mirroring the t5 `require` note).
+  which **removes the two manual steps** (and fully replaces them; nothing else was manual there).
+- **`TestRepoDogfoodConfig` (M3):** it pins transition **counts** and `Commands`, never `Post`, so adding
+  `post:` neither reddens nor guards it. Given ~38 identical blocks (the DRY smell deferred to t24), add a
+  **spot assertion** that every non-... edge carries the expected `post` (e.g. count edges with a non-empty
+  `Post` == total, or assert the exact `post` on a representative edge) — so a dropped/drifted block is caught.
 - Remove the "two manual steps remain" bullet from [AGENTS.md](../../../AGENTS.md) ("Working under mtt") and
   note post-persist auto-commit; sync `DESIGN.md`/`.ru`, `CLI_REFERENCE.md`/`.ru`, and the touched `CLAUDE.md`.
 
@@ -103,10 +153,12 @@ the **pre** phase already exists (s008 compensation); the **post** phase is deli
 - **Pre-gate block** (unchanged): `ErrBlocked` → exit 3, status **not** changed, succeeded-prefix compensated.
 - **Post failure**: `ErrPostAction` → exit **5**, status **kept** (move is valid), `.mtt` may be left
   uncommitted — the operator commits it by hand; mtt never rolls back a valid move for a post hiccup.
-- **Commit "nothing to commit"** caveat: `git commit` exits non-zero when there is nothing staged. The repo
-  `post` uses `git add .mtt && git commit …`; if a move somehow wrote no file change, the commit fails → exit
-  5. Acceptable (loud), and in practice every move rewrites the task file. (A `git diff --cached --quiet ||
-  git commit` guard is a config choice, not a mechanism concern.)
+- **Commit "nothing to commit"**: near-impossible in practice — every persist appends a `HistoryEntry` and
+  bumps `Updated` (`transition.go`), so the task file content **always** changes and `git add .mtt` always
+  stages it. (Even a re-submit writes a new history row.) So the `git commit` won't spuriously fail; if it
+  somehow did, exit 5 is loud and honest.
+- **`--no-run`**: skips the post phase entirely (M1) — the persist still happens, but nothing is committed;
+  finalization is the operator's job (consistent with "bypass the edge's commands").
 
 ## 9. Testing (TDD)
 
@@ -114,13 +166,17 @@ the **pre** phase already exists (s008 compensation); the **post** phase is deli
   runner/probe sees the store already at `to` when post runs; (b) a failing post command → `ErrPostAction`
   **and** the store shows the **new** status (persisted, not rolled back); (c) an edge with no `Post` is
   byte-identical to today (no runner call for a post phase); (d) post placeholders expand (`{{.ID}}` → the
-  real id reaches the runner); (e) an expand error in `Post` → `ErrPostAction` (not a plain error).
+  real id reaches the runner); (e) an expand error in `Post` → `ErrPostAction` (not a plain error); (f)
+  **`NoRun=true` skips the post phase** even when `Post` is set (M1 — no runner call, status still persisted).
 - **`adapter/yaml`**: decode an edge with `post:` (both a scalar command and a `{run,timeout}` map) →
   `Transition.Post` populated.
 - **`internal/cli` e2e** `post_actions.txt`: an edge whose `post:` is `[echo POSTRAN]` → the move prints and
   the post runs (assert both the move line and `POSTRAN`); an edge whose `post:` is a failing command (`false`)
-  → **exit 5**, and `mtt show` confirms the status **did** change (move kept).
-- **Guard:** `make check` green; update `TestRepoDogfoodConfig` if needed.
+  → **exit 5**, and `mtt show` confirms the status **did** change (move kept); the **same failing edge with
+  `--json`** → **exit 5** too (B2 — the failure isn't swallowed in JSON mode); the failing edge with `--no-run`
+  → exit 0 and no post output (M1).
+- **`TestRepoDogfoodConfig`** (M3): add the spot assertion (every edge carries the expected `post`).
+- **Guard:** `make check` green.
 
 ## 10. Affected files
 
@@ -136,7 +192,11 @@ CLAUDE ×2-3).
 - **Global/default `post`** and its precedence vs per-edge — deferred to **t24**.
 - **Post-phase rollback/compensation** — the post phase is non-transactional by design (D4).
 - **Recording post checks in history** — not written (persist precedes post; a second `Update` is not worth
-  it).
+  it). **Observability trade-off (accepted):** a post that fails (exit 5) and is fixed by hand leaves no trace
+  in `mtt show` — asymmetric vs pre-gate checks, and for `deliver` the manual commit was previously the on-main
+  audit. Acceptable because the git commit itself *is* the durable record on success, and a failure is loud
+  (exit 5) at the moment. Recording post checks (a second `Update`, or an audit line) is a future option, not
+  t21.
 - **`push` as a post-action** — outward; stays manual (a `post` *could* run it, but the repo config won't).
 - **Changing the pre-gate semantics** — `commands:` and s008 compensation are untouched.
 
@@ -147,3 +207,7 @@ CLAUDE ×2-3).
 2. A post failure **never** rolls back a persisted move — the status is authoritative once written.
 3. Post reuses the exact pre-gate machinery (`expandCommands`, `Runner`, `firstFailure`) and the same
    `{ID,Type,From,To}` context — one expander, one runner, two phases.
+4. **`--no-run` skips BOTH phases** (gate and post) — the same `!opts.NoRun` guard wraps both; the persist
+   still happens, finalization does not.
+5. `ErrPostAction` is the **only** case where `Transition` returns a **valid task with a non-nil error** (move
+   persisted, finalization failed) — every other error path returns an empty task.
