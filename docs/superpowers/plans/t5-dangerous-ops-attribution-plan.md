@@ -11,12 +11,12 @@
 ## Global Constraints
 
 - **TDD, red→green→refactor.** Write the failing test first; run it; implement minimally; run; commit.
-- **`make check` green before every commit** (gofmt + go vet + golangci-lint v2 + `go test -race -cover` + build). No unused vars (lint fails the build).
+- **`make check` green before EVERY commit** (gofmt + go vet + golangci-lint v2 + `go test -race -cover` + build over `./...`). No unused vars. **Signature changes to an exported symbol must be atomic with all their callers in one commit** — never commit a tree where `go build ./...` fails.
 - **Hexagonal boundaries:** `cli → core → port ← adapter`. Policy in `core`; storage/audit only through a port; no business logic in `cli`; `pkg/mtt` holds domain types + ports.
-- **Sentinels are core policy:** `ErrMissingAttribution` → CLI **exit 2** (existing `exitCode` map in `internal/cli/root.go:171-184`).
-- **Attribution wording:** the missing-fields message is `mtt: missing required attribution: <fields>` (existing `ErrMissingAttribution` text + `strings.Join(missing, ", ")`), produced from ONE shared helper.
-- **Anti-vacuity:** `who` is pre-satisfied in this repo (global `require.who: true` + `config.local` author). Any test asserting a path *forces who* MUST set `RequireWho=false` **and** empty `By`, else it passes vacuously.
+- **`ErrMissingAttribution` → CLI exit 2** (existing `exitCode` map, `internal/cli/root.go:171-184`). Its text is `mtt: missing required attribution` (`internal/core/runner.go:38`); the missing fields are appended via `strings.Join(missing, ", ")` from ONE shared helper.
+- **Anti-vacuity:** `who` is pre-satisfied in this repo (global `require.who: true` + `config.local` author). Any test asserting a path *forces who* MUST set `RequireWho=false` **and** empty `By` (unit) / no `MTT_BY` and no global `require.who` (e2e), else it passes vacuously.
 - **Time:** UTC, truncated to seconds (`now().UTC().Truncate(time.Second)`), matching existing history stamps.
+- **Test helpers already in package `core`** (reuse — do NOT invent new names): `newMemStore(tasks ...mtt.Task) *memStore` (`dependency_test.go:18`), `baseTask() mtt.Task` (id `t1`, status `tbd`; `transition_test.go:92`), `testClock` (`transition_test.go:90`), `fakeRunner` with **pointer** receivers → always `&fakeRunner{}` (`transition_test.go:14-29`), `flowCfg(cmdsA, cmdsB []string) mtt.Config` (type `task`; edges `tbd→in_progress` [cmdsA], `tbd→cancelled`, `in_progress→done` [cmdsB], `in_progress→cancelled`; `transition_test.go:66`).
 
 ---
 
@@ -24,16 +24,16 @@
 
 - `pkg/mtt/config.go` — **modify**: add `type Require struct{Who,Why bool}`; add `Require` field to `Transition`.
 - `pkg/mtt/audit.go` — **create**: `AuditEntry` + `AuditStore` port.
-- `internal/core/transition.go` — **modify**: refactor `missingAttribution` → shared field-level helper; union `effWho/effWhy`.
-- `internal/core/remove.go` — **modify**: `Remover` gains `audit` + `now`; new `NewRemover`/`Remove`/`RemoveMany` signatures; pre-flight check; append-before-delete.
+- `internal/core/transition.go` — **modify**: `missingAttribution` → shared `missingAttributionFields`; union `effWho/effWhy`.
+- `internal/core/remove.go` — **modify**: `Remover` gains `audit`+`now`; new signatures; pre-flight; append-before-delete.
 - `internal/adapter/yaml/audit.go` — **create**: `AuditStore` impl (JSONL append to `.mtt/audit.log`).
-- `internal/adapter/yaml/dto.go` — **modify**: `ymlTransition.Require`; map it in `toConfig`.
-- `internal/cli/rm.go` — **modify**: load settings, resolve attribution, wire audit store, thread `by`/`why`, forward the pre-flight error raw.
+- `internal/adapter/yaml/dto.go` — **modify**: `ymlTransition.Require`; map it in `ymlConfig.toDomain`.
+- `internal/cli/rm.go` — **modify**: load settings, resolve attribution, wire audit store, thread `by`/`why`, forward the pre-flight error raw. (Changed **atomically with** `remove.go` in Task 3.)
 - `.gitattributes` — **create**: `/.mtt/audit.log merge=union`.
 - `internal/cli/testdata/scripts/dangerous.txt` — **create**: e2e for `--no-run` and `rm --force`.
-- `docs/architecture/model.go` — **modify**: `Remover`/`NewRemover` declarations.
-- Tests: `internal/core/transition_test.go`, `internal/core/remove_test.go`, `internal/adapter/yaml/audit_test.go`, plus a decode test in `internal/adapter/yaml`.
-- Docs sync (final task): `DESIGN.md`/`DESIGN.ru.md`, `CLI_REFERENCE.md`/`CLI_REFERENCE.ru.md`, `AGENTS.md`, three package `CLAUDE.md` (cli/core/adapter-yaml).
+- `docs/architecture/model.go` — **modify**: add `AuditEntry`/`AuditStore` (Task 2); reshape `Remover`/`NewRemover` (Task 3). NOTE: this is `package architecture` — it declares its OWN port types (no `pkg/mtt` import); add architecture-local mirrors.
+- Tests: `internal/core/transition_test.go`, `internal/core/remove_test.go`, `internal/adapter/yaml/audit_test.go`, `internal/adapter/yaml/dto_require_test.go`.
+- Docs sync (Task 6): `DESIGN.md`/`.ru`, `CLI_REFERENCE.md`/`.ru`, `AGENTS.md`, three package `CLAUDE.md`.
 
 ---
 
@@ -41,12 +41,12 @@
 
 **Files:**
 - Modify: `pkg/mtt/config.go` (add `Require` type + `Transition.Require` field)
-- Modify: `internal/core/transition.go:63` (call site) and `:115-126` (`missingAttribution` → `missingAttributionFields`)
+- Modify: `internal/core/transition.go` (`missingAttribution` at ~115-126 → `missingAttributionFields`; the check at ~63 → union)
 - Test: `internal/core/transition_test.go`
 
 **Interfaces:**
-- Produces: `mtt.Require{Who bool; Why bool}`; `mtt.Transition.Require Require`; `core.missingAttributionFields(reqWho, reqWhy bool, by, why string) []string` (unexported, package `core`).
-- Consumes: existing `TransitionOptions{Role,By,Why,NoRun,RequireWho,RequireWhy}`, `ErrMissingAttribution`.
+- Produces: `mtt.Require{Who bool; Why bool}`; `mtt.Transition.Require Require`; `core.missingAttributionFields(reqWho, reqWhy bool, by, why string) []string`.
+- Consumes: existing `TransitionOptions`, `ErrMissingAttribution`, `edge` (already looked up in `Transition`).
 
 - [ ] **Step 1: Add the domain types.** In `pkg/mtt/config.go`, add after the `Transition` struct:
 
@@ -66,63 +66,61 @@ and add the field to `Transition` (after `Current`):
 	Require Require // per-edge required attribution (zero = none); unioned with global + --no-run
 ```
 
-- [ ] **Step 2: Write the failing test.** In `internal/core/transition_test.go`, add (use the file's existing fake `TaskStore`/`Runner` helpers and `cfg` builders — mirror a neighboring test for setup):
+- [ ] **Step 2: Write the failing tests.** In `internal/core/transition_test.go`, add (uses the real helpers; ensure the file imports `errors` and `strings` — add them if absent):
 
 ```go
-func TestTransition_NoRunForcesWhyAndWho(t *testing.T) {
-	// Edge with no require and no commands; global policy OFF → only --no-run forces.
-	store := newFakeStore(taskAt("t1", "speccing")) // helper: task in status "speccing"
-	cfg := cfgWithEdge("speccing", "planning")      // helper: one type, one edge, no commands/require
-	tr := NewTransitioner(store, cfg, fakeRunner{}, fixedNow)
+func TestTransition_NoRunForcesWhoAndWhy(t *testing.T) {
+	store := newMemStore(baseTask())      // t1 @ tbd
+	cfg := flowCfg(nil, nil)              // edge tbd→in_progress: no commands, no require
+	tr := NewTransitioner(store, cfg, &fakeRunner{}, testClock)
 
-	// (b) missing why → error, mentioning why (who is present via By)
-	_, err := tr.Transition("t1", "planning", TransitionOptions{By: "alice", NoRun: true})
+	// (b) missing why (By present) → error mentions why
+	_, err := tr.Transition("t1", "in_progress", TransitionOptions{By: "alice", NoRun: true})
 	if !errors.Is(err, ErrMissingAttribution) || !strings.Contains(err.Error(), "why") {
 		t.Fatalf("no-run without why: want ErrMissingAttribution mentioning why, got %v", err)
 	}
 
-	// (b′) non-vacuous who: RequireWho=false AND By="" → who forced by --no-run
-	_, err = tr.Transition("t1", "planning", TransitionOptions{Why: "bypass ci", NoRun: true})
+	// (b′) non-vacuous who: RequireWho=false AND By="" → who forced solely by --no-run
+	_, err = tr.Transition("t1", "in_progress", TransitionOptions{Why: "bypass ci", NoRun: true})
 	if !errors.Is(err, ErrMissingAttribution) || !strings.Contains(err.Error(), "who") {
 		t.Fatalf("no-run without who: want ErrMissingAttribution mentioning who, got %v", err)
 	}
 
 	// success: both present → moves, Why recorded
-	task, err := tr.Transition("t1", "planning", TransitionOptions{By: "alice", Why: "bypass ci", NoRun: true})
+	got, err := tr.Transition("t1", "in_progress", TransitionOptions{By: "alice", Why: "bypass ci", NoRun: true})
 	if err != nil {
 		t.Fatalf("no-run with who+why: unexpected error %v", err)
 	}
-	if got := task.History[len(task.History)-1].Why; got != "bypass ci" {
-		t.Fatalf("Why not recorded: got %q", got)
+	if w := got.History[len(got.History)-1].Why; w != "bypass ci" {
+		t.Fatalf("Why not recorded: got %q", w)
 	}
 }
 
 func TestTransition_PerEdgeRequireUnionsWithGlobal(t *testing.T) {
-	store := newFakeStore(taskAt("t1", "speccing"))
-	cfg := cfgWithRequireEdge("speccing", "planning", mtt.Require{Why: true}) // edge require: why
-	tr := NewTransitioner(store, cfg, fakeRunner{}, fixedNow)
+	store := newMemStore(baseTask())
+	cfg := flowCfg(nil, nil)
+	cfg.Types[0].Transitions[0].Require = mtt.Require{Why: true} // tbd→in_progress requires why
+	tr := NewTransitioner(store, cfg, &fakeRunner{}, testClock)
 
 	// global who + edge why → both required; give only who → missing why
-	_, err := tr.Transition("t1", "planning", TransitionOptions{By: "alice", RequireWho: true})
+	_, err := tr.Transition("t1", "in_progress", TransitionOptions{By: "alice", RequireWho: true})
 	if !errors.Is(err, ErrMissingAttribution) || !strings.Contains(err.Error(), "why") {
 		t.Fatalf("union: want missing why, got %v", err)
 	}
 }
 ```
 
-> If helpers like `cfgWithRequireEdge`/`taskAt` don't exist, add small local builders in the test file (do not export). Keep them beside the test.
+- [ ] **Step 3: Run the tests — verify they fail.**
 
-- [ ] **Step 3: Run the test — verify it fails.**
+Run: `go test ./internal/core/ -run 'TestTransition_(NoRunForces|PerEdgeRequire)' -v`
+Expected: FAIL — the moves currently **succeed** (no-run bypasses attribution today; per-edge `require` is ignored), so the assertions fail with "unexpected error <nil>" / "want ErrMissingAttribution … got <nil>".
 
-Run: `go test ./internal/core/ -run TestTransition_NoRunForces -v`
-Expected: FAIL (compile error `Require` unknown, or wrong behavior — `missingAttribution` ignores `NoRun`/`edge`).
-
-- [ ] **Step 4: Refactor the helper and add the union.** In `internal/core/transition.go`, replace `missingAttribution` (lines ~115-126):
+- [ ] **Step 4: Refactor the helper and add the union.** In `internal/core/transition.go`, replace `missingAttribution` (lines ~115-126) with the field-level helper:
 
 ```go
 // missingAttributionFields reports which required attribution fields (who/why) are
-// absent, aggregated so the caller can fix them all in one shot. The single home
-// for the who/why field check, shared by the transition path and the rm pre-flight.
+// absent, aggregated so the caller fixes them all at once. The single home for the
+// who/why check, shared by the transition path and the rm --force pre-flight.
 func missingAttributionFields(reqWho, reqWhy bool, by, why string) []string {
 	var missing []string
 	if reqWho && by == "" {
@@ -135,7 +133,7 @@ func missingAttributionFields(reqWho, reqWhy bool, by, why string) []string {
 }
 ```
 
-Then in `Transition`, replace the check at line ~63 (the `if missing := missingAttribution(opts); …` block) with the union, using the already-found `edge`:
+Then in `Transition`, replace the check at line ~63 (`if missing := missingAttribution(opts); …`) with the union, using the already-found `edge`:
 
 ```go
 	effWho := opts.RequireWho || edge.Require.Who || opts.NoRun
@@ -147,13 +145,13 @@ Then in `Transition`, replace the check at line ~63 (the `if missing := missingA
 
 - [ ] **Step 5: Run the tests — verify they pass.**
 
-Run: `go test ./internal/core/ -run 'TestTransition_(NoRunForces|PerEdgeRequire)' -v`
-Expected: PASS. Also run the whole core package to catch regressions: `go test ./internal/core/`
-Expected: PASS (existing attribution tests still green — the helper is behavior-equivalent when `NoRun=false` and `edge.Require` is zero).
+Run: `go test ./internal/core/ -run 'TestTransition' -v`
+Expected: PASS (new + all existing transition tests — the helper is behavior-equivalent when `NoRun=false` and `edge.Require` is zero).
 
-- [ ] **Step 6: Commit.**
+- [ ] **Step 6: `make check`, then commit.**
 
 ```bash
+make check
 git add pkg/mtt/config.go internal/core/transition.go internal/core/transition_test.go
 git commit -m "feat(t5): union required-attribution (global + per-edge + --no-run) in Transitioner"
 ```
@@ -165,11 +163,11 @@ git commit -m "feat(t5): union required-attribution (global + per-edge + --no-ru
 **Files:**
 - Create: `pkg/mtt/audit.go`
 - Create: `internal/adapter/yaml/audit.go`
+- Modify: `docs/architecture/model.go` (add architecture-local `AuditEntry`/`AuditStore` near the other ports, ~line 631 by `Runner`)
 - Test: `internal/adapter/yaml/audit_test.go`
 
 **Interfaces:**
-- Produces: `mtt.AuditEntry{At time.Time; Who, Why, Action string; TaskID TaskID}`; `mtt.AuditStore` interface (`Append(AuditEntry) error`); `yaml.NewAuditStore(root string) *AuditStore` returning a value that satisfies `mtt.AuditStore`.
-- Consumes: nothing new.
+- Produces: `mtt.AuditEntry{At time.Time; Who, Why, Action string; TaskID TaskID}`; `mtt.AuditStore` (`Append(AuditEntry) error`); `yaml.NewAuditStore(root string) *AuditStore` (satisfies `mtt.AuditStore`).
 
 - [ ] **Step 1: Define the port.** Create `pkg/mtt/audit.go`:
 
@@ -203,6 +201,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -225,13 +224,16 @@ func TestAuditStore_AppendWritesJSONL(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read log: %v", err)
 	}
-	lines := splitNonEmpty(string(raw)) // local helper below
+	var lines []string
+	for _, l := range strings.Split(string(raw), "\n") {
+		if l != "" {
+			lines = append(lines, l)
+		}
+	}
 	if len(lines) != 2 {
 		t.Fatalf("want 2 lines, got %d: %q", len(lines), raw)
 	}
-	var got struct {
-		At, Who, Why, Action, ID string
-	}
+	var got struct{ At, Who, Why, Action, ID string }
 	if err := json.Unmarshal([]byte(lines[0]), &got); err != nil {
 		t.Fatalf("line 0 not JSON: %v", err)
 	}
@@ -249,24 +251,12 @@ func TestAuditStore_AppendCreatesMttDir(t *testing.T) {
 		t.Fatalf("log not created: %v", err)
 	}
 }
-
-func splitNonEmpty(s string) []string {
-	var out []string
-	for _, l := range strings.Split(s, "\n") {
-		if l != "" {
-			out = append(out, l)
-		}
-	}
-	return out
-}
 ```
-
-> Add `"strings"` to the test imports.
 
 - [ ] **Step 3: Run the test — verify it fails.**
 
 Run: `go test ./internal/adapter/yaml/ -run TestAuditStore -v`
-Expected: FAIL (`NewAuditStore` undefined).
+Expected: FAIL (`undefined: NewAuditStore`).
 
 - [ ] **Step 4: Implement the adapter.** Create `internal/adapter/yaml/audit.go`:
 
@@ -304,14 +294,13 @@ func (s *AuditStore) Append(e mtt.AuditEntry) error {
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return fmt.Errorf("audit: mkdir %s: %w", dir, err)
 	}
-	line := auditLine{
+	b, err := json.Marshal(auditLine{
 		At:     e.At.UTC().Format(time.RFC3339),
 		Who:    e.Who,
 		Why:    e.Why,
 		Action: e.Action,
 		ID:     string(e.TaskID),
-	}
-	b, err := json.Marshal(line)
+	})
 	if err != nil {
 		return fmt.Errorf("audit: marshal: %w", err)
 	}
@@ -327,38 +316,63 @@ func (s *AuditStore) Append(e mtt.AuditEntry) error {
 }
 ```
 
-- [ ] **Step 5: Run the tests — verify they pass.**
+- [ ] **Step 5: Mirror the port in the architecture reference.** In `docs/architecture/model.go`, add near the `Runner` port (this file is `package architecture` and defines its own types — do NOT import `pkg/mtt`):
+
+```go
+// AuditEntry records one out-of-flow dangerous action (a --force destruction with
+// no task history to carry its attribution). [t5]
+type AuditEntry struct {
+	At     time.Time
+	Who    string
+	Why    string
+	Action string
+	TaskID TaskID
+}
+
+// AuditStore appends dangerous-action records; append-only (no read surface). [t5]
+type AuditStore interface {
+	Append(AuditEntry) error
+}
+```
+
+- [ ] **Step 6: Run the tests — verify they pass.**
 
 Run: `go test ./internal/adapter/yaml/ -run TestAuditStore -v`
 Expected: PASS (both).
 
-- [ ] **Step 6: Commit.**
+- [ ] **Step 7: `make check`, then commit.**
 
 ```bash
-git add pkg/mtt/audit.go internal/adapter/yaml/audit.go internal/adapter/yaml/audit_test.go
+make check
+git add pkg/mtt/audit.go internal/adapter/yaml/audit.go internal/adapter/yaml/audit_test.go docs/architecture/model.go
 git commit -m "feat(t5): AuditStore port + JSONL .mtt/audit.log adapter"
 ```
 
 ---
 
-## Task 3: Remover — force ⇒ who+why (pre-flight) + append-before-delete
+## Task 3: Remover force-policy + audit (core + CLI + model, ATOMIC)
+
+> This task changes the exported `NewRemover`/`Remove`/`RemoveMany` signatures. Their ONLY callers are `internal/cli/rm.go:37` and `:64` (verified repo-wide) plus the tests and `model.go`. All are fixed **in this one commit** so `go build ./...` never breaks (Global Constraints).
 
 **Files:**
 - Modify: `internal/core/remove.go`
-- Modify: `docs/architecture/model.go:598-611`
-- Test: `internal/core/remove_test.go` (update ~11 call sites + new cases)
+- Modify: `internal/cli/rm.go`
+- Modify: `docs/architecture/model.go` (`Remover` interface + `NewRemover` var, ~598-611)
+- Test: `internal/core/remove_test.go`
 
 **Interfaces:**
-- Consumes: `mtt.AuditStore` (Task 2), `missingAttributionFields` (Task 1).
+- Consumes: `mtt.AuditStore` (Task 2), `missingAttributionFields` (Task 1), `resolveAttribution(cmd, author) (role, by, why string, err error)` (`internal/cli/status.go:180`), `yaml.Load(root) (mtt.Config, Settings, error)`, `yaml.NewAuditStore(root)`.
 - Produces: `NewRemover(store mtt.TaskStore, audit mtt.AuditStore, now func() time.Time) *Remover`; `RemoveMany(ids []mtt.TaskID, force bool, by, why string) ([]RemoveResult, error)`; `Remove(id mtt.TaskID, force bool, by, why string) error`.
 
-- [ ] **Step 1: Write the failing tests.** In `internal/core/remove_test.go`, add a fake audit store and new cases (and update existing `NewRemover(store)` call sites — see Step 4):
+- [ ] **Step 1: Write the failing tests.** In `internal/core/remove_test.go`, add the fake audit store, a `deleted` probe on `memStore`, and the new cases:
 
 ```go
+// deleted reports whether id is absent from the store (memStore.Delete removes it).
+func (m *memStore) deleted(id mtt.TaskID) bool { _, ok := m.byID[id]; return !ok }
+
 type fakeAudit struct {
 	entries  []mtt.AuditEntry
-	failOnID mtt.TaskID // if set, Append returns an error for that id
-	order    []string   // "append:<id>" / used with fakeStore to assert ordering
+	failOnID mtt.TaskID // if set, Append errors for that id
 }
 
 func (f *fakeAudit) Append(e mtt.AuditEntry) error {
@@ -369,12 +383,14 @@ func (f *fakeAudit) Append(e mtt.AuditEntry) error {
 	return nil
 }
 
-func TestRemoveMany_ForceRequiresWhoAndWhy(t *testing.T) {
-	store := newFakeStore(taskAt("t1", "tbd"))
-	audit := &fakeAudit{}
-	r := NewRemover(store, audit, fixedNow)
+func tbdTask(id mtt.TaskID) mtt.Task {
+	return mtt.Task{ID: id, Type: "task", Status: "tbd", Created: testClock(), Updated: testClock()}
+}
 
-	res, err := r.RemoveMany([]mtt.TaskID{"t1"}, true, "", "") // force, no who/why
+func TestRemoveMany_ForceRequiresWhoAndWhy(t *testing.T) {
+	store := newMemStore(tbdTask("t1"))
+	audit := &fakeAudit{}
+	res, err := NewRemover(store, audit, testClock).RemoveMany([]mtt.TaskID{"t1"}, true, "", "")
 	if !errors.Is(err, ErrMissingAttribution) {
 		t.Fatalf("want pre-flight ErrMissingAttribution, got %v", err)
 	}
@@ -390,11 +406,9 @@ func TestRemoveMany_ForceRequiresWhoAndWhy(t *testing.T) {
 }
 
 func TestRemoveMany_ForceAppendsBeforeDelete(t *testing.T) {
-	store := newFakeStore(taskAt("t1", "tbd"))
+	store := newMemStore(tbdTask("t1"))
 	audit := &fakeAudit{}
-	r := NewRemover(store, audit, fixedNow)
-
-	res, err := r.RemoveMany([]mtt.TaskID{"t1"}, true, "alice", "cleanup")
+	res, err := NewRemover(store, audit, testClock).RemoveMany([]mtt.TaskID{"t1"}, true, "alice", "cleanup")
 	if err != nil {
 		t.Fatalf("pre-flight error: %v", err)
 	}
@@ -402,8 +416,7 @@ func TestRemoveMany_ForceAppendsBeforeDelete(t *testing.T) {
 		t.Fatalf("delete error: %v", res[0].Err)
 	}
 	if len(audit.entries) != 1 || audit.entries[0].TaskID != "t1" ||
-		audit.entries[0].Who != "alice" || audit.entries[0].Why != "cleanup" ||
-		audit.entries[0].Action != "rm --force" {
+		audit.entries[0].Who != "alice" || audit.entries[0].Why != "cleanup" || audit.entries[0].Action != "rm --force" {
 		t.Fatalf("audit entry wrong: %+v", audit.entries)
 	}
 	if !store.deleted("t1") {
@@ -412,11 +425,9 @@ func TestRemoveMany_ForceAppendsBeforeDelete(t *testing.T) {
 }
 
 func TestRemoveMany_AppendFailureSkipsDelete(t *testing.T) {
-	store := newFakeStore(taskAt("t1", "tbd"), taskAt("t2", "tbd"))
+	store := newMemStore(tbdTask("t1"), tbdTask("t2"))
 	audit := &fakeAudit{failOnID: "t1"}
-	r := NewRemover(store, audit, fixedNow)
-
-	res, err := r.RemoveMany([]mtt.TaskID{"t1", "t2"}, true, "alice", "cleanup")
+	res, err := NewRemover(store, audit, testClock).RemoveMany([]mtt.TaskID{"t1", "t2"}, true, "alice", "cleanup")
 	if err != nil {
 		t.Fatalf("pre-flight error: %v", err)
 	}
@@ -432,9 +443,9 @@ func TestRemoveMany_AppendFailureSkipsDelete(t *testing.T) {
 }
 
 func TestRemoveMany_NoForceUnchanged(t *testing.T) {
-	store := newFakeStore(taskAt("t1", "tbd"))
+	store := newMemStore(tbdTask("t1"))
 	audit := &fakeAudit{}
-	res, err := NewRemover(store, audit, fixedNow).RemoveMany([]mtt.TaskID{"t1"}, false, "", "")
+	res, err := NewRemover(store, audit, testClock).RemoveMany([]mtt.TaskID{"t1"}, false, "", "")
 	if err != nil {
 		t.Fatalf("no-force must not pre-flight error: %v", err)
 	}
@@ -447,20 +458,22 @@ func TestRemoveMany_NoForceUnchanged(t *testing.T) {
 }
 ```
 
-> The fake `TaskStore` in this package needs a `deleted(id)` probe. If it doesn't record deletes, extend it (add a `map[mtt.TaskID]bool` set in `Delete`). If `newFakeStore`/`taskAt`/`fixedNow` don't exist, add minimal local versions mirroring `transition_test.go`.
+> Ensure `remove_test.go` imports `errors` and `fmt` (add if absent). If a `tbdTask`-like builder already exists, reuse it and drop the local one.
 
-- [ ] **Step 2: Run the tests — verify they fail.**
+- [ ] **Step 2: Update the existing `NewRemover`/`Remove`/`RemoveMany` call sites in `remove_test.go`.** Run `grep -nE 'NewRemover|\.Remove\(|RemoveMany\(' internal/core/remove_test.go` and mechanically update each: `NewRemover(store)` → `NewRemover(store, &fakeAudit{}, testClock)`; `.Remove(id, force)` → `.Remove(id, force, "who", "why")` (or `"",""` where a non-force path is under test); `res := ….RemoveMany(ids, force)` → `res, _ := ….RemoveMany(ids, force, "who", "why")` (discard the pre-flight error where it isn't the subject; assert it where it is).
+
+- [ ] **Step 3: Run the tests — verify they fail to COMPILE (expected at this stage).**
 
 Run: `go test ./internal/core/ -run TestRemoveMany -v`
-Expected: FAIL (signature mismatch: `NewRemover` wants 1 arg; `RemoveMany` returns 1 value).
+Expected: FAIL — compile error ("not enough arguments in call to NewRemover" / "assignment mismatch: 2 variables but RemoveMany returns 1"). This is the intended red: the signatures don't exist yet.
 
-- [ ] **Step 3: Rewrite `remove.go`.** Replace the top of `internal/core/remove.go` (struct + constructor + Remove + RemoveMany + removeOne) with:
+- [ ] **Step 4: Rewrite `remove.go`.** In `internal/core/remove.go`: add `"time"` to imports; **keep `RemoveResult`, `externalReferencingIDs`, and `dedupIDSlice` exactly as they are** (only the `Remover` struct, `NewRemover`, `Remove`, `RemoveMany`, `removeOne` change). Replace those five:
 
 ```go
 // Remover is the delete-a-task usecase. By default it refuses to delete a task
 // referenced by others; --force overrides. Under --force it FORCES who+why
-// (pre-flight) and writes an audit record BEFORE deleting (no destruction without
-// a preceding record). now is injected for deterministic audit timestamps.
+// (pre-flight) and writes an audit record BEFORE deleting (no destruction without a
+// preceding record). now is injected for deterministic audit timestamps.
 type Remover struct {
 	store mtt.TaskStore
 	audit mtt.AuditStore
@@ -472,9 +485,9 @@ func NewRemover(store mtt.TaskStore, audit mtt.AuditStore, now func() time.Time)
 	return &Remover{store: store, audit: audit, now: now}
 }
 
-// Remove deletes a single id. Thin wrapper over RemoveMany([id]); it forwards the
-// pre-flight error and, absent that, the per-id result error. (The empty-slice
-// check guards the [0] index on the pre-flight path.)
+// Remove deletes a single id. Thin wrapper over RemoveMany([id]); forwards the
+// pre-flight error and, absent that, the per-id result error. The empty-slice check
+// guards the [0] index on the pre-flight path.
 func (r *Remover) Remove(id mtt.TaskID, force bool, by, why string) error {
 	res, err := r.RemoveMany([]mtt.TaskID{id}, force, by, why)
 	if err != nil {
@@ -484,8 +497,8 @@ func (r *Remover) Remove(id mtt.TaskID, force bool, by, why string) error {
 }
 
 // RemoveMany deletes each id best-effort. The error return is the PRE-FLIGHT
-// precondition failure (missing attribution under --force) — returned before any
-// deletion, with a nil results slice; the CLI forwards it raw (exit 2). Per-id
+// precondition failure (missing attribution under --force), returned before any
+// deletion with a nil results slice; the CLI forwards it raw (exit 2). Per-id
 // outcomes ride []RemoveResult. Under --force each id is audited BEFORE delete.
 func (r *Remover) RemoveMany(ids []mtt.TaskID, force bool, by, why string) ([]RemoveResult, error) {
 	if force {
@@ -520,10 +533,10 @@ func (r *Remover) RemoveMany(ids []mtt.TaskID, force bool, by, why string) ([]Re
 	return results, nil
 }
 
-// removeOne deletes one id. Under --force it appends the audit record FIRST; only
-// on a successful append does it delete (so a failed append leaves the task — and
-// the current pointer — intact). Without --force the subgraph referenced-check runs
-// and no audit is written.
+// removeOne deletes one id. Under --force it appends the audit record FIRST; only on
+// a successful append does it delete (a failed append leaves the task — and the
+// current pointer — intact). Without --force the subgraph referenced-check runs and
+// no audit is written.
 func (r *Remover) removeOne(id mtt.TaskID, force bool, by, why string, set map[mtt.TaskID]bool, idx Index, g DepGraph, snapErr error) error {
 	if _, err := r.store.Get(id); err != nil {
 		if errors.Is(err, mtt.ErrNotFound) {
@@ -541,7 +554,6 @@ func (r *Remover) removeOne(id mtt.TaskID, force bool, by, why string, set map[m
 		}
 		return r.store.Delete(id)
 	}
-	// force: record BEFORE destroying.
 	entry := mtt.AuditEntry{At: r.now().UTC().Truncate(time.Second), Who: by, Why: why, Action: "rm --force", TaskID: id}
 	if err := r.audit.Append(entry); err != nil {
 		return fmt.Errorf("audit append for %q: %w", id, err)
@@ -550,212 +562,7 @@ func (r *Remover) removeOne(id mtt.TaskID, force bool, by, why string, set map[m
 }
 ```
 
-Add `"time"` to the `remove.go` imports.
-
-- [ ] **Step 4: Update all `NewRemover`/`Remove`/`RemoveMany` call sites in the test file.** In `internal/core/remove_test.go`, every existing `NewRemover(store)` becomes `NewRemover(store, &fakeAudit{}, fixedNow)`; every `.Remove(id, force)` becomes `.Remove(id, force, "who", "why")` (or `"",""` where testing non-force); every `res := …RemoveMany(ids, force)` becomes `res, _ := …RemoveMany(ids, force, "who", "why")` (discard the pre-flight error where not under test, or assert it where relevant). Run `grep -n 'NewRemover\|\.Remove(\|RemoveMany(' internal/core/remove_test.go` to enumerate them.
-
-- [ ] **Step 5: Update the architecture reference.** In `docs/architecture/model.go`, change the `Remover` interface and `NewRemover` var (lines ~598-611):
-
-```go
-type Remover interface {
-	Remove(id TaskID, force bool, by, why string) error
-	RemoveMany(ids []TaskID, force bool, by, why string) ([]RemoveResult, error)
-}
-```
-
-```go
-// NewRemover wires the delete usecase — TaskStore + AuditStore + injected clock
-// (audit records dangerous --force deletes; who/why forced pre-flight). [s008.5; t5]
-var NewRemover func(store TaskStore, audit AuditStore, now func() time.Time) Remover
-```
-
-- [ ] **Step 6: Run the tests — verify they pass.**
-
-Run: `go test ./internal/core/ -run TestRemove -v`
-Expected: PASS (new + updated existing). Then `go test ./internal/core/` → PASS.
-
-- [ ] **Step 7: Commit.**
-
-```bash
-git add internal/core/remove.go internal/core/remove_test.go docs/architecture/model.go
-git commit -m "feat(t5): rm --force forces who+why (pre-flight) + append-before-delete audit"
-```
-
----
-
-## Task 4: Decode per-edge `require` in the YAML config
-
-**Files:**
-- Modify: `internal/adapter/yaml/dto.go` (`ymlTransition` field + `toConfig` map at ~line 132)
-- Test: `internal/adapter/yaml/` (a decode test — add to an existing `*_test.go` for config load, e.g. `load_test.go`, or create `dto_test.go`)
-
-**Interfaces:**
-- Consumes: `mtt.Require` (Task 1).
-- Produces: `Transition.Require` populated from `transitions[].require.{who,why}` on load.
-
-- [ ] **Step 1: Write the failing test.** Create `internal/adapter/yaml/dto_require_test.go`:
-
-```go
-package yaml
-
-import (
-	"os"
-	"path/filepath"
-	"testing"
-)
-
-func TestLoad_DecodesPerEdgeRequire(t *testing.T) {
-	root := t.TempDir()
-	mustWriteConfig(t, root, `version: 1
-project: {name: demo}
-types:
-  - name: task
-    prefix: t
-    default: true
-    statuses:
-      - {name: a, kind: initial, default: true}
-      - {name: b, kind: terminal}
-    transitions:
-      - from: a
-        to: b
-        name: go
-        require: {who: true, why: true}
-`)
-	cfg, _, err := Load(root)
-	if err != nil {
-		t.Fatalf("load: %v", err)
-	}
-	typ := cfg.Types[0]
-	edge := typ.Transitions[0]
-	if !edge.Require.Who || !edge.Require.Why {
-		t.Fatalf("per-edge require not decoded: %+v", edge.Require)
-	}
-}
-
-// mustWriteConfig writes .mtt/config.yaml under root.
-func mustWriteConfig(t *testing.T, root, body string) {
-	t.Helper()
-	dir := filepath.Join(root, ".mtt")
-	if err := os.MkdirAll(dir, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(dir, "config.yaml"), []byte(body), 0o644); err != nil {
-		t.Fatal(err)
-	}
-}
-```
-
-> If a `mustWriteConfig`-equivalent already exists in the package's tests, reuse it and drop the local copy to avoid a redeclaration.
-
-- [ ] **Step 2: Run the test — verify it fails.**
-
-Run: `go test ./internal/adapter/yaml/ -run TestLoad_DecodesPerEdgeRequire -v`
-Expected: FAIL (`edge.Require` zero — the field isn't mapped).
-
-- [ ] **Step 3: Add the DTO field and mapping.** In `internal/adapter/yaml/dto.go`, add to `ymlTransition` (after `Current`):
-
-```go
-	Require ymlRequire `yaml:"require,omitempty"`
-```
-
-and in `toConfig` where the transition is built (line ~132), add `Require` to the `mtt.Transition{…}` literal:
-
-```go
-			Require: mtt.Require{Who: yr.Require.Who, Why: yr.Require.Why},
-```
-
-- [ ] **Step 4: Run the test — verify it passes.**
-
-Run: `go test ./internal/adapter/yaml/ -run TestLoad_DecodesPerEdgeRequire -v`
-Expected: PASS. Then `go test ./internal/adapter/yaml/` → PASS (existing config-load tests unaffected — new field is `omitempty`/zero by default).
-
-- [ ] **Step 5: Commit.**
-
-```bash
-git add internal/adapter/yaml/dto.go internal/adapter/yaml/dto_require_test.go
-git commit -m "feat(t5): decode per-edge require:{who,why} in the YAML config"
-```
-
----
-
-## Task 5: Wire `rm` to attribution + audit; add `.gitattributes`; e2e
-
-**Files:**
-- Modify: `internal/cli/rm.go`
-- Create: `.gitattributes`
-- Create: `internal/cli/testdata/scripts/dangerous.txt`
-
-**Interfaces:**
-- Consumes: `yaml.Load` → `(cfg, Settings, err)`; `resolveAttribution(cmd, settings.Author) (role, by, why, err)` (`internal/cli/status.go:180`); `yaml.NewAuditStore(root)` (Task 2); `core.NewRemover(store, audit, now)` / `RemoveMany(…, by, why)` (Task 3).
-- Produces: `mtt rm … --force` requires `--who`+`--why` (exit 2 when missing, single AND bulk) and appends to `.mtt/audit.log`.
-
-- [ ] **Step 1: Write the failing e2e test.** Create `internal/cli/testdata/scripts/dangerous.txt`:
-
-```
-# t5 — dangerous-ops attribution: --no-run and rm --force force who+why.
-# Fixture config has NO global require.who, so exit-2 is caused by the new code,
-# not the global policy. No MTT_BY in the env.
-env MTT_DIR=$WORK/.mtt
-unquote .mtt/config.yaml
-
-exec mtt add 'first task'
-exec mtt add 'second task'
-
-# --- rm --force without --why is rejected (exit 2), task still present ---
-! exec mtt rm t1 --force --who alice
-stderr 'missing required attribution'
-exec mtt show t1
-stdout 'first task'
-
-# --- bulk rm --force without --why is ALSO exit 2, nothing deleted (B1 guard) ---
-! exec mtt rm t1 t2 --force --who alice
-stderr 'missing required attribution'
-exec mtt show t1
-exec mtt show t2
-
-# --- rm --force with who+why deletes AND records to audit.log ---
-exec mtt rm t1 --force --who alice --why 'stale duplicate'
-stdout 'removed t1'
-exec grep '"id":"t1"' .mtt/audit.log
-exec grep '"action":"rm --force"' .mtt/audit.log
-exec grep '"why":"stale duplicate"' .mtt/audit.log
-
-# --- a --no-run transition without --why is rejected (exit 2) ---
-# Use `mtt status` (NOT the `mtt start` sugar): --no-run is local to status/do;
-# the edge-verb sugar hardcodes noRun=false and would reject the flag.
-! exec mtt status t2 speccing --no-run --who alice
-stderr 'missing required attribution'
-
-# --- --no-run with who+why passes ---
-exec mtt status t2 speccing --no-run --who alice --why 'ci down, forcing'
-stdout 't2: tbd . speccing'
-
--- .mtt/config.yaml --
-version: 1
-project: {name: dangertest}
-types:
-  - name: task
-    prefix: t
-    default: true
-    statuses:
-      - {name: tbd, kind: initial, default: true}
-      - {name: speccing, kind: active}
-      - {name: done, kind: terminal}
-    transitions:
-      - {from: tbd, to: speccing, name: start}
-      - {from: speccing, to: done, name: finish}
-```
-
-> Match the existing `testdata/scripts/*.txt` conventions (this repo uses `testscript`). `unquote` + the trailing `-- file --` archive mirror how `dogfood.txt` seeds a config. Adjust the `stdout` matcher for the exact arrow rendering if needed (`.` stands in for the non-ASCII `→` in the regex).
-
-- [ ] **Step 2: Run the e2e — verify it fails.**
-
-Run: `go test ./internal/cli/ -run 'TestScripts/dangerous' -v`
-Expected: FAIL (rm doesn't yet require who/why; no audit.log written).
-
-- [ ] **Step 3: Wire `rm.go`.** Edit `internal/cli/rm.go`. Add imports `"time"` and keep `yaml`/`core`/`mtt`. Replace the bulk delete wiring (lines ~37) and the `runRmSingle` body.
-
-Bulk path (inside `RunE`, replacing the `results := core.NewRemover(…).RemoveMany(ids, force)` block):
+- [ ] **Step 5: Wire `internal/cli/rm.go`.** Add `"time"` to imports. In the `RunE` bulk path, replace the `results := core.NewRemover(yaml.NewTaskStore(root)).RemoveMany(ids, force)` block:
 
 ```go
 			_, settings, err := yaml.Load(root)
@@ -781,7 +588,7 @@ Bulk path (inside `RunE`, replacing the `results := core.NewRemover(…).RemoveM
 			return reportBulk(cmd, items, "removed")
 ```
 
-`runRmSingle` — change its signature is not needed (it already has `cmd, root`); rewrite its delete section:
+and rewrite `runRmSingle`'s delete section:
 
 ```go
 func runRmSingle(cmd *cobra.Command, root, idArg string, force, dryRun bool) error {
@@ -812,47 +619,240 @@ func runRmSingle(cmd *cobra.Command, root, idArg string, force, dryRun bool) err
 }
 ```
 
-- [ ] **Step 4: Add `.gitattributes`.** Create `.gitattributes` at the repo root:
+- [ ] **Step 6: Reshape the architecture reference.** In `docs/architecture/model.go` (~598-611):
+
+```go
+type Remover interface {
+	Remove(id TaskID, force bool, by, why string) error
+	RemoveMany(ids []TaskID, force bool, by, why string) ([]RemoveResult, error)
+}
+```
+
+```go
+// NewRemover wires the delete usecase — TaskStore + AuditStore + injected clock
+// (audit records --force deletes; who/why forced pre-flight). [s008.5; t5]
+var NewRemover func(store TaskStore, audit AuditStore, now func() time.Time) Remover
+```
+
+- [ ] **Step 7: Run the tests — verify they pass.**
+
+Run: `go test ./internal/core/ ./internal/cli/ -run 'TestRemove|TestScripts/rm' -v`
+Expected: PASS. If `internal/cli/testdata/scripts/rm.txt` deletes a *referenced* task under `--force` without attribution, it now exits 2 — add `--who x --why y` to that line in `rm.txt` (it inherits the persistent flags).
+
+- [ ] **Step 8: `make check`, then commit (atomic).**
+
+```bash
+make check
+git add internal/core/remove.go internal/core/remove_test.go internal/cli/rm.go docs/architecture/model.go internal/cli/testdata/scripts/rm.txt
+git commit -m "feat(t5): rm --force forces who+why (pre-flight, exit 2) + append-before-delete audit"
+```
+
+---
+
+## Task 4: Decode per-edge `require` in the YAML config
+
+**Files:**
+- Modify: `internal/adapter/yaml/dto.go` (`ymlTransition` field + `ymlConfig.toDomain` transition literal at ~line 132)
+- Test: `internal/adapter/yaml/dto_require_test.go`
+
+**Interfaces:**
+- Consumes: `mtt.Require` (Task 1). Produces: `Transition.Require` populated from `transitions[].require.{who,why}` on load.
+
+- [ ] **Step 1: Write the failing test.** Create `internal/adapter/yaml/dto_require_test.go`:
+
+```go
+package yaml
+
+import (
+	"os"
+	"path/filepath"
+	"testing"
+)
+
+func TestLoad_DecodesPerEdgeRequire(t *testing.T) {
+	root := t.TempDir()
+	dir := filepath.Join(root, ".mtt")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	body := `version: 1
+project: {name: demo}
+types:
+  - name: task
+    prefix: t
+    default: true
+    statuses:
+      - {name: a, kind: initial, default: true}
+      - {name: b, kind: terminal}
+    transitions:
+      - from: a
+        to: b
+        name: go
+        require: {who: true, why: true}
+`
+	if err := os.WriteFile(filepath.Join(dir, "config.yaml"), []byte(body), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	cfg, _, err := Load(root)
+	if err != nil {
+		t.Fatalf("load: %v", err)
+	}
+	edge := cfg.Types[0].Transitions[0]
+	if !edge.Require.Who || !edge.Require.Why {
+		t.Fatalf("per-edge require not decoded: %+v", edge.Require)
+	}
+}
+```
+
+- [ ] **Step 2: Run the test — verify it fails.**
+
+Run: `go test ./internal/adapter/yaml/ -run TestLoad_DecodesPerEdgeRequire -v`
+Expected: FAIL (`edge.Require` zero — the field isn't decoded/mapped).
+
+- [ ] **Step 3: Add the DTO field and mapping.** In `internal/adapter/yaml/dto.go`, add to `ymlTransition` (after `Current`):
+
+```go
+	Require ymlRequire `yaml:"require,omitempty"`
+```
+
+and in `ymlConfig.toDomain` (the `mtt.Transition{…}` literal at line ~132), add:
+
+```go
+			Require: mtt.Require{Who: yr.Require.Who, Why: yr.Require.Why},
+```
+
+- [ ] **Step 4: Run the test — verify it passes.**
+
+Run: `go test ./internal/adapter/yaml/ -run TestLoad_DecodesPerEdgeRequire -v`
+Expected: PASS. Then `go test ./internal/adapter/yaml/` → PASS (existing config-load tests unaffected — zero-valued for edges without `require`).
+
+- [ ] **Step 5: `make check`, then commit.**
+
+```bash
+make check
+git add internal/adapter/yaml/dto.go internal/adapter/yaml/dto_require_test.go
+git commit -m "feat(t5): decode per-edge require:{who,why} in the YAML config"
+```
+
+---
+
+## Task 5: e2e for `--no-run` and `rm --force`; `.gitattributes`
+
+**Files:**
+- Create: `internal/cli/testdata/scripts/dangerous.txt`
+- Create: `.gitattributes`
+
+**Interfaces:** none new — exercises the wired behavior end-to-end.
+
+- [ ] **Step 1: Write the failing e2e.** Create `internal/cli/testdata/scripts/dangerous.txt` (idiom mirrors `dogfood.txt`: `mtt init` + `cp` a fixture; cwd is `$WORK`; the fixture config has NO global `require.who` and NO commands on edges, so no git is needed and exit-2 is caused by the new code, not the global policy; the env has no `MTT_BY`):
+
+```
+# t5 — dangerous-ops attribution: --no-run and rm --force force who+why.
+
+exec mtt init
+cp danger.yaml .mtt/config.yaml
+exec mtt types
+stdout 'task'
+
+exec mtt add 'first task'
+stdout 'created t1'
+exec mtt add 'second task'
+stdout 'created t2'
+
+# --- rm --force without --why is rejected (exit 2); task still present ---
+! exec mtt rm t1 --force --who alice
+stderr 'missing required attribution'
+exec mtt show t1
+stdout 'first task'
+
+# --- bulk rm --force without --why is ALSO exit 2; nothing deleted (B1 guard) ---
+! exec mtt rm t1 t2 --force --who alice
+stderr 'missing required attribution'
+exec mtt show t1
+exec mtt show t2
+
+# --- rm --force with who+why deletes AND records to audit.log ---
+exec mtt rm t1 --force --who alice --why 'stale duplicate'
+stdout 'removed t1'
+grep '"id":"t1"' .mtt/audit.log
+grep '"action":"rm --force"' .mtt/audit.log
+grep '"why":"stale duplicate"' .mtt/audit.log
+
+# --- a --no-run transition without --why is rejected (exit 2) ---
+# Use `mtt status` (NOT the `mtt start` sugar): --no-run is local to status/do;
+# the edge-verb sugar hardcodes noRun=false and would reject the flag.
+! exec mtt status t2 speccing --no-run --who alice
+stderr 'missing required attribution'
+
+# --- --no-run with who+why passes ---
+exec mtt status t2 speccing --no-run --who alice --why 'ci down, forcing'
+stdout 't2: tbd . speccing'
+
+-- danger.yaml --
+version: 1
+project: {name: dangertest}
+types:
+  - name: task
+    prefix: t
+    default: true
+    statuses:
+      - {name: tbd, kind: initial, default: true}
+      - {name: speccing, kind: active}
+      - {name: done, kind: terminal}
+    transitions:
+      - {from: tbd, to: speccing, name: start}
+      - {from: speccing, to: done, name: finish}
+```
+
+> `grep` is the testscript builtin (regexp match against a file); `stdout 't2: tbd . speccing'` uses `.` to match the `→` rune (output is `t2: tbd → speccing`, `status.go:114`). `encoding/json` emits spaceless `"id":"t1"`, so the greps match.
+
+- [ ] **Step 2: Run the e2e — verify it fails.**
+
+Run: `go test ./internal/cli/ -run 'TestScripts/dangerous' -v`
+Expected: PASS already if Tasks 1+3 are done (the behavior is wired). To see it as a genuine red, run this task's file BEFORE Task 3 lands; in normal order it is a regression lock. If it FAILS, read the runner output — most likely a fixture-seeding mismatch (adjust `cp`/archive to match `dogfood.txt` exactly).
+
+> NOTE: because the behavior is implemented in Tasks 1+3, this e2e is a **characterization/lock** test, not a classic red→green. That is acceptable for an integration guard. If executing strictly TDD, author `dangerous.txt` immediately after Task 1 (the `--no-run` half) and extend it in Task 3 (the `rm` half); this plan keeps it whole here for cohesion.
+
+- [ ] **Step 3: Add `.gitattributes`.** Create `.gitattributes` at the repo root:
 
 ```
 # Append-only audit log: union-merge takes both sides' lines instead of conflicting.
 /.mtt/audit.log merge=union
 ```
 
-- [ ] **Step 5: Run the e2e — verify it passes.**
+- [ ] **Step 4: Run the e2e + full CLI suite — verify green.**
 
-Run: `go test ./internal/cli/ -run 'TestScripts/dangerous' -v`
-Expected: PASS. Then `go test ./internal/cli/` → PASS (existing `rm.txt` still green — a single-id `rm` with an author in scope keeps working; note `rm.txt` may need `--who`/`--why` added to its `--force` line if it deletes a referenced task under force — update it if it reddens).
+Run: `go test ./internal/cli/`
+Expected: PASS (dangerous.txt + existing scripts).
 
-- [ ] **Step 6: Commit.**
+- [ ] **Step 5: `make check`, then commit.**
 
 ```bash
-git add internal/cli/rm.go .gitattributes internal/cli/testdata/scripts/dangerous.txt internal/cli/testdata/scripts/rm.txt
-git commit -m "feat(t5): rm --force requires who+why + writes audit.log; --no-run e2e; .gitattributes"
+make check
+git add internal/cli/testdata/scripts/dangerous.txt .gitattributes
+git commit -m "test(t5): e2e for --no-run + rm --force attribution; .gitattributes merge=union"
 ```
 
 ---
 
 ## Task 6: Documentation sync
 
-**Files:**
-- Modify: `DESIGN.md`, `DESIGN.ru.md`, `CLI_REFERENCE.md`, `CLI_REFERENCE.ru.md`, `AGENTS.md`
-- Modify: `internal/cli/CLAUDE.md`, `internal/core/CLAUDE.md`, `internal/adapter/yaml/CLAUDE.md`
+**Files:** `DESIGN.md`, `DESIGN.ru.md`, `CLI_REFERENCE.md`, `CLI_REFERENCE.ru.md`, `AGENTS.md`, `internal/cli/CLAUDE.md`, `internal/core/CLAUDE.md`, `internal/adapter/yaml/CLAUDE.md`.
 
-**Interfaces:** none (docs only). No code — this task exists because the repo's Definition of Done requires docs in sync (AGENTS.md), and the three package `CLAUDE.md` files must stay current per the project rules.
+**Interfaces:** none (docs). Required by the Definition of Done (AGENTS.md) + the per-package `CLAUDE.md` rule.
 
-- [ ] **Step 1: DESIGN.md + DESIGN.ru.md.** Add a short "Dangerous-ops attribution (t5)" subsection under the flow/gate design: the union rule (global ∨ per-edge ∨ `--no-run`), the `mtt.AuditStore` port + `.mtt/audit.log` (JSONL, committed, `merge=union`), and append-before-delete for `rm --force`. Keep EN/RU in sync (English primary).
+- [ ] **Step 1: DESIGN.md + DESIGN.ru.md.** Add a "Dangerous-ops attribution (t5)" subsection under the flow/gate design: the union rule (global ∨ per-edge ∨ `--no-run`), the `mtt.AuditStore` port + `.mtt/audit.log` (JSONL, committed, `merge=union`), append-before-delete for `rm --force`. EN primary, keep RU in sync.
 
-- [ ] **Step 2: CLI_REFERENCE.md + CLI_REFERENCE.ru.md.** Document: `rm --force` now requires `--who`/`--why` (exit 2 otherwise) and records to `.mtt/audit.log`; `--no-run` requires `--who`/`--why`; per-edge `require: {who, why}` config knob. Keep EN/RU in sync.
+- [ ] **Step 2: CLI_REFERENCE.md + CLI_REFERENCE.ru.md.** Document: `rm --force` requires `--who`/`--why` (exit 2 otherwise) and records to `.mtt/audit.log`; `--no-run` requires `--who`/`--why`; the per-edge `require: {who, why}` config knob. Keep EN/RU in sync.
 
-- [ ] **Step 3: AGENTS.md.** Under "Working under mtt", add a "dangerous ops" bullet: bypassing a gate (`--no-run`) or a destructive `rm --force` forces `--who`+`--why`; `rm --force` leaves an audit record; per-edge `require:` marks critical transitions.
+- [ ] **Step 3: AGENTS.md.** Under "Working under mtt", add a "dangerous ops" bullet: `--no-run` and `rm --force` force `--who`+`--why`; `rm --force` leaves an audit record; per-edge `require:` marks critical transitions.
 
-- [ ] **Step 4: Package CLAUDE.md files.** `internal/core/CLAUDE.md` (Transitioner union policy + `missingAttributionFields` seam; Remover pre-flight + append-before-delete + `AuditStore` dep); `internal/adapter/yaml/CLAUDE.md` (`NewAuditStore` JSONL append; per-edge `require` decode); `internal/cli/CLAUDE.md` (`rm` wires attribution + audit; pre-flight error forwarded raw → exit 2).
+- [ ] **Step 4: Package `CLAUDE.md`.** `internal/core/CLAUDE.md` (Transitioner union + `missingAttributionFields` seam; Remover pre-flight + append-before-delete + `AuditStore` dep); `internal/adapter/yaml/CLAUDE.md` (`NewAuditStore` JSONL append; per-edge `require` decode); `internal/cli/CLAUDE.md` (`rm` wires attribution + audit; pre-flight error forwarded raw → exit 2).
 
-- [ ] **Step 5: Verify the gate is green.**
+- [ ] **Step 5: `make check`.**
 
 Run: `make check`
-Expected: all green (gofmt, vet, lint, `go test -race -cover`, build).
+Expected: all green.
 
 - [ ] **Step 6: Commit.**
 
@@ -865,7 +865,8 @@ git commit -m "docs(t5): dangerous-ops attribution — DESIGN/CLI_REFERENCE/AGEN
 
 ## Notes for the implementer
 
-- **Order matters:** Tasks 1→2 have no dependency between them but Task 3 needs both (the shared helper + the port); Task 5 needs Tasks 2, 3, 4. Do them in order.
-- **`--no-run` needs no CLI change** — Task 1's core union already covers `mtt status --no-run` and `mtt do --no-run` (both call `Transitioner.Transition`). The sugar `mtt <status>` hardcodes `noRun=false`, so it cannot bypass; do not add `--no-run` to it.
-- **Do not** add global `require.why` or touch `.mtt/config.yaml`'s existing edges — per-edge `require` is exercised by the adapter decode test, and marking a repo edge is an optional, separate call (spec §7).
-- **Anti-vacuity discipline:** in every who-forcing assertion, keep `RequireWho=false` and `By=""` (Task 1 tests) and no `MTT_BY`/author in the e2e (Task 5), or the test proves nothing.
+- **Order & atomicity:** Task 1 and Task 2 are independent (Task 1 touches transition; Task 2 adds the port). Task 3 needs both and is **atomic** (core + cli + model in one commit) so the signature churn never breaks `go build ./...`. Task 4 is independent of 1-3. Task 5 needs 1+3. Task 6 last.
+- **`--no-run` needs no CLI change** — Task 1's core union covers `mtt status --no-run` and `mtt do --no-run` (both call `Transitioner.Transition`). The sugar `mtt <status>` hardcodes `noRun=false` and cannot bypass; do NOT add `--no-run` to it (and do NOT test `--no-run` via `mtt start`).
+- **Reuse the real test helpers** (`newMemStore`, `baseTask`, `testClock`, `&fakeRunner{}`, `flowCfg`) — do not invent `newFakeStore`/`fixedNow`/`cfgWithEdge`. `memStore` lives in `dependency_test.go`; adding a `deleted` method there or in `remove_test.go` is fine (same package).
+- **Anti-vacuity discipline:** keep `RequireWho=false` + `By=""` in who-forcing unit assertions (Task 1) and no `MTT_BY`/no global `require.who` in the e2e (Task 5), or the test proves nothing.
+- **Do not** add global `require.why` or edit `.mtt/config.yaml`'s existing edges — per-edge `require` is covered by the adapter decode test; marking a repo edge is optional/separate (spec §7).
