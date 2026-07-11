@@ -437,6 +437,18 @@ Commands come from config (trusted, like a Makefile/git hooks), not from the net
 > fails after a side effect, we don't commit the transition, but the side effect already happened — that's
 > on the ordering of commands. A two-phase model (checks → actions) is introduced only if needed.
 
+> **Shipped (t21): post-persist actions (the second phase).** A transition may carry a per-edge `post:` command
+> list (same `Command` shape as `commands:`) that runs **after** the status is persisted — the finalization
+> phase. The repo uses it to auto-commit `.mtt` on every move (`git add .mtt && git commit … -- .mtt`), so a
+> move commits its own state (removing the former manual `git add .mtt` after each move and the two interim
+> commits after `deliver`/`cancel`; their pre-gate `git switch main` runs first, so the post commit lands on
+> main). **Two phases, different failure semantics:** `commands:` gate the **entry** (fail → no persist, the
+> s008 compensation runs); `post:` finalize **after** entry (fail → the move is **kept**, `core.ErrPostAction`,
+> CLI exit **5** — mtt never rolls back a persisted move for a post hiccup). `--no-run` skips **both** phases.
+> Why not a global default `post`? Precedence/merge/opt-out questions we deferred (t24) — per-edge only for now.
+> The `git switch` in `deliver`/`start`/`cancel` is exactly why a naive "persist → run everything → roll back"
+> single phase can't work: context switches must precede persist, commits must follow it.
+
 > **Shipped (s008): rollback / compensation (intra-pipeline).** A gate command may declare a `rollback:`
 > compensator (a scalar or `{run, timeout}`, itself placeholder-expanded); when a **later** command in the
 > same pipeline fails, the already-succeeded commands' rollbacks run in **reverse order** — undoing what the
@@ -843,7 +855,8 @@ after dogfood we move mtt's development onto mtt itself. See sessions/README.md 
 > `approved → decline` returns to the task branch. Artifacts are **committed early** (id-keyed names
 > `docs/superpowers/specs|plans/<id>-<slug>.md` — the v1 uncommitted-until-review convention is dead).
 > **Conventions that remain:** the PR title starts with `<id>: `; push the `approved` state before the
-> merge; two interim manual state-commits (after `deliver`/`cancel`) until post-persist actions land.
+> merge. (Since t21, every move auto-commits `.mtt` via a per-edge `post:` action — the former manual
+> state-commits after `deliver`/`cancel` are gone.)
 > **Attribution:** project-global `require: {who}` (per-edge/role `require` needs a core change — parked
 > roles work; the migrated `dangerous-ops` task is its first trigger). **Trust (SEC2):** gates invoke
 > **read-only** `mtt` only — never an mtt transition (recursion). **Known limits (recorded):** the

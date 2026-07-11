@@ -180,6 +180,8 @@ func exitCode(err error) int {
 		return 2
 	case errors.Is(err, mtt.ErrNotFound):
 		return 4
+	case errors.Is(err, core.ErrPostAction):
+		return 5
 	default:
 		return 1
 	}

@@ -36,3 +36,9 @@ var ErrInvalidTransition = errors.New("mtt: transition not allowed by the flow")
 // is unmet on a transition. It is checked before the gate runs (fail fast) and
 // aggregates all missing fields; the CLI maps it to exit code 2.
 var ErrMissingAttribution = errors.New("mtt: missing required attribution")
+
+// ErrPostAction is returned when a transition's POST phase (post: commands, run
+// AFTER persist) fails. Unlike ErrBlocked, the move IS persisted — only the
+// finalization failed; the CLI keeps the move and maps it to exit code 5. This is
+// the ONLY case where Transition returns a valid task with a non-nil error.
+var ErrPostAction = errors.New("mtt: post-action failed after the move")

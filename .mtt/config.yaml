@@ -10,21 +10,21 @@ types:
     default: true
     description: "A unit of product change whose design is OPEN — decisions to make and record (spec + plan artifacts, each reviewed). If the what+how are already decided and recorded elsewhere, use `chore`."
     statuses:
-      - {name: tbd,               kind: initial,  description: "queued; `mtt start` to take into work"}
-      - {name: speccing,          kind: active,   description: "write the design spec to docs/superpowers/specs/<this-task-id>-<slug>.md (commit early and often), then `mtt submit`"}
-      - {name: spec_review,       kind: active,   description: "run an adversarial subagent review of the spec; `mtt approve` when it passes, `mtt decline` to send back"}
-      - {name: spec_human_review, kind: active,   description: "get human sign-off on the spec; `mtt approve` or `mtt decline`"}
-      - {name: spec_fix,          kind: active,   description: "address spec findings, then `mtt submit` to re-review"}
-      - {name: planning,          kind: active,   description: "write the implementation plan to docs/superpowers/plans/<this-task-id>-<slug>.md, then `mtt submit`"}
-      - {name: plan_review,       kind: active,   description: "run an adversarial subagent review of the plan; `mtt approve` when it passes, `mtt decline` to send back"}
-      - {name: plan_human_review, kind: active,   description: "get human sign-off on the plan; `mtt approve` or `mtt decline`"}
-      - {name: plan_fix,          kind: active,   description: "address plan findings, then `mtt submit` to re-review"}
-      - {name: implementing,      kind: active,   description: "implement test-first (TDD), make check green between commits, then `mtt submit`"}
-      - {name: impl_review,       kind: active,   description: "run an adversarial code review; `mtt approve` when it passes, `mtt decline` to send back"}
-      - {name: impl_fix,          kind: active,   description: "address review findings, then `mtt submit` to re-review"}
-      - {name: approved,          kind: active,   description: "open/update the PR titled '<this-task-id>: <title>', push (including this state change), ask the human to merge; after the squash-merge run `mtt deliver`; human-requested changes -> `mtt decline`"}
-      - {name: done,              kind: terminal, description: "delivered to main"}
-      - {name: cancelled,         kind: terminal, description: "abandoned"}
+      - {name: tbd, kind: initial, description: "queued; `mtt start` to take into work"}
+      - {name: speccing, kind: active, description: "write the design spec to docs/superpowers/specs/<this-task-id>-<slug>.md (commit early and often), then `mtt submit`"}
+      - {name: spec_review, kind: active, description: "run an adversarial subagent review of the spec; `mtt approve` when it passes, `mtt decline` to send back"}
+      - {name: spec_human_review, kind: active, description: "get human sign-off on the spec; `mtt approve` or `mtt decline`"}
+      - {name: spec_fix, kind: active, description: "address spec findings, then `mtt submit` to re-review"}
+      - {name: planning, kind: active, description: "write the implementation plan to docs/superpowers/plans/<this-task-id>-<slug>.md, then `mtt submit`"}
+      - {name: plan_review, kind: active, description: "run an adversarial subagent review of the plan; `mtt approve` when it passes, `mtt decline` to send back"}
+      - {name: plan_human_review, kind: active, description: "get human sign-off on the plan; `mtt approve` or `mtt decline`"}
+      - {name: plan_fix, kind: active, description: "address plan findings, then `mtt submit` to re-review"}
+      - {name: implementing, kind: active, description: "implement test-first (TDD), make check green between commits, then `mtt submit`"}
+      - {name: impl_review, kind: active, description: "run an adversarial code review; `mtt approve` when it passes, `mtt decline` to send back"}
+      - {name: impl_fix, kind: active, description: "address review findings, then `mtt submit` to re-review"}
+      - {name: approved, kind: active, description: "open/update the PR titled '<this-task-id>: <title>', push (including this state change), ask the human to merge; after the squash-merge run `mtt deliver`; human-requested changes -> `mtt decline`"}
+      - {name: done, kind: terminal, description: "delivered to main"}
+      - {name: cancelled, kind: terminal, description: "abandoned"}
     transitions:
       # --- entry ---
       - from: tbd
@@ -36,139 +36,173 @@ types:
           - 'git switch task/{{.ID}} || (git switch main && git switch -c task/{{.ID}})'
           - 'test -f .mtt/tasks/{{.ID}}.yaml || { echo "task file absent on this branch — its add has not reached main (merge/commit the branch that created it first)" >&2; false; }'
       # --- design stage ---
+        post:
+          - 'git add .mtt && git commit -m "{{.ID}}: {{.From}} → {{.To}}" -- .mtt'
       - from: speccing
         to: spec_review
         name: submit
         description: "spec written; run an adversarial subagent spec review"
         commands: ['ls docs/superpowers/specs/{{.ID}}-*.md']
-      - {from: spec_review,       to: spec_human_review, name: approve, description: "agent review passed; get human sign-off on the spec"}
-      - {from: spec_review,       to: spec_fix,          name: decline, description: "review found issues; address them, then `mtt submit`"}
-      - {from: spec_human_review, to: planning,          name: approve, description: "spec approved; write the implementation plan"}
-      - {from: spec_human_review, to: spec_fix,          name: decline, description: "human declined the spec; address feedback"}
+        post:
+          - 'git add .mtt && git commit -m "{{.ID}}: {{.From}} → {{.To}}" -- .mtt'
+      - {from: spec_review, to: spec_human_review, name: approve, description: "agent review passed; get human sign-off on the spec", post: ['git add .mtt && git commit -m "{{.ID}}: {{.From}} → {{.To}}" -- .mtt']}
+      - {from: spec_review, to: spec_fix, name: decline, description: "review found issues; address them, then `mtt submit`", post: ['git add .mtt && git commit -m "{{.ID}}: {{.From}} → {{.To}}" -- .mtt']}
+      - {from: spec_human_review, to: planning, name: approve, description: "spec approved; write the implementation plan", post: ['git add .mtt && git commit -m "{{.ID}}: {{.From}} → {{.To}}" -- .mtt']}
+      - {from: spec_human_review, to: spec_fix, name: decline, description: "human declined the spec; address feedback", post: ['git add .mtt && git commit -m "{{.ID}}: {{.From}} → {{.To}}" -- .mtt']}
       - from: spec_fix
         to: spec_review
         name: submit
         description: "spec fixes done; re-review"
         commands: ['ls docs/superpowers/specs/{{.ID}}-*.md']
+        post:
+          - 'git add .mtt && git commit -m "{{.ID}}: {{.From}} → {{.To}}" -- .mtt'
       # --- plan stage ---
       - from: planning
         to: plan_review
         name: submit
         description: "plan written; run an adversarial subagent plan review"
         commands: ['ls docs/superpowers/plans/{{.ID}}-*.md']
-      - {from: plan_review,       to: plan_human_review, name: approve, description: "agent review passed; get human sign-off on the plan"}
-      - {from: plan_review,       to: plan_fix,          name: decline, description: "review found issues; address them, then `mtt submit`"}
-      - {from: plan_human_review, to: implementing,      name: approve, description: "plan approved; implement test-first (TDD)"}
-      - {from: plan_human_review, to: plan_fix,          name: decline, description: "human declined the plan; address feedback"}
+        post:
+          - 'git add .mtt && git commit -m "{{.ID}}: {{.From}} → {{.To}}" -- .mtt'
+      - {from: plan_review, to: plan_human_review, name: approve, description: "agent review passed; get human sign-off on the plan", post: ['git add .mtt && git commit -m "{{.ID}}: {{.From}} → {{.To}}" -- .mtt']}
+      - {from: plan_review, to: plan_fix, name: decline, description: "review found issues; address them, then `mtt submit`", post: ['git add .mtt && git commit -m "{{.ID}}: {{.From}} → {{.To}}" -- .mtt']}
+      - {from: plan_human_review, to: implementing, name: approve, description: "plan approved; implement test-first (TDD)", post: ['git add .mtt && git commit -m "{{.ID}}: {{.From}} → {{.To}}" -- .mtt']}
+      - {from: plan_human_review, to: plan_fix, name: decline, description: "human declined the plan; address feedback", post: ['git add .mtt && git commit -m "{{.ID}}: {{.From}} → {{.To}}" -- .mtt']}
       - from: plan_fix
         to: plan_review
         name: submit
         description: "plan fixes done; re-review"
         commands: ['ls docs/superpowers/plans/{{.ID}}-*.md']
+        post:
+          - 'git add .mtt && git commit -m "{{.ID}}: {{.From}} → {{.To}}" -- .mtt'
       # --- implementation stage ---
       - from: implementing
         to: impl_review
         name: submit
         description: "implementation done; run an adversarial code review"
         commands: [{run: 'make check', timeout: 10m}]
-      - {from: impl_review, to: approved, name: approve, description: "code review passed; open the PR and hand to the human"}
-      - {from: impl_review, to: impl_fix, name: decline, description: "review found issues; address them, then `mtt submit`"}
+        post:
+          - 'git add .mtt && git commit -m "{{.ID}}: {{.From}} → {{.To}}" -- .mtt'
+      - {from: impl_review, to: approved, name: approve, description: "code review passed; open the PR and hand to the human", post: ['git add .mtt && git commit -m "{{.ID}}: {{.From}} → {{.To}}" -- .mtt']}
+      - {from: impl_review, to: impl_fix, name: decline, description: "review found issues; address them, then `mtt submit`", post: ['git add .mtt && git commit -m "{{.ID}}: {{.From}} → {{.To}}" -- .mtt']}
       - from: impl_fix
         to: impl_review
         name: submit
         description: "impl fixes done; re-review"
         commands: [{run: 'make check', timeout: 10m}]
+        post:
+          - 'git add .mtt && git commit -m "{{.ID}}: {{.From}} → {{.To}}" -- .mtt'
       # --- delivery tail ---
       - from: approved
         to: impl_fix
         name: decline
         description: "human requested changes on the PR (returns you to the task branch)"
         commands: ['git switch task/{{.ID}}']
+        post:
+          - 'git add .mtt && git commit -m "{{.ID}}: {{.From}} → {{.To}}" -- .mtt'
       - from: approved
         to: done
         name: deliver
         current: clear
-        description: "after the squash-merge: pull main, then deliver (moves your tree to main and writes done there — commit .mtt after)"
+        description: "after the squash-merge: pull main, then deliver (moves your tree to main and writes done there)"
         commands:
           - 'git switch main'
           - 'git log -n 200 --format=%s | grep "^{{.ID}}: " || { echo "no squash commit \"{{.ID}}: …\" on local main: git pull first, and check the PR/merge title started with \"{{.ID}}: \"" >&2; false; }'
       # --- cancel (every non-terminal except the _review pairs; moves your tree to main) ---
+        post:
+          - 'git add .mtt && git commit -m "{{.ID}}: {{.From}} → {{.To}}" -- .mtt'
       - from: tbd
         to: cancelled
         name: cancel
         current: clear
-        description: "abandon the task (moves your tree to main — commit .mtt after)"
+        description: "abandon the task (moves your tree to main)"
         commands:
           - 'git switch main'
           - 'test -f .mtt/tasks/{{.ID}}.yaml || { echo "task file absent on main — its add has not reached main (merge/commit the branch that created it first)" >&2; false; }'
+        post:
+          - 'git add .mtt && git commit -m "{{.ID}}: {{.From}} → {{.To}}" -- .mtt'
       - from: speccing
         to: cancelled
         name: cancel
         current: clear
-        description: "abandon the task (moves your tree to main — commit .mtt after)"
+        description: "abandon the task (moves your tree to main)"
         commands:
           - 'git switch main'
           - 'test -f .mtt/tasks/{{.ID}}.yaml || { echo "task file absent on main — its add has not reached main (merge/commit the branch that created it first)" >&2; false; }'
+        post:
+          - 'git add .mtt && git commit -m "{{.ID}}: {{.From}} → {{.To}}" -- .mtt'
       - from: planning
         to: cancelled
         name: cancel
         current: clear
-        description: "abandon the task (moves your tree to main — commit .mtt after)"
+        description: "abandon the task (moves your tree to main)"
         commands:
           - 'git switch main'
           - 'test -f .mtt/tasks/{{.ID}}.yaml || { echo "task file absent on main — its add has not reached main (merge/commit the branch that created it first)" >&2; false; }'
+        post:
+          - 'git add .mtt && git commit -m "{{.ID}}: {{.From}} → {{.To}}" -- .mtt'
       - from: implementing
         to: cancelled
         name: cancel
         current: clear
-        description: "abandon the task (moves your tree to main — commit .mtt after)"
+        description: "abandon the task (moves your tree to main)"
         commands:
           - 'git switch main'
           - 'test -f .mtt/tasks/{{.ID}}.yaml || { echo "task file absent on main — its add has not reached main (merge/commit the branch that created it first)" >&2; false; }'
+        post:
+          - 'git add .mtt && git commit -m "{{.ID}}: {{.From}} → {{.To}}" -- .mtt'
       - from: spec_fix
         to: cancelled
         name: cancel
         current: clear
-        description: "abandon the task (moves your tree to main — commit .mtt after)"
+        description: "abandon the task (moves your tree to main)"
         commands:
           - 'git switch main'
           - 'test -f .mtt/tasks/{{.ID}}.yaml || { echo "task file absent on main — its add has not reached main (merge/commit the branch that created it first)" >&2; false; }'
+        post:
+          - 'git add .mtt && git commit -m "{{.ID}}: {{.From}} → {{.To}}" -- .mtt'
       - from: plan_fix
         to: cancelled
         name: cancel
         current: clear
-        description: "abandon the task (moves your tree to main — commit .mtt after)"
+        description: "abandon the task (moves your tree to main)"
         commands:
           - 'git switch main'
           - 'test -f .mtt/tasks/{{.ID}}.yaml || { echo "task file absent on main — its add has not reached main (merge/commit the branch that created it first)" >&2; false; }'
+        post:
+          - 'git add .mtt && git commit -m "{{.ID}}: {{.From}} → {{.To}}" -- .mtt'
       - from: impl_fix
         to: cancelled
         name: cancel
         current: clear
-        description: "abandon the task (moves your tree to main — commit .mtt after)"
+        description: "abandon the task (moves your tree to main)"
         commands:
           - 'git switch main'
           - 'test -f .mtt/tasks/{{.ID}}.yaml || { echo "task file absent on main — its add has not reached main (merge/commit the branch that created it first)" >&2; false; }'
+        post:
+          - 'git add .mtt && git commit -m "{{.ID}}: {{.From}} → {{.To}}" -- .mtt'
       - from: approved
         to: cancelled
         name: cancel
         current: clear
-        description: "abandon the task (moves your tree to main — commit .mtt after)"
+        description: "abandon the task (moves your tree to main)"
         commands:
           - 'git switch main'
           - 'test -f .mtt/tasks/{{.ID}}.yaml || { echo "task file absent on main — its add has not reached main (merge/commit the branch that created it first)" >&2; false; }'
+        post:
+          - 'git add .mtt && git commit -m "{{.ID}}: {{.From}} → {{.To}}" -- .mtt'
   - name: chore
     prefix: c
     parents: []
     description: "A unit of product change whose design is ALREADY FIXED elsewhere (a review finding with a fix sketch, a recorded backlog decision, docs sync, a dependency bump, a mechanical refactor). If you need to make design decisions, use `task`."
     statuses:
-      - {name: tbd,          kind: initial,  description: "queued; `mtt start` to take into work"}
-      - {name: implementing, kind: active,   description: "implement test-first (TDD), make check green between commits, then `mtt submit`"}
-      - {name: impl_review,  kind: active,   description: "run an adversarial code review; if the diff contains design decisions not recorded elsewhere — decline: it must be a `task`. `mtt approve` / `mtt decline`"}
-      - {name: impl_fix,     kind: active,   description: "address review findings, then `mtt submit` to re-review"}
-      - {name: approved,     kind: active,   description: "open/update the PR titled '<this-task-id>: <title>', push (including this state change), ask the human to merge; after the squash-merge run `mtt deliver`; human-requested changes -> `mtt decline`"}
-      - {name: done,         kind: terminal, description: "delivered to main"}
-      - {name: cancelled,    kind: terminal, description: "abandoned"}
+      - {name: tbd, kind: initial, description: "queued; `mtt start` to take into work"}
+      - {name: implementing, kind: active, description: "implement test-first (TDD), make check green between commits, then `mtt submit`"}
+      - {name: impl_review, kind: active, description: "run an adversarial code review; if the diff contains design decisions not recorded elsewhere — decline: it must be a `task`. `mtt approve` / `mtt decline`"}
+      - {name: impl_fix, kind: active, description: "address review findings, then `mtt submit` to re-review"}
+      - {name: approved, kind: active, description: "open/update the PR titled '<this-task-id>: <title>', push (including this state change), ask the human to merge; after the squash-merge run `mtt deliver`; human-requested changes -> `mtt decline`"}
+      - {name: done, kind: terminal, description: "delivered to main"}
+      - {name: cancelled, kind: terminal, description: "abandoned"}
     transitions:
       - from: tbd
         to: implementing
@@ -178,60 +212,78 @@ types:
         commands:
           - 'git switch task/{{.ID}} || (git switch main && git switch -c task/{{.ID}})'
           - 'test -f .mtt/tasks/{{.ID}}.yaml || { echo "task file absent on this branch — its add has not reached main (merge/commit the branch that created it first)" >&2; false; }'
+        post:
+          - 'git add .mtt && git commit -m "{{.ID}}: {{.From}} → {{.To}}" -- .mtt'
       - from: implementing
         to: impl_review
         name: submit
         description: "implementation done; run an adversarial code review"
         commands: [{run: 'make check', timeout: 10m}]
-      - {from: impl_review, to: approved, name: approve, description: "code review passed; open the PR and hand to the human"}
-      - {from: impl_review, to: impl_fix, name: decline, description: "review found issues; address them, then `mtt submit`"}
+        post:
+          - 'git add .mtt && git commit -m "{{.ID}}: {{.From}} → {{.To}}" -- .mtt'
+      - {from: impl_review, to: approved, name: approve, description: "code review passed; open the PR and hand to the human", post: ['git add .mtt && git commit -m "{{.ID}}: {{.From}} → {{.To}}" -- .mtt']}
+      - {from: impl_review, to: impl_fix, name: decline, description: "review found issues; address them, then `mtt submit`", post: ['git add .mtt && git commit -m "{{.ID}}: {{.From}} → {{.To}}" -- .mtt']}
       - from: impl_fix
         to: impl_review
         name: submit
         description: "impl fixes done; re-review"
         commands: [{run: 'make check', timeout: 10m}]
+        post:
+          - 'git add .mtt && git commit -m "{{.ID}}: {{.From}} → {{.To}}" -- .mtt'
       - from: approved
         to: impl_fix
         name: decline
         description: "human requested changes on the PR (returns you to the task branch)"
         commands: ['git switch task/{{.ID}}']
+        post:
+          - 'git add .mtt && git commit -m "{{.ID}}: {{.From}} → {{.To}}" -- .mtt'
       - from: approved
         to: done
         name: deliver
         current: clear
-        description: "after the squash-merge: pull main, then deliver (moves your tree to main and writes done there — commit .mtt after)"
+        description: "after the squash-merge: pull main, then deliver (moves your tree to main and writes done there)"
         commands:
           - 'git switch main'
           - 'git log -n 200 --format=%s | grep "^{{.ID}}: " || { echo "no squash commit \"{{.ID}}: …\" on local main: git pull first, and check the PR/merge title started with \"{{.ID}}: \"" >&2; false; }'
+        post:
+          - 'git add .mtt && git commit -m "{{.ID}}: {{.From}} → {{.To}}" -- .mtt'
       - from: tbd
         to: cancelled
         name: cancel
         current: clear
-        description: "abandon the task (moves your tree to main — commit .mtt after)"
+        description: "abandon the task (moves your tree to main)"
         commands:
           - 'git switch main'
           - 'test -f .mtt/tasks/{{.ID}}.yaml || { echo "task file absent on main — its add has not reached main (merge/commit the branch that created it first)" >&2; false; }'
+        post:
+          - 'git add .mtt && git commit -m "{{.ID}}: {{.From}} → {{.To}}" -- .mtt'
       - from: implementing
         to: cancelled
         name: cancel
         current: clear
-        description: "abandon the task (moves your tree to main — commit .mtt after)"
+        description: "abandon the task (moves your tree to main)"
         commands:
           - 'git switch main'
           - 'test -f .mtt/tasks/{{.ID}}.yaml || { echo "task file absent on main — its add has not reached main (merge/commit the branch that created it first)" >&2; false; }'
+        post:
+          - 'git add .mtt && git commit -m "{{.ID}}: {{.From}} → {{.To}}" -- .mtt'
       - from: impl_fix
         to: cancelled
         name: cancel
         current: clear
-        description: "abandon the task (moves your tree to main — commit .mtt after)"
+        description: "abandon the task (moves your tree to main)"
         commands:
           - 'git switch main'
           - 'test -f .mtt/tasks/{{.ID}}.yaml || { echo "task file absent on main — its add has not reached main (merge/commit the branch that created it first)" >&2; false; }'
+        post:
+          - 'git add .mtt && git commit -m "{{.ID}}: {{.From}} → {{.To}}" -- .mtt'
       - from: approved
         to: cancelled
         name: cancel
         current: clear
-        description: "abandon the task (moves your tree to main — commit .mtt after)"
+        description: "abandon the task (moves your tree to main)"
         commands:
           - 'git switch main'
           - 'test -f .mtt/tasks/{{.ID}}.yaml || { echo "task file absent on main — its add has not reached main (merge/commit the branch that created it first)" >&2; false; }'
+        post:
+          - 'git add .mtt && git commit -m "{{.ID}}: {{.From}} → {{.To}}" -- .mtt'

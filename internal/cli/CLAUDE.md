@@ -50,10 +50,15 @@ file with `--log-file` (`gateOutputWriter` builds the `io.Discard`/stderr/file/`
 visibility (s008.97/U2):** when output is otherwise hidden (`hidden = !verbose && logFile==""`), `runTransition`
 passes `gateTailLines` (10) to `exec.NewRunner` so the runner echoes the failing command's output tail, and
 wraps an `ErrBlocked` error with a `hint: re-run with -v or --log-file …` (the `%w` wrap preserves exit 3);
-with `-v`/`--log-file` neither fires (output already visible). **`Execute()`
+with `-v`/`--log-file` neither fires (output already visible). **Post-persist (t21):** `runTransition` holds
+the transition error in `txErr`; on `core.ErrPostAction` (the move IS persisted — only the post phase failed) it
+**falls through** to render the move (a **local `e`** for the `Fprintf` writes, never `txErr`, or a successful
+write would clobber the sentinel and lose exit 5), then surfaces `move applied, but a post-action failed: …` on
+stderr and returns `txErr` — in text **and** `--json` mode (JSON emits the task object then returns `txErr`).
+**`Execute()`
 returns an `int` exit code** (`exitCode`: `core.ErrBlocked`→3, `core.ErrInvalidTransition`→6,
-`core.ErrMissingAttribution`→2, else 1); `main` and the testscript harness call `os.Exit(Execute())`.
-`mtt show` renders a `history:` audit section.
+`core.ErrMissingAttribution`→2, `core.ErrPostAction`→5, else 1); `main` and the testscript harness call
+`os.Exit(Execute())`. `mtt types` renders a `⇢` post line per edge. `mtt show` renders a `history:` audit section.
 
 Attribution + verb sugar (session 006.5): `runTransition(cmd, root, cfg, settings, id, to, noRun)` is the
 shared gated-edge path used by **both** `mtt status` and the sugar; `resolveAttribution(cmd, author)` returns

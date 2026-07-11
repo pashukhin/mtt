@@ -22,6 +22,7 @@ const (
 	cmdSwitchMain  = `git switch main`
 	cmdDeliverLog  = `git log -n 200 --format=%s | grep "^{{.ID}}: " || { echo "no squash commit \"{{.ID}}: …\" on local main: git pull first, and check the PR/merge title started with \"{{.ID}}: \"" >&2; false; }`
 	cmdCancelGuard = `test -f .mtt/tasks/{{.ID}}.yaml || { echo "task file absent on main — its add has not reached main (merge/commit the branch that created it first)" >&2; false; }`
+	cmdPostCommit  = `git add .mtt && git commit -m "{{.ID}}: {{.From}} → {{.To}}" -- .mtt`
 )
 
 // TestRepoDogfoodConfig is the SOLE guard of this repo's committed
@@ -102,6 +103,16 @@ func TestRepoDogfoodConfig(t *testing.T) {
 	}
 	if got := len(chore.Transitions); got != 11 {
 		t.Fatalf("chore transitions = %d, want 11", got)
+	}
+
+	// every edge auto-commits .mtt via a single post: command (t21) — a dropped or
+	// drifted block reddens on the exact literal.
+	for _, ty := range []mtt.Type{task, chore} {
+		for _, tr := range ty.Transitions {
+			if len(tr.Post) != 1 || tr.Post[0].Run != cmdPostCommit {
+				t.Fatalf("%s %s->%s post = %+v, want single %q", ty.Name, tr.From, tr.To, tr.Post, cmdPostCommit)
+			}
+		}
 	}
 
 	// entry edges: name/current + exact two-command pipeline (both types).
