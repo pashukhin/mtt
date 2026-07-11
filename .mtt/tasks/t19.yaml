@@ -1,10 +1,10 @@
 id: t19
 type: task
 title: migrate agent-process rules into the flow descriptions (self-instructing runbook — flow-note insight 2)
-status: approved
+status: done
 priority: high
 created: "2026-07-10T13:53:10Z"
-updated: "2026-07-11T13:38:11Z"
+updated: "2026-07-11T13:47:12Z"
 history:
     - at: "2026-07-11T12:58:25Z"
       by: Grigorii Pashukhin
@@ -78,3 +78,12 @@ history:
       by: Grigorii Pashukhin
       from: impl_review
       to: approved
+    - at: "2026-07-11T13:47:12Z"
+      by: Grigorii Pashukhin
+      from: approved
+      to: done
+      checks:
+        - cmd: git switch main
+          exit: 0
+        - cmd: 'git log -n 200 --format=%s | grep "^t19: " || { echo "no squash commit \"t19: …\" on local main: git pull first, and check the PR/merge title started with \"t19: \"" >&2; false; }'
+          exit: 0
