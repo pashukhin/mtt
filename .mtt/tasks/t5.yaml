@@ -1,12 +1,12 @@
 id: t5
 type: task
 title: dangerous-ops attribution — force --who/--why on flow-bypassing / risk actions (--no-run over a real gate, --force); the parked roles seam, first concrete trigger
-status: spec_fix
+status: spec_review
 priority: high
 tags:
     - core
 created: "2026-07-10T13:51:25Z"
-updated: "2026-07-11T06:51:49Z"
+updated: "2026-07-11T06:55:01Z"
 history:
     - at: "2026-07-11T05:29:19Z"
       by: Grigorii Pashukhin
@@ -28,3 +28,10 @@ history:
       by: Grigorii Pashukhin
       from: spec_review
       to: spec_fix
+    - at: "2026-07-11T06:55:01Z"
+      by: Grigorii Pashukhin
+      from: spec_fix
+      to: spec_review
+      checks:
+        - cmd: ls docs/superpowers/specs/t5-*.md
+          exit: 0
