@@ -1,12 +1,12 @@
 id: t5
 type: task
 title: dangerous-ops attribution — force --who/--why on flow-bypassing / risk actions (--no-run over a real gate, --force); the parked roles seam, first concrete trigger
-status: spec_human_review
+status: planning
 priority: high
 tags:
     - core
 created: "2026-07-10T13:51:25Z"
-updated: "2026-07-11T07:00:02Z"
+updated: "2026-07-11T07:03:17Z"
 history:
     - at: "2026-07-11T05:29:19Z"
       by: Grigorii Pashukhin
@@ -39,3 +39,7 @@ history:
       by: Grigorii Pashukhin
       from: spec_review
       to: spec_human_review
+    - at: "2026-07-11T07:03:17Z"
+      by: Grigorii Pashukhin
+      from: spec_human_review
+      to: planning
