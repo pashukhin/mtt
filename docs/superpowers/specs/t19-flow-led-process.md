@@ -19,10 +19,11 @@ the statuses where those steps happen already print guidance on entry (s008.95).
 - `impl_review` (task): `run an adversarial code review: the AGENTS.md Principles self-check + Go
   conventions, and DESIGN.md/CLAUDE.md updated if behavior changed; `mtt approve` when it passes,
   `mtt decline` to send back`
-- `impl_review` (chore): same checklist PLUS the existing type-boundary police line, which MUST survive
-  verbatim (`it must be a` is guard-test-asserted): `run an adversarial code review: the AGENTS.md
-  Principles self-check + Go conventions, and DESIGN.md/CLAUDE.md updated if behavior changed; if the
-  diff contains design decisions not recorded elsewhere — decline: it must be a `task`.
+- `impl_review` (chore): same checklist PLUS the type-boundary police line, which MUST keep the
+  guard-asserted `it must be a` substring and now also carries the recovery step (review MINOR-5): `run
+  an adversarial code review: the AGENTS.md Principles self-check + Go conventions, and
+  DESIGN.md/CLAUDE.md updated if behavior changed; if the diff contains design decisions not recorded
+  elsewhere — decline: it must be a `task` (cancel this chore and recreate).
   `mtt approve` / `mtt decline``
 - `approved` (both types): name the one manual command instead of describing it: `open/update the PR:
   gh pr create --title '<this-task-id>: <title>' (the branch was auto-pushed), ask the human to merge;
@@ -35,9 +36,11 @@ ADD two for the new load-bearing strings — `superpowers:brainstorming` in task
 
 ### D2 — AGENTS.md shrinks to discipline + principles + the not-yet-expressible
 
-- **Definition of Done section** → replaced by: the DoD *is* the flow (`mtt types`); what stays on the
-  agent: test-before-code, the Principles self-check, docs-sync judgment (all three referenced by the
-  `impl_review` descriptions, D1).
+- **Definition of Done section** → replaced by: the DoD *is* the flow — each status prints its
+  instructions on entry and in `mtt show` (NOTE, review MAJOR-1: `mtt types` renders type + edge
+  descriptions but NOT status descriptions — point readers at `mtt show`/entry guidance); what stays on
+  the agent: test-before-code, the Principles self-check, docs-sync judgment (all three referenced by
+  the `impl_review` descriptions, D1).
 - **Working under mtt** — bullets that duplicate what the flow prints are cut to pointers: the two-type
   litmus (lives in the type descriptions), id-keyed artifacts + commit-early (speccing/planning
   descriptions), PR-title + delivery mechanics (approved/deliver descriptions). Bullets that stay:
@@ -48,12 +51,19 @@ ADD two for the new load-bearing strings — `superpowers:brainstorming` in task
 - **Sessions section** → rewritten: the unit of work is an mtt task on a `task/<id>` branch; the
   superpowers method steps live in the flow (D1); `sessions/*.md` is the narrative archive for process
   milestones, not a per-task requirement (the apparatus decision itself is t31, out of scope here).
-- Out of scope for t19 (already queued as **c2**): the push-rule contradiction, the stale
-  approved-push line, the model-specific commit trailer.
+- **Git section** (review MAJOR-2): the `Branches: feat/…, fix/…, chore/…` bullet is updated in t19 —
+  mtt work runs on flow-created `task/<id>` branches; `feat/…`/`chore/…` remain only for non-task
+  exceptions (bootstrap/infra).
+- Out of scope for t19 (queued as **c2**, which lands AFTER t19 and rebases on it): the push-rule
+  contradiction and the model-specific commit trailer. c2's third item (the stale approved-push line)
+  is likely deleted by t19's dedup of the "Delivery is verified" bullet — c2 then just verifies it is
+  gone, in AGENTS.md AND in DESIGN.md's dogfood note (+ ru mirror), which carries the same stale
+  sentence (review MINOR-6; c2's description gets widened accordingly).
 
 ### D3 — Root CLAUDE.md sync
 
-Reading order becomes `AGENTS.md → DESIGN.md → mtt roadmap` (TASKS.md is frozen history); the
+Reading order becomes `AGENTS.md → DESIGN.md → mtt roadmap` (TASKS.md is frozen history); the header
+line "task plan — in TASKS.md" becomes "the live queue — `mtt roadmap`" (review MINOR-4); the
 non-negotiables bullet "Per-task branch → PR → CI green → squash into main" gains "(the flow creates
 and pushes the branch; see AGENTS.md Working under mtt)".
 
@@ -65,7 +75,8 @@ descriptions would turn `<this-task-id>` into the real id).
 
 ## Acceptance
 
-- `.mtt/config.yaml` carries the D1 texts; `mtt types` / a move into each touched status prints them.
+- `.mtt/config.yaml` carries the D1 texts; a move into each touched status — and `mtt show` on a task
+  resting there — prints them (status descriptions do NOT appear in `mtt types`; that stays as-is).
 - `TestRepoDogfoodConfig` green with the two new description spot-checks (and the two old ones).
 - AGENTS.md: DoD replaced per D2, Working-under-mtt deduped, Sessions rewritten; no sentence in
   AGENTS.md/CLAUDE.md contradicts what the flow prints.
