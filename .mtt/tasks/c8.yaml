@@ -1,12 +1,12 @@
 id: c8
 type: chore
 title: 'ready/list --exclude-tag filter — hide tasks carrying any given tag (de-noise: hide backlog from ready); mirrors the --tag include filter'
-status: impl_review
+status: impl_fix
 priority: medium
 tags:
     - dx
 created: "2026-07-12T05:20:31Z"
-updated: "2026-07-12T05:29:52Z"
+updated: "2026-07-12T05:33:34Z"
 description: 'Reclassified from task t20 (design fixed in brainstorm). Add ExcludeTags []string to core.ListFilter; in core.Match reject a task if it carries any exclude-tag (intersects(f.ExcludeTags, t.Tags)) — include (--tag) and exclude (--exclude-tag) compose: matches include AND not exclude; on overlap exclude wins. CLI: --exclude-tag (repeatable StringArray) on list and ready, validated via the existing toTags. Empty is a no-op. TDD: core.Match unit tests + a testscript e2e (hide backlog from ready).'
 history:
     - at: "2026-07-12T05:22:35Z"
@@ -25,3 +25,7 @@ history:
       checks:
         - cmd: make check
           exit: 0
+    - at: "2026-07-12T05:33:34Z"
+      by: Grigorii Pashukhin
+      from: impl_review
+      to: impl_fix
