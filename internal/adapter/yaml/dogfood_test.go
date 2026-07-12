@@ -30,6 +30,9 @@ const (
 	cmdPostCommitMain = `a=.mtt/tasks/{{.ID}}.yaml; test -f .mtt/audit.log && a="$a .mtt/audit.log"; git add -- $a && git commit -m "{{.ID}}: {{.From}} → {{.To}}" -- $a`
 	cmdPushBranch     = `git push -u origin task/{{.ID}}`
 	cmdPushMain       = `git push origin main`
+	// approve also opens/updates the PR (idempotent, config-only) — c1 pushed the
+	// branch, t27 opens the PR. Byte-matches the .mtt/config.yaml approve post[2].
+	cmdPrCreate = `[ -n "$(gh pr list --head task/{{.ID}} --state open --json number --jq ".[].number")" ] || { t="{{.ID}}: $(mtt show {{.ID}} --json | jq -r ".title // empty")"; if test -f docs/superpowers/pr/{{.ID}}.md; then gh pr create --base main --head task/{{.ID}} --title "$t" --body-file docs/superpowers/pr/{{.ID}}.md; else gh pr create --base main --head task/{{.ID}} --title "$t" --body "Automated PR for {{.ID}} — see: mtt show {{.ID}}"; fi; }`
 )
 
 // TestRepoDogfoodConfig is the SOLE guard of this repo's committed
@@ -127,9 +130,9 @@ func TestRepoDogfoodConfig(t *testing.T) {
 				t.Fatalf("%s %s->%s post[0] = %+v, want %q first", ty.Name, tr.From, tr.To, tr.Post, wantPost)
 			}
 			switch {
-			case tr.To == "approved": // approve: push the branch for the PR
-				if len(tr.Post) != 2 || tr.Post[1].Run != cmdPushBranch {
-					t.Fatalf("%s %s->approved post = %+v, want [commit, %q]", ty.Name, tr.From, tr.Post, cmdPushBranch)
+			case tr.To == "approved": // approve: push the branch for the PR, then open the PR (t27)
+				if len(tr.Post) != 3 || tr.Post[1].Run != cmdPushBranch || tr.Post[2].Run != cmdPrCreate {
+					t.Fatalf("%s %s->approved post = %+v, want [commit, %q, %q]", ty.Name, tr.From, tr.Post, cmdPushBranch, cmdPrCreate)
 				}
 			case tr.From == "approved" && tr.To == "done": // deliver: push main
 				if len(tr.Post) != 2 || tr.Post[1].Run != cmdPushMain {
