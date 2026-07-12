@@ -1,13 +1,13 @@
 id: c3
 type: chore
 title: 'Narrow the post add-pathspec on deliver/cancel: git add only the task file (+audit.log), not all of .mtt — an uncommitted config.yaml edit must not ride an auto-push to main past review (SEC2 hole)'
-status: implementing
+status: impl_review
 priority: high
 tags:
     - flow
     - sec
 created: "2026-07-11T14:06:23Z"
-updated: "2026-07-12T01:54:08Z"
+updated: "2026-07-12T01:58:48Z"
 history:
     - at: "2026-07-12T01:54:08Z"
       by: Grigorii Pashukhin
@@ -17,4 +17,11 @@ history:
         - cmd: git switch task/c3 || (git switch main && git switch -c task/c3)
           exit: 0
         - cmd: test -f .mtt/tasks/c3.yaml || { echo "task file absent on this branch — its add has not reached main (merge/commit the branch that created it first)" >&2; false; }
+          exit: 0
+    - at: "2026-07-12T01:58:48Z"
+      by: Grigorii Pashukhin
+      from: implementing
+      to: impl_review
+      checks:
+        - cmd: make check
           exit: 0
