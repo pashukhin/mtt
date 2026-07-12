@@ -863,8 +863,8 @@ after dogfood we move mtt's development onto mtt itself. See sessions/README.md 
 > **Conventions that remain:** the PR title starts with `<id>: `; the remaining manual steps are opening
 > the PR (`gh pr create`) and pulling main before `deliver` (the gate checks the local log and fails
 > closed with a "git pull first" hint). (Since t21 every move auto-commits `.mtt` via a per-edge `post:`
-> action, and since c1 `approve` auto-pushes the task branch and `deliver` auto-pushes main — the former
-> manual state-commits and the push-before-merge convention are gone.)
+> action, and since c1 `approve` auto-pushes the task branch and `deliver`/`cancel` auto-push main (c5) — the
+> former manual state-commits and the push-before-merge convention are gone.)
 > **Attribution:** project-global `require: {who}` (per-edge/role `require` needs a core change — parked
 > roles work; the migrated `dangerous-ops` task is its first trigger). **Trust (SEC2):** gates invoke
 > **read-only** `mtt` only — never an mtt transition (recursion). **Known limits (recorded):** the
