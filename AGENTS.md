@@ -146,7 +146,7 @@ the live queue is mtt. Practical rules:
   SMALL vocabulary — currently `core`, `flow`, `sec`, `tests`, `perf`, `dx`, `ux`, `kb`, `adapter`,
   `demo`, `multiagent`, `release`, `docs` — pick from the existing set before inventing (discover the
   live set via `mtt list --kind initial --kind active --json | jq -r '.[].tags[]?' | sort | uniq -c`
-  until `mtt tags` (t39) lands). Caveat: `#hashtags` in titles/descriptions auto-become tags — never
+  until `mtt tags` (c9) lands). Caveat: `#hashtags` in titles/descriptions auto-become tags — never
   put `#` in a title unless you mean it. (Policy home migrates into mtt when t29 lands.)
 - **Two types — pick by the type description** (`mtt types`). Beyond that, the flow itself tells you what
   to do at every status (printed on entry and by `mtt show`): method steps, artifact paths, gates, git
