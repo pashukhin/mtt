@@ -35,5 +35,16 @@ jobs:
       - name: test
         run: go test -race -cover ./...
 
+      # Regression guard for c4: a hostile MTT_* in the caller's env must not reach
+      # the tests (the cli harness scrubs it). -count=1 defeats the cache so this
+      # actually runs; a regressed scrub reddens here even though the clean run above
+      # stays green.
+      - name: test (hostile MTT_* env — harness must scrub)
+        env:
+          MTT_DIR: /tmp
+          MTT_BY: ci-should-be-scrubbed
+          MTT_ROLE: ci-should-be-scrubbed
+        run: go test -count=1 ./...
+
       - name: build
         run: go build ./...
