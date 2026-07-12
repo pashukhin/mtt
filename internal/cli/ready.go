@@ -14,11 +14,12 @@ import (
 // blockers terminal). Accepts the list filters.
 func newReadyCmd() *cobra.Command {
 	var (
-		statuses []string
-		types    []string
-		kinds    []string
-		parent   string
-		idsOut   bool
+		statuses    []string
+		types       []string
+		kinds       []string
+		excludeTags []string
+		parent      string
+		idsOut      bool
 	)
 	cmd := &cobra.Command{
 		Use:   "ready",
@@ -26,6 +27,10 @@ func newReadyCmd() *cobra.Command {
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			kindVals, err := parseKinds(kinds)
+			if err != nil {
+				return err
+			}
+			excludeTagVals, err := toTags(excludeTags)
 			if err != nil {
 				return err
 			}
@@ -43,7 +48,7 @@ func newReadyCmd() *cobra.Command {
 			}
 			filter := core.ListFilter{
 				Statuses: toStatusNames(statuses), Types: toTypeNames(types),
-				Kinds: kindVals, Parent: mtt.TaskID(parent),
+				Kinds: kindVals, ExcludeTags: excludeTagVals, Parent: mtt.TaskID(parent),
 			}
 			selected := core.Select(core.Ready(tasks, cfg), filter, cfg)
 			if idsOut {
@@ -65,6 +70,7 @@ func newReadyCmd() *cobra.Command {
 	cmd.Flags().StringArrayVar(&statuses, "status", nil, "filter by status (repeatable)")
 	cmd.Flags().StringArrayVar(&types, "type", nil, "filter by type (repeatable)")
 	cmd.Flags().StringArrayVar(&kinds, "kind", nil, "filter by status category: initial|active|terminal (repeatable)")
+	cmd.Flags().StringArrayVar(&excludeTags, "exclude-tag", nil, "exclude tasks carrying this tag (repeatable)")
 	cmd.Flags().StringVar(&parent, "parent", "", "only direct children of this task id")
 	cmd.Flags().BoolVar(&idsOut, "ids", false, "print only task ids, one per line (for pipelines)")
 	return cmd

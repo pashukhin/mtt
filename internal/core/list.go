@@ -20,14 +20,18 @@ const (
 
 // ListFilter holds the list predicates and ordering. Empty slices/zero Parent
 // match everything; within a field the values are OR-ed, across fields AND-ed.
+// ExcludeTags is a negative filter: a task carrying ANY of its tags is rejected
+// (empty → rejects nothing); it composes with Tags as AND, so on overlap exclude
+// wins (a tag in both Tags and ExcludeTags rejects the task).
 type ListFilter struct {
-	Statuses   []mtt.StatusName
-	Types      []mtt.TypeName
-	Kinds      []mtt.StatusKind
-	Priorities []mtt.Priority
-	Tags       []string
-	Parent     mtt.TaskID
-	Sort       SortKey
+	Statuses    []mtt.StatusName
+	Types       []mtt.TypeName
+	Kinds       []mtt.StatusKind
+	Priorities  []mtt.Priority
+	Tags        []string
+	ExcludeTags []string
+	Parent      mtt.TaskID
+	Sort        SortKey
 }
 
 // Match reports whether t satisfies f. Within a dimension the values are OR-ed;
@@ -39,6 +43,9 @@ func Match(t mtt.Task, f ListFilter, cfg mtt.Config) bool {
 		return false
 	}
 	if !anyOrEmptyIntersect(f.Tags, t.Tags) {
+		return false
+	}
+	if intersects(f.ExcludeTags, t.Tags) {
 		return false
 	}
 	if f.Parent != "" && t.Parent != f.Parent {
@@ -113,11 +120,16 @@ func anyOrEmptyIntersect[T comparable](filter, have []T) bool {
 	if len(filter) == 0 {
 		return true
 	}
-	set := make(map[T]bool, len(have))
-	for _, v := range have {
+	return intersects(filter, have)
+}
+
+// intersects reports whether a and b share at least one element (empty a → false).
+func intersects[T comparable](a, b []T) bool {
+	set := make(map[T]bool, len(b))
+	for _, v := range b {
 		set[v] = true
 	}
-	for _, v := range filter {
+	for _, v := range a {
 		if set[v] {
 			return true
 		}

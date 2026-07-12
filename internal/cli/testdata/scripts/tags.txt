@@ -59,3 +59,22 @@ stderr 'not found'
 # --json carries the tags array
 exec mtt show e1 --json
 stdout '"tags"'
+
+# --exclude-tag: hide tasks carrying a tag, on list AND ready (de-noise the queue)
+exec mtt add --type epic 'noise' --tag backlog
+stdout 'created e3'
+exec mtt list
+stdout 'e3  epic'
+# --exclude-tag backlog hides e3, keeps the others
+exec mtt list --exclude-tag backlog
+! stdout 'e3'
+stdout 'e1'
+# exclude wins over include when both name the same tag
+exec mtt list --tag backlog --exclude-tag backlog
+! stdout 'e3'
+# ready honors --exclude-tag too
+exec mtt ready
+stdout 'e3  epic'
+exec mtt ready --exclude-tag backlog
+! stdout 'e3'
+stdout 'e1'
