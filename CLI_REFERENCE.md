@@ -437,8 +437,9 @@ the history. Does not run the `done` gate.
 
 ### `mtt ready [flags]` — list actionable tasks  *(session 005, implemented)*
 Lists non-terminal tasks whose blockers are all in a terminal status (`done`/`cancelled`) — "what can be
-picked up next". Accepts the `list` filters (`--status`/`--type`/`--kind`/`--parent`), `--json`, and `--ids`
-(session 008.9; one id per line, mutually exclusive with `--json`).
+picked up next". Accepts the `list` filters (`--status`/`--type`/`--kind`/`--parent`/`--exclude-tag`), `--json`,
+and `--ids` (session 008.9; one id per line, mutually exclusive with `--json`). `--exclude-tag <tag>…` (c8,
+repeatable) de-noises the queue, e.g. `mtt ready --exclude-tag backlog`.
 Readiness is **conservative**: a dangling blocker or a status not in the current flow leaves a task not
 ready (`mtt list --ready` is the same subset via `list`).
 
