@@ -29,8 +29,9 @@ func resolve(ldflags string, buildVersion func() string) string {
 	return "dev"
 }
 
-// readBuildVersion returns the main module's version from the build info, or ""
-// when it is unavailable (plain `go build`, `go test`).
+// readBuildVersion returns the main module's version from the build info. Plain
+// `go build`/`go test` binaries yield "(devel)" or "" (which resolve treats as
+// absent); "" is also the fallback when build info is unavailable at all.
 func readBuildVersion() string {
 	if info, ok := debug.ReadBuildInfo(); ok {
 		return info.Main.Version

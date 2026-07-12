@@ -14,6 +14,7 @@ func TestResolve(t *testing.T) {
 		{"build info when ldflags is dev", "dev", "v1.2.3", "v1.2.3"},
 		{"fallback on (devel) build info", "dev", "(devel)", "dev"},
 		{"fallback on empty build info", "dev", "", "dev"},
+		{"empty ldflags falls through to build info", "", "v1.2.3", "v1.2.3"},
 		{"fallback on empty ldflags", "", "", "dev"},
 	}
 	for _, tc := range tests {

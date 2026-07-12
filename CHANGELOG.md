@@ -8,11 +8,6 @@ All notable changes to mtt are documented here. The format follows
 
 First public release line. Shipped so far:
 
-### Changed
-- **Versioning:** adopted SemVer (pre-1.0); the version is now derived from the git tag
-  (ldflags / `git describe` → module build info → `"dev"`), replacing the hand-maintained session-mirrored
-  `0.N.M-dev` literal. See [RELEASING.md](RELEASING.md).
-
 ### Added
 - **Project & flow:** `mtt init` (`default` / `coding` templates), `mtt types`.
 - **Tasks (CRUD):** `mtt add` (`--type` / `--parent` / `--priority` / `--tag` / `--depends-on`), `mtt show`,
@@ -45,6 +40,9 @@ First public release line. Shipped so far:
 ### Changed
 - The root tagline now names the executable-state-machine + gate feature (was "minimalist file-backed task
   tracker").
+- **Versioning:** adopted SemVer (pre-1.0); the version is now derived from the git tag
+  (ldflags / `git describe` → module build info → `"dev"`), replacing the hand-maintained session-mirrored
+  `0.N.M-dev` literal. See [RELEASING.md](RELEASING.md).
 
 ### Fixed
 - **YAML `List`/`Get` name the offending file** on a corrupt or zero-byte task file (was a pathless
