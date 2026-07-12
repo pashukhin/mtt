@@ -58,3 +58,32 @@ func reconcileTags(current []string, oldTitle, oldDesc, newTitle, newDesc string
 	}
 	return canonicalTags(kept, newTags)
 }
+
+// TagCount is one tag and how many of the counted tasks carry it.
+type TagCount struct {
+	Tag   string
+	Count int
+}
+
+// TagCounts tallies tags across tasks and returns them sorted by Count
+// descending, then Tag ascending. A task's Tags are a normalized set (no
+// duplicates), so each task contributes at most once per tag.
+func TagCounts(tasks []mtt.Task) []TagCount {
+	counts := map[string]int{}
+	for _, t := range tasks {
+		for _, tag := range t.Tags {
+			counts[tag]++
+		}
+	}
+	out := make([]TagCount, 0, len(counts))
+	for tag, n := range counts {
+		out = append(out, TagCount{Tag: tag, Count: n})
+	}
+	sort.Slice(out, func(i, j int) bool {
+		if out[i].Count != out[j].Count {
+			return out[i].Count > out[j].Count
+		}
+		return out[i].Tag < out[j].Tag
+	})
+	return out
+}

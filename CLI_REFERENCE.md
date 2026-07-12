@@ -333,6 +333,13 @@ carrying a tag — distinct from the positional tags being added/removed.
   `бэкенд`), with an optional leading `#`. Whitespace or other characters are a usage error. (Comparison is by
   lowercased code points; there is **no** Unicode NFC folding.)
 
+### `mtt tags [flags]` — tag vocabulary with counts  *(c9, implemented)*
+Read-only: tallies tags across the counted tasks and prints `count  tag` rows, most-used first (count
+descending, then tag ascending). Default scope is **open** tasks (`initial`+`active` kinds); `--all` counts
+every task; `--kind`/`--status`/`--type`/`--priority`/`--tag`/`--exclude-tag`/`--parent` narrow the counted
+set (the same filters as `list`). `--json` emits a `[{tag, count}]` array. Replaces the
+`mtt list … | jq … | uniq -c` workaround.
+
 ---
 
 ## Flow (status changes)

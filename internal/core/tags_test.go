@@ -102,3 +102,25 @@ func TestEditReconcileTextAndManualCollisionCorner(t *testing.T) {
 		t.Fatalf("Tags = %v; want nil (corner: text+manual x dropped with #x)", got.Tags)
 	}
 }
+
+func TestTagCounts(t *testing.T) {
+	tasks := []mtt.Task{
+		{Tags: []string{"dx", "flow"}},
+		{Tags: []string{"dx"}},
+		{Tags: []string{"flow", "sec"}},
+		{Tags: nil},
+	}
+	got := TagCounts(tasks)
+	want := []TagCount{{"dx", 2}, {"flow", 2}, {"sec", 1}}
+	if len(got) != len(want) {
+		t.Fatalf("TagCounts len = %d, want %d (%+v)", len(got), len(want), got)
+	}
+	for i, w := range want {
+		if got[i] != w {
+			t.Errorf("TagCounts[%d] = %+v, want %+v", i, got[i], w)
+		}
+	}
+	if len(TagCounts(nil)) != 0 {
+		t.Error("TagCounts(nil) should be empty")
+	}
+}
