@@ -18,19 +18,35 @@ be on the remote for `gh pr create --head`). The mechanism rides entirely on sur
 `pkg/mtt` / adapter / CLI code changes**. `gh pr create` belongs in `post:` (not the `commands:` gate): the
 gate stays offline, network already lives in `post:` (the `git push`).
 
-### D2 — Idempotent create-if-absent, no update-on-re-approve
+### D2 — Idempotent create-if-**open**, no update-on-re-approve
 
-`gh pr view <branch> >/dev/null 2>&1 || gh pr create …` — open the PR only if none exists. `approve` re-fires
-after `decline → impl_fix → submit → approve`, and re-opening/-updating would either error or clobber
-hand/UI edits to the PR body. So: **create if absent, otherwise leave the existing PR untouched.**
+Open the PR only when **no OPEN PR** exists for the branch. **Not** `gh pr view <branch>` — that matches a PR
+in *any* state (open/closed/merged), so after `decline → impl_fix → … → approve` where the prior PR was
+**closed**, it would find the closed PR, short-circuit, and **silently skip** creation (no PR, `approve` exits
+0 — no signal). Use a state-filtered existence test:
+
+```
+[ -n "$(gh pr list --head task/{{.ID}} --state open --json number --jq ".[].number")" ] || { …create… }
+```
+
+`--jq ".[].number"` **iterates** — empty output on `[]` → create; the number(s) → skip. (`.[0].number` would
+print the literal `null` on an empty array — `null.number` → `null` — and wrongly skip forever; verified.)
+`approve` re-fires after `decline → impl_fix → submit → approve`; re-opening or updating an existing open PR
+would clobber hand/UI edits, so: **create iff no open PR, else leave it.** Double-quoting the jq expressions
+keeps the whole command a single-quoted YAML scalar (matching the existing posts).
 
 ### D3 — Title read (not templatized)
 
-`--title "{{.ID}}: $(mtt show {{.ID}} --json | jq -r .title)"`. `{{.Title}}` is deliberately **not** in the
-placeholder whitelist (`core.expandCommands` rejects it — `expand_test.go`), and t27 does not widen it; the
-title is **read** at run time via read-only `mtt show --json` (SEC2-safe: read-only mtt, never a transition).
-The `{{.ID}}: ` prefix is load-bearing — the `deliver` gate greps `^{{.ID}}: ` on the squash subject, and the
-GitHub squash-merge default subject is the PR title.
+`--title "{{.ID}}: $(mtt show {{.ID}} --json | jq -r ".title // empty")"`. `{{.Title}}` is deliberately **not**
+in the placeholder whitelist (`core.expandCommands` rejects it — `expand_test.go`), and t27 does not widen it;
+the title is **read** at run time via read-only `mtt show --json` (SEC2-safe: read-only mtt, never a
+transition). `// empty` matters: `Title` is `omitempty`, so a task carrying only a description yields `t27: `
+(honest) instead of the literal `t27: null`. Titles are assumed **single-line** (a newline survives shell
+capture as one argument but GitHub rejects a multi-line title). The `{{.ID}}: ` prefix is load-bearing — the
+`deliver` gate greps `^{{.ID}}: ` on the squash subject (a `:` inside the title body is fine — the anchor is
+prefix-only), and GitHub's squash-merge default subject is the PR title. Shell-injection-safe: the title is
+captured into a variable via command substitution and passed as `--title "$t"` (double-quoted expansion is not
+re-scanned), so `"`/`$`/backticks in a title are inert — verified.
 
 ### D4 — PR body: hybrid artifact-or-fallback
 
@@ -44,19 +60,23 @@ The artifact is **optional** — no `ls` gate on it (unlike the spec/plan submit
 simply fall to the generated body; when they warrant rich prose the agent writes the file. This is the
 resolution of the task's open question (options a–e in the task description): **hybrid (b)+(e)**, config-only.
 
-Draft command (final quoting finalized in the plan; single-quoted YAML scalar, so no `'` inside; **no
-backticks** in the fallback body — they are shell command-substitution):
+Draft command (the plan pins the byte-exact string that the guard matches; single-quoted YAML scalar, so no
+`'` inside — jq expressions are **double-quoted**; **no backticks** in the fallback body — they are shell
+command-substitution). Validated in scratch (existence semantics, nested `$( )` quoting, special-char title):
 
 ```
-gh pr view task/{{.ID}} >/dev/null 2>&1 || { t="{{.ID}}: $(mtt show {{.ID}} --json | jq -r .title)"; if test -f docs/superpowers/pr/{{.ID}}.md; then gh pr create --base main --head task/{{.ID}} --title "$t" --body-file docs/superpowers/pr/{{.ID}}.md; else gh pr create --base main --head task/{{.ID}} --title "$t" --body "Automated PR for {{.ID}} — see: mtt show {{.ID}}"; fi; }
+[ -n "$(gh pr list --head task/{{.ID}} --state open --json number --jq ".[].number")" ] || { t="{{.ID}}: $(mtt show {{.ID}} --json | jq -r ".title // empty")"; if test -f docs/superpowers/pr/{{.ID}}.md; then gh pr create --base main --head task/{{.ID}} --title "$t" --body-file docs/superpowers/pr/{{.ID}}.md; else gh pr create --base main --head task/{{.ID}} --title "$t" --body "Automated PR for {{.ID}} — see: mtt show {{.ID}}"; fi; }
 ```
 
 ### D5 — New runtime dependencies: `gh` + `jq`; failure → exit 5
 
-The mechanized `post:` now requires `gh` (authenticated) and `jq`. `gh` was already assumed (the human ran
-it); `jq` is new to the flow. Any failure (missing binary, unauth, network, `gh` API error) makes the `post:`
-fail → `core.ErrPostAction` → CLI **exit 5**, the move **kept** (status persisted, branch pushed) — the human
-finishes by opening the PR by hand. Identical to the existing push-failure contract; no new failure semantics.
+The mechanized `post:` now requires `gh` (authenticated) and `jq`, and calls the **`mtt` binary on `$PATH`**
+(`mtt show --json`, not in-process code — a stale installed `mtt` lacking `--json`/`.title` would corrupt the
+title; the dogfood assumption is a current built `mtt` on `$PATH`, same as every other `mtt …` the flow runs).
+`gh` was already assumed (the human ran it); `jq` is new to the flow. Any failure (missing binary, unauth,
+network, `gh` API error) makes the `post:` fail → `core.ErrPostAction` → CLI **exit 5**, the move **kept**
+(status persisted, branch pushed) — the human finishes by opening the PR by hand. Identical to the existing
+push-failure contract; no new failure semantics.
 
 ### D6 — Scope: both types
 
@@ -66,16 +86,17 @@ Applies to task and chore approve edges alike. Artifact directory `docs/superpow
 ### D7 — `approved` status description update (+ its guard)
 
 The `approved` status description currently instructs the human to run `gh pr create …`. After mechanization it
-must say the PR is opened/updated **automatically** (human just merges; after squash-merge run `mtt deliver`).
-`TestRepoDogfoodConfig` pins `Contains(approved.Description, "gh pr create")` — that assertion is updated in
-lockstep (the description still names `gh pr create` as *what mtt runs*, or the guard is repointed to a new
-stable substring; decided in the plan).
+says mtt **runs `gh pr create` automatically** — the human just merges; after the squash-merge run `mtt
+deliver`. **Decision (pinned): keep the literal `gh pr create` substring** in the reworded description (it now
+names *what mtt runs for you*), so `TestRepoDogfoodConfig`'s `Contains(approved.Description, "gh pr create")`
+guard needs **no new anchor** — only the description text changes, on both types.
 
 ### D8 — Test guard + docs
 
 - `TestRepoDogfoodConfig`: the approve case now expects `post` **length 3** — `[cmdPostCommit, cmdPushBranch,
-  cmdPrCreate]` — on both types (a new pinned `cmdPrCreate` constant, byte-matching the config), plus D7's
-  description assertion.
+  cmdPrCreate]` — on both types (a new pinned `cmdPrCreate` constant, byte-matching the config). The existing
+  `Contains(approved.Description, "gh pr create")` assertion is **unchanged** (D7 keeps the substring); only the
+  description text changes.
 - Docs (EN/RU where bilingual): AGENTS.md ("Moves auto-commit / auto-push" bullet → approve also opens the PR;
   the gh+jq dependency), DESIGN.md/DESIGN.ru.md + CLI_REFERENCE.md/.ru (the c1 auto-push note → also PR-open),
   and the `docs/superpowers/pr/` artifact convention. `internal/adapter/yaml/CLAUDE.md` if the guard note needs it.
