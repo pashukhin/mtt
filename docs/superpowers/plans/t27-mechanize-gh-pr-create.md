@@ -109,34 +109,68 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 
 ---
 
-### Task 2: Docs sync
+### Task 2: Docs sync (EN/RU) — approve mechanizes the PR
 
 **Files:**
-- Modify: `AGENTS.md` (the "Moves auto-commit / auto-push" bullet)
-- Modify: `DESIGN.md` + `DESIGN.ru.md` (the c1 auto-push note)
-- Modify: `CLI_REFERENCE.md` + `CLI_REFERENCE.ru.md` (the post/auto-push paragraph)
+- Modify: `AGENTS.md` (the "Moves auto-commit … and auto-push (c1)" bullet — TWO sentences)
+- Modify: `DESIGN.md` + `DESIGN.ru.md` (**TWO** live occurrences each: the t21/c1 "Shipped" block **and** the s009 dogfood "Shipped" block, plus the artifact-dir convention line)
+- Modify: `CLI_REFERENCE.md` + `CLI_REFERENCE.ru.md` (the `post:` paragraph — reflow, no double "and")
 
 **Interfaces:** none (prose only). EN↔RU must stay in sync.
 
-- [ ] **Step 1: AGENTS.md** — in the `Moves auto-commit … and auto-push (c1)` bullet, change the tail. It currently ends roughly "…**`deliver` and `cancel` push main**… So the only manual git step left is opening the PR (`gh pr create` — a judgement call)." Reword to:
+> **Why two DESIGN occurrences:** `gh pr create` is described as a remaining-manual step in BOTH the t21/c1
+> block *and* the s009 dogfood block. These "Shipped (sNNN)" blocks are **living text** (they already carry
+> retroactive "(Since t21 … c1 …)" parentheticals), so both must move or DESIGN self-contradicts (this is the
+> exact miss the plan review caught; c5 had the same one). Verify with the grep in Step 7.
 
-> **`approve` also pushes the task branch AND opens/updates the PR** (`gh pr create`, idempotent — skipped if an open PR already exists; title from `mtt show --json`, body from `docs/superpowers/pr/<id>.md` when present else a generated one; needs `gh`+`jq`, missing/unauth → exit 5, move kept). **`deliver`/`cancel` push main.** So the only manual step left is **merging** the PR.
+- [ ] **Step 1: AGENTS.md** (two edits in the auto-commit/auto-push bullet).
+  (a) Reword the tail "So the only manual git step left is opening the PR (`gh pr create` — a judgement call)." →
+  "**`approve` also opens/updates the PR** (`gh pr create`, idempotent — skipped if an open PR exists; title from
+  `mtt show --json`, body from `docs/superpowers/pr/<id>.md` when present else generated; needs `gh`+`jq`). So the
+  only manual step left is **merging** the PR."
+  (b) Broaden the next sentence's failure enumeration "If a post action fails (**commit *or* push**), the move is
+  **kept** …" → "If a post action fails (**commit, push, or PR-open**), the move is **kept** …".
 
-- [ ] **Step 2: DESIGN.md** — find the c1 auto-push sentence ("…`deliver` **and `cancel`** post also `git push origin main` … the remaining manual steps are `gh pr create` … and pulling main before `deliver`."). Change "the remaining manual steps are `gh pr create` (title/body are a judgement call) and pulling main before `deliver`" to: "`approve` also opens/updates the PR (`gh pr create`, idempotent; body from `docs/superpowers/pr/<id>.md` or a fallback — t27), so the remaining manual steps are **merging** and pulling main before `deliver`."
+- [ ] **Step 2: DESIGN.md — occurrence A (t21/c1 block, ~L454).** Change "the remaining manual steps are `gh pr
+  create` (title/body are a judgement call) and pulling main before `deliver`" → "`approve` also opens/updates the
+  PR (`gh pr create`, idempotent; body from `docs/superpowers/pr/<id>.md` or a fallback — t27), so the remaining
+  manual steps are **merging** and pulling main before `deliver`."
 
-- [ ] **Step 3: DESIGN.ru.md** — mirror Step 2 in Russian (find the parallel «оставшиеся ручные шаги — `gh pr create` … и подтянуть main перед `deliver`» sentence): "`approve` также открывает/обновляет PR (`gh pr create`, идемпотентно; тело из `docs/superpowers/pr/<id>.md` или fallback — t27), так что остаются ручными **мерж** и подтянуть main перед `deliver`."
+- [ ] **Step 3: DESIGN.md — occurrence B (s009 dogfood block, ~L861-867).** Three edits:
+  (a) L863-864 "the remaining manual steps are opening the PR (`gh pr create`) and pulling main before `deliver`" →
+  "the remaining manual steps are **merging** and pulling main before `deliver`".
+  (b) L861-862 artifact-dir line "id-keyed names `docs/superpowers/specs|plans/<id>-<slug>.md`" → append the PR-body
+  convention: "id-keyed names `docs/superpowers/specs|plans/<id>-<slug>.md` (+ an optional
+  `docs/superpowers/pr/<id>.md` PR body — t27)".
+  (c) L865-867 parenthetical "(Since t21 … and since c1 `approve` auto-pushes the task branch and `deliver`/`cancel`
+  auto-push main (c5) — …)" → add t27: "…and since **t27** `approve` opens/updates the PR — …".
 
-- [ ] **Step 4: CLI_REFERENCE.md** — in the `post:` paragraph, after "`approve` also runs `git push -u origin task/{{.ID}}` (the task branch, for the PR)", add: "and opens/updates the PR (`gh pr create`, idempotent — needs `gh`+`jq`; body from `docs/superpowers/pr/{{.ID}}.md` when present, else generated; t27)".
+- [ ] **Step 4: DESIGN.ru.md — mirror Steps 2 & 3 (both occurrences + the artifact-dir line, ~L461 and ~L874-880).**
+  A: «оставшиеся ручные шаги — `gh pr create` … и подтянуть main перед `deliver`» → "`approve` также открывает/обновляет
+  PR (`gh pr create`, идемпотентно; тело из `docs/superpowers/pr/<id>.md` или fallback — t27), так что остаются
+  ручными **мерж** и подтянуть main перед `deliver`». B: «оставшиеся ручные шаги — открыть PR (`gh pr create`) и
+  подтянуть main перед `deliver`» → «оставшиеся ручные шаги — **мерж** и подтянуть main перед `deliver`»; artifact-dir
+  line → «…`docs/superpowers/specs|plans/<id>-<slug>.md` (+ опциональное `docs/superpowers/pr/<id>.md` тело PR — t27)»;
+  parenthetical → добавить «…и с **t27** `approve` открывает/обновляет PR — …».
 
-- [ ] **Step 5: CLI_REFERENCE.ru.md** — mirror Step 4 in Russian: "и открывает/обновляет PR (`gh pr create`, идемпотентно — нужны `gh`+`jq`; тело из `docs/superpowers/pr/{{.ID}}.md` если есть, иначе сгенерированное; t27)".
+- [ ] **Step 5: CLI_REFERENCE.md — reflow (one conjunction).** Replace "…`git push -u origin task/{{.ID}}` (the task
+  branch, for the PR) **and** `deliver`/`cancel` run `git push origin main`…" → "…`git push -u origin task/{{.ID}}`
+  (the task branch), **then opens/updates the PR** (`gh pr create`, idempotent — needs `gh`+`jq`; body from
+  `docs/superpowers/pr/{{.ID}}.md` when present, else generated; t27); `deliver`/`cancel` run `git push origin
+  main`…".
 
-- [ ] **Step 6: Verify + commit**
+- [ ] **Step 6: CLI_REFERENCE.ru.md — mirror Step 5.** "…`git push -u origin task/{{.ID}}` (ветка задачи), **затем
+  открывает/обновляет PR** (`gh pr create`, идемпотентно — нужны `gh`+`jq`; тело из `docs/superpowers/pr/{{.ID}}.md`
+  если есть, иначе сгенерированное; t27); `deliver`/`cancel` — `git push origin main`…".
 
-Run: `make check` (docs don't affect tests, but keep the habit) and eyeball the EN/RU pairs read equivalently.
+- [ ] **Step 7: Verify no stale "manual gh pr create" remains + commit.**
+
+Run: `grep -rn "gh pr create" AGENTS.md DESIGN.md DESIGN.ru.md CLI_REFERENCE.md CLI_REFERENCE.ru.md`
+Expected: every hit now frames `gh pr create` as what **mtt runs automatically** (or the guarded status-description substring) — **none** as a "remaining manual step". Also run `make check` (habit) and eyeball EN↔RU equivalence.
 
 ```bash
 git add AGENTS.md DESIGN.md DESIGN.ru.md CLI_REFERENCE.md CLI_REFERENCE.ru.md
-git commit -m "t27: docs — approve mechanizes gh pr create (EN/RU)
+git commit -m "t27: docs — approve mechanizes gh pr create (EN/RU, both DESIGN blocks)
 
 Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 ```
@@ -167,7 +201,7 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 
 ## Self-Review
 
-- **Spec coverage:** D1 config-only → Task 1 (config + test only). D2 open-PR existence test → canonical command `.[].number`. D3 title read `// empty` → canonical command. D4 hybrid body → canonical command `if test -f … --body-file … else --body …`. D5 gh/jq/mtt-on-PATH + exit-5 → inherited (post-failure contract, unchanged) + Task 2 docs. D6 both types → Task 1 edits both edges. D7 `approved` description keeps `gh pr create` → Task 1 Step 3 + guard unchanged. D8 guard len 3 + docs → Task 1 + Task 2. t40 deferred → not in plan. ✓ all covered.
+- **Spec coverage:** D1 config-only → Task 1 (config + test only). D2 open-PR existence test → canonical command `.[].number`. D3 title read `// empty` → canonical command. D4 hybrid body → canonical command `if test -f … --body-file … else --body …`. D5 gh/jq/mtt-on-PATH + exit-5 → inherited (post-failure contract, unchanged) + Task 2 (AGENTS.md failure enumeration broadened to PR-open). D6 both types → Task 1 edits both edges. D7 `approved` description keeps `gh pr create` → Task 1 Step 3 + guard unchanged. D8 guard len 3 → Task 1; docs (incl. the **two** DESIGN "Shipped" blocks EN/RU + the `docs/superpowers/pr/` artifact convention) → Task 2, verified by the Step-7 grep. t40 deferred → not in plan. ✓ all covered.
 - **Placeholder scan:** none — every step has exact strings/commands.
 - **Type consistency:** `cmdPrCreate` defined in Task 1 Step 1 and referenced in the same step's approve case; the config scalar in Step 3 is the same canonical string. Byte-match enforced by the guard (Step 4).
 
