@@ -1,10 +1,20 @@
 id: c7
 type: chore
 title: 'AGENTS.md: local tag conventions — backlog semantics, think tag, small thematic vocabulary + hashtag caveat (interim home until t29/t39)'
-status: tbd
+status: implementing
 priority: medium
 tags:
     - docs
     - dx
 created: "2026-07-12T01:26:07Z"
 updated: "2026-07-12T01:26:07Z"
+history:
+    - at: "2026-07-12T01:26:07Z"
+      by: Grigorii Pashukhin
+      from: tbd
+      to: implementing
+      checks:
+        - cmd: git switch task/c7 || (git switch main && git switch -c task/c7)
+          exit: 0
+        - cmd: test -f .mtt/tasks/c7.yaml || { echo "task file absent on this branch — its add has not reached main (merge/commit the branch that created it first)" >&2; false; }
+          exit: 0
