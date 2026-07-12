@@ -1,13 +1,13 @@
 id: c3
 type: chore
 title: 'Narrow the post add-pathspec on deliver/cancel: git add only the task file (+audit.log), not all of .mtt — an uncommitted config.yaml edit must not ride an auto-push to main past review (SEC2 hole)'
-status: impl_review
+status: approved
 priority: high
 tags:
     - flow
     - sec
 created: "2026-07-11T14:06:23Z"
-updated: "2026-07-12T01:58:48Z"
+updated: "2026-07-12T02:08:36Z"
 history:
     - at: "2026-07-12T01:54:08Z"
       by: Grigorii Pashukhin
@@ -25,3 +25,7 @@ history:
       checks:
         - cmd: make check
           exit: 0
+    - at: "2026-07-12T02:08:36Z"
+      by: Grigorii Pashukhin
+      from: impl_review
+      to: approved
