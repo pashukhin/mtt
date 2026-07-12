@@ -78,3 +78,26 @@ stdout 'e3  epic'
 exec mtt ready --exclude-tag backlog
 ! stdout 'e3'
 stdout 'e1'
+
+# mtt tags: the tag vocabulary with per-tag counts (default open scope) + --json
+exec mtt tag add e2 backend
+exec mtt tags
+stdout '2  backend'
+stdout '1  backlog'
+exec mtt tags --json
+stdout '"tag"'
+stdout '"count"'
+# the list filters compose: --exclude-tag backlog drops e3, so backlog isn't counted
+exec mtt tags --exclude-tag backlog
+! stdout 'backlog'
+stdout 'backend'
+
+# scope: cancel e3 (→ terminal) — its backlog tag leaves the default (open) tally,
+# but --all still counts it, and --status cancelled reaches it (status flag drops the open default).
+exec mtt status e3 cancelled
+exec mtt tags
+! stdout 'backlog'
+exec mtt tags --all
+stdout '1  backlog'
+exec mtt tags --status cancelled
+stdout '1  backlog'

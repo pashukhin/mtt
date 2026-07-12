@@ -138,7 +138,11 @@ in `core` (Adder/Editor), not parsed in the CLI. `mtt show` prints a `tags:` lin
 are NOT shown in the `taskLine` row (list/tree) — visible via `show`/`--json`/the `--tag` filter. **`--exclude-tag`**
 (c8, repeatable) on `list` **and** `ready` (→ `ListFilter.ExcludeTags`, same `toTags` boundary) is the negative
 filter: reject any task carrying one of the tags; composes with `--tag` as AND (overlap → exclude wins). Enables
-`mtt ready --exclude-tag backlog`.
+`mtt ready --exclude-tag backlog`. **`mtt tags`** (c9, `tags.go` `newTagsCmd`) is a pure read (like
+`roadmap`/`tree`): `TaskStore.List` → `core.Select` (same `ListFilter`; default scope = open
+`initial`+`active` kinds, suppressed by a status-scoping flag — `--all`/`--kind`/`--status`) → `core.TagCounts` → `count  tag` rows
+(most-used first) or a `[{tag,count}]` array (`tagCountJSON`) under `--json`. Registered as `tags` (distinct
+from the `tag` mutation command).
 
 Batch & pipeline (session 008.9): a reusable **task-set selector** (`selector.go`) — `selectTaskIDs(cmd,
 positional, allowExplicitIDs)` resolves ONE of three mutually-exclusive sources: explicit ids | stdin `-`

@@ -19,6 +19,9 @@ Usecase logic. Depends **only** on the `pkg/mtt` domain contract and its ports �
   category via its type's flow). The `Priorities` dimension matches the **stored** label (an unset task
   matches only when no `--priority` filter is given — filtering is on the authored label, not the ordering
   default). Shared by `Select` **and** the CLI's `tree` walk (one predicate, two consumers — DRY).
+- `TagCounts` (pure read, `tags.go`, c9): tallies tags across a task set → `[]TagCount{Tag, Count}` sorted by
+  Count desc then Tag asc (each task's `Tags` is a normalized set, so it contributes at most once per tag).
+  Backs `mtt tags`; the CLI applies the scope/filters via `Select` first, then counts.
 - `Select` (pure read): `Match`-filter tasks, then impose a deterministic order — `Created` desc by default
   (or `Updated`), tie-broken by ID as an **opaque string** (never parsing ID structure; provider-agnostic).
   `SortPriority` (s008.6) orders by `Priority.Rank` asc (high first), tie-broken by the shared

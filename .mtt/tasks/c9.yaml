@@ -1,12 +1,44 @@
 id: c9
 type: chore
 title: 'mtt tags — read-only tag discovery/statistics: list the tag vocabulary with per-tag task counts'
-status: tbd
+status: approved
 priority: medium
 tags:
     - dx
 depends_on:
     - c8
 created: "2026-07-12T05:20:44Z"
-updated: "2026-07-12T05:20:44Z"
+updated: "2026-07-12T06:02:51Z"
 description: 'Reclassified from task t39 (design fixed in brainstorm). New pure read-only command (like roadmap/tree — TaskStore.List then core.Select then aggregate; no usecase). Default scope = OPEN tasks (kind initial+active, i.e. not done/cancelled); --all counts every task. Respects the list/ready filters (--status/--type/--kind/--tag/--exclude-tag/--priority/--parent) via the same core.Select, then counts tags across the filtered set. Human output: rows "count  tag" sorted by count DESC then tag ASC. --json: array of {tag, count} in the same order. Counts backlog like any tag. Replaces the AGENTS.md jq workaround. Depends on c8 (--exclude-tag) since it respects that filter.'
+history:
+    - at: "2026-07-12T05:43:03Z"
+      by: Grigorii Pashukhin
+      from: tbd
+      to: implementing
+      checks:
+        - cmd: git switch task/c9 || (git switch main && git switch -c task/c9)
+          exit: 0
+        - cmd: test -f .mtt/tasks/c9.yaml || { echo "task file absent on this branch — its add has not reached main (merge/commit the branch that created it first)" >&2; false; }
+          exit: 0
+    - at: "2026-07-12T05:51:05Z"
+      by: Grigorii Pashukhin
+      from: implementing
+      to: impl_review
+      checks:
+        - cmd: make check
+          exit: 0
+    - at: "2026-07-12T05:58:24Z"
+      by: Grigorii Pashukhin
+      from: impl_review
+      to: impl_fix
+    - at: "2026-07-12T06:00:40Z"
+      by: Grigorii Pashukhin
+      from: impl_fix
+      to: impl_review
+      checks:
+        - cmd: make check
+          exit: 0
+    - at: "2026-07-12T06:02:51Z"
+      by: Grigorii Pashukhin
+      from: impl_review
+      to: approved
