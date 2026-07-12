@@ -1,12 +1,12 @@
 id: c6
 type: chore
 title: Add a pull-main-first reminder to the start edge description — a stale local main yields task branches off an old base (conflict-prone PRs); gates stay offline, so a reminder, not a command
-status: approved
+status: done
 priority: low
 tags:
     - flow
 created: "2026-07-11T14:06:24Z"
-updated: "2026-07-12T02:45:59Z"
+updated: "2026-07-12T02:53:34Z"
 history:
     - at: "2026-07-12T02:40:23Z"
       by: Grigorii Pashukhin
@@ -28,3 +28,12 @@ history:
       by: Grigorii Pashukhin
       from: impl_review
       to: approved
+    - at: "2026-07-12T02:53:34Z"
+      by: Grigorii Pashukhin
+      from: approved
+      to: done
+      checks:
+        - cmd: git switch main
+          exit: 0
+        - cmd: 'git log -n 200 --format=%s | grep "^c6: " || { echo "no squash commit \"c6: …\" on local main: git pull first, and check the PR/merge title started with \"c6: \"" >&2; false; }'
+          exit: 0
