@@ -6,6 +6,7 @@ priority: low
 tags:
     - backlog
     - flow
+    - think
 created: "2026-07-11T12:14:56Z"
-updated: "2026-07-11T12:14:56Z"
+updated: "2026-07-12T01:21:41Z"
 description: 'Follow-up to t21/t25 (mechanize the process into mtt). Non-flow mutations that write committable .mtt — add/edit/tag add|rm/dep add|rm/rm (NOT use: it writes only the gitignored config.local) — still need a manual git commit, because t21 post: lives on flow EDGES and these commands have none. THINK-ITEM, not committed work: the design is non-obvious and there is a real tradeoff. (1) MECHANISM: no edge → not t21 post:; needs a different hook — a global config option (auto_commit_mutations: true) or a CLI-level post-mutation commit. (2) SCOPE: add/edit/tag/dep/rm (rm is special — already writes audit.log + forces who/why per t5). (3) THE TRADEOFF (why this is a think, not a do): mutations are often BATCHED into meaningful commits (this session filed t22/t23/t24 + recalibrated 6 tasks as ONE "backlog + deps" commit, not 8 micro-commits) — auto-commit-per-mutation would shatter that. For transitions auto-commit is a pure win (1 move = 1 status); for mutations batching is valuable. (4) LIKELY ANSWER: make it an OPT-IN option (off by default) or leave manual — decide when the pain is real. From the s009 t21/t25 retro.'

@@ -3,5 +3,8 @@ type: chore
 title: 'Narrow the post add-pathspec on deliver/cancel: git add only the task file (+audit.log), not all of .mtt — an uncommitted config.yaml edit must not ride an auto-push to main past review (SEC2 hole)'
 status: tbd
 priority: high
+tags:
+    - flow
+    - sec
 created: "2026-07-11T14:06:23Z"
-updated: "2026-07-11T14:06:23Z"
+updated: "2026-07-12T01:21:41Z"

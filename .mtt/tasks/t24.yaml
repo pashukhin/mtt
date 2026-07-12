@@ -6,6 +6,7 @@ priority: low
 tags:
     - backlog
     - flow
+    - think
 created: "2026-07-11T10:08:15Z"
-updated: "2026-07-11T10:08:15Z"
+updated: "2026-07-12T01:21:41Z"
 description: 'Deferred from t21 design. t21 ships post-persist actions PER-EDGE (post: on each transition, symmetric to commands:), which duplicates the auto-commit line across ~8 edges. A global/default post block (one place, applied to all moves) would DRY it — but opens precedence questions we deliberately deferred: does a global default MERGE with per-edge post or OVERRIDE it? ordering (global-then-edge or edge-then-global)? can an edge OPT OUT of the global default? Same question shape as global require vs per-edge require (t5). Revisit only if the per-edge duplication becomes painful — a think-item, not committed work. From the s009 t21 design.'

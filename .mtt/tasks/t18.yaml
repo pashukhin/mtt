@@ -5,6 +5,7 @@ status: tbd
 priority: low
 tags:
     - backlog
+    - core
 created: "2026-07-10T13:53:10Z"
-updated: "2026-07-11T14:07:18Z"
+updated: "2026-07-12T01:21:41Z"
 description: 'Also the dropped sub-items from the frozen TASKS entry: resolve current for ALL single-task ops including reads (tree <id>, dep list); multi-assignee providers (what "my current" means on an external backend).'
