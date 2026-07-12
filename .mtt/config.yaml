@@ -31,7 +31,7 @@ types:
         to: speccing
         name: start
         current: set
-        description: "enter (or create from main) the task branch task/<id>, then write the spec"
+        description: "pull main first (a stale local main yields a task branch off an old base — conflict-prone PRs), then enter (or create from main) the task branch task/<id>, then write the spec"
         commands:
           - 'git switch task/{{.ID}} || (git switch main && git switch -c task/{{.ID}})'
           - 'test -f .mtt/tasks/{{.ID}}.yaml || { echo "task file absent on this branch — its add has not reached main (merge/commit the branch that created it first)" >&2; false; }'
@@ -217,7 +217,7 @@ types:
         to: implementing
         name: start
         current: set
-        description: "enter (or create from main) the task branch task/<id>, then implement"
+        description: "pull main first (a stale local main yields a task branch off an old base — conflict-prone PRs), then enter (or create from main) the task branch task/<id>, then implement"
         commands:
           - 'git switch task/{{.ID}} || (git switch main && git switch -c task/{{.ID}})'
           - 'test -f .mtt/tasks/{{.ID}}.yaml || { echo "task file absent on this branch — its add has not reached main (merge/commit the branch that created it first)" >&2; false; }'

@@ -223,6 +223,15 @@ func TestRepoDogfoodConfig(t *testing.T) {
 	if d := namedEdge(t, task, "approved", "done", "deliver"); !strings.Contains(d.Description, "pull main") {
 		t.Fatalf("task deliver description lost the pull-main hint: %q", d.Description)
 	}
+	// both entry edges remind you to pull main first (a stale base makes conflict-prone PRs; c6).
+	for _, tc := range []struct {
+		typ mtt.Type
+		to  mtt.StatusName
+	}{{task, "speccing"}, {chore, "implementing"}} {
+		if e := namedEdge(t, tc.typ, "tbd", tc.to, "start"); !strings.Contains(e.Description, "pull main first") {
+			t.Fatalf("%s start description lost the pull-main-first reminder: %q", tc.typ.Name, e.Description)
+		}
+	}
 	if s, _ := task.StatusByName("speccing"); !strings.Contains(s.Description, "superpowers:brainstorming") {
 		t.Fatalf("task speccing description lost the brainstorm step: %q", s.Description)
 	}
