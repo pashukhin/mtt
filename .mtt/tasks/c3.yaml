@@ -1,13 +1,13 @@
 id: c3
 type: chore
 title: 'Narrow the post add-pathspec on deliver/cancel: git add only the task file (+audit.log), not all of .mtt — an uncommitted config.yaml edit must not ride an auto-push to main past review (SEC2 hole)'
-status: approved
+status: done
 priority: high
 tags:
     - flow
     - sec
 created: "2026-07-11T14:06:23Z"
-updated: "2026-07-12T02:08:36Z"
+updated: "2026-07-12T02:15:46Z"
 history:
     - at: "2026-07-12T01:54:08Z"
       by: Grigorii Pashukhin
@@ -29,3 +29,12 @@ history:
       by: Grigorii Pashukhin
       from: impl_review
       to: approved
+    - at: "2026-07-12T02:15:46Z"
+      by: Grigorii Pashukhin
+      from: approved
+      to: done
+      checks:
+        - cmd: git switch main
+          exit: 0
+        - cmd: 'git log -n 200 --format=%s | grep "^c3: " || { echo "no squash commit \"c3: …\" on local main: git pull first, and check the PR/merge title started with \"c3: \"" >&2; false; }'
+          exit: 0
