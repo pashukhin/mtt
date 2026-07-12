@@ -1,9 +1,41 @@
 id: c5
 type: chore
 title: Push main on the cancel post (symmetry with deliver) — a cancelled state must not live only in the local checkout
-status: tbd
+status: approved
 priority: medium
 tags:
     - flow
 created: "2026-07-11T14:06:23Z"
-updated: "2026-07-12T01:21:41Z"
+updated: "2026-07-12T02:26:57Z"
+history:
+    - at: "2026-07-12T02:16:45Z"
+      by: Grigorii Pashukhin
+      from: tbd
+      to: implementing
+      checks:
+        - cmd: git switch task/c5 || (git switch main && git switch -c task/c5)
+          exit: 0
+        - cmd: test -f .mtt/tasks/c5.yaml || { echo "task file absent on this branch — its add has not reached main (merge/commit the branch that created it first)" >&2; false; }
+          exit: 0
+    - at: "2026-07-12T02:20:01Z"
+      by: Grigorii Pashukhin
+      from: implementing
+      to: impl_review
+      checks:
+        - cmd: make check
+          exit: 0
+    - at: "2026-07-12T02:25:28Z"
+      by: Grigorii Pashukhin
+      from: impl_review
+      to: impl_fix
+    - at: "2026-07-12T02:25:55Z"
+      by: Grigorii Pashukhin
+      from: impl_fix
+      to: impl_review
+      checks:
+        - cmd: make check
+          exit: 0
+    - at: "2026-07-12T02:26:57Z"
+      by: Grigorii Pashukhin
+      from: impl_review
+      to: approved

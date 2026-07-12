@@ -450,8 +450,9 @@ Commands come from config (trusted, like a Makefile/git hooks), not from the net
 > Why not a global default `post`? Precedence/merge/opt-out questions we deferred (t24) — per-edge only for now.
 > The `git switch` in `deliver`/`start`/`cancel` is exactly why a naive "persist → run everything → roll back"
 > single phase can't work: context switches must precede persist, commits must follow it. **(c1) auto-push**
-> extends this: `approve` post also `git push -u origin task/<id>` (the PR branch), `deliver` post also
-> `git push origin main` — the remaining manual steps are `gh pr create` (title/body are a judgement
+> extends this: `approve` post also `git push -u origin task/<id>` (the PR branch), `deliver` **and `cancel`**
+> post also `git push origin main` (c5 — a terminal state must not live only locally) — the remaining manual
+> steps are `gh pr create` (title/body are a judgement
 > call) and pulling main before `deliver`.
 
 > **Shipped (s008): rollback / compensation (intra-pipeline).** A gate command may declare a `rollback:`
@@ -862,8 +863,8 @@ after dogfood we move mtt's development onto mtt itself. See sessions/README.md 
 > **Conventions that remain:** the PR title starts with `<id>: `; the remaining manual steps are opening
 > the PR (`gh pr create`) and pulling main before `deliver` (the gate checks the local log and fails
 > closed with a "git pull first" hint). (Since t21 every move auto-commits `.mtt` via a per-edge `post:`
-> action, and since c1 `approve` auto-pushes the task branch and `deliver` auto-pushes main — the former
-> manual state-commits and the push-before-merge convention are gone.)
+> action, and since c1 `approve` auto-pushes the task branch and `deliver`/`cancel` auto-push main (c5) — the
+> former manual state-commits and the push-before-merge convention are gone.)
 > **Attribution:** project-global `require: {who}` (per-edge/role `require` needs a core change — parked
 > roles work; the migrated `dangerous-ops` task is its first trigger). **Trust (SEC2):** gates invoke
 > **read-only** `mtt` only — never an mtt transition (recursion). **Known limits (recorded):** the

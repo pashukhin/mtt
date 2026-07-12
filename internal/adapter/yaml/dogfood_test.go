@@ -135,6 +135,10 @@ func TestRepoDogfoodConfig(t *testing.T) {
 				if len(tr.Post) != 2 || tr.Post[1].Run != cmdPushMain {
 					t.Fatalf("%s deliver post = %+v, want [commit, %q]", ty.Name, tr.Post, cmdPushMain)
 				}
+			case tr.To == "cancelled": // cancel: push main too (symmetry with deliver, c5)
+				if len(tr.Post) != 2 || tr.Post[1].Run != cmdPushMain {
+					t.Fatalf("%s cancel %s->cancelled post = %+v, want [commit, %q]", ty.Name, tr.From, tr.Post, cmdPushMain)
+				}
 			default:
 				if len(tr.Post) != 1 {
 					t.Fatalf("%s %s->%s post = %+v, want single commit only", ty.Name, tr.From, tr.To, tr.Post)

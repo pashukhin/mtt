@@ -169,7 +169,8 @@ the live queue is mtt. Practical rules:
   exists** (`git add -- .mtt/tasks/<id>.yaml [.mtt/audit.log]` then a pathspec-scoped commit) — a dirty
   `.mtt/config.yaml` (or any other `.mtt` edit) must never ride the main-landing commit/push past review (c3,
   the SEC2 bullet). **`approve` also pushes the task branch** (`git push -u origin task/<id>` — for the PR) and
-  **`deliver` pushes main** (`git push origin main` — finishes delivery). So the only manual git step left is opening the PR
+  **`deliver` *and* `cancel` push main** (`git push origin main` — a delivered *or* cancelled terminal state must
+  not live only in the local checkout; c5). So the only manual git step left is opening the PR
   (`gh pr create` — a judgement call). If a post action fails (commit *or* push), the move is **kept** (status
   persisted) and mtt exits **5** — finish it by hand.
 - **Config is code (SEC2).** Review `.mtt/config.yaml` diffs like a Makefile; a gate may invoke read-only
