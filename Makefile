@@ -3,9 +3,11 @@ BIN     := bin/mtt
 PKGS    := ./...
 VERSION ?=
 
-ifneq ($(VERSION),)
-LDFLAGS := -ldflags "-X github.com/pashukhin/mtt/internal/cli.version=$(VERSION)"
-endif
+# Dev builds derive the version from git when VERSION is not passed; release must
+# always be stamped with an explicit VERSION (see the release target's guard).
+BUILD_VERSION := $(if $(VERSION),$(VERSION),$(shell git describe --tags --always --dirty 2>/dev/null))
+BUILD_LDFLAGS := $(if $(BUILD_VERSION),-ldflags "-X github.com/pashukhin/mtt/internal/cli.version=$(BUILD_VERSION)")
+RELEASE_LDFLAGS := -ldflags "-X github.com/pashukhin/mtt/internal/cli.version=$(VERSION)"
 
 DIST      := dist
 PLATFORMS := linux/amd64 linux/arm64 darwin/amd64 darwin/arm64 windows/amd64
@@ -15,10 +17,10 @@ PLATFORMS := linux/amd64 linux/arm64 darwin/amd64 darwin/arm64 windows/amd64
 all: build
 
 build:
-	$(GO) build $(LDFLAGS) -o $(BIN) ./cmd/mtt
+	$(GO) build $(BUILD_LDFLAGS) -o $(BIN) ./cmd/mtt
 
 install:
-	$(GO) install $(LDFLAGS) ./cmd/mtt
+	$(GO) install $(BUILD_LDFLAGS) ./cmd/mtt
 
 # smoke: install into a throwaway GOBIN and check the binary runs. Not part of
 # `check` (it does a real go install; check stays hermetic).
@@ -26,7 +28,7 @@ smoke:
 	@set -e; \
 	tmp=$$(mktemp -d); \
 	trap 'rm -rf "$$tmp"' EXIT; \
-	GOBIN=$$tmp $(GO) install $(LDFLAGS) ./cmd/mtt; \
+	GOBIN=$$tmp $(GO) install $(BUILD_LDFLAGS) ./cmd/mtt; \
 	v=$$("$$tmp/mtt" version); \
 	if [ -z "$$v" ]; then echo "smoke: empty version output"; exit 1; fi; \
 	"$$tmp/mtt" --help >/dev/null; \
@@ -45,7 +47,7 @@ release:
 		out="$(DIST)/mtt_$(VERSION)_$${os}_$${arch}"; \
 		if [ "$$os" = "windows" ]; then out="$$out.exe"; fi; \
 		echo "building $$out"; \
-		GOOS=$$os GOARCH=$$arch CGO_ENABLED=0 $(GO) build $(LDFLAGS) -o "$$out" ./cmd/mtt; \
+		GOOS=$$os GOARCH=$$arch CGO_ENABLED=0 $(GO) build $(RELEASE_LDFLAGS) -o "$$out" ./cmd/mtt; \
 	done
 	@cd $(DIST) && sha256sum mtt_* > SHA256SUMS
 	@echo "OK: release $(VERSION) -> $(DIST)/ ($$(ls $(DIST) | grep -c '^mtt_') binaries)"
