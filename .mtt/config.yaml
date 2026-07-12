@@ -22,7 +22,7 @@ types:
       - {name: implementing, kind: active, description: "implement test-first (TDD), make check green between commits, then `mtt submit`"}
       - {name: impl_review, kind: active, description: "run an adversarial code review: the AGENTS.md Principles self-check + Go conventions, and DESIGN.md/CLAUDE.md updated if behavior changed; `mtt approve` when it passes, `mtt decline` to send back"}
       - {name: impl_fix, kind: active, description: "address review findings, then `mtt submit` to re-review"}
-      - {name: approved, kind: active, description: "open/update the PR: gh pr create --title '<this-task-id>: <title>' (the branch was auto-pushed), ask the human to merge; after the squash-merge run `mtt deliver`; human-requested changes -> `mtt decline`"}
+      - {name: approved, kind: active, description: "the PR is opened/updated automatically (mtt runs gh pr create for you; the branch was auto-pushed) — ask the human to merge; after the squash-merge run `mtt deliver`; human-requested changes -> `mtt decline`"}
       - {name: done, kind: terminal, description: "delivered to main"}
       - {name: cancelled, kind: terminal, description: "abandoned"}
     transitions:
@@ -83,7 +83,14 @@ types:
         commands: [{run: 'make check', timeout: 10m}]
         post:
           - 'git add .mtt && git commit -m "{{.ID}}: {{.From}} → {{.To}}" -- .mtt'
-      - {from: impl_review, to: approved, name: approve, description: "code review passed; open the PR and hand to the human", post: ['git add .mtt && git commit -m "{{.ID}}: {{.From}} → {{.To}}" -- .mtt', 'git push -u origin task/{{.ID}}']}
+      - from: impl_review
+        to: approved
+        name: approve
+        description: "code review passed; the PR is opened/updated automatically — hand to the human to merge"
+        post:
+          - 'git add .mtt && git commit -m "{{.ID}}: {{.From}} → {{.To}}" -- .mtt'
+          - 'git push -u origin task/{{.ID}}'
+          - '[ -n "$(gh pr list --head task/{{.ID}} --state open --json number --jq ".[].number")" ] || { t="{{.ID}}: $(mtt show {{.ID}} --json | jq -r ".title // empty")"; if test -f docs/superpowers/pr/{{.ID}}.md; then gh pr create --base main --head task/{{.ID}} --title "$t" --body-file docs/superpowers/pr/{{.ID}}.md; else gh pr create --base main --head task/{{.ID}} --title "$t" --body "Automated PR for {{.ID}} — see: mtt show {{.ID}}"; fi; }'
       - {from: impl_review, to: impl_fix, name: decline, description: "review found issues; address them, then `mtt submit`", post: ['git add .mtt && git commit -m "{{.ID}}: {{.From}} → {{.To}}" -- .mtt']}
       - from: impl_fix
         to: impl_review
@@ -209,7 +216,7 @@ types:
       - {name: implementing, kind: active, description: "implement test-first (TDD), make check green between commits, then `mtt submit`"}
       - {name: impl_review, kind: active, description: "run an adversarial code review: the AGENTS.md Principles self-check + Go conventions, and DESIGN.md/CLAUDE.md updated if behavior changed; if the diff contains design decisions not recorded elsewhere — decline: it must be a `task` (cancel this chore and recreate). `mtt approve` / `mtt decline`"}
       - {name: impl_fix, kind: active, description: "address review findings, then `mtt submit` to re-review"}
-      - {name: approved, kind: active, description: "open/update the PR: gh pr create --title '<this-task-id>: <title>' (the branch was auto-pushed), ask the human to merge; after the squash-merge run `mtt deliver`; human-requested changes -> `mtt decline`"}
+      - {name: approved, kind: active, description: "the PR is opened/updated automatically (mtt runs gh pr create for you; the branch was auto-pushed) — ask the human to merge; after the squash-merge run `mtt deliver`; human-requested changes -> `mtt decline`"}
       - {name: done, kind: terminal, description: "delivered to main"}
       - {name: cancelled, kind: terminal, description: "abandoned"}
     transitions:
@@ -230,7 +237,14 @@ types:
         commands: [{run: 'make check', timeout: 10m}]
         post:
           - 'git add .mtt && git commit -m "{{.ID}}: {{.From}} → {{.To}}" -- .mtt'
-      - {from: impl_review, to: approved, name: approve, description: "code review passed; open the PR and hand to the human", post: ['git add .mtt && git commit -m "{{.ID}}: {{.From}} → {{.To}}" -- .mtt', 'git push -u origin task/{{.ID}}']}
+      - from: impl_review
+        to: approved
+        name: approve
+        description: "code review passed; the PR is opened/updated automatically — hand to the human to merge"
+        post:
+          - 'git add .mtt && git commit -m "{{.ID}}: {{.From}} → {{.To}}" -- .mtt'
+          - 'git push -u origin task/{{.ID}}'
+          - '[ -n "$(gh pr list --head task/{{.ID}} --state open --json number --jq ".[].number")" ] || { t="{{.ID}}: $(mtt show {{.ID}} --json | jq -r ".title // empty")"; if test -f docs/superpowers/pr/{{.ID}}.md; then gh pr create --base main --head task/{{.ID}} --title "$t" --body-file docs/superpowers/pr/{{.ID}}.md; else gh pr create --base main --head task/{{.ID}} --title "$t" --body "Automated PR for {{.ID}} — see: mtt show {{.ID}}"; fi; }'
       - {from: impl_review, to: impl_fix, name: decline, description: "review found issues; address them, then `mtt submit`", post: ['git add .mtt && git commit -m "{{.ID}}: {{.From}} → {{.To}}" -- .mtt']}
       - from: impl_fix
         to: impl_review

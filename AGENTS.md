@@ -170,9 +170,10 @@ the live queue is mtt. Practical rules:
   `.mtt/config.yaml` (or any other `.mtt` edit) must never ride the main-landing commit/push past review (c3,
   the SEC2 bullet). **`approve` also pushes the task branch** (`git push -u origin task/<id>` — for the PR) and
   **`deliver` *and* `cancel` push main** (`git push origin main` — a delivered *or* cancelled terminal state must
-  not live only in the local checkout; c5). So the only manual git step left is opening the PR
-  (`gh pr create` — a judgement call). If a post action fails (commit *or* push), the move is **kept** (status
-  persisted) and mtt exits **5** — finish it by hand.
+  not live only in the local checkout; c5). **`approve` also opens/updates the PR** (`gh pr create`, idempotent —
+  skipped if an open PR exists; title from `mtt show --json`, body from `docs/superpowers/pr/<id>.md` when present
+  else generated; needs `gh`+`jq`; t27), so the only manual step left is **merging** the PR. If a post action
+  fails (commit, push, or PR-open), the move is **kept** (status persisted) and mtt exits **5** — finish it by hand.
 - **Config is code (SEC2).** Review `.mtt/config.yaml` diffs like a Makefile; a gate may invoke read-only
   `mtt` only (never an mtt transition). Gate/post commands are single-quoted YAML scalars. The committed config
   is guarded by `TestRepoDogfoodConfig` — keep it green.

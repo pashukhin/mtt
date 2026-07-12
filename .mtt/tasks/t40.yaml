@@ -1,0 +1,12 @@
+id: t40
+type: task
+title: Generalized argument-passing into the gate/post placeholder pipeline — a per-invocation value channel beyond {ID,Type,From,To}; first consumer mtt approve --pr-body-file
+status: tbd
+priority: low
+tags:
+    - backlog
+    - flow
+    - think
+created: "2026-07-12T04:05:25Z"
+updated: "2026-07-12T04:05:25Z"
+description: 'Spun off from t27 (mechanized gh pr create). t27 mechanizes PR opening config-only, reading the title via read-only mtt show --json and taking the body from an optional artifact file with a generated fallback. It deliberately did NOT add the flag variant (mtt approve --pr-body-file). This task generalizes that: a per-invocation channel to thread caller-supplied values into the gate/post placeholder context, beyond the fixed {ID,Type,From,To} whitelist — e.g. mtt <edge> --arg key=value expanded as {{.Args.key}}, or a typed flag like --pr-body-file. Design-open: naming, whitelist interaction, safety (avoid re-opening the narrow-whitelist SEC surface t5/t21 kept to 4 fields), precedence with existing placeholders. First consumer: t27 PR body. Decide the general mechanism before adding more one-off flags.'
