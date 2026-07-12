@@ -1,12 +1,12 @@
 id: c5
 type: chore
 title: Push main on the cancel post (symmetry with deliver) — a cancelled state must not live only in the local checkout
-status: impl_fix
+status: impl_review
 priority: medium
 tags:
     - flow
 created: "2026-07-11T14:06:23Z"
-updated: "2026-07-12T02:25:28Z"
+updated: "2026-07-12T02:25:55Z"
 history:
     - at: "2026-07-12T02:16:45Z"
       by: Grigorii Pashukhin
@@ -28,3 +28,10 @@ history:
       by: Grigorii Pashukhin
       from: impl_review
       to: impl_fix
+    - at: "2026-07-12T02:25:55Z"
+      by: Grigorii Pashukhin
+      from: impl_fix
+      to: impl_review
+      checks:
+        - cmd: make check
+          exit: 0
