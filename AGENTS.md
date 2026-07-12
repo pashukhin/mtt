@@ -161,12 +161,15 @@ the live queue is mtt. Practical rules:
   writes an audit record to `.mtt/audit.log` (JSONL, committed, `merge=union`) **before** deleting — no
   destruction without a trail. A transition can also be marked critical in the config with a per-edge
   `require: {who, why}` (unioned with the global policy — tighten-only).
-- **Moves auto-commit `.mtt` (t21) and auto-push (c1).** Every edge carries a `post:` action (`git add .mtt &&
-  git commit … -- .mtt`) that runs **after** the status is persisted, so a move commits its own
-  `.mtt/tasks/*.yaml` change — no manual `git add .mtt && git commit` after `start`/`submit`/`approve`/`decline`,
-  and none after `deliver`/`cancel` (their pre-gate `git switch main` runs first, so the post commit lands on
-  main). **`approve` also pushes the task branch** (`git push -u origin task/<id>` — for the PR) and **`deliver`
-  pushes main** (`git push origin main` — finishes delivery). So the only manual git step left is opening the PR
+- **Moves auto-commit `.mtt` (t21) and auto-push (c1).** Every edge carries a `post:` action that runs **after**
+  the status is persisted, so a move commits its own `.mtt/tasks/*.yaml` change — no manual `git add .mtt &&
+  git commit` after `start`/`submit`/`approve`/`decline` (which commit `git add .mtt … -- .mtt` on the task
+  branch), and none after `deliver`/`cancel` (their pre-gate `git switch main` runs first, so the post commit
+  lands on main). **`deliver`/`cancel` narrow the add-pathspec to the task file plus `.mtt/audit.log` when it
+  exists** (`git add -- .mtt/tasks/<id>.yaml [.mtt/audit.log]` then a pathspec-scoped commit) — a dirty
+  `.mtt/config.yaml` (or any other `.mtt` edit) must never ride the main-landing commit/push past review (c3,
+  the SEC2 bullet). **`approve` also pushes the task branch** (`git push -u origin task/<id>` — for the PR) and
+  **`deliver` pushes main** (`git push origin main` — finishes delivery). So the only manual git step left is opening the PR
   (`gh pr create` — a judgement call). If a post action fails (commit *or* push), the move is **kept** (status
   persisted) and mtt exits **5** — finish it by hand.
 - **Config is code (SEC2).** Review `.mtt/config.yaml` diffs like a Makefile; a gate may invoke read-only

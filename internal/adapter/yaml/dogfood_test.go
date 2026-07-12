@@ -23,8 +23,13 @@ const (
 	cmdDeliverLog  = `git log -n 200 --format=%s | grep "^{{.ID}}: " || { echo "no squash commit \"{{.ID}}: …\" on local main: git pull first, and check the PR/merge title started with \"{{.ID}}: \"" >&2; false; }`
 	cmdCancelGuard = `test -f .mtt/tasks/{{.ID}}.yaml || { echo "task file absent on main — its add has not reached main (merge/commit the branch that created it first)" >&2; false; }`
 	cmdPostCommit  = `git add .mtt && git commit -m "{{.ID}}: {{.From}} → {{.To}}" -- .mtt`
-	cmdPushBranch  = `git push -u origin task/{{.ID}}`
-	cmdPushMain    = `git push origin main`
+	// deliver/cancel commit ON main (their pre-gate switches there), so their
+	// post add-pathspec is narrowed to the task file (+audit.log when present) —
+	// an uncommitted config.yaml edit must not ride the auto-commit/push to main
+	// past review (SEC2, c3).
+	cmdPostCommitMain = `a=.mtt/tasks/{{.ID}}.yaml; test -f .mtt/audit.log && a="$a .mtt/audit.log"; git add -- $a && git commit -m "{{.ID}}: {{.From}} → {{.To}}" -- $a`
+	cmdPushBranch     = `git push -u origin task/{{.ID}}`
+	cmdPushMain       = `git push origin main`
 )
 
 // TestRepoDogfoodConfig is the SOLE guard of this repo's committed
@@ -112,8 +117,14 @@ func TestRepoDogfoodConfig(t *testing.T) {
 	// dropped or drifted block reddens on the exact literal.
 	for _, ty := range []mtt.Type{task, chore} {
 		for _, tr := range ty.Transitions {
-			if len(tr.Post) < 1 || tr.Post[0].Run != cmdPostCommit {
-				t.Fatalf("%s %s->%s post[0] = %+v, want %q first", ty.Name, tr.From, tr.To, tr.Post, cmdPostCommit)
+			// deliver (approved→done) and every cancel (→cancelled) commit on main
+			// and must use the narrowed pathspec; all other edges keep the broad one.
+			wantPost := cmdPostCommit
+			if tr.To == "cancelled" || (tr.From == "approved" && tr.To == "done") {
+				wantPost = cmdPostCommitMain
+			}
+			if len(tr.Post) < 1 || tr.Post[0].Run != wantPost {
+				t.Fatalf("%s %s->%s post[0] = %+v, want %q first", ty.Name, tr.From, tr.To, tr.Post, wantPost)
 			}
 			switch {
 			case tr.To == "approved": // approve: push the branch for the PR

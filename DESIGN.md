@@ -442,7 +442,9 @@ Commands come from config (trusted, like a Makefile/git hooks), not from the net
 > phase. The repo uses it to auto-commit `.mtt` on every move (`git add .mtt && git commit … -- .mtt`), so a
 > move commits its own state (removing the former manual `git add .mtt` after each move and the two interim
 > commits after `deliver`/`cancel`; their pre-gate `git switch main` runs first, so the post commit lands on
-> main). **Two phases, different failure semantics:** `commands:` gate the **entry** (fail → no persist, the
+> main). **`deliver`/`cancel` narrow that pathspec** to the task file (+`.mtt/audit.log` when present) so a
+> dirty `.mtt/config.yaml` can't ride the main-landing commit/push past review (c3 — see the SEC2 note in the
+> dogfood section). **Two phases, different failure semantics:** `commands:` gate the **entry** (fail → no persist, the
 > s008 compensation runs); `post:` finalize **after** entry (fail → the move is **kept**, `core.ErrPostAction`,
 > CLI exit **5** — mtt never rolls back a persisted move for a post hiccup). `--no-run` skips **both** phases.
 > Why not a global default `post`? Precedence/merge/opt-out questions we deferred (t24) — per-edge only for now.
