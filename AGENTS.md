@@ -2,6 +2,8 @@
 
 Rules for agents and humans working in this repository.
 Architecture and decisions live in [DESIGN.md](DESIGN.md). This file is about how to work.
+These rules read standalone: the *why* and the task-ids that introduced them live in git history, `CHANGELOG.md`,
+and `DESIGN.md`; the live backlog is `mtt roadmap`. Don't cite mutable task-ids inline here — they rot on rename.
 
 ## TL;DR
 
@@ -127,7 +129,7 @@ agent: **test-before-code** (TDD: red → green → refactor), the **Principles 
 
 The unit of work is an **mtt task** on a flow-created `task/<id>` branch; the method steps (brainstorm →
 spec → plan → TDD → reviews) are printed by the flow itself at each status. `sessions/*.md` is the
-narrative archive for process milestones (its future is t31), not a per-task requirement; the roadmap and
+narrative archive for process milestones (its long-term home is an open question), not a per-task requirement; the roadmap and
 current target live in mtt (`mtt roadmap`); sessions/README.md keeps the pre-s009 history and TASKS.md is
 frozen history since s009.
 
@@ -146,8 +148,8 @@ the live queue is mtt. Practical rules:
   SMALL vocabulary — currently `core`, `flow`, `sec`, `tests`, `perf`, `dx`, `ux`, `kb`, `adapter`,
   `demo`, `multiagent`, `release`, `docs` — pick from the existing set before inventing (discover the
   live set with **`mtt tags`** — the open tag vocabulary with counts, `--all` for every task, `--json` for a
-  `{tag,count}` array; c9). Caveat: `#hashtags` in titles/descriptions auto-become tags — never
-  put `#` in a title unless you mean it. (Policy home migrates into mtt when t29 lands.)
+  `{tag,count}` array). Caveat: `#hashtags` in titles/descriptions auto-become tags — never
+  put `#` in a title unless you mean it. (This tag-convention note is interim — it migrates into mtt later.)
 - **Two types — pick by the type description** (`mtt types`). Beyond that, the flow itself tells you what
   to do at every status (printed on entry and by `mtt show`): method steps, artifact paths, gates, git
   context — follow the printed guidance, don't memorize it. Mid-flight resumption is a plain
@@ -156,23 +158,23 @@ the live queue is mtt. Practical rules:
   rationale lives in DESIGN.md's dogfood note.
 - **Attribution is required** (`require: {who}`, every move, `--no-run` does not bypass): set `author:` in
   `.mtt/config.local.yaml` or `MTT_BY=<you>` before your first move.
-- **Dangerous ops force who+why (t5).** A gate bypass (`--no-run`) and a destructive `rm --force` each demand
+- **Dangerous ops force who+why.** A gate bypass (`--no-run`) and a destructive `rm --force` each demand
   **both** `--who` and `--why` (missing → exit 2), independent of the global `require` policy. `rm --force`
   writes an audit record to `.mtt/audit.log` (JSONL, committed, `merge=union`) **before** deleting — no
   destruction without a trail. A transition can also be marked critical in the config with a per-edge
   `require: {who, why}` (unioned with the global policy — tighten-only).
-- **Moves auto-commit `.mtt` (t21) and auto-push (c1).** Every edge carries a `post:` action that runs **after**
+- **Moves auto-commit `.mtt` and auto-push.** Every edge carries a `post:` action that runs **after**
   the status is persisted, so a move commits its own `.mtt/tasks/*.yaml` change — no manual `git add .mtt &&
   git commit` after `start`/`submit`/`approve`/`decline` (which commit `git add .mtt … -- .mtt` on the task
   branch), and none after `deliver`/`cancel` (their pre-gate `git switch main` runs first, so the post commit
   lands on main). **`deliver`/`cancel` narrow the add-pathspec to the task file plus `.mtt/audit.log` when it
   exists** (`git add -- .mtt/tasks/<id>.yaml [.mtt/audit.log]` then a pathspec-scoped commit) — a dirty
-  `.mtt/config.yaml` (or any other `.mtt` edit) must never ride the main-landing commit/push past review (c3,
-  the SEC2 bullet). **`approve` also pushes the task branch** (`git push -u origin task/<id>` — for the PR) and
+  `.mtt/config.yaml` (or any other `.mtt` edit) must never ride the main-landing commit/push past review (the
+  SEC2 bullet). **`approve` also pushes the task branch** (`git push -u origin task/<id>` — for the PR) and
   **`deliver` *and* `cancel` push main** (`git push origin main` — a delivered *or* cancelled terminal state must
-  not live only in the local checkout; c5). **`approve` also opens/updates the PR** (`gh pr create`, idempotent —
+  not live only in the local checkout). **`approve` also opens/updates the PR** (`gh pr create`, idempotent —
   skipped if an open PR exists; title from `mtt show --json`, body from `docs/superpowers/pr/<id>.md` when present
-  else generated; needs `gh`+`jq`; t27), so the only manual step left is **merging** the PR. If a post action
+  else generated; needs `gh`+`jq`), so the only manual step left is **merging** the PR. If a post action
   fails (commit, push, or PR-open), the move is **kept** (status persisted) and mtt exits **5** — finish it by hand.
 - **Config is code (SEC2).** Review `.mtt/config.yaml` diffs like a Makefile; a gate may invoke read-only
   `mtt` only (never an mtt transition). Gate/post commands are single-quoted YAML scalars. The committed config
