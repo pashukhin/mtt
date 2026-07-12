@@ -1,12 +1,12 @@
 id: c8
 type: chore
 title: 'ready/list --exclude-tag filter — hide tasks carrying any given tag (de-noise: hide backlog from ready); mirrors the --tag include filter'
-status: approved
+status: done
 priority: medium
 tags:
     - dx
 created: "2026-07-12T05:20:31Z"
-updated: "2026-07-12T05:35:22Z"
+updated: "2026-07-12T05:42:29Z"
 description: 'Reclassified from task t20 (design fixed in brainstorm). Add ExcludeTags []string to core.ListFilter; in core.Match reject a task if it carries any exclude-tag (intersects(f.ExcludeTags, t.Tags)) — include (--tag) and exclude (--exclude-tag) compose: matches include AND not exclude; on overlap exclude wins. CLI: --exclude-tag (repeatable StringArray) on list and ready, validated via the existing toTags. Empty is a no-op. TDD: core.Match unit tests + a testscript e2e (hide backlog from ready).'
 history:
     - at: "2026-07-12T05:22:35Z"
@@ -40,3 +40,12 @@ history:
       by: Grigorii Pashukhin
       from: impl_review
       to: approved
+    - at: "2026-07-12T05:42:29Z"
+      by: Grigorii Pashukhin
+      from: approved
+      to: done
+      checks:
+        - cmd: git switch main
+          exit: 0
+        - cmd: 'git log -n 200 --format=%s | grep "^c8: " || { echo "no squash commit \"c8: …\" on local main: git pull first, and check the PR/merge title started with \"c8: \"" >&2; false; }'
+          exit: 0
