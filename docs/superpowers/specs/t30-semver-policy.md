@@ -117,6 +117,9 @@ history — left as-is; they carry stale `0.x.y-dev` literals by design:
 - Verification must sweep **both languages** — the retired rule appears in RU restatements
   (`зеркал…сесс`, `сесси…минор/патч`, `полная сессия → минор`), not just the English phrasing — so the AC-1
   grep is bilingual (see Testing).
+- Phrase replacements **positively** — state "the version is derived from the git tag (see RELEASING.md)"
+  rather than restating "versions no longer mirror the session"; naming the retired rule in an in-scope file
+  would re-trip the AC-1 grep for no benefit.
 - The exhaustive EN+RU / README / CLI_REFERENCE sweep for stragglers is **t42**'s job (t42 depends on t30);
   t30 fixes the authoritative statements and the mechanism.
 
@@ -131,11 +134,13 @@ history — left as-is; they carry stale `0.x.y-dev` literals by design:
 ## Acceptance criteria
 
 1. No **D5 in-scope** living doc (`sessions/README.md`, `RELEASING.md`, `CHANGELOG.md`, `DESIGN.md`,
-   `DESIGN.ru.md`) asserts "version mirrors the session" — verified by a **bilingual** grep (EN + RU patterns,
-   see Testing) over that set. `RELEASING.md` describes the tag-as-SoT model and the bump-from-`[Unreleased]`
-   process (D4), and states the D2 compat surface + D1 bump rules where a releaser / adopter will find them
-   (RELEASING.md, with a short pointer from DESIGN.md's Releasing section). `NEXT_SESSION.md` is out of scope
-   (per D5).
+   `DESIGN.ru.md`) states the session-mirror rule **as current policy**. Replacements state the new policy
+   **positively** ("the version is derived from the git tag") rather than narrating the retired rule, so the
+   bilingual grep (EN + RU patterns, see Testing) returns clean over that set — the grep is a mechanical aid;
+   the intent is "no in-scope doc asserts version==session as the live rule." `RELEASING.md` describes the
+   tag-as-SoT model and the bump-from-`[Unreleased]` process (D4), and states the D2 compat surface + D1 bump
+   rules where a releaser / adopter will find them (RELEASING.md, with a short pointer from DESIGN.md's
+   Releasing section). `NEXT_SESSION.md` is out of scope (per D5).
 2. `internal/cli/root.go` holds **no** hardcoded version number; `resolveVersion()` implements ldflags →
    build-info → `"dev"`, with unit tests exercising all three branches.
 3. `make build` (no VERSION) stamps a `git describe` string; `make release VERSION=vX.Y.Z` stamps the tag;
