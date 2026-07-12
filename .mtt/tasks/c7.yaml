@@ -1,13 +1,13 @@
 id: c7
 type: chore
 title: 'AGENTS.md: local tag conventions — backlog semantics, think tag, small thematic vocabulary + hashtag caveat (interim home until t29/t39)'
-status: impl_review
+status: impl_fix
 priority: medium
 tags:
     - docs
     - dx
 created: "2026-07-12T01:26:07Z"
-updated: "2026-07-12T01:26:43Z"
+updated: "2026-07-12T01:30:39Z"
 history:
     - at: "2026-07-12T01:26:07Z"
       by: Grigorii Pashukhin
@@ -25,3 +25,7 @@ history:
       checks:
         - cmd: make check
           exit: 0
+    - at: "2026-07-12T01:30:39Z"
+      by: Grigorii Pashukhin
+      from: impl_review
+      to: impl_fix
