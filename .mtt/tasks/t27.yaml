@@ -1,13 +1,13 @@
 id: t27
 type: task
 title: 'Think: mechanize gh pr create on approve — how to feed the PR body into the gate'
-status: impl_review
+status: approved
 priority: high
 tags:
     - flow
     - think
 created: "2026-07-11T12:44:16Z"
-updated: "2026-07-12T04:47:43Z"
+updated: "2026-07-12T04:58:37Z"
 description: 'Finish the flow mechanization (c1 automated push; the ONLY remaining manual git step is opening the PR). Everything is mechanical EXCEPT the PR body — the hard part, a think-item. MECHANICAL (solved-in-principle): --base main --head task/{{.ID}}; --title "{{.ID}}: <title>" via read-only `mtt show {{.ID}} --json | jq -r .title` (Title is NOT in the placeholder whitelist, so read it, do not templatize); idempotency `gh pr view >/dev/null 2>&1 || gh pr create …` (approve re-fires after decline→fix); gh-missing/auth-fail → ErrPostAction/exit 5, move kept. THE OPEN QUESTION (why this is a think): HOW to feed the PR BODY into the gate — post: commands only see {ID,Type,From,To}, so an arbitrary per-task body has no channel today. Options + tradeoffs: (a) add {{.Description}} to the expandCommands whitelist → body = task description (simple, but description ≠ a rich PR body, and it widens the deliberately-narrow whitelist t5/t21 kept to 4 fields); (b) a body ARTIFACT the agent writes before approve — docs/superpowers/pr/{{.ID}}.md — and the gate does `gh pr create --body-file docs/superpowers/pr/{{.ID}}.md` (symmetric with the spec/plan artifacts already gated by `ls`; agent controls the prose; extra step); (c) `mtt show {{.ID}} --json | jq` to synthesize a body from description + spec/plan links (static template, no rich prose); (d) an `mtt approve --pr-body …`/`--pr-body-file …` flag that the CLI threads into the post context (new surface); (e) accept a minimal static template (spec/plan links only, no per-task body) and edit the PR by hand after. Recommendation to explore first: (b) — the body-file artifact mirrors the existing spec/plan-artifact pattern and keeps prose under agent control. From the s009 c1 / flow-mechanization retro.'
 history:
     - at: "2026-07-12T04:05:39Z"
@@ -78,3 +78,7 @@ history:
       checks:
         - cmd: make check
           exit: 0
+    - at: "2026-07-12T04:58:37Z"
+      by: Grigorii Pashukhin
+      from: impl_review
+      to: approved
