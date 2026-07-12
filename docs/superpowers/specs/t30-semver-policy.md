@@ -38,13 +38,17 @@ Release framing (settled with the maintainer): **stay on the 0.x line** (do not 
 
 SemVer governs this public contract:
 
-- **CLI UX** — command names, flags, positional grammar, exit codes. Removing/renaming a command or flag, or
-  changing an exit-code meaning, is breaking.
+- **CLI UX** — command names, flags, positional grammar, exit codes, and the recognized environment variables
+  (`MTT_DIR` / `MTT_BY` / `MTT_ROLE` — a scripting contract, per `internal/cli/root.go`). Removing/renaming a
+  command, flag, or env var, or changing an exit-code meaning, is breaking.
 - **`--json` output** — field names and types. Removing/renaming/retyping a field is breaking; purely
   additive fields are compatible.
-- **Store schema** — `.mtt/config.yaml` + task-file YAML on disk. A change that makes an existing committed
-  store fail to load, or that requires a migration, is breaking. *Highest-stakes surface: adopters commit
-  their store into their repo.*
+- **Store schema *and its semantics*** — `.mtt/config.yaml` + task-file YAML on disk. Breaking covers not only
+  a change that makes an existing committed store **fail to load** or require a migration, but also a change
+  to the config's **meaning** while it still parses: the gate placeholder vocabulary
+  (`{{.ID}}` / `{{.Type}}` / `{{.From}}` / `{{.To}}`), the exit-code / gate-block contract, and the
+  `require:{who,why}` attribution keys. *Highest-stakes surface: adopters commit their store — and their
+  authored flow config — into their repo, and the flow/gate DSL is the most likely part to evolve.*
 - **`pkg/mtt` Go API** (public: domain types + ports) — pre-1.0 **best-effort**: changes are noted in the
   CHANGELOG but are **not** a hard compat promise until 1.0, so the ports can still be refined.
 - Explicitly **not** covered: `internal/**`, gate-command output tails, `-v`/log formatting, timing, and any
@@ -63,9 +67,15 @@ SemVer governs this public contract:
 - `internal/cli/root.go`: default `var version = "dev"` (drop `0.9.0-dev` — the drift source). A small
   `resolveVersion()` implements the chain; **both** cobra's `Version:` field and the `mtt version` subcommand
   consume it (single path, no divergence).
-- **Makefile**: default `VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null)` so a bare
-  `make build` stamps a describe string (`v0.9.0-3-gabc123`, `-dirty` when the tree is uncommitted); an
-  explicit `make release VERSION=vX.Y.Z` still wins (highest precedence via the existing `?=`/ldflags gate).
+- **Makefile**: the `git describe` fallback is applied **only to the dev build targets** (`build` / `install`
+  / `smoke`) via a build-only version variable, e.g.
+  `BUILD_VERSION := $(if $(VERSION),$(VERSION),$(shell git describe --tags --always --dirty 2>/dev/null))`,
+  so a bare `make build` stamps a describe string (`v0.9.0-3-gabc123`, `-dirty` when the tree is uncommitted).
+  The **`release` target is unchanged**: it keeps consuming the raw `$(VERSION)` and its existing
+  `[ -z "$(VERSION)" ]` guard (`Makefile:40-41`) stays intact — a `git describe` string must **never** become
+  a release stamp, so `make release` with no `VERSION` still errors rather than silently building
+  `dist/mtt_<sha>_…`. (This is the correction from the spec review: a global `VERSION ?= $(shell git describe …)`
+  would fill `VERSION` and defeat that guard.)
 - **CI** (`release.yml`) is unchanged: it passes `VERSION=${GITHUB_REF_NAME}` (the tag).
 - Before the first `v*` tag exists, `git describe --always` yields the short SHA and go-install yields the
   module pseudo-version — both honest.
@@ -79,14 +89,18 @@ SemVer governs this public contract:
   - any `Added` / `Changed` / `Deprecated` / `Removed` → **MINOR** (pre-1.0 collapses feature and breaking to
     the same bump);
   - only `Fixed` / `Security` / docs / internal → **PATCH**.
+  - Guard (per D1): a *breaking* bug-fix is **not** a PATCH — it is recorded under `Changed`/`Removed` (with a
+    migration note), so the mechanical category → bump computation is never fooled by a breaking change filed
+    as `Fixed`.
 - The bump is a **release-cut chore** (a RELEASING.md step), deliberately **not** a per-task flow step: tasks
   batch into one release, so per-task version moves would be noise. No new tooling is in scope — a "suggest
   the bump from `[Unreleased]`" helper is a possible later chore (YAGNI now).
 
 ### D5 — Doc reconciliation (living docs only; frozen session plans/specs untouched)
 
-Replace the session-mirror rule and the hand-bump instruction in the **living** docs (dated
-`docs/superpowers/plans|specs/*` artifacts are frozen history — left as-is):
+Replace the session-mirror rule and the hand-bump instruction in the **living** docs. Historical planning
+artifacts (dated and/or superseded `docs/superpowers/plans|specs/*`, and the frozen `TASKS.md`) are immutable
+history — left as-is; they carry stale `0.x.y-dev` literals by design:
 
 - `sessions/README.md:15-16` — the origin statement. Stop asserting version == session; replace with a pointer
   to the semver policy (or drop, if the sessions apparatus is being retired under t31).
@@ -95,6 +109,14 @@ Replace the session-mirror rule and the hand-bump instruction in the **living** 
 - `CHANGELOG.md` — the session-mirror sentence in the header.
 - `DESIGN.md:963` + `DESIGN.ru.md:979` — "Pre-1.0 versions mirror the session." → the semver one-liner + a
   pointer to RELEASING.md. EN is source of truth; keep `.ru` in sync (docs-language rule).
+- `NEXT_SESSION.md` — **scoped out** of t30. It is an ephemeral per-session handoff scratch doc (its
+  `0.9.0-dev` mentions at `:7`/`:276` are status snapshots, not policy; the RU line `:842`
+  "полная сессия → минор" restates the retired rule). The whole sessions/NEXT_SESSION apparatus is under
+  reconsideration in **t31** (what remains after self-host); t30 does not churn it. It is explicitly **not** a
+  "living authoritative doc" for the purposes of acceptance criterion 1.
+- Verification must sweep **both languages** — the retired rule appears in RU restatements
+  (`зеркал…сесс`, `сесси…минор/патч`, `полная сессия → минор`), not just the English phrasing — so the AC-1
+  grep is bilingual (see Testing).
 - The exhaustive EN+RU / README / CLI_REFERENCE sweep for stragglers is **t42**'s job (t42 depends on t30);
   t30 fixes the authoritative statements and the mechanism.
 
@@ -108,9 +130,12 @@ Replace the session-mirror rule and the hand-bump instruction in the **living** 
 
 ## Acceptance criteria
 
-1. No living doc asserts "version mirrors the session"; `RELEASING.md` describes the tag-as-SoT model and the
-   bump-from-`[Unreleased]` process (D4), and states the D2 compat surface + D1 bump rules where a releaser /
-   adopter will find them (RELEASING.md, with a short pointer from DESIGN.md's Releasing section).
+1. No **D5 in-scope** living doc (`sessions/README.md`, `RELEASING.md`, `CHANGELOG.md`, `DESIGN.md`,
+   `DESIGN.ru.md`) asserts "version mirrors the session" — verified by a **bilingual** grep (EN + RU patterns,
+   see Testing) over that set. `RELEASING.md` describes the tag-as-SoT model and the bump-from-`[Unreleased]`
+   process (D4), and states the D2 compat surface + D1 bump rules where a releaser / adopter will find them
+   (RELEASING.md, with a short pointer from DESIGN.md's Releasing section). `NEXT_SESSION.md` is out of scope
+   (per D5).
 2. `internal/cli/root.go` holds **no** hardcoded version number; `resolveVersion()` implements ldflags →
    build-info → `"dev"`, with unit tests exercising all three branches.
 3. `make build` (no VERSION) stamps a `git describe` string; `make release VERSION=vX.Y.Z` stamps the tag;
@@ -125,4 +150,9 @@ Replace the session-mirror rule and the hand-bump instruction in the **living** 
 - Update `TestVersionCommand` (`internal/cli/root_test.go`) to assert `mtt version` == the resolver's output
   instead of the raw `version` literal.
 - The Makefile `git describe` path is covered end-to-end by the existing `make smoke` (installs, asserts a
-  non-empty `mtt version`); no unit test for the shell substitution.
+  non-empty `mtt version`); no unit test for the shell substitution. Additionally confirm a bare
+  `make release` (no `VERSION`) still exits non-zero with the "VERSION is required" message (the guard the
+  spec review flagged).
+- AC-1 verification grep (bilingual, over the D5 in-scope set) —
+  `grep -rn -iE "mirror.*session|session.*(minor|patch)|point-session|зеркал.*сесс|сесси.*(минор|патч)|полная сессия" RELEASING.md CHANGELOG.md DESIGN.md DESIGN.ru.md sessions/README.md`
+  must return nothing after the reconciliation.
