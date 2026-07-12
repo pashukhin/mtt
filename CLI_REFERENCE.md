@@ -127,7 +127,9 @@ edge **critical**: it forces `--who`/`--why` for that move only, unioned with th
 
 **`post:` per transition (t21).** A transition may carry a `post:` command list (same shape as `commands:`)
 that runs **after** the status is persisted — the finalization phase. This repo uses it to auto-commit `.mtt`
-on every move (`git add .mtt && git commit -m "{{.ID}}: {{.From}} → {{.To}}" -- .mtt`), and (c1) to **auto-push**:
+on every move (`git add .mtt && git commit -m "{{.ID}}: {{.From}} → {{.To}}" -- .mtt`); the `deliver`/`cancel`
+edges commit on `main`, so they **narrow** that add-pathspec to the task file (+`.mtt/audit.log` when present)
+— a dirty `.mtt/config.yaml` must not ride the main-landing commit past review (c3). And (c1) to **auto-push**:
 `approve` also runs `git push -u origin task/{{.ID}}` (the task branch, for the PR) and `deliver` runs
 `git push origin main` (finishing delivery). Failure semantics
 differ from the gate: a `post:` failure **keeps** the move (status already written) and exits **5** (`commands:`
