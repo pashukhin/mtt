@@ -1,0 +1,12 @@
+id: t41
+type: task
+title: 'output verbosity + color: implement or retire -q/--quiet and --no-color (both marked pending, neither tracked)'
+status: tbd
+priority: low
+tags:
+    - backlog
+    - dx
+    - ux
+created: "2026-07-12T06:25:37Z"
+updated: "2026-07-12T06:25:37Z"
+description: 'From the s009.x assessment. CLI_REFERENCE marks -q/--quiet and --no-color/NO_COLOR as pending, but there is no backlog item and no color in the output path at all. Decide: (1) -q/--quiet suppresses non-essential human output (errors + requested data stay); (2) color — is there a case for ANSI color in human output (status/kind/priority), gated by --no-color/NO_COLOR, or is mono-output the deliberate choice (then drop the pending --no-color claim from CLI_REFERENCE)? Design-open.'

@@ -1,11 +1,12 @@
 id: t30
 type: task
-title: 'Think: version policy after sessions — 0.N.M mirrored sessions; define the post-self-host scheme'
+title: adopt semver and embed it in the dev process — replace the 0.N.M session-mirrored scheme; define bump rules, where the version lives, and when it moves
 status: tbd
-priority: low
+priority: medium
 tags:
     - backlog
     - release
     - think
 created: "2026-07-11T12:58:07Z"
-updated: "2026-07-12T01:21:41Z"
+updated: "2026-07-12T06:26:27Z"
+description: 'Concretized from the s009.x planning batch (was: Think — version policy after sessions). Adopt semantic versioning and wire it into the flow: (1) replace the 0.N.M session-mirrored dev scheme; (2) define when MAJOR/MINOR/PATCH bump — breaking config/CLI change vs feature vs fix, with 0.x pre-1.0 semantics; (3) where the version lives (today: root.go var, tag-stamped at release via ldflags) and whether that stays; (4) how the bump becomes part of the process — a pre-tag chore, a CHANGELOG discipline, or a flow step; (5) reconcile with RELEASING.md and the release workflow.'
