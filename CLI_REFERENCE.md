@@ -233,6 +233,9 @@ Prints tasks in a stable order. Filters combine with AND.
 - `--tag <tag>…` — filter by tag (session 008.7, repeatable). **OR within** the dimension (a task matches if it
   carries **any** given tag), AND across the other filters. Values are normalized like `--tag` on `add`.
   *(implemented)*
+- `--exclude-tag <tag>…` — **negative** filter (c8, repeatable, on `list` **and** `ready`): reject any task
+  carrying **any** of these tags. Composes with `--tag` as AND, so on overlap exclude wins. E.g.
+  `mtt ready --exclude-tag backlog` de-noises the queue. *(implemented)*
 - `--ready` — only tasks that are ready (no open blockers) — shorthand for `mtt ready`. *(implemented, session 005)*
 - `--sort <created|updated|priority>` — ordering key; default `created`. `created`/`updated` are descending,
   tie-broken by ID; `priority` (session 008.6) orders high→low (unset in the medium band), tie-broken by
@@ -434,8 +437,9 @@ the history. Does not run the `done` gate.
 
 ### `mtt ready [flags]` — list actionable tasks  *(session 005, implemented)*
 Lists non-terminal tasks whose blockers are all in a terminal status (`done`/`cancelled`) — "what can be
-picked up next". Accepts the `list` filters (`--status`/`--type`/`--kind`/`--parent`), `--json`, and `--ids`
-(session 008.9; one id per line, mutually exclusive with `--json`).
+picked up next". Accepts the `list` filters (`--status`/`--type`/`--kind`/`--parent`/`--exclude-tag`), `--json`,
+and `--ids` (session 008.9; one id per line, mutually exclusive with `--json`). `--exclude-tag <tag>…` (c8,
+repeatable) de-noises the queue, e.g. `mtt ready --exclude-tag backlog`.
 Readiness is **conservative**: a dangling blocker or a status not in the current flow leaves a task not
 ready (`mtt list --ready` is the same subset via `list`).
 

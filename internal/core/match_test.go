@@ -63,3 +63,23 @@ func TestMatchPriorityFilter(t *testing.T) {
 		t.Error("unset task should match when no --priority filter is given")
 	}
 }
+
+func TestMatchExcludeTags(t *testing.T) {
+	task := mtt.Task{ID: "t1", Type: "task", Status: "tbd", Tags: []string{"backlog", "dx"}}
+	// A task carrying an excluded tag is rejected.
+	if Match(task, ListFilter{ExcludeTags: []string{"backlog"}}, mtt.Config{}) {
+		t.Error("task with an excluded tag should NOT match")
+	}
+	// Excluding a tag the task lacks leaves it matching.
+	if !Match(task, ListFilter{ExcludeTags: []string{"sec"}}, mtt.Config{}) {
+		t.Error("task without the excluded tag should match")
+	}
+	// Empty exclude rejects nothing.
+	if !Match(task, ListFilter{}, mtt.Config{}) {
+		t.Error("no exclude filter should match")
+	}
+	// Include + exclude compose (AND); on overlap exclude wins.
+	if Match(task, ListFilter{Tags: []string{"dx"}, ExcludeTags: []string{"backlog"}}, mtt.Config{}) {
+		t.Error("exclude should win when a tag is in both include and exclude")
+	}
+}

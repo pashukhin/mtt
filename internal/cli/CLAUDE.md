@@ -135,7 +135,10 @@ surfaces as a plain error (exit 1). `--tag` (repeatable, `StringArrayVar`) on `a
 (`mtt.NormalizeTag`; invalid → usage error) so no bare string leaks into `core`. Text `#hashtags` are handled
 in `core` (Adder/Editor), not parsed in the CLI. `mtt show` prints a `tags:` line (`formatTask`, after
 `priority`); `taskJSON` gains `tags` (`omitempty`), readable via `show`/`list`/`edit`/`tag …` `--json`. Tags
-are NOT shown in the `taskLine` row (list/tree) — visible via `show`/`--json`/the `--tag` filter.
+are NOT shown in the `taskLine` row (list/tree) — visible via `show`/`--json`/the `--tag` filter. **`--exclude-tag`**
+(c8, repeatable) on `list` **and** `ready` (→ `ListFilter.ExcludeTags`, same `toTags` boundary) is the negative
+filter: reject any task carrying one of the tags; composes with `--tag` as AND (overlap → exclude wins). Enables
+`mtt ready --exclude-tag backlog`.
 
 Batch & pipeline (session 008.9): a reusable **task-set selector** (`selector.go`) — `selectTaskIDs(cmd,
 positional, allowExplicitIDs)` resolves ONE of three mutually-exclusive sources: explicit ids | stdin `-`

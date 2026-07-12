@@ -15,15 +15,16 @@ import (
 // newListCmd builds `mtt list`: list tasks with filters and a stable order.
 func newListCmd() *cobra.Command {
 	var (
-		statuses   []string
-		types      []string
-		kinds      []string
-		priorities []string
-		tags       []string
-		parent     string
-		sortKey    string
-		ready      bool
-		idsOut     bool
+		statuses    []string
+		types       []string
+		kinds       []string
+		priorities  []string
+		tags        []string
+		excludeTags []string
+		parent      string
+		sortKey     string
+		ready       bool
+		idsOut      bool
 	)
 	cmd := &cobra.Command{
 		Use:   "list",
@@ -47,6 +48,10 @@ func newListCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			excludeTagVals, err := toTags(excludeTags)
+			if err != nil {
+				return err
+			}
 			root, err := projectRoot(cmd)
 			if err != nil {
 				return err
@@ -64,7 +69,8 @@ func newListCmd() *cobra.Command {
 			}
 			selected := core.Select(tasks, core.ListFilter{
 				Statuses: toStatusNames(statuses), Types: toTypeNames(types), Kinds: kindVals,
-				Priorities: prioVals, Tags: tagVals, Parent: mtt.TaskID(parent), Sort: core.SortKey(sortKey),
+				Priorities: prioVals, Tags: tagVals, ExcludeTags: excludeTagVals,
+				Parent: mtt.TaskID(parent), Sort: core.SortKey(sortKey),
 			}, cfg)
 			if idsOut {
 				if jsonFlag(cmd) {
@@ -88,6 +94,7 @@ func newListCmd() *cobra.Command {
 	cmd.Flags().StringArrayVar(&kinds, "kind", nil, "filter by status category: initial|active|terminal (repeatable)")
 	cmd.Flags().StringArrayVar(&priorities, "priority", nil, "filter by priority: high|medium|low (repeatable)")
 	cmd.Flags().StringArrayVar(&tags, "tag", nil, "filter by tag (repeatable)")
+	cmd.Flags().StringArrayVar(&excludeTags, "exclude-tag", nil, "exclude tasks carrying this tag (repeatable)")
 	cmd.Flags().StringVar(&parent, "parent", "", "only direct children of this task id")
 	cmd.Flags().BoolVar(&ready, "ready", false, "only tasks that are ready (no open blockers)")
 	cmd.Flags().BoolVar(&idsOut, "ids", false, "print only task ids, one per line (for pipelines)")
