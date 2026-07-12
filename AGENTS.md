@@ -139,6 +139,15 @@ the live queue is mtt. Practical rules:
 - **The backlog is in mtt.** `mtt roadmap` is the "what next?" view; `mtt list --tag backlog` is the
   backlog-only view; promote by `mtt tag rm <id> backlog`. A task is the unit of **product** change;
   sessions/phases (how *we* work) stay in `sessions/*.md` — they are not mtt tasks.
+- **Tag conventions (this repo).** `backlog` = not in the live queue — every deferred task carries it,
+  and dropping it is what "promoting" means (see above); the live queue is the OPEN tasks minus
+  `backlog` (`mtt list --kind initial --kind active`, then subtract the tag). `think` = design-open
+  items (usually "Think:"-titled) — brainstorm before implementing. Thematic tags are a deliberately
+  SMALL vocabulary — currently `core`, `flow`, `sec`, `tests`, `perf`, `dx`, `ux`, `kb`, `adapter`,
+  `demo`, `multiagent`, `release`, `docs` — pick from the existing set before inventing (discover the
+  live set via `mtt list --kind initial --kind active --json | jq -r '.[].tags[]?' | sort | uniq -c`
+  until `mtt tags` (t39) lands). Caveat: `#hashtags` in titles/descriptions auto-become tags — never
+  put `#` in a title unless you mean it. (Policy home migrates into mtt when t29 lands.)
 - **Two types — pick by the type description** (`mtt types`). Beyond that, the flow itself tells you what
   to do at every status (printed on entry and by `mtt show`): method steps, artifact paths, gates, git
   context — follow the printed guidance, don't memorize it. Mid-flight resumption is a plain
