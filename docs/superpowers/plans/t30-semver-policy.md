@@ -25,7 +25,7 @@
 
 **Files:**
 - Modify: `internal/cli/version.go` (add the `version` var + resolvers; print `resolveVersion()`)
-- Modify: `internal/cli/root.go:14-15,31` (remove the `version` var; `Version: resolveVersion()`)
+- Modify: `internal/cli/root.go:15-16,31` (remove the `version` var; `Version: resolveVersion()`)
 - Modify: `internal/cli/root_test.go:112-127` (assert against `resolveVersion()`)
 - Test: `internal/cli/version_test.go` (new — unit tests for `resolve`)
 
@@ -127,7 +127,7 @@ func newVersionCmd() *cobra.Command {
 }
 ```
 
-- [ ] **Step 4: Remove the old `version` var from `root.go` and wire the resolver.** In `internal/cli/root.go` delete these two lines (14-15):
+- [ ] **Step 4: Remove the old `version` var from `root.go` and wire the resolver.** In `internal/cli/root.go` delete these two lines (15-16):
 
 ```go
 // version is the build version, overridable at build time via -ldflags.
@@ -140,7 +140,7 @@ and change line 31 from `Version:       version,` to:
 		Version:       resolveVersion(),
 ```
 
-- [ ] **Step 5: Update `TestVersionCommand`.** In `internal/cli/root_test.go`, replace the assertion block (lines 123-125):
+- [ ] **Step 5: Update `TestVersionCommand`.** In `internal/cli/root_test.go`, replace lines **122-125** (the comment line included, so it is not duplicated):
 
 ```go
 	// version prints to STDOUT (not stderr), so an agent can capture it.
@@ -260,7 +260,7 @@ git commit -m "t30: Makefile — git-describe for dev builds; keep release on ex
 - Consumes: the behavior from Tasks 1–2 (tag-as-SoT, no source version). No code.
 - Produces: docs that satisfy acceptance criterion 1 (bilingual grep clean).
 
-- [ ] **Step 1: `RELEASING.md` — rewrite step 1.** Replace the current step 1 (lines 8-9):
+- [ ] **Step 1: `RELEASING.md` — rewrite step 1.** Replace the current step 1 (lines 9-10):
 
 ```markdown
 1. **Bump the dev version.** Set `version` in [internal/cli/root.go](internal/cli/root.go) to the next
@@ -340,8 +340,7 @@ workflow, `SHA256SUMS`) lives in [RELEASING.md](RELEASING.md). Pre-1.0 versions 
 with:
 
 ```markdown
-workflow, `SHA256SUMS`) lives in [RELEASING.md](RELEASING.md). The version is derived from the git tag
-(SemVer; see [RELEASING.md](RELEASING.md)).
+workflow, `SHA256SUMS`) lives in [RELEASING.md](RELEASING.md). The version is derived from the git tag (SemVer).
 ```
 
 - [ ] **Step 6: `DESIGN.ru.md:979` — replace the RU equivalent.** Replace:
