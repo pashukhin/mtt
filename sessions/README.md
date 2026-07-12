@@ -12,9 +12,7 @@ scenario. No session leaves the tree half-usable.
 - Start each session by refining the plan (superpowers: brainstorming/planning), then work **test-first**.
 - Definition of Done: the session's acceptance e2e passes + `make check` green + docs updated.
   Branch `feat/sNNN-<slug>` → PR → squash into `main`.
-- **Version mirrors the session** (pre-1.0 mnemonic, not strict semver): `sN` → `0.N.0-dev`, a
-  point-session `sN.M` → `0.N.M-dev` (a full session bumps the minor, a point-session the patch). E.g.
-  s006 → `0.6.0-dev`, s006.5 → `0.6.5-dev`, s006.7 → `0.6.7-dev`, s007 → `0.7.0-dev`.
+- **Versioning:** SemVer, derived from the git tag — see [RELEASING.md](../RELEASING.md).
 
 ## Roadmap (vertical slices — each ends with a runnable command + e2e)
 

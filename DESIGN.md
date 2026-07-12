@@ -960,4 +960,4 @@ docs/
 ## Releasing
 
 Packaging + release process (cross-platform binaries via `make release`, a tag-triggered GitHub release
-workflow, `SHA256SUMS`) lives in [RELEASING.md](RELEASING.md). Pre-1.0 versions mirror the session.
+workflow, `SHA256SUMS`) lives in [RELEASING.md](RELEASING.md). The version is derived from the git tag (SemVer).
