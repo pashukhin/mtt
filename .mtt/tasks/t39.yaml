@@ -1,0 +1,9 @@
+id: t39
+type: task
+title: 'mtt tags — tag discovery/statistics: list the open tag vocabulary with task counts (default: open tasks; --all for everything), respect the list filters, --json array'
+status: tbd
+priority: medium
+tags:
+    - dx
+created: "2026-07-12T01:24:20Z"
+updated: "2026-07-12T01:24:20Z"
