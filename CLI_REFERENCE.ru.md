@@ -131,8 +131,8 @@ transitions:
 каждом move (`git add .mtt && git commit -m "{{.ID}}: {{.From}} → {{.To}}" -- .mtt`); рёбра `deliver`/`cancel`
 коммитят на `main`, поэтому **сужают** этот add-pathspec до файла задачи (+`.mtt/audit.log`, если он есть) —
 грязный `.mtt/config.yaml` не должен уехать в коммит на main мимо ревью (c3). И (c1) для **авто-пуша**:
-`approve` также запускает `git push -u origin task/{{.ID}}` (ветка задачи, для PR), а `deliver` —
-`git push origin main` (завершение доставки). Семантика провала иная,
+`approve` также запускает `git push -u origin task/{{.ID}}` (ветка задачи, для PR), а `deliver`/`cancel` —
+`git push origin main` (доставленное или отменённое терминальное состояние не должно жить только локально — c5). Семантика провала иная,
 чем у гейта: провал `post:` **сохраняет** move (статус уже записан) и даёт exit **5** (провал `commands:`-гейта
 → exit 3, статус не изменён). `--no-run` пропускает **обе** фазы (`commands:` и `post:`). Показывается в
 `mtt types` строкой `⇢` под ребром.

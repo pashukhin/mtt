@@ -450,8 +450,9 @@ Commands come from config (trusted, like a Makefile/git hooks), not from the net
 > Why not a global default `post`? Precedence/merge/opt-out questions we deferred (t24) — per-edge only for now.
 > The `git switch` in `deliver`/`start`/`cancel` is exactly why a naive "persist → run everything → roll back"
 > single phase can't work: context switches must precede persist, commits must follow it. **(c1) auto-push**
-> extends this: `approve` post also `git push -u origin task/<id>` (the PR branch), `deliver` post also
-> `git push origin main` — the remaining manual steps are `gh pr create` (title/body are a judgement
+> extends this: `approve` post also `git push -u origin task/<id>` (the PR branch), `deliver` **and `cancel`**
+> post also `git push origin main` (c5 — a terminal state must not live only locally) — the remaining manual
+> steps are `gh pr create` (title/body are a judgement
 > call) and pulling main before `deliver`.
 
 > **Shipped (s008): rollback / compensation (intra-pipeline).** A gate command may declare a `rollback:`
