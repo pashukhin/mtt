@@ -1,9 +1,19 @@
 id: c6
 type: chore
 title: Add a pull-main-first reminder to the start edge description — a stale local main yields task branches off an old base (conflict-prone PRs); gates stay offline, so a reminder, not a command
-status: tbd
+status: implementing
 priority: low
 tags:
     - flow
 created: "2026-07-11T14:06:24Z"
-updated: "2026-07-12T01:21:41Z"
+updated: "2026-07-12T02:40:23Z"
+history:
+    - at: "2026-07-12T02:40:23Z"
+      by: Grigorii Pashukhin
+      from: tbd
+      to: implementing
+      checks:
+        - cmd: git switch task/c6 || (git switch main && git switch -c task/c6)
+          exit: 0
+        - cmd: test -f .mtt/tasks/c6.yaml || { echo "task file absent on this branch — its add has not reached main (merge/commit the branch that created it first)" >&2; false; }
+          exit: 0
