@@ -4,7 +4,7 @@ title: SEC1 — kill the process group on gate timeout (Setpgid) so a daemon-spa
 status: tbd
 priority: medium
 tags:
-    - backlog
+    - release
     - sec
 created: "2026-07-10T13:53:10Z"
-updated: "2026-07-12T01:21:41Z"
+updated: "2026-07-12T07:18:28Z"

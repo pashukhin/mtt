@@ -2,10 +2,10 @@ id: t45
 type: task
 title: 'JSON output consistency: mtt types/version/init ignore --json despite the root promising all commands support it'
 status: tbd
-priority: medium
+priority: high
 tags:
-    - backlog
     - dx
+    - release
 created: "2026-07-12T06:26:04Z"
-updated: "2026-07-12T06:26:04Z"
+updated: "2026-07-12T07:18:28Z"
 description: 'Agent-facing inconsistency found in the s009.x product assessment. root.go Long asserts every command supports --json, but types/version/init silently print human text (never check jsonFlag). Worst for mtt types --json — an agent introspecting the flow gets prose. Decide per command: implement a JSON shape (types: the type/status/transition graph incl. gates/post — most valuable; version: {version}; init: the created-config summary) OR narrow the Long promise. Design-open: the types --json schema.'

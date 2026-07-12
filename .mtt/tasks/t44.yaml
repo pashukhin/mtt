@@ -2,10 +2,12 @@ id: t44
 type: task
 title: mtt self-update — update the installed binary in place (latest release asset + SHA256 verify, or go install fallback)
 status: tbd
-priority: low
+priority: medium
 tags:
-    - backlog
     - dx
+    - release
+depends_on:
+    - t30
 created: "2026-07-12T06:25:37Z"
-updated: "2026-07-12T06:25:37Z"
+updated: "2026-07-12T07:18:28Z"
 description: 'New-feature request from the s009.x assessment. A convenience command to update an installed mtt to the latest published release. Design-open: mechanism (query the GitHub releases API for the latest v* tag, download the platform asset mtt_<os>_<arch> + verify against SHA256SUMS, atomically replace argv0; OR shell out to go install .../cmd/mtt@latest when a Go toolchain is present), safely locating the running binary, --check-only/opt-in, and interaction with the release workflow. Only meaningful once v0.9.0 is tagged and published.'
