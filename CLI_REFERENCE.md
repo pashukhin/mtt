@@ -335,9 +335,11 @@ carrying a tag — distinct from the positional tags being added/removed.
 
 ### `mtt tags [flags]` — tag vocabulary with counts  *(c9, implemented)*
 Read-only: tallies tags across the counted tasks and prints `count  tag` rows, most-used first (count
-descending, then tag ascending). Default scope is **open** tasks (`initial`+`active` kinds); `--all` counts
-every task; `--kind`/`--status`/`--type`/`--priority`/`--tag`/`--exclude-tag`/`--parent` narrow the counted
-set (the same filters as `list`). `--json` emits a `[{tag, count}]` array. Replaces the
+descending, then tag ascending). Default scope is **open** tasks (`initial`+`active` kinds) — the bare
+command shows the live vocabulary. A **status-scoping** flag sets the scope explicitly and drops the open
+default: `--all` counts every task; an explicit `--status`/`--kind` scopes to those (so `mtt tags --status
+done` reaches terminal tasks). The other `list` filters (`--type`/`--priority`/`--tag`/`--exclude-tag`/
+`--parent`) narrow **within** the scope. `--json` emits a `[{tag, count}]` array. Replaces the
 `mtt list … | jq … | uniq -c` workaround.
 
 ---

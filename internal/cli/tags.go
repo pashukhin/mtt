@@ -47,9 +47,12 @@ func newTagsCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			// Default scope: open tasks (initial+active), unless --all or an
-			// explicit --kind widens/narrows it.
-			if len(kindVals) == 0 && !all {
+			// Default scope: open tasks (initial+active). A status-scoping flag
+			// (--all, --kind, or --status) sets the scope explicitly and suppresses
+			// the open default — so `mtt tags --status done` reaches terminal tasks
+			// instead of silently ANDing to empty. Non-status filters (--type/
+			// --priority/--tag/--exclude-tag/--parent) narrow WITHIN the scope.
+			if !all && len(kindVals) == 0 && len(statuses) == 0 {
 				kindVals = []mtt.StatusKind{mtt.KindInitial, mtt.KindActive}
 			}
 			root, err := projectRoot(cmd)

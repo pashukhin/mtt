@@ -91,3 +91,13 @@ stdout '"count"'
 exec mtt tags --exclude-tag backlog
 ! stdout 'backlog'
 stdout 'backend'
+
+# scope: cancel e3 (→ terminal) — its backlog tag leaves the default (open) tally,
+# but --all still counts it, and --status cancelled reaches it (status flag drops the open default).
+exec mtt status e3 cancelled
+exec mtt tags
+! stdout 'backlog'
+exec mtt tags --all
+stdout '1  backlog'
+exec mtt tags --status cancelled
+stdout '1  backlog'

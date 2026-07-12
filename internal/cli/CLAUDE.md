@@ -140,7 +140,7 @@ are NOT shown in the `taskLine` row (list/tree) — visible via `show`/`--json`/
 filter: reject any task carrying one of the tags; composes with `--tag` as AND (overlap → exclude wins). Enables
 `mtt ready --exclude-tag backlog`. **`mtt tags`** (c9, `tags.go` `newTagsCmd`) is a pure read (like
 `roadmap`/`tree`): `TaskStore.List` → `core.Select` (same `ListFilter`; default scope = open
-`initial`+`active` kinds unless `--all` or an explicit `--kind`) → `core.TagCounts` → `count  tag` rows
+`initial`+`active` kinds, suppressed by a status-scoping flag — `--all`/`--kind`/`--status`) → `core.TagCounts` → `count  tag` rows
 (most-used first) or a `[{tag,count}]` array (`tagCountJSON`) under `--json`. Registered as `tags` (distinct
 from the `tag` mutation command).
 
