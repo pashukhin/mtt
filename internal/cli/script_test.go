@@ -54,12 +54,15 @@ func TestScripts(t *testing.T) {
 
 // TestScrubMttEnv guards the harness scrub: an inherited MTT_DIR/MTT_BY/MTT_ROLE
 // must be cleared, else the whole cli suite reddens under a developer's exported env.
+// The names are hardcoded (not derived from mttEnvVars) so a shrink of that slice —
+// which would leave a real CLI env seam unscrubbed — is caught here.
 func TestScrubMttEnv(t *testing.T) {
-	for _, k := range mttEnvVars {
+	want := []string{"MTT_DIR", "MTT_BY", "MTT_ROLE"}
+	for _, k := range want {
 		t.Setenv(k, "leaked-"+k)
 	}
 	scrubMttEnv()
-	for _, k := range mttEnvVars {
+	for _, k := range want {
 		if v := os.Getenv(k); v != "" {
 			t.Errorf("scrubMttEnv left %s=%q set", k, v)
 		}
