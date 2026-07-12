@@ -120,8 +120,8 @@ func TestVersionCommand(t *testing.T) {
 		t.Fatalf("execute version: %v", err)
 	}
 	// version prints to STDOUT (not stderr), so an agent can capture it.
-	if got := strings.TrimSpace(outBuf.String()); got != version {
-		t.Fatalf("version stdout = %q, want %q", got, version)
+	if got := strings.TrimSpace(outBuf.String()); got != resolveVersion() {
+		t.Fatalf("version stdout = %q, want %q", got, resolveVersion())
 	}
 	if errBuf.Len() != 0 {
 		t.Fatalf("version wrote to stderr: %q", errBuf.String())

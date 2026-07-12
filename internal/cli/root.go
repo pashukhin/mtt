@@ -12,9 +12,6 @@ import (
 	"github.com/pashukhin/mtt/pkg/mtt"
 )
 
-// version is the build version, overridable at build time via -ldflags.
-var version = "0.9.0-dev"
-
 // NewRootCmd builds the root mtt command tree.
 func NewRootCmd() *cobra.Command {
 	root := &cobra.Command{
@@ -28,7 +25,7 @@ Shorthand: 'mtt <status> [<id>]' moves a task (e.g. 'mtt done t1'); with the id
 omitted it acts on the current task ('mtt use <id>'). Start with 'mtt roadmap'
 (what to do, in order), 'mtt ready' (what is unblocked), 'mtt types' (the flows
 and their gates). All commands support --json.`,
-		Version:       version,
+		Version:       resolveVersion(),
 		SilenceUsage:  true,
 		SilenceErrors: true,
 		Args:          cobra.ArbitraryArgs,
