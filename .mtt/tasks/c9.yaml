@@ -1,14 +1,14 @@
 id: c9
 type: chore
 title: 'mtt tags — read-only tag discovery/statistics: list the tag vocabulary with per-tag task counts'
-status: approved
+status: done
 priority: medium
 tags:
     - dx
 depends_on:
     - c8
 created: "2026-07-12T05:20:44Z"
-updated: "2026-07-12T06:02:51Z"
+updated: "2026-07-12T06:05:37Z"
 description: 'Reclassified from task t39 (design fixed in brainstorm). New pure read-only command (like roadmap/tree — TaskStore.List then core.Select then aggregate; no usecase). Default scope = OPEN tasks (kind initial+active, i.e. not done/cancelled); --all counts every task. Respects the list/ready filters (--status/--type/--kind/--tag/--exclude-tag/--priority/--parent) via the same core.Select, then counts tags across the filtered set. Human output: rows "count  tag" sorted by count DESC then tag ASC. --json: array of {tag, count} in the same order. Counts backlog like any tag. Replaces the AGENTS.md jq workaround. Depends on c8 (--exclude-tag) since it respects that filter.'
 history:
     - at: "2026-07-12T05:43:03Z"
@@ -42,3 +42,12 @@ history:
       by: Grigorii Pashukhin
       from: impl_review
       to: approved
+    - at: "2026-07-12T06:05:37Z"
+      by: Grigorii Pashukhin
+      from: approved
+      to: done
+      checks:
+        - cmd: git switch main
+          exit: 0
+        - cmd: 'git log -n 200 --format=%s | grep "^c9: " || { echo "no squash commit \"c9: …\" on local main: git pull first, and check the PR/merge title started with \"c9: \"" >&2; false; }'
+          exit: 0
