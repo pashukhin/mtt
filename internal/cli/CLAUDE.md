@@ -13,7 +13,13 @@ The CLI layer on cobra. **Only** flag/argument parsing, wiring adapters from con
 
 ## Tests
 
-e2e via `testscript` (txtar) in temp dirs; one script per command.
+e2e via `testscript` (txtar) in temp dirs; one script per command. `TestMain`
+(`script_test.go`) **scrubs `MTT_DIR`/`MTT_BY`/`MTT_ROLE`** (`mttEnvVars`) in the
+harness process only — a value exported in the caller's shell would otherwise
+override the in-process tests' cwd-discovery/attribution and (via `init`
+resolving to `$MTT_DIR`) scatter a stray `.mtt` that poisons other packages'
+discovery; the scrub is gated by `inMttCommandSubprocess` so the re-invoked `mtt`
+command keeps the per-script `env MTT_DIR=…` (c4).
 
 ## Current state
 
