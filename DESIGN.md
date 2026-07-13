@@ -891,8 +891,8 @@ after dogfood we move mtt's development onto mtt itself. See sessions/README.md 
   explicit `--tag` / `mtt tag add/rm` are secondary/pointed. Reconciliation is **write-time** — a text-delta on
   `edit` drops a tag when its `#hashtag` leaves the text and keeps manual tags (no provenance stored, so a
   text+manual collision drops with the text); `tag rm` is **guarded** (refuses a tag whose `#hashtag` is still
-  in the text — edit the text instead). `list/tree --tag` filters (a slice-valued OR-within `ListFilter`
-  dimension over `Match`). The tag vocabulary is a pure `pkg/mtt` pair (`NormalizeTag`/`ExtractTags`) over a
+  in the text — edit the text instead). `list`/`ready`/`tree` filter by `--tag` (OR-within include) and
+  `--exclude-tag` (negative) — slice-valued `ListFilter` dimensions over `Match`. The tag vocabulary is a pure `pkg/mtt` pair (`NormalizeTag`/`ExtractTags`) over a
   **Unicode** charset (`\pL\pN._-`, Unicode `ToLower`, no NFC folding); tags are a normalized+sorted **set**
   (open vocabulary → plain `[]string`, not a VO). Spec:
   `docs/superpowers/specs/2026-07-09-session-008.7-tags-design.md`.

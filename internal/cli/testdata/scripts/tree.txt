@@ -28,6 +28,21 @@ exec mtt tree --depth 1
 stdout 'e1  epic'
 ! stdout 't1  task'
 
+# --exclude-tag (c10) + keep-ancestors: an excluded PARENT is kept as the path to a
+# still-visible child (exclude does not nuke the subtree)
+exec mtt tag add t1 skip
+exec mtt tree --exclude-tag skip
+stdout 't1  task'
+stdout 's1  subtask'
+# but an excluded LEAF is dropped (its ancestors have no other reason to show it)
+exec mtt tag add s1 gone
+exec mtt tree --exclude-tag gone
+! stdout 's1  subtask'
+stdout 't1  task'
+# tidy up so later assertions see the original tag-free chain
+exec mtt tag rm t1 skip
+exec mtt tag rm s1 gone
+
 # a missing root errors (wraps ErrNotFound → exit 4)
 ! exec mtt tree nope
 stderr 'task "nope": mtt: task not found'
