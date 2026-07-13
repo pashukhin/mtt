@@ -230,12 +230,12 @@ Prints tasks in a stable order. Filters combine with AND.
 - `--parent <id>` — only direct children of this task (session 004). *(implemented)*
 - `--priority <high|medium|low>…` — filter by priority (session 008.6, repeatable). Matches the **stored**
   label: an unset task matches only when no `--priority` is given. *(implemented)*
-- `--tag <tag>…` — filter by tag (session 008.7, repeatable). **OR within** the dimension (a task matches if it
-  carries **any** given tag), AND across the other filters. Values are normalized like `--tag` on `add`.
-  *(implemented)*
-- `--exclude-tag <tag>…` — **negative** filter (c8, repeatable, on `list` **and** `ready`): reject any task
-  carrying **any** of these tags. Composes with `--tag` as AND, so on overlap exclude wins. E.g.
-  `mtt ready --exclude-tag backlog` de-noises the queue. *(implemented)*
+- `--tag <tag>…` — filter by tag (session 008.7, repeatable; on `list`, `ready`, and `tree`). **OR within** the
+  dimension (a task matches if it carries **any** given tag), AND across the other filters. Values are
+  normalized like `--tag` on `add`. *(implemented)*
+- `--exclude-tag <tag>…` — **negative** filter (c8, repeatable, on `list`, `ready`, **and** `tree` — `tree`
+  added in c10): reject any task carrying **any** of these tags. Composes with `--tag` as AND, so on overlap
+  exclude wins. E.g. `mtt ready --exclude-tag backlog` de-noises the queue. *(implemented)*
 - `--ready` — only tasks that are ready (no open blockers) — shorthand for `mtt ready`. *(implemented, session 005)*
 - `--sort <created|updated|priority>` — ordering key; default `created`. `created`/`updated` are descending,
   tie-broken by ID; `priority` (session 008.6) orders high→low (unset in the medium band), tie-broken by
@@ -298,8 +298,9 @@ roots the tree at that task. Children are **computed** (an inverse index in `cor
 order is deterministic (`Created` desc, tie-broken by ID). An orphan (a task whose parent id is absent) is
 surfaced as a root, never dropped.
 
-- `--status <status>…` / `--kind <initial|active|terminal>…` / `--tag <tag>…` — filter displayed nodes
-  (`--tag` is session 008.7, OR-within). Filtering uses **keep-ancestors** semantics: a node shows if it
+- `--status <status>…` / `--kind <initial|active|terminal>…` / `--tag <tag>…` / `--exclude-tag <tag>…` — filter
+  displayed nodes (`--tag` session 008.7, OR-within; `--exclude-tag` c10, negative). Filtering uses
+  **keep-ancestors** semantics: a node shows if it
   matches or any descendant matches, and non-matching ancestors are kept as the path to a match (so a matching
   leaf is never lost under a non-matching parent).
 - `--depth <n>` — limit visible levels, like `tree -L n` (`--depth 1` = roots only; `0`/unset = unlimited).
@@ -446,9 +447,10 @@ the history. Does not run the `done` gate.
 
 ### `mtt ready [flags]` — list actionable tasks  *(session 005, implemented)*
 Lists non-terminal tasks whose blockers are all in a terminal status (`done`/`cancelled`) — "what can be
-picked up next". Accepts the `list` filters (`--status`/`--type`/`--kind`/`--parent`/`--exclude-tag`), `--json`,
-and `--ids` (session 008.9; one id per line, mutually exclusive with `--json`). `--exclude-tag <tag>…` (c8,
-repeatable) de-noises the queue, e.g. `mtt ready --exclude-tag backlog`.
+picked up next". Accepts the `list` filters (`--status`/`--type`/`--kind`/`--parent`/`--tag`/`--exclude-tag`),
+`--json`, and `--ids` (session 008.9; one id per line, mutually exclusive with `--json`). `--tag`/`--exclude-tag
+<tag>…` (repeatable; `--exclude-tag` from c8, `--tag` on `ready` added in c10) include/de-noise the queue, e.g.
+`mtt ready --tag urgent`, `mtt ready --exclude-tag backlog`.
 Readiness is **conservative**: a dangling blocker or a status not in the current flow leaves a task not
 ready (`mtt list --ready` is the same subset via `list`).
 

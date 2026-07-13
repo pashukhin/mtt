@@ -15,10 +15,11 @@ import (
 // newTreeCmd builds `mtt tree [id]`: render the epic → task → subtask hierarchy.
 func newTreeCmd() *cobra.Command {
 	var (
-		statuses []string
-		kinds    []string
-		tags     []string
-		depth    int
+		statuses    []string
+		kinds       []string
+		tags        []string
+		excludeTags []string
+		depth       int
 	)
 	cmd := &cobra.Command{
 		Use:   "tree [id]",
@@ -35,6 +36,10 @@ func newTreeCmd() *cobra.Command {
 				return err
 			}
 			tagVals, err := toTags(tags)
+			if err != nil {
+				return err
+			}
+			excludeTagVals, err := toTags(excludeTags)
 			if err != nil {
 				return err
 			}
@@ -69,7 +74,7 @@ func newTreeCmd() *cobra.Command {
 			for i, s := range statuses {
 				statusNames[i] = mtt.StatusName(s)
 			}
-			f := core.ListFilter{Statuses: statusNames, Kinds: kindVals, Tags: tagVals}
+			f := core.ListFilter{Statuses: statusNames, Kinds: kindVals, Tags: tagVals, ExcludeTags: excludeTagVals}
 			if jsonFlag(cmd) {
 				return writeJSON(cmd.OutOrStdout(), buildTreeJSON(idx, roots, f, cfg, depth))
 			}
@@ -80,6 +85,7 @@ func newTreeCmd() *cobra.Command {
 	cmd.Flags().StringArrayVar(&statuses, "status", nil, "filter by status (repeatable)")
 	cmd.Flags().StringArrayVar(&kinds, "kind", nil, "filter by status category: initial|active|terminal (repeatable)")
 	cmd.Flags().StringArrayVar(&tags, "tag", nil, "filter by tag (repeatable)")
+	cmd.Flags().StringArrayVar(&excludeTags, "exclude-tag", nil, "exclude tasks carrying this tag (repeatable)")
 	cmd.Flags().IntVar(&depth, "depth", 0, "limit visible levels (0 = unlimited)")
 	return cmd
 }

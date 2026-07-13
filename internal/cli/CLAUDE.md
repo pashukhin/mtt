@@ -137,14 +137,15 @@ unset as medium (and propagates it up the blocker chain), the *label* is never f
 Tags (session 008.7): `mtt tag add/rm <id> <tag>…` (variadic; `tag.go`) route through `core.TagEditor`
 (`runTagEdit` shared path); a not-found id maps to exit 4 (the editor wraps `ErrNotFound`), the `rm` guard
 surfaces as a plain error (exit 1). `--tag` (repeatable, `StringArrayVar`) on `add` (→ `AddParams.Tags`),
-`list`, and `tree` (→ `ListFilter.Tags`); the shared `toTags` normalizes/validates each value at the boundary
+`list`, `tree`, and `ready` (→ `ListFilter.Tags`; `ready` in c10); the shared `toTags` normalizes/validates each value at the boundary
 (`mtt.NormalizeTag`; invalid → usage error) so no bare string leaks into `core`. Text `#hashtags` are handled
 in `core` (Adder/Editor), not parsed in the CLI. `mtt show` prints a `tags:` line (`formatTask`, after
 `priority`); `taskJSON` gains `tags` (`omitempty`), readable via `show`/`list`/`edit`/`tag …` `--json`. Tags
 are NOT shown in the `taskLine` row (list/tree) — visible via `show`/`--json`/the `--tag` filter. **`--exclude-tag`**
-(c8, repeatable) on `list` **and** `ready` (→ `ListFilter.ExcludeTags`, same `toTags` boundary) is the negative
-filter: reject any task carrying one of the tags; composes with `--tag` as AND (overlap → exclude wins). Enables
-`mtt ready --exclude-tag backlog`. **`mtt tags`** (c9, `tags.go` `newTagsCmd`) is a pure read (like
+(c8, repeatable) on `list`, `ready`, **and** `tree` (`tree` in c10; → `ListFilter.ExcludeTags`, same `toTags`
+boundary) is the negative filter: reject any task carrying one of the tags; composes with `--tag` as AND
+(overlap → exclude wins). c10 closes the tag-filter symmetry — `list`/`ready`/`tree` all take **both** `--tag`
+and `--exclude-tag`. Enables `mtt ready --exclude-tag backlog`. **`mtt tags`** (c9, `tags.go` `newTagsCmd`) is a pure read (like
 `roadmap`/`tree`): `TaskStore.List` → `core.Select` (same `ListFilter`; default scope = open
 `initial`+`active` kinds, suppressed by a status-scoping flag — `--all`/`--kind`/`--status`) → `core.TagCounts` → `count  tag` rows
 (most-used first) or a `[{tag,count}]` array (`tagCountJSON`) under `--json`. Registered as `tags` (distinct
