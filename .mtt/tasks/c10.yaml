@@ -1,13 +1,13 @@
 id: c10
 type: chore
 title: 'tag-filter symmetry: add --tag to ready and --exclude-tag to tree (all consume the same Match/ListFilter)'
-status: implementing
+status: impl_review
 priority: low
 tags:
     - dx
     - release
 created: "2026-07-12T05:43:00Z"
-updated: "2026-07-13T11:14:45Z"
+updated: "2026-07-13T11:21:52Z"
 description: 'Follow-up surfaced by c8 impl review. After c8: list has --tag + --exclude-tag, ready has only --exclude-tag, tree has only --tag. All three render via the same core.Match/ListFilter, so both directions are trivially wireable through the existing toTags boundary. Add --tag to ready and --exclude-tag to tree for symmetry across the tag-aware commands. Design fixed (mirror existing flags); low-priority DX polish.'
 history:
     - at: "2026-07-13T11:14:45Z"
@@ -18,4 +18,11 @@ history:
         - cmd: git switch task/c10 || (git switch main && git switch -c task/c10)
           exit: 0
         - cmd: test -f .mtt/tasks/c10.yaml || { echo "task file absent on this branch — its add has not reached main (merge/commit the branch that created it first)" >&2; false; }
+          exit: 0
+    - at: "2026-07-13T11:21:52Z"
+      by: Grigorii Pashukhin
+      from: implementing
+      to: impl_review
+      checks:
+        - cmd: make check
           exit: 0
