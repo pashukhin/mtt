@@ -1,13 +1,13 @@
 id: t30
 type: task
 title: adopt semver and embed it in the dev process — replace the 0.N.M session-mirrored scheme; define bump rules, where the version lives, and when it moves
-status: approved
+status: done
 priority: high
 tags:
     - release
     - think
 created: "2026-07-11T12:58:07Z"
-updated: "2026-07-13T03:35:31Z"
+updated: "2026-07-13T04:41:17Z"
 description: 'Concretized from the s009.x planning batch (was: Think — version policy after sessions). Adopt semantic versioning and wire it into the flow: (1) replace the 0.N.M session-mirrored dev scheme; (2) define when MAJOR/MINOR/PATCH bump — breaking config/CLI change vs feature vs fix, with 0.x pre-1.0 semantics; (3) where the version lives (today: root.go var, tag-stamped at release via ldflags) and whether that stays; (4) how the bump becomes part of the process — a pre-tag chore, a CHANGELOG discipline, or a flow step; (5) reconcile with RELEASING.md and the release workflow.'
 history:
     - at: "2026-07-12T07:34:22Z"
@@ -97,3 +97,13 @@ history:
       why: 'impl_review (round 2) PASS: doc-only stripping-safety note, empirically verified; make check + AC-1 grep green'
       from: impl_review
       to: approved
+    - at: "2026-07-13T04:41:17Z"
+      by: Grigorii Pashukhin
+      why: 'PR #37 squash-merged to main; delivering t30 to done'
+      from: approved
+      to: done
+      checks:
+        - cmd: git switch main
+          exit: 0
+        - cmd: 'git log -n 200 --format=%s | grep "^t30: " || { echo "no squash commit \"t30: …\" on local main: git pull first, and check the PR/merge title started with \"t30: \"" >&2; false; }'
+          exit: 0
