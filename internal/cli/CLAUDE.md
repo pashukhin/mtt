@@ -32,6 +32,12 @@ for the `--kind`/`--parent` filters) and renders human text or, with `--json`, a
 goes through `core.Editor` (a mutation) and prints `updated <id>` or the JSON object. `show`/`list`/`edit`
 honor `--json` via the `taskJSON` view.
 
+Versioning (t30): `mtt version` and the root `Version:` field both call `resolveVersion()` (`version.go`) —
+the pure, tested `resolve(ldflags, buildVersionFn)` prefers the ldflags-injected `version` (defaults to
+`"dev"`; **no committed version number**) → the `runtime/debug` build-info module version (set by
+`go install …@vX.Y.Z`) → `"dev"`. The Makefile stamps a `git describe` string for dev builds and the
+explicit `VERSION` for `release` (SemVer / tag-as-SoT; see [RELEASING.md](../../RELEASING.md)).
+
 Hierarchy (session 004): `add --parent <id>` (mutually exclusive with `--no-parent`) routes placement
 validation through `core.Adder`; `tree [<id>]` builds `core.Index` from `TaskStore.List` and renders an
 ASCII tree (`renderTree`) with **keep-ancestors** filtering (`--status`/`--kind`), `--depth`, and a nested

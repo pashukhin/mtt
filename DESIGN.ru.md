@@ -976,4 +976,4 @@ docs/
 ## Релиз
 
 Упаковка и процесс релиза (кросс-платформенные бинарники через `make release`, workflow на тег, `SHA256SUMS`)
-описаны в [RELEASING.md](RELEASING.md). Версии до 1.0 зеркалят сессию.
+описаны в [RELEASING.md](RELEASING.md). Версия выводится из git-тега (SemVer; см. [RELEASING.md](RELEASING.md)).

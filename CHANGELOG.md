@@ -1,9 +1,8 @@
 # Changelog
 
 All notable changes to mtt are documented here. The format follows
-[Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Pre-1.0 versions mirror the development
-session (see [sessions/README.md](sessions/README.md)): a full session bumps the minor, a point-session
-the patch.
+[Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the version scheme is
+[Semantic Versioning](https://semver.org); see [RELEASING.md](RELEASING.md) for the pre-1.0 bump rules.
 
 ## [Unreleased]
 
@@ -41,6 +40,9 @@ First public release line. Shipped so far:
 ### Changed
 - The root tagline now names the executable-state-machine + gate feature (was "minimalist file-backed task
   tracker").
+- **Versioning:** adopted SemVer (pre-1.0); the version is now derived from the git tag
+  (ldflags / `git describe` → module build info → `"dev"`), replacing the hand-maintained session-mirrored
+  `0.N.M-dev` literal. See [RELEASING.md](RELEASING.md).
 
 ### Fixed
 - **YAML `List`/`Get` name the offending file** on a corrupt or zero-byte task file (was a pathless
