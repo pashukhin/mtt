@@ -34,6 +34,10 @@ mtt follows [Semantic Versioning](https://semver.org). The annotated git tag `vX
 of truth; the version is derived at build time (ldflags / `git describe`) and at run time from the module
 build info — nothing is hand-maintained in source.
 
+> Stripping is safe: `-ldflags "-s -w"` (or `strip`) removes the symbol table and DWARF, **not** the
+> `-X`-injected version nor the allocated `.go.buildinfo` section that `runtime/debug.ReadBuildInfo` reads —
+> a stripped release binary still reports its version.
+
 **Pre-1.0 (0.y.z):** bump **MINOR** (`0.→Y←.0`) for any new feature and/or any backward-incompatible change;
 bump **PATCH** (`0.y.→Z←`) for backward-compatible fixes, security fixes, docs, and internal changes. A
 breaking change is never shipped as a PATCH — it forces a MINOR and a `Changed`/`Removed` CHANGELOG entry
