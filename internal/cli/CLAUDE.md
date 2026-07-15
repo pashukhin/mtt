@@ -195,6 +195,14 @@ branches treat a bare edge verb as plausible (claim with an actionable error vs 
 `writeTypeBlock` prints `[name] from -> to`, `formatNextMoves` prints `name → to`, and `nextMoveJSON.Name`
 (omitempty) carries the verb in `show --json`. `core.Transitioner` is untouched (route-by-`to`).
 
+JSON consistency (t45): `types`/`version`/`init`/`rm`-single/`use` now honor `--json` — `types_json.go` holds
+the flow-graph views (`typeJSON`/`statusJSON`/`transitionJSON`/`commandJSON`/`rollbackJSON`/`requireJSON`;
+`require` is a `*requireJSON` so `omitempty` works — Go ignores it on a struct value; timeouts are
+`Duration.String()`; the type mapper takes the prefix from `settings.Prefixes`, not `mtt.Type`). `version`/`init`
+views (`versionJSON`/`initJSON`) live in `json.go`; `rm`-single captures the task via the store **before**
+`Remove` (which returns only an error) and emits `toTaskJSON`; `use --json` emits the current task or `null`
+(`writeJSON(w, nil)`). Every mtt command now emits JSON under `--json`; cobra `completion`/`help` are exempt.
+
 Discoverability + tagline (session 008.97/U4/U5): the root `Short:` names the gate/state-machine (the empty
 niche, not "file-backed tracker") and a root `Long:` documents the `mtt <status> [<id>]` sugar + current
 resolution + the `roadmap`/`ready`/`types` entry points; `status`'s `Use:` is `status [<id>] <new-status>`

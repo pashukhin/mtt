@@ -152,18 +152,24 @@ Configuration).
 - `--name <name>` — project name written into the config (default: directory name).
 - `--template <name>` — starter config: `default` (epic/task/subtask, no commands) or `coding`
   (feature/bugfix/refactor, each with a gated per-type Definition of Done). Default: `default`.
+- `--json` — emit the created-config summary `{path, template, name, created}` (absolute `path`) instead of
+  the human line. *(t45)*
 
 Running any other command outside a project (no `.mtt/` found by discovery, or a `--dir` without one) errors
 with a `run 'mtt init' to create one` hint (session 008.97/U4).
 
 ### `mtt version` — print the version  *(phase 0, implemented)*
-Prints the build version. No arguments.
+Prints the build version. No arguments. `--json` emits `{"version": …}`. *(t45)*
 
 ### `mtt types` — show configured types and their flows  *(implemented in session 001; flow/command detail grew through s006–s008)*
 Lists each task type: its `parent`, statuses (with their `kind`), and transitions (with `description` and
 whether `commands` are attached).
 
 - `[<type>]` — show only this type.
+- `--json` — emit the flow graph: an array of `{name, prefix, parents, default?, description?, statuses:[{name,
+  kind, default?, description?}], transitions:[{name?, from, to, description?, current?, require?, commands:[{run,
+  timeout?, rollback?}], post:[…]}]}` (structural arrays are non-null; `mtt types <type> --json` → a one-element
+  array; an unknown type → exit 1). *(t45)*
 
 ### `mtt caps` — show the current backend's capabilities  *(phase 3 — not yet implemented; design surface)*
 Prints which capabilities the active adapter supports (history, dependencies, comment tree, search,
@@ -288,8 +294,9 @@ set**, so `mtt rm <epic> <child>…` removes a whole subtree in one call **witho
   task frees its id — a later `add` may **reuse** it, silently re-pointing any dangling reference at the new
   (unrelated) task. Prefer `cancel` over `rm --force` for a referenced task, or remove the dangling edges
   first. A monotonic/never-reuse minting fix is tracked in TASKS.md → Later.
-- A missing `<id>` exits `4` (not found). On success prints `removed <id>` (no `--json`, like `add`'s
-  `created <id>` — the object is gone; the agent branches on the exit code).
+- A missing `<id>` exits `4` (not found). On success prints `removed <id>`; with `--json` the single form
+  emits the **removed task object** (captured before deletion, mirroring `add --json`), while bulk `--json`
+  stays the per-item outcome array. *(t45)*
 
 ### `mtt tree [<id>] [flags]` — show the hierarchy  *(session 004, implemented)*
 Prints the epic → task → subtask tree as an ASCII tree (`├─`/`└─`/`│` connectors; each node is
@@ -408,6 +415,9 @@ repeating the id.
 - `mtt use <id>` — set the current task (the id must exist). Prints `current: <id>` (or the task with `--json`).
 - `mtt use` — show the current task as one line (or `no current task`).
 - `mtt use --clear` — clear the pointer (prints `current cleared`).
+
+With `--json`, every form emits the current task object, or `null` when there is none — so `mtt use --clear
+--json` and `mtt use --json` with no current both print `null`. *(t45)*
 
 **Omitted-id resolution:** when you leave off the id on a **single-task direct verb** — `mtt status <status>`,
 the sugar `mtt <status>` (e.g. `mtt done`), `mtt show`, `mtt edit` — mtt uses the current task. Order is
@@ -652,8 +662,10 @@ These are things this reference surfaces that are worth keeping consistent with 
 - **`--json` everywhere.** Every command supports JSON output so agents can drive mtt without parsing
   human text; mutations echo the resulting object — including `add --json`, which emits the created task
   (session 008.97/U3), so the fresh id is `mtt add … --json | jq -r .id` rather than parsed from prose.
-  **Exception:** the delete ack (`removed <id>`) stays plain text — a deleted task has no object left to
-  echo; the agent branches on the exit code (`0`/`4`). (The plain `created <id>` remains the default when
-  `--json` is *not* set.)
+  Since **t45** this holds for every mtt command — `types`/`version`/`init` emit JSON, `rm <id> --json` emits
+  the removed task object (captured before deletion; bulk `--json` is the per-item outcome array), and
+  `use --json` emits the current task or `null`. Only cobra's generated `completion`/`help` are exempt
+  (framework built-ins). (The plain `created <id>`/`removed <id>` lines remain the default when `--json` is
+  *not* set.)
 - **`--role` is recorded, not enforced.** It writes into history now (the non-deferrable seam); role-based
   routing of `start`/`done` is deferred.
