@@ -79,6 +79,20 @@ exec mtt ready --exclude-tag backlog
 ! stdout 'e3'
 stdout 'e1'
 
+# tag-filter symmetry (c10): --tag on ready + --exclude-tag on tree
+# ready --tag: include filter (mirror of list --tag) — e1 has backend, e2 has only бэкенд
+exec mtt ready --tag backend
+stdout 'e1  epic'
+! stdout 'e2'
+! stdout 'e3'
+# exclude still wins over include on ready when both name the same tag
+exec mtt ready --tag backlog --exclude-tag backlog
+! stdout 'e3'
+# tree --exclude-tag: hide tagged tasks in the hierarchy (mirror of list --exclude-tag)
+exec mtt tree --exclude-tag backlog
+! stdout 'e3'
+stdout 'e1'
+
 # mtt tags: the tag vocabulary with per-tag counts (default open scope) + --json
 exec mtt tag add e2 backend
 exec mtt tags
