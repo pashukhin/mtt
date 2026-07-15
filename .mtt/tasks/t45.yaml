@@ -1,13 +1,13 @@
 id: t45
 type: task
 title: 'JSON output consistency: mtt types/version/init ignore --json despite the root promising all commands support it'
-status: spec_review
+status: spec_fix
 priority: high
 tags:
     - dx
     - release
 created: "2026-07-12T06:26:04Z"
-updated: "2026-07-15T06:56:04Z"
+updated: "2026-07-15T07:04:55Z"
 description: 'Agent-facing inconsistency found in the s009.x product assessment. root.go Long asserts every command supports --json, but types/version/init silently print human text (never check jsonFlag). Worst for mtt types --json — an agent introspecting the flow gets prose. Decide per command: implement a JSON shape (types: the type/status/transition graph incl. gates/post — most valuable; version: {version}; init: the created-config summary) OR narrow the Long promise. Design-open: the types --json schema.'
 history:
     - at: "2026-07-15T06:16:15Z"
@@ -26,3 +26,8 @@ history:
       checks:
         - cmd: ls docs/superpowers/specs/t45-*.md
           exit: 0
+    - at: "2026-07-15T07:04:55Z"
+      by: Grigorii Pashukhin
+      why: 'spec_review CHANGES REQUESTED: schema dropped require/current/status-default/description (not ''full graph''); prefix not from Config (settings.Prefixes); use-clear/no-current is a 5th gap (promise still false); single vs bulk rm shape/key divergence; init path may be relative. All addressed'
+      from: spec_review
+      to: spec_fix
