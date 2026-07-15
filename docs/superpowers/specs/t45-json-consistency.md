@@ -148,6 +148,11 @@ View structs beside `taskJSON` (in `json.go` or a new `types_json.go`): `typeJSO
 the prefix from `settings.Prefixes`); the rest are pure `mtt.Config`/value mappers (like `toTaskJSON`). The
 CLI layer stays thin: build the view, `writeJSON`.
 
+**Impl caveat:** `require` must be modeled as a **pointer** `*requireJSON` (nil when `Require{}` is zero) —
+Go's `encoding/json` does **not** honor `omitempty` on a non-pointer struct value, so a value field would
+always serialize `"require":{"who":false,"why":false}`. (`current` is a string and `rollback` is already a
+pointer, so those omit correctly as-is.)
+
 ## Scope / cross-refs
 
 - **In:** `--json` for `types` / `version` / `init` / `rm`-single / `use`-clear+empty, their view structs +
