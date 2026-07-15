@@ -397,7 +397,15 @@ func TestVersionJSON(t *testing.T) {
 }
 ```
 
-Add `"bytes"` and `"encoding/json"` to `version_test.go`'s imports (it currently imports only `"testing"`).
+`version_test.go` currently has a single-line `import "testing"` — restructure it to a grouped block:
+
+```go
+import (
+	"bytes"
+	"encoding/json"
+	"testing"
+)
+```
 
 - [ ] **Step 2: Run it, verify it fails.**
 
@@ -483,7 +491,7 @@ with:
 Run: `go test ./internal/cli/ -run TestVersionJSON -v`
 Expected: PASS.
 
-- [ ] **Step 7: Add `init --json` e2e.** Append to `internal/cli/testdata/scripts/init.txt`:
+- [ ] **Step 7: Add `init --json` e2e.** `init.txt` ends with a txtar file section `-- empty/.keep --` — do **not** append at EOF. **Insert into the script body**, after the last body line `stderr 'mtt init'` and its blank line, immediately **before** `-- empty/.keep --`. At that point cwd is `$WORK/empty`, so `mkdir jsonproj; cd jsonproj` gives a fresh dir:
 
 ```
 # init --json: the created-config summary (absolute path, template, name)
@@ -522,19 +530,17 @@ git commit -m "t45: version --json ({version}) + init --json (summary, abs path)
 **Interfaces:**
 - Consumes: `toTaskJSON`, `writeJSON`, `jsonFlag`, `taskNotFound` (existing).
 
-- [ ] **Step 1: Extend `rm.txt` (red for single `--json`).** Find the single-delete section of `internal/cli/testdata/scripts/rm.txt` and add, after a task is created (adapt the id to the script's existing setup — create a fresh task if needed):
+- [ ] **Step 1: Extend `rm.txt` (red for single `--json`).** `rm.txt` runs on the **default** template (where `task` is non-root → `mtt add` needs `--no-parent`) and has **no txtar file section**, so append at EOF (after the last line `! stdout 't2'`). By this point the script has deleted t1 and t2, so the miner re-mints **t1**:
 
 ```
-# rm <id> --json emits the removed task object (mirrors add --json)
-exec mtt add 'to delete'
-stdout 'created (t\d+)'
+# rm <id> --json emits the removed task object (mirrors add --json) — t45
+exec mtt add --no-parent 'to delete'
+stdout 'created t1'
 exec mtt rm t1 --json
 stdout '"id": "t1"'
 stdout '"status"'
 ! stdout 'removed t1'
 ```
-
-(Use whatever id `mtt add` prints in this script's context; if `t1` is taken, create and target a fresh one.)
 
 - [ ] **Step 2: Run it, verify it fails.**
 
@@ -594,13 +600,10 @@ Add `"errors"` to `rm.go`'s imports.
 Run: `go test ./internal/cli/ -run 'TestScript/rm' -v`
 Expected: PASS (single `--json` object; the existing `removed <id>` non-json and bulk cases unchanged).
 
-- [ ] **Step 5: Extend `current_task.txt` (red for `use --json`).** Append to `internal/cli/testdata/scripts/current_task.txt`:
+- [ ] **Step 5: Extend `current_task.txt` (red for `use --json`).** `current_task.txt` ends with a txtar file section `-- local.yaml --` — do **not** append at EOF (it would become YAML content). **Insert into the script body**, after the last body line `stdout 't2  task  \[tbd\]'` and the blank line, immediately **before** `-- local.yaml --`. At that point cwd is the project root and t1/t2 exist (current is t2), so reuse the existing t1:
 
 ```
-# use --json: the current task or null (c.f. t45)
-exec mtt add 'work'
-stdout 'created (t\d+)'
-# no current yet -> null
+# use --json: the current task or null (t45)
 exec mtt use --clear
 exec mtt use --json
 stdout '^null'
@@ -611,8 +614,6 @@ stdout '"id": "t1"'
 exec mtt use --clear --json
 stdout '^null'
 ```
-
-(Adapt `t1` to the id created here.)
 
 - [ ] **Step 6: Run it, verify it fails.**
 
