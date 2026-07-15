@@ -40,3 +40,11 @@ exec mtt rm t2
 stdout 'removed t2'
 exec mtt list
 ! stdout 't2'
+
+# rm <id> --json emits the removed task object (mirrors add --json) — t45
+exec mtt add --no-parent 'to delete'
+stdout 'created t1'
+exec mtt rm t1 --json
+stdout '"id": "t1"'
+stdout '"status"'
+! stdout 'removed t1'

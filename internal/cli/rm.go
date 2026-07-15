@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 	"time"
 
@@ -74,6 +75,7 @@ func runRmSingle(cmd *cobra.Command, root, idArg string, force, dryRun bool) err
 	if dryRun {
 		return previewBulk(cmd, []mtt.TaskID{id})
 	}
+	store := yaml.NewTaskStore(root)
 	_, settings, err := yaml.Load(root)
 	if err != nil {
 		return err
@@ -82,12 +84,26 @@ func runRmSingle(cmd *cobra.Command, root, idArg string, force, dryRun bool) err
 	if err != nil {
 		return err
 	}
-	remover := core.NewRemover(yaml.NewTaskStore(root), yaml.NewAuditStore(root), time.Now)
+	// Remove returns only an error, so capture the task before deleting when --json.
+	var removed mtt.Task
+	if jsonFlag(cmd) {
+		removed, err = store.Get(id)
+		if err != nil {
+			if errors.Is(err, mtt.ErrNotFound) {
+				return taskNotFound(id)
+			}
+			return err
+		}
+	}
+	remover := core.NewRemover(store, yaml.NewAuditStore(root), time.Now)
 	if err := remover.Remove(id, force, by, why); err != nil {
 		return err
 	}
 	if err := clearCurrentIfMatches(root, id); err != nil {
 		return err
+	}
+	if jsonFlag(cmd) {
+		return writeJSON(cmd.OutOrStdout(), toTaskJSON(removed))
 	}
 	_, err = fmt.Fprintf(cmd.OutOrStdout(), "removed %s\n", id)
 	return err

@@ -32,6 +32,9 @@ func newUseCmd() *cobra.Command {
 				if err := current.ClearCurrent(); err != nil {
 					return err
 				}
+				if jsonFlag(cmd) {
+					return writeJSON(cmd.OutOrStdout(), nil)
+				}
 				_, err = fmt.Fprintln(cmd.OutOrStdout(), "current cleared")
 				return err
 			case len(args) == 1:
@@ -60,6 +63,9 @@ func newUseCmd() *cobra.Command {
 					return err
 				}
 				if !ok {
+					if jsonFlag(cmd) {
+						return writeJSON(cmd.OutOrStdout(), nil)
+					}
 					_, err = fmt.Fprintln(cmd.OutOrStdout(), "no current task")
 					return err
 				}
