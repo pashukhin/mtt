@@ -32,6 +32,16 @@ func newInitCmd() *cobra.Command {
 			if err := yaml.Init(base, tmpl, projectName, force); err != nil {
 				return err
 			}
+			if jsonFlag(cmd) {
+				absBase, err := filepath.Abs(base)
+				if err != nil {
+					return err
+				}
+				return writeJSON(cmd.OutOrStdout(), initJSON{
+					Path:     filepath.Join(absBase, ".mtt", "config.yaml"),
+					Template: tmpl, Name: projectName, Created: true,
+				})
+			}
 			if _, err := fmt.Fprintf(cmd.OutOrStdout(), "initialized .mtt/config.yaml (template %q)\n", tmpl); err != nil {
 				return err
 			}

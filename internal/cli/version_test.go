@@ -1,6 +1,10 @@
 package cli
 
-import "testing"
+import (
+	"bytes"
+	"encoding/json"
+	"testing"
+)
 
 func TestResolve(t *testing.T) {
 	tests := []struct {
@@ -24,5 +28,25 @@ func TestResolve(t *testing.T) {
 				t.Fatalf("resolve(%q, ()->%q) = %q, want %q", tc.ldflags, tc.buildVersion, got, tc.want)
 			}
 		})
+	}
+}
+
+func TestVersionJSON(t *testing.T) {
+	root := NewRootCmd()
+	var out bytes.Buffer
+	root.SetOut(&out)
+	root.SetErr(&out)
+	root.SetArgs([]string{"version", "--json"})
+	if err := root.Execute(); err != nil {
+		t.Fatalf("execute: %v", err)
+	}
+	var got struct {
+		Version string `json:"version"`
+	}
+	if err := json.Unmarshal(out.Bytes(), &got); err != nil {
+		t.Fatalf("not JSON: %v\n%s", err, out.String())
+	}
+	if got.Version != resolveVersion() {
+		t.Fatalf("version = %q, want %q", got.Version, resolveVersion())
 	}
 }

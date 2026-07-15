@@ -35,4 +35,14 @@ cd $WORK/empty
 stderr 'not initialized'
 stderr 'mtt init'
 
+# init --json: the created-config summary (absolute path, template, name)
+mkdir jsonproj
+cd jsonproj
+exec mtt init --json
+stdout '"path"'
+stdout 'config\.yaml"'
+stdout '"template": "default"'
+stdout '"name": "jsonproj"'
+stdout '"created": true'
+
 -- empty/.keep --

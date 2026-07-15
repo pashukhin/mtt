@@ -46,6 +46,9 @@ func newVersionCmd() *cobra.Command {
 		Short: "Print the mtt version",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
+			if jsonFlag(cmd) {
+				return writeJSON(cmd.OutOrStdout(), versionJSON{Version: resolveVersion()})
+			}
 			_, err := fmt.Fprintln(cmd.OutOrStdout(), resolveVersion())
 			return err
 		},
