@@ -32,6 +32,13 @@ func newTypesCmd() *cobra.Command {
 			if len(args) == 1 {
 				filter = args[0]
 			}
+			if jsonFlag(cmd) {
+				views, err := toTypesJSON(cfg, settings.Prefixes, filter)
+				if err != nil {
+					return err
+				}
+				return writeJSON(cmd.OutOrStdout(), views)
+			}
 			out, err := formatTypes(cfg, settings.Prefixes, filter)
 			if err != nil {
 				return err
