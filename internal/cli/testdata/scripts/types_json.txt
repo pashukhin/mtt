@@ -1,0 +1,24 @@
+# types --json: emits the flow graph; --json wiring + structure + filter + error
+mkdir proj
+cd proj
+exec mtt init
+stdout 'initialized'
+
+# the graph carries statuses (with kind) and transitions (from/to)
+exec mtt types --json
+stdout '"statuses"'
+stdout '"kind"'
+stdout '"transitions"'
+stdout '"from"'
+stdout '"to"'
+stdout '"commands"'
+stdout '"post"'
+
+# filtering to one type yields a one-element array (the other type's name absent)
+exec mtt types task --json
+stdout '"name": "task"'
+! stdout '"name": "epic"'
+
+# an unknown type errors (exit 1), same as the human path
+! exec mtt types nope --json
+stderr 'unknown type "nope"'

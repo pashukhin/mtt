@@ -97,6 +97,19 @@ func toShowJSON(t mtt.Task, statusDesc string, onward []mtt.Transition) showJSON
 	return sj
 }
 
+// versionJSON is `mtt version --json`.
+type versionJSON struct {
+	Version string `json:"version"`
+}
+
+// initJSON is `mtt init --json`: the created-config summary (absolute path).
+type initJSON struct {
+	Path     string `json:"path"`
+	Template string `json:"template"`
+	Name     string `json:"name"`
+	Created  bool   `json:"created"`
+}
+
 // writeJSON marshals v as indented JSON with a trailing newline (stable diff).
 func writeJSON(w io.Writer, v any) error {
 	data, err := json.MarshalIndent(v, "", "  ")

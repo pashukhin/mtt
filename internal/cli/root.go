@@ -25,7 +25,6 @@ Shorthand: 'mtt <status> [<id>]' moves a task (e.g. 'mtt done t1'); with the id
 omitted it acts on the current task ('mtt use <id>'). Start with 'mtt roadmap'
 (what to do, in order), 'mtt ready' (what is unblocked), 'mtt types' (the flows
 and their gates). All commands support --json.`,
-		Version:       resolveVersion(),
 		SilenceUsage:  true,
 		SilenceErrors: true,
 		Args:          cobra.ArbitraryArgs,
@@ -39,6 +38,10 @@ and their gates). All commands support --json.`,
 	root.PersistentFlags().String("why", "", "durable free-text reason recorded in history")
 	root.PersistentFlags().BoolP("verbose", "v", false, "stream gate command output to stderr")
 	root.PersistentFlags().String("log-file", "", "write gate command output to a file")
+	// A manual --version flag (not cobra's built-in Version field): cobra handles
+	// its version flag before RunE and ignores --json, so `mtt --version --json`
+	// would print text. runSugar handles this one so it honors --json (t45).
+	root.Flags().Bool("version", false, "print the version and exit")
 	root.AddCommand(newVersionCmd(), newInitCmd(), newTypesCmd(), newAddCmd(), newShowCmd(),
 		newListCmd(), newEditCmd(), newTreeCmd(), newDepCmd(), newReadyCmd(), newStatusCmd(),
 		newUseCmd(), newRmCmd(), newRoadmapCmd(), newTagCmd(), newTagsCmd(), newDoCmd())
@@ -61,6 +64,13 @@ func Execute() int {
 // unknown command. Real subcommands are dispatched by cobra before this runs, so
 // a registered command always wins a name clash.
 func runSugar(cmd *cobra.Command, args []string) error {
+	if v, _ := cmd.Flags().GetBool("version"); v {
+		if jsonFlag(cmd) {
+			return writeJSON(cmd.OutOrStdout(), versionJSON{Version: resolveVersion()})
+		}
+		_, err := fmt.Fprintf(cmd.OutOrStdout(), "mtt version %s\n", resolveVersion())
+		return err
+	}
 	if len(args) == 0 {
 		return cmd.Help()
 	}

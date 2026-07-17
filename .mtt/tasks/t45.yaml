@@ -1,11 +1,123 @@
 id: t45
 type: task
 title: 'JSON output consistency: mtt types/version/init ignore --json despite the root promising all commands support it'
-status: tbd
+status: approved
 priority: high
 tags:
     - dx
     - release
 created: "2026-07-12T06:26:04Z"
-updated: "2026-07-12T07:18:28Z"
+updated: "2026-07-17T02:10:52Z"
 description: 'Agent-facing inconsistency found in the s009.x product assessment. root.go Long asserts every command supports --json, but types/version/init silently print human text (never check jsonFlag). Worst for mtt types --json — an agent introspecting the flow gets prose. Decide per command: implement a JSON shape (types: the type/status/transition graph incl. gates/post — most valuable; version: {version}; init: the created-config summary) OR narrow the Long promise. Design-open: the types --json schema.'
+history:
+    - at: "2026-07-15T06:16:15Z"
+      by: Grigorii Pashukhin
+      from: tbd
+      to: speccing
+      checks:
+        - cmd: git switch task/t45 || (git switch main && git switch -c task/t45)
+          exit: 0
+        - cmd: test -f .mtt/tasks/t45.yaml || { echo "task file absent on this branch — its add has not reached main (merge/commit the branch that created it first)" >&2; false; }
+          exit: 0
+    - at: "2026-07-15T06:56:04Z"
+      by: Grigorii Pashukhin
+      from: speccing
+      to: spec_review
+      checks:
+        - cmd: ls docs/superpowers/specs/t45-*.md
+          exit: 0
+    - at: "2026-07-15T07:04:55Z"
+      by: Grigorii Pashukhin
+      why: 'spec_review CHANGES REQUESTED: schema dropped require/current/status-default/description (not ''full graph''); prefix not from Config (settings.Prefixes); use-clear/no-current is a 5th gap (promise still false); single vs bulk rm shape/key divergence; init path may be relative. All addressed'
+      from: spec_review
+      to: spec_fix
+    - at: "2026-07-15T07:06:04Z"
+      by: Grigorii Pashukhin
+      from: spec_fix
+      to: spec_review
+      checks:
+        - cmd: ls docs/superpowers/specs/t45-*.md
+          exit: 0
+    - at: "2026-07-15T07:09:35Z"
+      by: Grigorii Pashukhin
+      why: 'adversarial spec_review PASS (2nd round): schema verified field-by-field faithful, use/carve-out empirically confirmed; require-pointer NIT folded'
+      from: spec_review
+      to: spec_human_review
+    - at: "2026-07-15T11:38:49Z"
+      by: Grigorii Pashukhin
+      why: 'human sign-off on the spec (maintainer): JSON-consistency decision record approved, incl. the expanded use scope'
+      from: spec_human_review
+      to: planning
+    - at: "2026-07-15T11:44:25Z"
+      by: Grigorii Pashukhin
+      from: planning
+      to: plan_review
+      checks:
+        - cmd: ls docs/superpowers/plans/t45-*.md
+          exit: 0
+    - at: "2026-07-15T11:52:51Z"
+      by: Grigorii Pashukhin
+      why: 'plan_review CHANGES REQUESTED: 2 blocking e2e-placement bugs (rm add needs --no-parent on default template; current_task.txt/init.txt end with txtar sections so append corrupts them) + version_test import-block + comment nits. All addressed'
+      from: plan_review
+      to: plan_fix
+    - at: "2026-07-15T11:53:43Z"
+      by: Grigorii Pashukhin
+      from: plan_fix
+      to: plan_review
+      checks:
+        - cmd: ls docs/superpowers/plans/t45-*.md
+          exit: 0
+    - at: "2026-07-15T11:55:21Z"
+      by: Grigorii Pashukhin
+      why: 'adversarial plan_review PASS (2nd round): e2e insertion points/ids/state verified against the scripts; all fixes correct'
+      from: plan_review
+      to: plan_human_review
+    - at: "2026-07-15T14:22:39Z"
+      by: Grigorii Pashukhin
+      why: 'human sign-off on the plan (maintainer): 4-task TDD plan approved; executing inline'
+      from: plan_human_review
+      to: implementing
+    - at: "2026-07-15T14:35:43Z"
+      by: Grigorii Pashukhin
+      from: implementing
+      to: impl_review
+      checks:
+        - cmd: make check
+          exit: 0
+    - at: "2026-07-15T14:42:20Z"
+      by: Grigorii Pashukhin
+      why: 'adversarial code review PASS: mappers faithful, capture-before-delete + use-null correct, EN/RU docs in sync (stale claims fixed), 17 commands emit JSON verified; make check green'
+      from: impl_review
+      to: approved
+    - at: "2026-07-17T02:01:48Z"
+      by: Grigorii Pashukhin
+      why: 'human found a 6th --json gap on the open PR: cobra''s built-in --version flag short-circuits before RunE, so ''mtt --version --json'' prints text while ''mtt version --json'' emits JSON. Fold the fix in'
+      from: approved
+      to: impl_fix
+      checks:
+        - cmd: git switch task/t45
+          exit: 0
+    - at: "2026-07-17T02:04:59Z"
+      by: Grigorii Pashukhin
+      from: impl_fix
+      to: impl_review
+      checks:
+        - cmd: make check
+          exit: 0
+    - at: "2026-07-17T02:09:49Z"
+      by: Grigorii Pashukhin
+      why: 'impl_review: 1 low (stale internal/cli/CLAUDE.md t30 line naming the removed cobra Version: field) + reviewer-noted test gap (flag non-leak). Both folded'
+      from: impl_review
+      to: impl_fix
+    - at: "2026-07-17T02:09:50Z"
+      by: Grigorii Pashukhin
+      from: impl_fix
+      to: impl_review
+      checks:
+        - cmd: make check
+          exit: 0
+    - at: "2026-07-17T02:10:52Z"
+      by: Grigorii Pashukhin
+      why: adversarial review PASS on the --version fix; stale-doc + non-leak test folded; make check green, flag/command agree on JSON
+      from: impl_review
+      to: approved

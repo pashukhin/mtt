@@ -32,7 +32,7 @@ for the `--kind`/`--parent` filters) and renders human text or, with `--json`, a
 goes through `core.Editor` (a mutation) and prints `updated <id>` or the JSON object. `show`/`list`/`edit`
 honor `--json` via the `taskJSON` view.
 
-Versioning (t30): `mtt version` and the root `Version:` field both call `resolveVersion()` (`version.go`) —
+Versioning (t30): `mtt version`, the `--version` flag, and `version --json` all call `resolveVersion()` (`version.go`) —
 the pure, tested `resolve(ldflags, buildVersionFn)` prefers the ldflags-injected `version` (defaults to
 `"dev"`; **no committed version number**) → the `runtime/debug` build-info module version (set by
 `go install …@vX.Y.Z`) → `"dev"`. The Makefile stamps a `git describe` string for dev builds and the
@@ -194,6 +194,17 @@ make it safe). `edgeNameInAnyFlow` (`resolve.go`, beside `statusInAnyFlow`) lets
 branches treat a bare edge verb as plausible (claim with an actionable error vs "unknown command"). Discoverability:
 `writeTypeBlock` prints `[name] from -> to`, `formatNextMoves` prints `name → to`, and `nextMoveJSON.Name`
 (omitempty) carries the verb in `show --json`. `core.Transitioner` is untouched (route-by-`to`).
+
+JSON consistency (t45): `types`/`version`/`init`/`rm`-single/`use` now honor `--json` — `types_json.go` holds
+the flow-graph views (`typeJSON`/`statusJSON`/`transitionJSON`/`commandJSON`/`rollbackJSON`/`requireJSON`;
+`require` is a `*requireJSON` so `omitempty` works — Go ignores it on a struct value; timeouts are
+`Duration.String()`; the type mapper takes the prefix from `settings.Prefixes`, not `mtt.Type`). `version`/`init`
+views (`versionJSON`/`initJSON`) live in `json.go`; `rm`-single captures the task via the store **before**
+`Remove` (which returns only an error) and emits `toTaskJSON`; `use --json` emits the current task or `null`
+(`writeJSON(w, nil)`). The root **`--version` flag** is a manual `root.Flags().Bool("version",…)` handled in
+`runSugar` (JSON-aware) — **not** cobra's built-in `Version` field, which short-circuits before RunE and would
+ignore `--json`; so `mtt --version --json` and `mtt version --json` agree. Every mtt command now emits JSON
+under `--json`; cobra `completion`/`help` are exempt.
 
 Discoverability + tagline (session 008.97/U4/U5): the root `Short:` names the gate/state-machine (the empty
 niche, not "file-backed tracker") and a root `Long:` documents the `mtt <status> [<id>]` sugar + current

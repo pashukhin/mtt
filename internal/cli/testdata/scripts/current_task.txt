@@ -43,6 +43,17 @@ stdout 'current: t2'
 exec mtt show
 stdout 't2  task  \[tbd\]'
 
+# use --json: the current task or null (t45)
+exec mtt use --clear
+exec mtt use --json
+stdout '^null'
+# set a current -> the task object
+exec mtt use t1 --json
+stdout '"id": "t1"'
+# clear --json -> null
+exec mtt use --clear --json
+stdout '^null'
+
 -- local.yaml --
 version: 1
 project:
