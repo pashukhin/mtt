@@ -3,6 +3,7 @@ package cli
 import (
 	"bytes"
 	"encoding/json"
+	"strings"
 	"testing"
 )
 
@@ -48,5 +49,41 @@ func TestVersionJSON(t *testing.T) {
 	}
 	if got.Version != resolveVersion() {
 		t.Fatalf("version = %q, want %q", got.Version, resolveVersion())
+	}
+}
+
+// The cobra --version flag must honor --json too (not just the subcommand), so
+// `mtt --version --json` and `mtt version --json` agree.
+func TestVersionFlagJSON(t *testing.T) {
+	root := NewRootCmd()
+	var out bytes.Buffer
+	root.SetOut(&out)
+	root.SetErr(&out)
+	root.SetArgs([]string{"--version", "--json"})
+	if err := root.Execute(); err != nil {
+		t.Fatalf("execute: %v", err)
+	}
+	var got struct {
+		Version string `json:"version"`
+	}
+	if err := json.Unmarshal(out.Bytes(), &got); err != nil {
+		t.Fatalf("--version --json not JSON: %v\n%s", err, out.String())
+	}
+	if got.Version != resolveVersion() {
+		t.Fatalf("version = %q, want %q", got.Version, resolveVersion())
+	}
+}
+
+func TestVersionFlagText(t *testing.T) {
+	root := NewRootCmd()
+	var out bytes.Buffer
+	root.SetOut(&out)
+	root.SetErr(&out)
+	root.SetArgs([]string{"--version"})
+	if err := root.Execute(); err != nil {
+		t.Fatalf("execute: %v", err)
+	}
+	if got, want := strings.TrimSpace(out.String()), "mtt version "+resolveVersion(); got != want {
+		t.Fatalf("--version = %q, want %q", got, want)
 	}
 }

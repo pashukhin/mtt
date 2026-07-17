@@ -159,7 +159,8 @@ Running any other command outside a project (no `.mtt/` found by discovery, or a
 with a `run 'mtt init' to create one` hint (session 008.97/U4).
 
 ### `mtt version` — print the version  *(phase 0, implemented)*
-Prints the build version. No arguments. `--json` emits `{"version": …}`. *(t45)*
+Prints the build version. No arguments. `--json` emits `{"version": …}` — as does the root `--version` flag
+(`mtt --version --json`), so the flag and the command agree. *(t45)*
 
 ### `mtt types` — show configured types and their flows  *(implemented in session 001; flow/command detail grew through s006–s008)*
 Lists each task type: its `parent`, statuses (with their `kind`), and transitions (with `description` and

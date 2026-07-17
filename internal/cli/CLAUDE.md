@@ -201,7 +201,10 @@ the flow-graph views (`typeJSON`/`statusJSON`/`transitionJSON`/`commandJSON`/`ro
 `Duration.String()`; the type mapper takes the prefix from `settings.Prefixes`, not `mtt.Type`). `version`/`init`
 views (`versionJSON`/`initJSON`) live in `json.go`; `rm`-single captures the task via the store **before**
 `Remove` (which returns only an error) and emits `toTaskJSON`; `use --json` emits the current task or `null`
-(`writeJSON(w, nil)`). Every mtt command now emits JSON under `--json`; cobra `completion`/`help` are exempt.
+(`writeJSON(w, nil)`). The root **`--version` flag** is a manual `root.Flags().Bool("version",…)` handled in
+`runSugar` (JSON-aware) — **not** cobra's built-in `Version` field, which short-circuits before RunE and would
+ignore `--json`; so `mtt --version --json` and `mtt version --json` agree. Every mtt command now emits JSON
+under `--json`; cobra `completion`/`help` are exempt.
 
 Discoverability + tagline (session 008.97/U4/U5): the root `Short:` names the gate/state-machine (the empty
 niche, not "file-backed tracker") and a root `Long:` documents the `mtt <status> [<id>]` sugar + current
