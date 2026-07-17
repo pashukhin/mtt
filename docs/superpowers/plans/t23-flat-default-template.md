@@ -188,13 +188,14 @@ Replace `default.yaml` with a flat `task`+`chore` config, prove the ergonomics r
 - Rewrite: `internal/cli/testdata/scripts/init.txt`
 - Modify: `internal/cli/testdata/scripts/add_json.txt`
 - Modify (one-line init switch): `add_depends_on.txt`, `add_show.txt`, `batch.txt`, `dep.txt`, `list_edit.txt`, `ready.txt`, `rm.txt`, `roadmap.txt`, `tags.txt`, `tree.txt` (all under `internal/cli/testdata/scripts/`)
-- Modify (Go unit-test bootstraps → `--template hierarchy`): `internal/cli/add_test.go:22`, `internal/cli/list_test.go:19`, `internal/cli/show_test.go:73`, `internal/cli/show_json_test.go:92`, `internal/cli/edit_test.go:11,42,58`, `internal/cli/project_test.go:16`
+- Modify (Go CLI unit-test bootstraps → `--template hierarchy`): `internal/cli/add_test.go:22`, `internal/cli/list_test.go:19`, `internal/cli/show_test.go:73`, `internal/cli/show_json_test.go:92`, `internal/cli/edit_test.go:11,42,58`, `internal/cli/project_test.go:16`
+- Modify (Go adapter unit-test helper): `internal/adapter/yaml/task_test.go` (`initDefault` → `initHierarchy`, init `hierarchy`)
 
 **Interfaces:**
 - Consumes: the flat `default` template; `mtt init`, `mtt add`, `mtt types` CLI.
 - Produces: default `mtt init` yields root types `task`(prefix `t`, default) + `chore`(prefix `c`); `mtt add "x"` → `t1` with no `--parent`.
 
-> **Scope note (extends the spec):** the spec's "Test migration" section covers only the `testscript` (txtar) e2e. It missed the Go `_test.go` functions in `internal/cli` that ALSO bootstrap the default template and then `add --type epic`. Those are migrated here (Step 9). Only functions that use `--type epic`/`--type subtask` or assert the parent-required behavior need the switch; functions that only use `--no-parent`/bare root adds stay on the flat default (and give it Go-level coverage).
+> **Scope note (extends the spec):** the spec's "Test migration" section covers only the `testscript` (txtar) e2e. It missed the Go `_test.go` functions — in **both** `internal/cli` AND `internal/adapter/yaml` — that bootstrap the default template and then create `epic`-typed tasks (`add --type epic` in cli; `Store.Create(Type:"epic")` in the adapter, which fails `settings.Prefixes["epic"]==""` → `type "epic": no prefix`). Both are migrated here (Steps 9–9b). Only tests that use `epic`/`subtask` or assert parent-required need the switch; tests that only use `--no-parent`/bare root adds stay on the flat default (and give it Go-level coverage).
 
 - [ ] **Step 1: Rewrite `init.txt` to assert the flat default + the ergonomics fix (the failing test).**
 
@@ -323,7 +324,7 @@ This rewrites `testdata/golden/default.yaml` (now flat) and leaves `coding.yaml`
 
 - [ ] **Step 6: Confirm the validity guard still holds.**
 
-Run: `go test ./internal/adapter/yaml -run 'TestRenderGolden|TestTemplatesValidate' -v`
+Run: `go test ./internal/adapter/yaml -run 'TestRenderGolden|TestInitLoadValidate' -v`
 Expected: PASS — the flat `default` Loads + Validates (one default type `task`; unique prefixes `t`/`c`; each flow has initial/active/terminal with valid in/out degrees).
 
 - [ ] **Step 7: Migrate the 10 hierarchy-dependent scripts (one-line init switch).**
@@ -380,6 +381,23 @@ Apply these EXACT edits (the `runRoot`/`runOut` helpers are variadic):
 
 Do NOT touch the OTHER `runRoot(t, "init")` calls in these files (`add_test.go:56/68/86`, `show_test.go:96`, `list_test.go:68/85`) — their functions use `--no-parent`/bare root adds only, so they stay green on the flat default and give it Go-level coverage. Verify the boundary with: `grep -n '"epic"\|"subtask"\|needs parent\|requires' internal/cli/<file>_test.go`.
 
+- [ ] **Step 9b: Migrate the adapter test helper that creates `epic` tasks.**
+
+`internal/adapter/yaml/task_test.go` has a shared helper `initDefault` (line 59) that does `Init(root, "default", …)`; four functions then `Store.Create(mtt.Task{Type: "epic", …})` (`TestDeleteRemovesFile`, `TestStoreCreateAndGet`, `TestStoreList`, `TestStoreUpdate`). `Store.Create` looks up the prefix (`settings.Prefixes[type]`), so under the flat default `epic` has no prefix → `type "epic": no prefix …`. Point the helper at the `hierarchy` template and rename it for honesty:
+
+```go
+func initHierarchy(t *testing.T) string {
+	t.Helper()
+	root := t.TempDir()
+	if err := Init(root, "hierarchy", "demo", false); err != nil {
+		t.Fatalf("init: %v", err)
+	}
+	return root
+}
+```
+
+Then rename all call sites `initDefault(t)` → `initHierarchy(t)` in `task_test.go` (lines 16, 37, 69, 84, 91, 127, 156). Because `hierarchy` == old default byte-for-byte, every assertion (e.g. `e1.ID == "e1"`, prefix `e`) holds verbatim — including the type-agnostic corrupt-file / delete-absent tests. (`task_dto_test.go:46`'s `Type: "epic"` is a pure DTO round-trip — no `Init`, no store prefix lookup — so it needs NO change.)
+
 - [ ] **Step 10: Run the full cli + adapter suites.**
 
 Run: `go test ./internal/cli ./internal/adapter/yaml`
@@ -394,7 +412,7 @@ Expected: green (fmt + vet + lint + `go test -race -cover` + build). `TestRepoDo
 
 ```bash
 git add internal/adapter/yaml/templates/default.yaml internal/adapter/yaml/testdata/golden/default.yaml \
-        internal/cli/testdata/scripts/ \
+        internal/adapter/yaml/task_test.go internal/cli/testdata/scripts/ \
         internal/cli/add_test.go internal/cli/list_test.go internal/cli/show_test.go \
         internal/cli/show_json_test.go internal/cli/edit_test.go internal/cli/project_test.go
 git commit -m "t23: flatten the default template (task+chore, root) + migrate e2e + Go tests to --template hierarchy"
