@@ -87,3 +87,16 @@ func TestVersionFlagText(t *testing.T) {
 		t.Fatalf("--version = %q, want %q", got, want)
 	}
 }
+
+// --version is a local root flag, so it must NOT leak onto subcommands.
+func TestVersionFlagNotOnSubcommands(t *testing.T) {
+	root := NewRootCmd()
+	var out bytes.Buffer
+	root.SetOut(&out)
+	root.SetErr(&out)
+	root.SetArgs([]string{"list", "--version"})
+	err := root.Execute()
+	if err == nil || !strings.Contains(err.Error(), "unknown flag") {
+		t.Fatalf("list --version must be an unknown flag; got err=%v out=%q", err, out.String())
+	}
+}

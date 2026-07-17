@@ -32,7 +32,7 @@ for the `--kind`/`--parent` filters) and renders human text or, with `--json`, a
 goes through `core.Editor` (a mutation) and prints `updated <id>` or the JSON object. `show`/`list`/`edit`
 honor `--json` via the `taskJSON` view.
 
-Versioning (t30): `mtt version` and the root `Version:` field both call `resolveVersion()` (`version.go`) —
+Versioning (t30): `mtt version`, the `--version` flag, and `version --json` all call `resolveVersion()` (`version.go`) —
 the pure, tested `resolve(ldflags, buildVersionFn)` prefers the ldflags-injected `version` (defaults to
 `"dev"`; **no committed version number**) → the `runtime/debug` build-info module version (set by
 `go install …@vX.Y.Z`) → `"dev"`. The Makefile stamps a `git describe` string for dev builds and the
