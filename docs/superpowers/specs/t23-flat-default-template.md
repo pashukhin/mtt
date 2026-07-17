@@ -34,10 +34,12 @@ the s009.x batch.
 declared parents, bypassable only with `--no-parent`). Therefore the fix is
 **config-level only**: change *which* config `mtt init` ships by default.
 
-Corollary (the design pivot): you cannot simultaneously keep the epic→task→subtask
-hierarchy **and** make the default-typed `mtt add` frictionless. One must give. We
-give the *default template* a flat model and preserve the hierarchy as an explicit
-opt-in template.
+Corollary (the design pivot): you cannot keep the epic→task→subtask hierarchy **and**
+make the *mid-level* "unit of work" type both the default and frictionless. (Making
+the **root** `epic` the default would keep the hierarchy *and* a frictionless
+`mtt add` — but then the first thing every project creates is an epic, and the
+friction merely shifts to "now add a task under it".) So we give the *default
+template* a flat model and preserve the hierarchy as an explicit opt-in template.
 
 ## Scope
 
@@ -118,6 +120,17 @@ Untouched. It has **no** ergonomics bug (`feature` is root + default). Its
 `make lint`/`make test` gate commands are illustrative for a coding project; any
 demo-driven polish belongs to **t4**, not here.
 
+## Implementation plumbing (load-bearing — easy to miss)
+
+Adding `templates/hierarchy.yaml` requires editing **both** spots in
+`internal/adapter/yaml/templates.go`:
+- the `//go:embed templates/default.yaml templates/coding.yaml` directive (add
+  `templates/hierarchy.yaml`) — a bare `//go:embed` of a missing file is a **compile
+  error**, so this can't silently ship, but it must be done;
+- the `templateFiles` map (`{"default":…, "coding":…}` → add `"hierarchy"`) — omitting
+  this yields a runtime `unknown template "hierarchy"` from `renderTemplate` (and the
+  new validity test + `TestRenderGolden` would fail).
+
 ## Testing strategy (TDD: red → green)
 
 New tests (adapter/yaml + cli e2e):
@@ -134,49 +147,93 @@ New tests (adapter/yaml + cli e2e):
    `testdata/golden/hierarchy.yaml`; extend `TestRenderGolden`'s template list to
    include `hierarchy` (via `-update`). `coding.yaml` golden unchanged.
 
-## Test migration — the 12 e2e scripts on the hierarchy fixture
+## Test migration — the e2e scripts on the hierarchy fixture
 
 All 28 cli testscripts obtain their config via `mtt init` (none hand-write a config).
-**12** rely on the default template's epic→task→subtask hierarchy as a fixture:
+An adversarial re-check corrected the naive `grep epic|subtask` list (which had two
+false members). The precise picture:
+
+**(a) 10 scripts go red and need a one-line init switch** `exec mtt init` →
+`exec mtt init --template hierarchy` (they build epic→task→subtask via
+`--type`/`--parent`; same e/t/s prefixes, so assertions hold unchanged):
 
 ```
-batch, list_edit, ready, tags, add_depends_on, rm,
-tree, types_json, roadmap, add_show, init, dep
+add_depends_on, add_show, batch, dep, list_edit, ready, rm, roadmap, tags, tree
 ```
 
-Migration:
+`add_show.txt`'s `! exec mtt add 'bare task'` / `stderr 'requires a parent'`
+assertion stays **valid** under `--template hierarchy` (the hierarchy `task` still
+requires a parent) — the init-line switch suffices.
 
-- **Most (build epic/task/subtask via `--type`/`--parent`):** change the setup line
-  `exec mtt init` → `exec mtt init --template hierarchy`. Behavior and assertions
-  unchanged (same epic/task/subtask prefixes e/t/s).
-- **`init.txt`:** asserts the *default* `mtt types` shows `epic`/`task`/`subtask` →
-  update to assert `task`/`chore` for the (now flat) default; keep the coding-template
-  block; add a `--template hierarchy` block asserting epic/task/subtask so the new
-  template has direct coverage.
-- **`add_show.txt`:** its `! exec mtt add 'bare task'` / `stderr 'requires a parent'`
-  assertion stays **valid** under `--template hierarchy` — switch its init line and
-  the assertions hold.
-- **`types_json.txt`:** switch init to `--template hierarchy` (it inspects the
-  hierarchical type graph) — or update the expected JSON to the flat default; prefer
-  the former to keep the JSON assertions intact.
+**(b) `init.txt` needs a real rewrite** (not one line): it asserts the *default*
+`mtt types` shows `epic`/`task`/`subtask` (incl. the single-type sub-block
+`mtt types epic` → `prefix e`). Rewrite the default block to assert `task`/`chore`;
+keep the coding-template block; add a `--template hierarchy` block asserting
+epic/task/subtask so the new template has direct e2e coverage.
 
-Verify the exact per-script edits against a green `make check`; the list above is the
-plan's starting point, `make check` is the arbiter.
+**(c) `add_json.txt` — a text/comment fix, not a failure.** It runs default
+`mtt init` then `mtt add 'first task' --no-parent` with the comment *"The default
+type requires a parent, so create the first task with --no-parent."* Under the flat
+default, `task` is root, so `--no-parent` is silently accepted (no error) — the test
+stays **green**, but the comment is now false and the `--no-parent` flags are
+redundant. Fix: drop the now-pointless `--no-parent` and correct the comment (it is a
+parallel occurrence of the changed fact — the exact class the parallel-occurrence
+rule targets).
 
-## Docs sync (EN + RU — grep **all** parallel occurrences)
+**Explicitly NOT migrated:**
+- **`types_json.txt`** — the naive grep flagged it, but its only type-specific
+  assertions are `mtt types task --json` → `"name": "task"` present + `!"name": "epic"`
+  absent (both still hold: `task` exists, `epic` doesn't), and its `"commands"`/`"post"`
+  key checks always emit (non-`omitempty`). **Stays green, no change.**
+- `dogfood`, `command_timeout`, `structured_commands`, `rollback` — each `cp`s a
+  self-contained config over `.mtt/config.yaml` right after `mtt init`, so they never
+  depend on the default template.
 
-Per the parallel-occurrences rule, grep every mention across EN+RU and update in
-lockstep:
+Verify every per-script edit against a green `make check` — it is the arbiter.
 
-- `CLI_REFERENCE.md` / `CLI_REFERENCE.ru.md`: `--template <name>` now
-  `default | coding | hierarchy`; describe the flat default (`task`+`chore`,
-  frictionless `mtt add`) and `hierarchy` as the epic/task/subtask opt-in; review the
-  `default/coding … set` note (~line 430).
-- `DESIGN.md` / `DESIGN.ru.md`: wherever the default template / init hierarchy is
-  described.
-- `README.md` / `README.ru.md`: wherever epic/task/subtask is shown as the default.
-- `internal/adapter/yaml/CLAUDE.md`: template list (`default`/`coding` → add
-  `hierarchy`); "Templates are the only home of default type/status names."
+## Docs sync (EN + RU — enumerated parallel occurrences)
+
+Per the parallel-occurrence rule (which prior tasks c5/t27 missed), the specific
+occurrences to update in lockstep. Line numbers are anchors, not contracts — re-grep
+`epic|subtask|template|default config` in each file before editing.
+
+**Code (no `make check` guard — will silently ship stale):**
+- `internal/cli/init.go:51` — the `--template` flag help `"starter template:
+  default|coding"` → `"default|coding|hierarchy"`.
+- `internal/adapter/yaml/CLAUDE.md` — the `Init` template list (`default`/`coding` →
+  add `hierarchy`); "Templates are the only home of default type/status names."
+
+**README.md / README.ru.md — the Quickstart is BROKEN, not just mislabeled
+(≈lines 111–117).** It runs `mtt init  # default template: epic > task > subtask`
+then `mtt add "Ship auth" --type epic` → after t23 this is `unknown type "epic"`.
+Real rewrite in **both** languages: either front the walkthrough with
+`mtt init --template hierarchy`, or re-author it flat (`mtt add "..."` at root, no
+`--type epic`). Also the `mtt tree # the epic > task hierarchy` comment.
+
+**DESIGN.md / DESIGN.ru.md:**
+- `:226-227` (+ru:228) — *"The epic → task → subtask hierarchy … follows from the
+  **default config**"* → becomes false; now it follows from the **`hierarchy`
+  template**. Reword.
+- `:614` (+ru) — *"`mtt init` writes `.mtt/config.yaml` with example types
+  `epic`/`task`/`subtask`"* → now `task`/`chore` by default. Reword.
+- `:623-650` (+ru) — the example config YAML block (epic/task/subtask): reframe as
+  *the `hierarchy` template*, or replace with the flat default. Decide in the plan.
+- `:73` blockquote (+ru) and `:217`/`:674` (epic/task/subtask as *examples*): review
+  — likely fine as capability examples (hierarchy still ships), touch only if they
+  claim it is the default. The ID-scheme examples (`:186-188`, `:235-236`, `:298`,
+  `:327`) are template-independent — leave.
+
+**CLI_REFERENCE.md / CLI_REFERENCE.ru.md:**
+- `:146` (+ru) — *"Creates `.mtt/` with a default `config.yaml` (types
+  `epic`/`task`/`subtask` …)"* → `task`/`chore`. Reword.
+- `:153` (+ru) — `--template <name>` — `default (epic/task/subtask, no commands) or
+  coding` → `default (task+chore, flat) | coding | hierarchy (epic/task/subtask)`.
+- `:303` (+ru) — *"Prints the epic → task → subtask tree"* (the `mtt tree` example):
+  reword to a generic tree or note it as a hierarchy-template example.
+- `:430` (+ru) — *"The default/`coding` templates `set` on → `in_progress`"* — **stays
+  true** (flat `task`+`chore` keep `current: set/clear`). Confirm, no change.
+- `:285` (+ru, `mtt rm <epic> <child>`) — a subtree-rm capability example; reword to
+  generic only if convenient, not load-bearing.
 
 ## Non-goals / explicitly deferred
 
@@ -188,9 +245,10 @@ lockstep:
 
 ## Risks
 
-- **Test churn (12 scripts).** Mitigated: mostly one-line init changes; `hierarchy`
-  keeps the same type/prefix shape, so assertions are largely stable. `make check` is
-  the gate.
+- **Test churn (~11 scripts + a docs sweep).** Mitigated: 10 are one-line init
+  switches; only `init.txt` is a real rewrite, and `add_json.txt` a comment/flag
+  touch; `hierarchy` keeps the same type/prefix shape, so assertions are largely
+  stable. `make check` is the gate.
 - **A downstream consumer assuming the old default hierarchy.** Grep confirmed the
   only consumers are the testscripts (migrated) and docs (synced). The repo's own
   `.mtt/config.yaml` is hand-authored (dogfood), independent of templates —
