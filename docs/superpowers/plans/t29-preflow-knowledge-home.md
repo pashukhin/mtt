@@ -90,7 +90,7 @@ git commit -m "t29: root-help names the resumption path (mtt use / mtt show)"
 ## Final acceptance (after the task)
 
 - [ ] **AC-1/2:** `mtt --help` shows the resumption clause (`resuming, 'mtt use' … 'mtt show' …`) alongside the navigation pointers; `TestRootHelpMentionsResume` pins it (keyed on `resuming`/`mtt show`).
-- [ ] **AC-3:** no `guide`/`resume` command added (`git diff main...task/t29 --stat` touches only `root.go`, `root_test.go`, and the spec/plan docs); no other command changed.
+- [ ] **AC-3:** no `guide`/`resume` command added (`git diff main...task/t29 --stat` touches only `root.go`, `root_test.go`, the spec/plan docs, and the flow-updated `.mtt/tasks/t29.yaml`); no other command changed.
 - [ ] **AC-4:** `make check` green.
 
 ## Self-review notes
