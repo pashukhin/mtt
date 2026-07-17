@@ -1,0 +1,13 @@
+id: t46
+type: task
+title: 'mtt init: scaffold how-to-use-mtt agent docs — generic tool-level AGENTS.md/CLAUDE.md/GEMINI.md (merge-vs-create)'
+status: tbd
+priority: medium
+tags:
+    - backlog
+    - docs
+    - dx
+    - think
+created: "2026-07-17T15:44:33Z"
+updated: "2026-07-17T15:44:33Z"
+description: 'Split from t23 (2026-07-17), Part A. mtt init should help a fresh project adopt the workflow by emitting/scaffolding GENERIC, tool-level agent docs: a ''Working under mtt'' runbook in AGENTS.md, plus a root CLAUDE.md and (optionally) GEMINI.md / per-package stubs. Constraint (the split rationale): describe mtt MECHANICS — types/statuses/transitions, gates, attribution, dangerous-ops, the per-move commit — in a project-agnostic way, and point agents at ''mtt types''/''mtt show''/''mtt roadmap'' to discover THIS project''s actual flow. Do NOT hardcode our specialized dogfood statuses (continuation of t19''s self-instructing runbook). Design-open: the exact template/doc set, new-file-vs-merge behavior (idempotent injection into an existing AGENTS.md), and how scaffolded text stays honest as the flow evolves. Relates to the prime directive ''mechanize the process into mtt'' and t19.'
