@@ -1,14 +1,14 @@
 id: t29
 type: task
 title: 'Think: a home for pre-flow knowledge (mtt guide) — queue navigation, first-move setup, mid-flight resumption'
-status: plan_review
+status: plan_human_review
 priority: medium
 tags:
     - dx
     - release
     - think
 created: "2026-07-11T12:58:07Z"
-updated: "2026-07-17T04:52:48Z"
+updated: "2026-07-17T04:57:08Z"
 history:
     - at: "2026-07-17T03:13:24Z"
       by: Grigorii Pashukhin
@@ -43,3 +43,8 @@ history:
       checks:
         - cmd: ls docs/superpowers/plans/t29-*.md
           exit: 0
+    - at: "2026-07-17T04:57:08Z"
+      by: Grigorii Pashukhin
+      why: 'adversarial plan_review PASS: anchor verbatim, test tokens (resuming/mtt show) unique + red-before/green-after verified, no test breaks, make check green; AC-3 nit folded'
+      from: plan_review
+      to: plan_human_review
