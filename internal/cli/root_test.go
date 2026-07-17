@@ -152,6 +152,24 @@ func TestRootHelpMentionsSugar(t *testing.T) {
 	}
 }
 
+func TestRootHelpMentionsResume(t *testing.T) {
+	// t29: the resumption path (mtt use / mtt show) must be discoverable from
+	// --help — the in-tool orientation covers a returning agent, not just a
+	// fresh start. Key on tokens unique to the resumption clause (NOT "mtt use",
+	// which already appears in the Long's Shorthand sentence).
+	root := NewRootCmd()
+	var out bytes.Buffer
+	root.SetOut(&out)
+	root.SetArgs([]string{"--help"})
+	if err := root.Execute(); err != nil {
+		t.Fatalf("execute --help: %v", err)
+	}
+	got := out.String()
+	if !strings.Contains(got, "resuming") || !strings.Contains(got, "mtt show") {
+		t.Fatalf("root help must name the resumption path (resuming / mtt show): %s", got)
+	}
+}
+
 func TestProjectRootNoDirHintsInit(t *testing.T) {
 	// U4: an explicit --dir with no .mtt/ names `mtt init`. Root sets
 	// SilenceErrors=true, so assert the RETURNED error (a stderr buffer stays empty).
