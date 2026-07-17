@@ -143,15 +143,16 @@ gate a failure → exit 3, status unchanged). `--no-run` skips **both** `command
 ## Project & meta
 
 ### `mtt init` — initialize a project  *(phase 1, implemented in session 001)*
-Creates `.mtt/` with a default `config.yaml` (types `epic`/`task`/`subtask`, flow `tbd → in_progress →
+Creates `.mtt/` with a default `config.yaml` (types `task`/`chore`, flow `tbd → in_progress →
 done` plus the terminal `cancelled`, no commands) and the `tasks/` (and later `knowledge/`) directories. A
 personal, gitignored `.mtt/config.local.yaml` may override it (connection params, local prefs — see
 Configuration).
 
 - `--force` — overwrite an existing `config.yaml`.
 - `--name <name>` — project name written into the config (default: directory name).
-- `--template <name>` — starter config: `default` (epic/task/subtask, no commands) or `coding`
-  (feature/bugfix/refactor, each with a gated per-type Definition of Done). Default: `default`.
+- `--template <name>` — starter config: `default` (flat `task`+`chore`, no commands), `coding`
+  (feature/bugfix/refactor, each with a gated per-type Definition of Done), or `hierarchy`
+  (epic/task/subtask, no commands). Default: `default`.
 - `--json` — emit the created-config summary `{path, template, name, created}` (absolute `path`) instead of
   the human line. *(t45)*
 
@@ -300,7 +301,7 @@ set**, so `mtt rm <epic> <child>…` removes a whole subtree in one call **witho
   stays the per-item outcome array. *(t45)*
 
 ### `mtt tree [<id>] [flags]` — show the hierarchy  *(session 004, implemented)*
-Prints the epic → task → subtask tree as an ASCII tree (`├─`/`└─`/`│` connectors; each node is
+Prints the task hierarchy (parent → child) as an ASCII tree (`├─`/`└─`/`│` connectors; each node is
 `<id>  <type>  [<status>]  <title>`). Without `<id>` it renders the forest from all roots; with `<id>` it
 roots the tree at that task. Children are **computed** (an inverse index in `core`, not stored); sibling
 order is deterministic (`Created` desc, tie-broken by ID). An orphan (a task whose parent id is absent) is

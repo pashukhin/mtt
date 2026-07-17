@@ -43,7 +43,7 @@ backend you already have. (An honest comparison lives in
   that must all pass — `["make lint", "make test"]` gating `→ done` — or perform actions (create a branch).
   The Definition of Done differs per task type (bugfix/refactor/feature). Agents work in task terms
   (`mtt start`, `mtt done`) while the tool enforces the discipline.
-- **Config-driven types & hierarchy.** Epic → task → subtask is just the default config; no type names or
+- **Config-driven types & hierarchy.** Epic → task → subtask is just the `hierarchy` template (`mtt init --template hierarchy`); no type names or
   ID structure are hardcoded. IDs are readable and **flat** per-prefix (`e1`, `t17`, `s3`) — stable under
   re-parenting (hierarchy lives in a `parent` field, not the ID).
 - **Priorities, tags, dependencies & a roadmap.** `--priority`, `#hashtags` / `--tag`, `depends_on` / `ready`,
@@ -108,14 +108,15 @@ make build      # -> bin/mtt
 ## Quickstart
 
 ```sh
-mtt init                              # create .mtt/ (default template: epic > task > subtask)
-mtt add "Ship auth" --type epic       # -> e1
-mtt add "Login endpoint" --parent e1  # -> t1
-mtt status t1 in_progress             # move through the flow (a transition's commands run + gate here)
-mtt done t1                           # -> the done terminal (default flow has no gate commands)
-mtt list                              # all tasks
-mtt tree                              # the epic > task hierarchy
-mtt roadmap                           # dependency + priority execution order
+mtt init                    # create .mtt/ (default template: flat task + chore)
+mtt add "Ship auth"         # -> t1 (a root task; no --parent needed)
+mtt add "Login endpoint"    # -> t2
+mtt status t1 in_progress   # move through the flow (a transition's commands run + gate here)
+mtt done t1                 # -> the done terminal (default flow has no gate commands)
+mtt list                    # all tasks
+mtt tree                    # the task tree
+mtt roadmap                 # dependency + priority execution order
+# For an epic > task > subtask hierarchy: mtt init --template hierarchy
 ```
 
 See [CLI_REFERENCE.md](CLI_REFERENCE.md) for the full command surface and exit codes.

@@ -223,7 +223,8 @@ The **domain** knows the *logical* task: its **type**, **parents**, and **flow**
 - `statuses` (each a **value object** with a category `kind`: initial/active/terminal) / `transitions` —
   the flow (below).
 
-The epic → task → subtask hierarchy is **not hardcoded** — it follows from the default config:
+The epic → task → subtask hierarchy is **not hardcoded** — it follows from the `hierarchy` template
+(the flat `default` template ships `task`+`chore`):
 `epic` (root) ← `task` (`parents: [epic]`) ← `subtask` (`parents: [task]`).
 
 **Naming (ID/slug) is the adapter's job, not the domain's.** `core` creates a logical task ("a task of
@@ -611,9 +612,10 @@ never hardcoded (like types/statuses).
 > config (an execution/adapter setting, like `command_timeout`; `config.local` may only tighten) validated
 > before the gate, aggregating all missing fields into one usage error (exit 2). Roles/profiles stay parked.
 
-`mtt init` writes `.mtt/config.yaml` with example types `epic`/`task`/`subtask` and a linear flow
-(`initial → active → terminal`, plus a second terminal for cancellation). Those names are the **template's**,
-not the code's. **There are no commands by default** — the user hangs them for their own project.
+`mtt init` writes `.mtt/config.yaml` from the `default` template — flat root types `task`+`chore` with a
+linear flow (`initial → active → terminal`, plus a second terminal for cancellation). Those names are the
+**template's**, not the code's. **There are no commands by default** — the user hangs them for their own
+project. The `epic`/`task`/`subtask` example below is the `hierarchy` template (`mtt init --template hierarchy`).
 
 ```yaml
 version: 1
