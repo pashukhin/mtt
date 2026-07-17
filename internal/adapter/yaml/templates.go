@@ -7,13 +7,14 @@ import (
 	"text/template"
 )
 
-//go:embed templates/default.yaml templates/coding.yaml
+//go:embed templates/default.yaml templates/coding.yaml templates/hierarchy.yaml
 var templatesFS embed.FS
 
 // templateFiles maps init template names to their embedded paths.
 var templateFiles = map[string]string{
-	"default": "templates/default.yaml",
-	"coding":  "templates/coding.yaml",
+	"default":   "templates/default.yaml",
+	"coding":    "templates/coding.yaml",
+	"hierarchy": "templates/hierarchy.yaml",
 }
 
 // renderTemplate renders the named init template, substituting the project name.

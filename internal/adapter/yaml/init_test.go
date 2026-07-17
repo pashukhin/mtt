@@ -12,7 +12,7 @@ import (
 var update = flag.Bool("update", false, "update golden files")
 
 func TestRenderGolden(t *testing.T) {
-	for _, name := range []string{"default", "coding"} {
+	for _, name := range []string{"default", "coding", "hierarchy"} {
 		got, err := renderTemplate(name, "demo")
 		if err != nil {
 			t.Fatalf("render %s: %v", name, err)
