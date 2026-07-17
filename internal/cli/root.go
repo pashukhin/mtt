@@ -24,7 +24,8 @@ live in the committed .mtt/config.yaml, so the "definition of done" is repo data
 Shorthand: 'mtt <status> [<id>]' moves a task (e.g. 'mtt done t1'); with the id
 omitted it acts on the current task ('mtt use <id>'). Start with 'mtt roadmap'
 (what to do, in order), 'mtt ready' (what is unblocked), 'mtt types' (the flows
-and their gates). All commands support --json.`,
+and their gates); resuming, 'mtt use' shows your current task and 'mtt show' its
+status + next moves. All commands support --json.`,
 		SilenceUsage:  true,
 		SilenceErrors: true,
 		Args:          cobra.ArbitraryArgs,
