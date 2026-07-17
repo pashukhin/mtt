@@ -149,9 +149,9 @@ New tests (adapter/yaml + cli e2e):
 
 ## Test migration — the e2e scripts on the hierarchy fixture
 
-All 28 cli testscripts obtain their config via `mtt init` (none hand-write a config).
-An adversarial re-check corrected the naive `grep epic|subtask` list (which had two
-false members). The precise picture:
+All 28 cli testscripts run `mtt init`; 15 then `cp` a self-contained config over the
+default (so they don't depend on it). An adversarial re-check corrected the naive
+`grep epic|subtask` list (which had two false members). The precise picture:
 
 **(a) 10 scripts go red and need a one-line init switch** `exec mtt init` →
 `exec mtt init --template hierarchy` (they build epic→task→subtask via
@@ -203,12 +203,16 @@ occurrences to update in lockstep. Line numbers are anchors, not contracts — r
 - `internal/adapter/yaml/CLAUDE.md` — the `Init` template list (`default`/`coding` →
   add `hierarchy`); "Templates are the only home of default type/status names."
 
-**README.md / README.ru.md — the Quickstart is BROKEN, not just mislabeled
-(≈lines 111–117).** It runs `mtt init  # default template: epic > task > subtask`
-then `mtt add "Ship auth" --type epic` → after t23 this is `unknown type "epic"`.
-Real rewrite in **both** languages: either front the walkthrough with
-`mtt init --template hierarchy`, or re-author it flat (`mtt add "..."` at root, no
-`--type epic`). Also the `mtt tree # the epic > task hierarchy` comment.
+**README.md / README.ru.md — two occurrences, both in each language:**
+- `:46` (+ru:46) — the feature bullet *"Config-driven types & hierarchy. Epic → task →
+  subtask is **just the default config**…"* → false after t23; it is the `hierarchy`
+  template now. Reword (e.g. "…is just the `hierarchy` template" or drop "default").
+- `:111–117` (+ru) — the **Quickstart is BROKEN**, not merely mislabeled: it runs
+  `mtt init  # default template: epic > task > subtask` then
+  `mtt add "Ship auth" --type epic` → after t23 this is `unknown type "epic"`. Real
+  rewrite in **both** languages: front the walkthrough with
+  `mtt init --template hierarchy`, or re-author it flat (`mtt add "..."` at root, no
+  `--type epic`). Also fix the `mtt tree # the epic > task hierarchy` comment.
 
 **DESIGN.md / DESIGN.ru.md:**
 - `:226-227` (+ru:228) — *"The epic → task → subtask hierarchy … follows from the
