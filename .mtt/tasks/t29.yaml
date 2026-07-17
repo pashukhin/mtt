@@ -1,14 +1,14 @@
 id: t29
 type: task
 title: 'Think: a home for pre-flow knowledge (mtt guide) — queue navigation, first-move setup, mid-flight resumption'
-status: approved
+status: done
 priority: medium
 tags:
     - dx
     - release
     - think
 created: "2026-07-11T12:58:07Z"
-updated: "2026-07-17T05:28:15Z"
+updated: "2026-07-17T10:05:33Z"
 history:
     - at: "2026-07-17T03:13:24Z"
       by: Grigorii Pashukhin
@@ -65,3 +65,13 @@ history:
       why: 'impl_review self-review (one-clause help change; plan_review already applied+verified this exact edit red/green + make check): new test green, existing help tests intact, make check green'
       from: impl_review
       to: approved
+    - at: "2026-07-17T10:05:33Z"
+      by: Grigorii Pashukhin
+      why: 'PR #40 squash-merged; delivering t29 to done'
+      from: approved
+      to: done
+      checks:
+        - cmd: git switch main
+          exit: 0
+        - cmd: 'git log -n 200 --format=%s | grep "^t29: " || { echo "no squash commit \"t29: …\" on local main: git pull first, and check the PR/merge title started with \"t29: \"" >&2; false; }'
+          exit: 0
