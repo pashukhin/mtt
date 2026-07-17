@@ -1,13 +1,13 @@
 id: t45
 type: task
 title: 'JSON output consistency: mtt types/version/init ignore --json despite the root promising all commands support it'
-status: approved
+status: done
 priority: high
 tags:
     - dx
     - release
 created: "2026-07-12T06:26:04Z"
-updated: "2026-07-17T02:10:52Z"
+updated: "2026-07-17T03:04:37Z"
 description: 'Agent-facing inconsistency found in the s009.x product assessment. root.go Long asserts every command supports --json, but types/version/init silently print human text (never check jsonFlag). Worst for mtt types --json — an agent introspecting the flow gets prose. Decide per command: implement a JSON shape (types: the type/status/transition graph incl. gates/post — most valuable; version: {version}; init: the created-config summary) OR narrow the Long promise. Design-open: the types --json schema.'
 history:
     - at: "2026-07-15T06:16:15Z"
@@ -121,3 +121,13 @@ history:
       why: adversarial review PASS on the --version fix; stale-doc + non-leak test folded; make check green, flag/command agree on JSON
       from: impl_review
       to: approved
+    - at: "2026-07-17T03:04:37Z"
+      by: Grigorii Pashukhin
+      why: 'PR #39 squash-merged; delivering t45 to done'
+      from: approved
+      to: done
+      checks:
+        - cmd: git switch main
+          exit: 0
+        - cmd: 'git log -n 200 --format=%s | grep "^t45: " || { echo "no squash commit \"t45: …\" on local main: git pull first, and check the PR/merge title started with \"t45: \"" >&2; false; }'
+          exit: 0
