@@ -1,14 +1,14 @@
 id: t29
 type: task
 title: 'Think: a home for pre-flow knowledge (mtt guide) — queue navigation, first-move setup, mid-flight resumption'
-status: spec_human_review
+status: planning
 priority: medium
 tags:
     - dx
     - release
     - think
 created: "2026-07-11T12:58:07Z"
-updated: "2026-07-17T04:48:10Z"
+updated: "2026-07-17T04:51:44Z"
 history:
     - at: "2026-07-17T03:13:24Z"
       by: Grigorii Pashukhin
@@ -31,3 +31,8 @@ history:
       why: 'adversarial spec_review PASS: ''already covered'' claims (roadmap/ready/use/show+guidance, README) verified against code; t23/t42 boundary + t23-depends-t29 confirmed; 2 nits folded'
       from: spec_review
       to: spec_human_review
+    - at: "2026-07-17T04:51:44Z"
+      by: Grigorii Pashukhin
+      why: 'human sign-off on the spec (maintainer): pre-flow-knowledge decision record approved (no guide cmd; root-help resumption clause)'
+      from: spec_human_review
+      to: planning
