@@ -32,7 +32,7 @@ is the **home decision** (which unblocks t23) plus one small orientation fix.
 
 | Home | Holds | Owner |
 | --- | --- | --- |
-| **`README`** (mtt's own repo) | *Learn the tool*: Install + the Quickstart loop (`init → add → flow → roadmap`). One-time read. | Already present; any polish is **t42** (docs audit). |
+| **`README`** (mtt's own repo) | *Learn the tool*: Install + the Quickstart loop (`init → add → … → roadmap`). One-time read. | Already present; any polish is **t42** (docs audit). |
 | **The `mtt init`-scaffolded runbook** | *How the adopter's agents work under mtt in their repo*: the maturation loop (`start → spec/plan/impl, each reviewed → deliver`), attribution (`MTT_BY` / `config.local` author), branch/PR mechanics. | Scaffolded by **t23** (which depends on t29 and inherits this split). |
 | **root-help** (`mtt` / `mtt --help`) | Always-on in-tool orientation: **navigation** (`roadmap`/`ready`/`types`) **+ resumption** (`use`/`show`). | **t29** adds the resumption pointer (D2). |
 
@@ -74,13 +74,16 @@ This is the whole code change. It is the only real gap approach A leaves open �
 
 1. The root-help `Long` names the **resumption** path (`mtt use` shows the current task; `mtt show` its status
    + next moves) alongside the existing navigation pointers — visible in `mtt --help` / `mtt help`.
-2. A test asserts the help output contains the resumption pointer (e.g. `mtt use` **and** `mtt show` in the
-   resumption clause), so the orientation can't silently regress.
+2. A test asserts the help output contains the resumption pointer. Because `mtt use` **already** appears in
+   today's `Long` (the Shorthand sentence), the assertion must key on a token **unique to the resumption
+   clause** — `mtt show` (absent from the current help) and/or the word `resuming` — so it fails on unchanged
+   code and can't silently regress.
 3. No `mtt guide`/`resume` command is added; no other command's behavior changes.
 4. `make check` green.
 
 ## Testing approach
 
 - Unit (`internal/cli/root_test.go` or a focused help test): build `NewRootCmd()`, capture the root `Long`
-  (or run `--help`), and assert it contains both the navigation pointers and the new resumption pointer
-  (`mtt use` / `mtt show`). This pins the orientation contract D2 establishes without asserting exact prose.
+  (or run `--help`), and assert it contains the new resumption pointer keyed on `mtt show` and/or `resuming`
+  (**not** `mtt use`, which already appears in the Shorthand sentence — see AC-2). This pins the orientation
+  contract D2 establishes without asserting exact prose.
