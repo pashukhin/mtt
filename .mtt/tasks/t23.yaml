@@ -1,7 +1,7 @@
 id: t23
 type: task
 title: 'mtt init: default template review — flat, frictionless default (task+chore); keep hierarchy as opt-in'
-status: planning
+status: plan_review
 priority: high
 tags:
     - dx
@@ -10,7 +10,7 @@ tags:
 depends_on:
     - t29
 created: "2026-07-11T09:34:57Z"
-updated: "2026-07-17T16:10:11Z"
+updated: "2026-07-17T16:16:00Z"
 description: 'PART B of the original 3-thread t23 (split 2026-07-17); Part A (scaffold how-to-use-mtt agent docs) is t46. Engine is NOT touched here — the fix is config-level only. Problem: mtt init ships default.yaml where ''task'' is default:true but parents:[epic] (non-root), so the natural first command ''mtt add "x"'' fails with ''type task requires a parent''. That error is CORRECT — ''requires a parent'' is a property of a hierarchy config, not an engine bug. Deliver: (1) new FLAT ''default'' template — task(root, default) + chore(root), minimal generic flow (tbd->in_progress->done/cancelled, current set/clear), no make/git/spec assumptions, so ''mtt add'' works out of the box; (2) preserve today''s epic/task/subtask config VERBATIM as a new ''hierarchy'' template (keeps the parent-required placement discipline); (3) ''coding'' untouched (no ergonomics bug; demo polish is t4). Tests: ergonomics regression (fresh default init -> ''mtt add'' succeeds at root), per-template validity (render->Load->Validate for all three), goldens (+hierarchy), migrate the 12 e2e scripts that build epic->task->subtask to ''--template hierarchy''. Docs-sync EN+RU (CLI_REFERENCE/DESIGN/README template mentions, internal/adapter/yaml/CLAUDE.md). Unblocks t4; feeds t42.'
 history:
     - at: "2026-07-17T15:45:57Z"
@@ -67,3 +67,11 @@ history:
       why: human signed off the spec (Grigorii)
       from: spec_human_review
       to: planning
+    - at: "2026-07-17T16:16:00Z"
+      by: Grigorii Pashukhin
+      why: implementation plan written (3 tasks, TDD, concrete code)
+      from: planning
+      to: plan_review
+      checks:
+        - cmd: ls docs/superpowers/plans/t23-*.md
+          exit: 0
