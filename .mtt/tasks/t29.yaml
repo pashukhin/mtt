@@ -1,14 +1,14 @@
 id: t29
 type: task
 title: 'Think: a home for pre-flow knowledge (mtt guide) — queue navigation, first-move setup, mid-flight resumption'
-status: speccing
+status: spec_review
 priority: medium
 tags:
     - dx
     - release
     - think
 created: "2026-07-11T12:58:07Z"
-updated: "2026-07-17T03:13:24Z"
+updated: "2026-07-17T04:43:30Z"
 history:
     - at: "2026-07-17T03:13:24Z"
       by: Grigorii Pashukhin
@@ -18,4 +18,11 @@ history:
         - cmd: git switch task/t29 || (git switch main && git switch -c task/t29)
           exit: 0
         - cmd: test -f .mtt/tasks/t29.yaml || { echo "task file absent on this branch — its add has not reached main (merge/commit the branch that created it first)" >&2; false; }
+          exit: 0
+    - at: "2026-07-17T04:43:30Z"
+      by: Grigorii Pashukhin
+      from: speccing
+      to: spec_review
+      checks:
+        - cmd: ls docs/superpowers/specs/t29-*.md
           exit: 0
