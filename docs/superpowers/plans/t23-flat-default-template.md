@@ -29,13 +29,16 @@ Relocate today's default (epic/task/subtask) into a new `hierarchy` template, wi
 **Files:**
 - Create: `internal/adapter/yaml/templates/hierarchy.yaml`
 - Modify: `internal/adapter/yaml/templates.go:10` (embed directive) and `:14-17` (`templateFiles` map)
-- Modify: `internal/adapter/yaml/init_test.go` (extend `TestRenderGolden`; add `TestTemplatesValidate`)
+- Modify: `internal/adapter/yaml/init_test.go` (extend `TestRenderGolden`'s template list)
+- Modify: `internal/adapter/yaml/load_test.go:12` (extend `TestInitLoadValidate`'s template list — the EXISTING validity guard)
 - Create (via `-update`): `internal/adapter/yaml/testdata/golden/hierarchy.yaml`
 - Modify: `internal/cli/init.go:51` (help string)
 
 **Interfaces:**
 - Consumes: `renderTemplate(name, projectName string) ([]byte, error)`; `Init(root, tmplName, projectName string, force bool) error`; `Load(root string) (mtt.Config, Settings, error)`; `mtt.Config.Validate() error`.
 - Produces: a third registered template name `"hierarchy"`, resolvable by `renderTemplate`/`Init`.
+
+> **Note (corrects the spec):** the spec says "no per-template validity guard exists today" — that is inaccurate. `internal/adapter/yaml/load_test.go:11` `TestInitLoadValidate` ALREADY does Init→Load→`cfg.Validate()` (+ prefix-count + default-type) for `["default", "coding"]`. The DRY fix is to add `"hierarchy"` to its list, not to add a second near-identical test.
 
 - [ ] **Step 1: Create the `hierarchy` template as a verbatim copy of today's default.**
 
@@ -136,37 +139,20 @@ This creates `testdata/golden/hierarchy.yaml` (rendered with name `demo`) and le
 Run: `go test ./internal/adapter/yaml -run TestRenderGolden -v`
 Expected: PASS.
 
-- [ ] **Step 7: Add `TestTemplatesValidate` (guard: every shipped template Loads + Validates).**
+- [ ] **Step 7: Extend the EXISTING validity guard to cover `hierarchy` (DRY).**
 
-Append to `internal/adapter/yaml/init_test.go`:
+In `internal/adapter/yaml/load_test.go:12`, add `"hierarchy"` to `TestInitLoadValidate`'s template list:
 
 ```go
-// TestTemplatesValidate guards that every shipped starter template renders into a
-// structurally valid config — Load (provider checks) then Config.Validate. Load does
-// not call Validate, so without this a broken template could ship unnoticed.
-func TestTemplatesValidate(t *testing.T) {
 	for _, name := range []string{"default", "coding", "hierarchy"} {
-		t.Run(name, func(t *testing.T) {
-			tmp := t.TempDir()
-			if err := Init(tmp, name, "demo", false); err != nil {
-				t.Fatalf("init %s: %v", name, err)
-			}
-			cfg, _, err := Load(tmp)
-			if err != nil {
-				t.Fatalf("load %s: %v", name, err)
-			}
-			if err := cfg.Validate(); err != nil {
-				t.Fatalf("validate %s: %v", name, err)
-			}
-		})
-	}
-}
 ```
 
-- [ ] **Step 8: Run the validity test.**
+(This test already renders → Init → Load → `cfg.Validate()` + prefix-count + default-type per template; adding `hierarchy` guards the relocated template with zero new code.)
 
-Run: `go test ./internal/adapter/yaml -run TestTemplatesValidate -v`
-Expected: PASS (all three subtests) — today's `default`/`coding` are valid, and `hierarchy` is a copy of the valid `default`.
+- [ ] **Step 8: Run the validity guard.**
+
+Run: `go test ./internal/adapter/yaml -run TestInitLoadValidate -v`
+Expected: PASS — `hierarchy` is a copy of the valid `default`, so it Loads + Validates + has one default type + matching prefix count.
 
 - [ ] **Step 9: Advertise `hierarchy` in `mtt init` help.**
 
@@ -185,8 +171,8 @@ Expected: PASS (default behavior unchanged; hierarchy is additive).
 
 ```bash
 git add internal/adapter/yaml/templates/hierarchy.yaml internal/adapter/yaml/templates.go \
-        internal/adapter/yaml/init_test.go internal/adapter/yaml/testdata/golden/hierarchy.yaml \
-        internal/cli/init.go
+        internal/adapter/yaml/init_test.go internal/adapter/yaml/load_test.go \
+        internal/adapter/yaml/testdata/golden/hierarchy.yaml internal/cli/init.go
 git commit -m "t23: add hierarchy template (relocate today's default) + validity guard"
 ```
 
@@ -202,10 +188,13 @@ Replace `default.yaml` with a flat `task`+`chore` config, prove the ergonomics r
 - Rewrite: `internal/cli/testdata/scripts/init.txt`
 - Modify: `internal/cli/testdata/scripts/add_json.txt`
 - Modify (one-line init switch): `add_depends_on.txt`, `add_show.txt`, `batch.txt`, `dep.txt`, `list_edit.txt`, `ready.txt`, `rm.txt`, `roadmap.txt`, `tags.txt`, `tree.txt` (all under `internal/cli/testdata/scripts/`)
+- Modify (Go unit-test bootstraps → `--template hierarchy`): `internal/cli/add_test.go:22`, `internal/cli/list_test.go:19`, `internal/cli/show_test.go:73`, `internal/cli/show_json_test.go:92`, `internal/cli/edit_test.go:11,42,58`, `internal/cli/project_test.go:16`
 
 **Interfaces:**
 - Consumes: the flat `default` template; `mtt init`, `mtt add`, `mtt types` CLI.
 - Produces: default `mtt init` yields root types `task`(prefix `t`, default) + `chore`(prefix `c`); `mtt add "x"` → `t1` with no `--parent`.
+
+> **Scope note (extends the spec):** the spec's "Test migration" section covers only the `testscript` (txtar) e2e. It missed the Go `_test.go` functions in `internal/cli` that ALSO bootstrap the default template and then `add --type epic`. Those are migrated here (Step 9). Only functions that use `--type epic`/`--type subtask` or assert the parent-required behavior need the switch; functions that only use `--no-parent`/bare root adds stay on the flat default (and give it Go-level coverage).
 
 - [ ] **Step 1: Rewrite `init.txt` to assert the flat default + the ergonomics fix (the failing test).**
 
@@ -354,7 +343,7 @@ internal/cli/testdata/scripts/tags.txt
 internal/cli/testdata/scripts/tree.txt
 ```
 
-Note for `add_show.txt`: its `! exec mtt add 'bare task'` / `stderr 'requires a parent'` block stays valid under `--template hierarchy` (the hierarchy `task` still requires a parent) — do NOT delete it.
+Note for `add_show.txt`: its `! exec mtt add 'bare task'` / `stderr 'requires a parent'` block stays valid under `--template hierarchy` (the hierarchy `task` still requires a parent) — do NOT delete it. Optionally reword its `# default type (task) requires a parent` comment to `# hierarchy task requires a parent` to avoid "default" reading against the new flat default (cosmetic).
 
 Caution: some scripts contain `exec mtt init --force …` or `cp … .mtt/config.yaml` lines elsewhere. Change ONLY the initial `exec mtt init` bootstrap line; leave any `--force`/`cp` lines as-is. Grep each file for `mtt init` first: `grep -n 'mtt init' internal/cli/testdata/scripts/<file>`.
 
@@ -374,22 +363,41 @@ exec mtt add 'second task'
 stdout 'created t2'
 ```
 
-- [ ] **Step 9: Run the full cli + adapter suites.**
+- [ ] **Step 9: Migrate the Go unit-test bootstraps that need the hierarchy.**
+
+Six `internal/cli` `_test.go` functions bootstrap the default template and then `add --type epic` (and `add_test.go` also asserts bare-add-needs-parent). Under the flat default these fail (`unknown type "epic"`; the bare-add assertion inverts). Because `hierarchy` == old default byte-for-byte, switching each affected function's bootstrap `init` to `--template hierarchy` makes every assertion hold verbatim — no assertion rewrites.
+
+Apply these EXACT edits (the `runRoot`/`runOut` helpers are variadic):
+
+- `internal/cli/add_test.go:22` — `TestAddCommand`: `runRoot(t, "init")` → `runRoot(t, "init", "--template", "hierarchy")`
+- `internal/cli/list_test.go:19` — `TestListCommand`: `runRoot(t, "init")` → `runRoot(t, "init", "--template", "hierarchy")`
+- `internal/cli/show_test.go:73` — `TestShowCommand`: `runRoot(t, "init")` → `runRoot(t, "init", "--template", "hierarchy")`
+- `internal/cli/show_json_test.go:92` — `TestShowJSON`: `runRoot(t, "init")` → `runRoot(t, "init", "--template", "hierarchy")`
+- `internal/cli/edit_test.go:11` — `TestEditCommand`: `runRoot(t, "init")` → `runRoot(t, "init", "--template", "hierarchy")`
+- `internal/cli/edit_test.go:42` — `TestEditPriorityInvalid`: `runRoot(t, "init")` → `runRoot(t, "init", "--template", "hierarchy")`
+- `internal/cli/edit_test.go:58` — `TestEditPrioritySetAndClear`: `runRoot(t, "init")` → `runRoot(t, "init", "--template", "hierarchy")`
+- `internal/cli/project_test.go:16` — `TestDirFlagAndEnvResolveProject`: `runOut(t, "--dir", proj, "init")` → `runOut(t, "--dir", proj, "init", "--template", "hierarchy")`
+
+Do NOT touch the OTHER `runRoot(t, "init")` calls in these files (`add_test.go:56/68/86`, `show_test.go:96`, `list_test.go:68/85`) — their functions use `--no-parent`/bare root adds only, so they stay green on the flat default and give it Go-level coverage. Verify the boundary with: `grep -n '"epic"\|"subtask"\|needs parent\|requires' internal/cli/<file>_test.go`.
+
+- [ ] **Step 10: Run the full cli + adapter suites.**
 
 Run: `go test ./internal/cli ./internal/adapter/yaml`
-Expected: PASS. If any migrated script fails, `grep -n 'mtt init\|--type\|--parent\|epic\|subtask' <script>` and confirm the init line is the only default-dependent line; fix per the failure.
+Expected: PASS. If a migrated *script* fails, `grep -n 'mtt init\|--type\|--parent\|epic\|subtask' <script>` and confirm the init line is the only default-dependent line. If a Go test fails with `unknown type "epic"`, its bootstrap `init` still needs the `--template hierarchy` switch (Step 9).
 
-- [ ] **Step 10: Full gate.**
+- [ ] **Step 11: Full gate.**
 
 Run: `make check`
 Expected: green (fmt + vet + lint + `go test -race -cover` + build). `TestRepoDogfoodConfig` stays green (the repo's own hand-authored `task`+`chore` config is template-independent).
 
-- [ ] **Step 11: Commit.**
+- [ ] **Step 12: Commit.**
 
 ```bash
 git add internal/adapter/yaml/templates/default.yaml internal/adapter/yaml/testdata/golden/default.yaml \
-        internal/cli/testdata/scripts/
-git commit -m "t23: flatten the default template (task+chore, root) + migrate e2e to --template hierarchy"
+        internal/cli/testdata/scripts/ \
+        internal/cli/add_test.go internal/cli/list_test.go internal/cli/show_test.go \
+        internal/cli/show_json_test.go internal/cli/edit_test.go internal/cli/project_test.go
+git commit -m "t23: flatten the default template (task+chore, root) + migrate e2e + Go tests to --template hierarchy"
 ```
 
 ---
@@ -474,8 +482,14 @@ In `internal/adapter/yaml/CLAUDE.md`, find the `Init` responsibility line (`rend
 
 - [ ] **Step 9: Grep sweep — no stale "default = epic/subtask" claim remains.**
 
-Run: `grep -rniE 'default (config|template).*(epic|subtask)|epic.*task.*subtask.*default' README.md README.ru.md DESIGN.md DESIGN.ru.md CLI_REFERENCE.md CLI_REFERENCE.ru.md`
-Expected: no hit that still calls epic/task/subtask the *default*. (Capability/example mentions of epic/task/subtask are fine.)
+Run (broad — catches EN, RU "дефолт", and the backtick phrasing `default \`config.yaml\` (types \`epic\`…)`):
+
+```bash
+grep -rniE '(дефолт|default).{0,40}(epic|subtask|подзадач)|(epic|subtask|подзадач).{0,40}(дефолт|default)' \
+  README.md README.ru.md DESIGN.md DESIGN.ru.md CLI_REFERENCE.md CLI_REFERENCE.ru.md internal/adapter/yaml/CLAUDE.md
+```
+
+Expected: no hit that still calls epic/task/subtask the *default* (or `hierarchy` mentions, which are correct). Capability/example mentions of epic/task/subtask without "default" nearby are fine. Manually inspect each hit.
 
 - [ ] **Step 10: Gate + commit.**
 
