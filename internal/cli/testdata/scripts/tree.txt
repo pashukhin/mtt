@@ -1,7 +1,7 @@
 # build an epic -> task -> subtask chain and render it
 mkdir proj
 cd proj
-exec mtt init
+exec mtt init --template hierarchy
 stdout 'initialized'
 
 exec mtt add --type epic 'E'

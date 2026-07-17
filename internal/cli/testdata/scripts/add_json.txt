@@ -3,12 +3,12 @@
 
 exec mtt init
 
-# The default type requires a parent, so create the first task with --no-parent.
-exec mtt --json add 'first task' --no-parent
+# The default type (task) is a root, so the first add just works.
+exec mtt --json add 'first task'
 stdout '"id": "t1"'
 stdout '"status": "tbd"'
 ! stdout 'created t1'
 
 # Without --json, the plain ack is unchanged.
-exec mtt add 'second task' --no-parent
+exec mtt add 'second task'
 stdout 'created t2'

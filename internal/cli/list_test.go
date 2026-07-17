@@ -16,7 +16,7 @@ func mustAdd(t *testing.T, args ...string) {
 func TestListCommand(t *testing.T) {
 	dir := t.TempDir()
 	chdir(t, dir)
-	if err := runRoot(t, "init"); err != nil {
+	if err := runRoot(t, "init", "--template", "hierarchy"); err != nil {
 		t.Fatal(err)
 	}
 	mustAdd(t, "--type", "epic", "build auth")

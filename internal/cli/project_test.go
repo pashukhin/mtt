@@ -13,7 +13,7 @@ func TestDirFlagAndEnvResolveProject(t *testing.T) {
 
 	// init the project via --dir, from an unrelated cwd
 	chdir(t, other)
-	if _, _, err := runOut(t, "--dir", proj, "init"); err != nil {
+	if _, _, err := runOut(t, "--dir", proj, "init", "--template", "hierarchy"); err != nil {
 		t.Fatalf("init --dir: %v", err)
 	}
 	if _, _, err := runOut(t, "--dir", proj, "add", "--type", "epic", "build auth"); err != nil {

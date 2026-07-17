@@ -1,7 +1,7 @@
 # tags: #hashtags-primary + explicit; filter; rm-guard; edit-delta reconciliation
 mkdir proj
 cd proj
-exec mtt init
+exec mtt init --template hierarchy
 stdout 'initialized'
 
 # add: a #hashtag in the title + an explicit --tag; both land, canonical (sorted)

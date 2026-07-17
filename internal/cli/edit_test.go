@@ -8,7 +8,7 @@ import (
 func TestEditCommand(t *testing.T) {
 	dir := t.TempDir()
 	chdir(t, dir)
-	if err := runRoot(t, "init"); err != nil {
+	if err := runRoot(t, "init", "--template", "hierarchy"); err != nil {
 		t.Fatal(err)
 	}
 	if _, _, err := runOut(t, "add", "--type", "epic", "old title"); err != nil {
@@ -39,7 +39,7 @@ func TestEditCommand(t *testing.T) {
 func TestEditPriorityInvalid(t *testing.T) {
 	dir := t.TempDir()
 	chdir(t, dir)
-	if err := runRoot(t, "init"); err != nil {
+	if err := runRoot(t, "init", "--template", "hierarchy"); err != nil {
 		t.Fatal(err)
 	}
 	if _, _, err := runOut(t, "add", "--type", "epic", "x"); err != nil {
@@ -55,7 +55,7 @@ func TestEditPriorityInvalid(t *testing.T) {
 func TestEditPrioritySetAndClear(t *testing.T) {
 	dir := t.TempDir()
 	chdir(t, dir)
-	if err := runRoot(t, "init"); err != nil {
+	if err := runRoot(t, "init", "--template", "hierarchy"); err != nil {
 		t.Fatal(err)
 	}
 	if _, _, err := runOut(t, "add", "--type", "epic", "x"); err != nil {
