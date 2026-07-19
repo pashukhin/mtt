@@ -1,7 +1,7 @@
 id: t4
 type: task
 title: coding-template demo — showcase the coding flow end-to-end
-status: spec_fix
+status: spec_review
 priority: medium
 tags:
     - demo
@@ -9,7 +9,7 @@ tags:
 depends_on:
     - t23
 created: "2026-07-10T13:51:25Z"
-updated: "2026-07-19T05:16:12Z"
+updated: "2026-07-19T05:18:14Z"
 history:
     - at: "2026-07-19T05:03:20Z"
       by: Grigorii Pashukhin
@@ -34,3 +34,11 @@ history:
       why: 'spec review (empirical PASS-WITH-NITS): fold in git-config-user, refactor git-diff semantics (unstaged tracked edit only; commit pkg baseline), internal-change-outside-pkg, set-e guards, unset MTT_DIR/ROLE, story ordering, assert on script stdout'
       from: spec_review
       to: spec_fix
+    - at: "2026-07-19T05:18:14Z"
+      by: Grigorii Pashukhin
+      why: spec fixes applied from empirical review
+      from: spec_fix
+      to: spec_review
+      checks:
+        - cmd: ls docs/superpowers/specs/t4-*.md
+          exit: 0
