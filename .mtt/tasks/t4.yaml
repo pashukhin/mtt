@@ -1,7 +1,7 @@
 id: t4
 type: task
 title: coding-template demo — showcase the coding flow end-to-end
-status: implementing
+status: impl_review
 priority: medium
 tags:
     - demo
@@ -9,7 +9,7 @@ tags:
 depends_on:
     - t23
 created: "2026-07-10T13:51:25Z"
-updated: "2026-07-19T08:53:43Z"
+updated: "2026-07-19T08:58:05Z"
 history:
     - at: "2026-07-19T05:03:20Z"
       by: Grigorii Pashukhin
@@ -83,3 +83,11 @@ history:
       why: human signed off the plan (Grigorii)
       from: plan_human_review
       to: implementing
+    - at: "2026-07-19T08:58:05Z"
+      by: Grigorii Pashukhin
+      why: 'implemented: runnable+tested coding demo (all 3 gate stories) + bilingual docs; make check + make demo green'
+      from: implementing
+      to: impl_review
+      checks:
+        - cmd: make check
+          exit: 0
