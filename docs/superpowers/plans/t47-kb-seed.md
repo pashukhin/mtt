@@ -534,6 +534,24 @@ func TestNoteStoreRejectsTraversalSlug(t *testing.T) {
 		t.Fatal("CreateNote traversal slug: want rejection")
 	}
 }
+
+func TestNoteStoreListRejectsInvalidFilename(t *testing.T) {
+	root := t.TempDir()
+	dir := filepath.Join(root, ".mtt", "knowledge")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	// A file whose NAME is not a valid slug is a load error (the filename guard),
+	// even though its CONTENT is well-formed — distinct from ErrNotFound.
+	good := []byte("---\ncreated: \"2026-01-02T03:04:05Z\"\nupdated: \"2026-01-02T03:04:05Z\"\n---\nx\n")
+	if err := os.WriteFile(filepath.Join(dir, "Upper.md"), good, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	_, err := NewKnowledgeStore(root).ListNotes()
+	if err == nil || errors.Is(err, mtt.ErrNotFound) {
+		t.Fatalf("ListNotes with an invalid-slug filename: want a non-ErrNotFound error, got %v", err)
+	}
+}
 ```
 
 - [ ] **Step 2: Run it, verify it fails.**
@@ -1383,6 +1401,8 @@ Expected: success.
 
 ```
 # note CRUD + slug validation + json + stdin body
+mkdir proj
+cd proj
 exec mtt init
 
 # create with title, tags, inline body
@@ -1407,15 +1427,17 @@ stdout '"tags":'
 exec mtt note edit auth-design --tag design
 stdout 'updated auth-design'
 
-# body via stdin (--file -)
-stdin body.md
+# body via stdin (--file -; the txtar file unpacks into $WORK, not proj)
+stdin $WORK/body.md
 exec mtt note add via-stdin --file -
 exec mtt note show via-stdin
 stdout 'hello from stdin'
 
-# empty body allowed
+# empty body allowed (and shows with a header, no body)
 exec mtt note add stub --title Stub
 stdout 'created stub'
+exec mtt note show stub
+stdout '^stub'
 
 # create refuses an existing slug (no clobber)
 ! exec mtt note add auth-design --title dup
@@ -1501,7 +1523,7 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 
 - [ ] **AC-1** (CRUD loop) → Task 5 e2e `note.txt`.
 - [ ] **AC-2** (reviewable file; goldens incl. body-with-`---` + trailing-newline) → Task 2 (`TestNoteRoundTrip`, `TestNoteGolden`).
-- [ ] **AC-3** (slug validation, defense-in-depth incl. traversal) → Task 1 (`TestNewNoteSlug`), Task 3 (`TestNoteStoreRejectsTraversalSlug`), Task 5 e2e.
+- [ ] **AC-3** (slug validation, defense-in-depth incl. traversal + filename-guard on load) → Task 1 (`TestNewNoteSlug`), Task 3 (`TestNoteStoreRejectsTraversalSlug`, `TestNoteStoreListRejectsInvalidFilename`), Task 5 e2e.
 - [ ] **AC-4** (not-found → exit 4 via `noteNotFound`) → Task 3 (`TestNoteStoreNotFoundAndCorrupt`), Task 5 (`noteNotFound` + e2e wording; exit 4 inherited from the existing `errors.Is(ErrNotFound)` mapping — no `exitCode` change).
 - [ ] **AC-5** (reserve-then-write, no clobber) → Task 3 (`TestNoteStoreCRUD` clobber assertion).
 - [ ] **AC-6** (tags normalized/sorted, no text extraction) → Task 4 (`TestNoteAdder`).
