@@ -1,14 +1,14 @@
 id: t47
 type: task
 title: 'KB seed — notes CRUD: KnowledgeStore port + note add/list/show/edit/rm over .mtt/knowledge/<slug>.md'
-status: impl_review
+status: approved
 priority: high
 tags:
     - core
     - kb
     - release
 created: "2026-07-19T10:19:07Z"
-updated: "2026-07-19T11:29:57Z"
+updated: "2026-07-19T11:53:26Z"
 history:
     - at: "2026-07-19T10:20:54Z"
       by: Grigorii Pashukhin
@@ -72,3 +72,8 @@ history:
       checks:
         - cmd: make check
           exit: 0
+    - at: "2026-07-19T11:53:26Z"
+      by: Grigorii Pashukhin
+      why: adversarial code review APPROVE; make check green; verified end-to-end
+      from: impl_review
+      to: approved
