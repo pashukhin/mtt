@@ -23,6 +23,9 @@ type NoteStore struct {
 // NewKnowledgeStore returns a knowledge store rooted at the given project directory.
 func NewKnowledgeStore(root string) *NoteStore { return &NoteStore{root: root} }
 
+// dir is the notes directory (.mtt/knowledge).
+func (s *NoteStore) dir() string { return filepath.Join(s.root, dirName, knowledgeDirName) }
+
 // notePath builds the on-disk path for a slug, RE-VALIDATING it (defense in depth: a
 // NoteSlug is a plain string type, so a raw cast could smuggle a traversal past the
 // CLI's NewNoteSlug).
@@ -30,7 +33,7 @@ func (s *NoteStore) notePath(slug mtt.NoteSlug) (string, error) {
 	if !slug.Valid() {
 		return "", fmt.Errorf("invalid note slug %q", string(slug))
 	}
-	return filepath.Join(s.root, dirName, knowledgeDirName, string(slug)+".md"), nil
+	return filepath.Join(s.dir(), string(slug)+".md"), nil
 }
 
 // CreateNote reserves <slug>.md with O_CREATE|O_EXCL (no clobber, mirroring task
@@ -41,7 +44,7 @@ func (s *NoteStore) CreateNote(n mtt.Note) (mtt.Note, error) {
 	if err != nil {
 		return mtt.Note{}, err
 	}
-	dir := filepath.Join(s.root, dirName, knowledgeDirName)
+	dir := s.dir()
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return mtt.Note{}, fmt.Errorf("create %s: %w", dir, err)
 	}
@@ -123,7 +126,7 @@ func (s *NoteStore) DeleteNote(slug mtt.NoteSlug) error {
 // is not a valid slug, or a file that fails to parse, is a load error (fail-fast — a
 // hand-planted corrupt file). A missing directory yields an empty slice.
 func (s *NoteStore) ListNotes() ([]mtt.Note, error) {
-	dir := filepath.Join(s.root, dirName, knowledgeDirName)
+	dir := s.dir()
 	entries, err := os.ReadDir(dir)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {

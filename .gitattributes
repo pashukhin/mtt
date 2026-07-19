@@ -1,2 +1,7 @@
 # Append-only audit log: union-merge takes both sides' lines instead of conflicting.
 /.mtt/audit.log merge=union
+
+# KB notes are a hybrid YAML-frontmatter + verbatim-body document parsed on an exact
+# "---\n" delimiter; pin LF so a Windows checkout (core.autocrlf) can't rewrite the
+# delimiter to "---\r\n" and break every note's load.
+/.mtt/knowledge/**.md text eol=lf
