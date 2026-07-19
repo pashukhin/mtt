@@ -1,7 +1,7 @@
 id: t4
 type: task
 title: coding-template demo — showcase the coding flow end-to-end
-status: impl_review
+status: approved
 priority: medium
 tags:
     - demo
@@ -9,7 +9,7 @@ tags:
 depends_on:
     - t23
 created: "2026-07-10T13:51:25Z"
-updated: "2026-07-19T09:06:26Z"
+updated: "2026-07-19T09:25:00Z"
 history:
     - at: "2026-07-19T05:03:20Z"
       by: Grigorii Pashukhin
@@ -104,3 +104,8 @@ history:
       checks:
         - cmd: make check
           exit: 0
+    - at: "2026-07-19T09:25:00Z"
+      by: Grigorii Pashukhin
+      why: code review passed (guard hardened to set -eu; make check + make demo green)
+      from: impl_review
+      to: approved
