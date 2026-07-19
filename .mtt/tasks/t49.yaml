@@ -1,0 +1,10 @@
+id: t49
+type: task
+title: extract hashtags from note title/body into tags — reuse the task ExtractTags/reconcile logic; mind the markdown-heading collision caveat (why t47 left it explicit-only)
+status: tbd
+priority: low
+tags:
+    - backlog
+    - kb
+created: "2026-07-19T12:01:13Z"
+updated: "2026-07-19T12:01:13Z"

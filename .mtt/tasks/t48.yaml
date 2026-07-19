@@ -1,0 +1,10 @@
+id: t48
+type: task
+title: note versioning — versioned notes as a KnowledgeStore capability (GetNote by version, NoteHistory, predecessor link); builds on the t47 seed
+status: tbd
+priority: low
+tags:
+    - backlog
+    - kb
+created: "2026-07-19T12:01:13Z"
+updated: "2026-07-19T12:01:13Z"
