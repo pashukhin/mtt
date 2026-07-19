@@ -212,3 +212,12 @@ resolution + the `roadmap`/`ready`/`types` entry points; `status`'s `Use:` is `s
 (the id is optional) with a `Long:` covering the sugar. `projectRoot` appends `(run 'mtt init' to create one)`
 to **both** no-project errors — the explicit `--dir` case (inline) and the discovery case (wrapping
 `yaml.ErrNotInitialized` with `%w`, so `errors.Is` still matches — the CLI, not the adapter, owns the hint).
+
+Knowledge base (t47): `newNoteCmd` (`note.go`) is the `mtt note` group (the `dep` parent+subcommands pattern) —
+`add <slug>`/`list`/`show <slug>`/`edit <slug>`/`rm <slug>`, each wiring `yaml.NewKnowledgeStore(root)` +
+`core.NewNoteAdder`/`NewNoteEditor`/`SelectNotes`. Slugs go through `mtt.NewNoteSlug` at the boundary (never a
+raw cast); tags reuse the shared `toTags`. Body input is `--body`/`--file` (`--file -` = stdin) via
+`readNoteBody` (mutually exclusive). `edit` uses `Changed()` (touch only provided fields; `--tag` replaces the
+set). `noteJSON`/`toNoteJSON` is the `--json` view (`slug` always, `tags` non-null `[]`); read+`add`+`edit`
+honor `--json`, `rm` captures-before-delete for its `--json`. `noteNotFound(slug)` (`errors.go`) wraps
+`mtt.ErrNotFound` so a missing slug maps to exit 4 (like `taskNotFound`). Refs/search/versioning are out (t1/t6).

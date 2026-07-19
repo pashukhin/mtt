@@ -554,30 +554,37 @@ Appends a comment to the task; `--reply <cid>` nests it under an existing commen
 
 ---
 
-## Knowledge base  *(phase 5; capability `KnowledgeStore`)*
+## Knowledge base  *(capability `KnowledgeStore`; base store shipped t47)*
 
-Absent a KB backend, these return `ErrUnsupported` and knowledge lives in tasks/comments instead.
-**Notes are versioned** — writes never destroy prior content; `edit` saves a new version linked to the
-previous (see DESIGN → Knowledge base). External backends use their native versioning.
+Markdown notes, one file per note at `.mtt/knowledge/<slug>.md` (YAML frontmatter + markdown body). The
+`<slug>` is the note's identity and file name — an explicit, kebab-ASCII string (`^[a-z0-9]+(-[a-z0-9]+)*$`);
+an invalid slug is rejected. A missing note exits `4`. The base store is **single-version** (history is git);
+note **versioning + full-text search are deferred** (t6), and **refs on notes are t1**.
 
 ### `mtt note add <slug> [flags]` — create a knowledge note
-Creates a note at `<slug>` (its first version). Rejects an existing slug — use `edit` to add a version.
-- `<slug>` — stable identifier / filename.
-- `--title <text>` — human title.
-- `--body <text>` — content (`-` for stdin).
+Creates a note at `<slug>`. Rejects an existing slug (no clobber). Body defaults to empty.
+- `<slug>` — stable identifier / file name (kebab-ASCII).
+- `--title <text>` — human title (optional).
+- `--tag <t>` — add a tag (repeatable; explicit only — hashtags in the body are NOT extracted).
+- `--body <text>` — content; **or** `--file <path>` (`--file -` reads stdin). `--body`/`--file` are exclusive.
+- `--json` — emit the created note object.
 
-### `mtt note edit <slug> [flags]` — save a new version
-Saves a new version of the note's title/body, **linked to the previous version**; old versions are kept.
+### `mtt note list [--tag <t>]… [--json]` — list notes
+Lists notes (newest first), optionally filtered by tag (OR within tags). `--json` emits a (non-null) array.
 
-### `mtt note show <slug> [--version <n>]` — print a note (with backlinks)
-Shows the current version, or version `<n>` with `--version`.
+### `mtt note show <slug> [--json]` — print a note
+Prints the note's header (title/tags/created/updated) and body; `--json` emits the note object (`slug` always
+present, `tags` a non-null array).
 
-### `mtt note history <slug>` — list a note's versions
-Lists versions (newest first) with author/time; each links to its predecessor.
+### `mtt note edit <slug> [flags]` — edit a note
+Updates only the provided fields; `--tag` **replaces** the whole tag set. Bumps `updated`, keeps `created`.
+- `--title <text>`, `--tag <t>` (repeatable), `--body <text>` / `--file <path>` (`-` = stdin), `--json`.
 
-### `mtt note list` — list notes
+### `mtt note rm <slug>` — delete a note
+Removes the note file. (A "refuse if a task references it" guard arrives with refs, t1.) `--json` echoes the
+removed note.
 
-### `mtt search <query> [flags]` — text search  *(phase 5)*
+### `mtt search <query> [flags]` — text search  *(deferred, t6)*
 Simple substring/token search over tasks and notes (no RAG).
 
 - `--tasks` / `--notes` — restrict the scope.
