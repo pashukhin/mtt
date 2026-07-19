@@ -1,7 +1,7 @@
 id: t4
 type: task
 title: coding-template demo — showcase the coding flow end-to-end
-status: impl_review
+status: impl_fix
 priority: medium
 tags:
     - demo
@@ -9,7 +9,7 @@ tags:
 depends_on:
     - t23
 created: "2026-07-10T13:51:25Z"
-updated: "2026-07-19T08:58:05Z"
+updated: "2026-07-19T09:05:16Z"
 history:
     - at: "2026-07-19T05:03:20Z"
       by: Grigorii Pashukhin
@@ -91,3 +91,8 @@ history:
       checks:
         - cmd: make check
           exit: 0
+    - at: "2026-07-19T09:05:16Z"
+      by: Grigorii Pashukhin
+      why: 'code review: guard false-passes on pass-path gate regression (unguarded expected-pass moves under set -u); fix set -u -> set -eu (expect_block''s || keeps intentional blocks -e-safe)'
+      from: impl_review
+      to: impl_fix
