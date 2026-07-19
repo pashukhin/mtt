@@ -1,14 +1,14 @@
 id: t47
 type: task
 title: 'KB seed — notes CRUD: KnowledgeStore port + note add/list/show/edit/rm over .mtt/knowledge/<slug>.md'
-status: speccing
+status: spec_review
 priority: high
 tags:
     - core
     - kb
     - release
 created: "2026-07-19T10:19:07Z"
-updated: "2026-07-19T10:20:54Z"
+updated: "2026-07-19T10:21:10Z"
 history:
     - at: "2026-07-19T10:20:54Z"
       by: Grigorii Pashukhin
@@ -18,4 +18,11 @@ history:
         - cmd: git switch task/t47 || (git switch main && git switch -c task/t47)
           exit: 0
         - cmd: test -f .mtt/tasks/t47.yaml || { echo "task file absent on this branch — its add has not reached main (merge/commit the branch that created it first)" >&2; false; }
+          exit: 0
+    - at: "2026-07-19T10:21:10Z"
+      by: Grigorii Pashukhin
+      from: speccing
+      to: spec_review
+      checks:
+        - cmd: ls docs/superpowers/specs/t47-*.md
           exit: 0
