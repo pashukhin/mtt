@@ -23,5 +23,7 @@ type TaskStore interface {
 	Delete(id TaskID) error
 }
 
-// ErrNotFound is returned by TaskStore.Get when the ID does not resolve.
+// ErrNotFound is returned by TaskStore.Get and KnowledgeStore.GetNote when the
+// ID/slug does not resolve. (The message text is task-worded; the CLI surfaces the
+// right noun via taskNotFound/noteNotFound wrappers.)
 var ErrNotFound = errors.New("mtt: task not found")
