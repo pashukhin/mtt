@@ -8,8 +8,10 @@
 #   Run:  make demo            (builds mtt, runs this)
 #    or:  ./demo/coding-flow.sh   (needs `mtt` on PATH, or set MTT_BIN)
 #
-# NOTE: no `set -e` — we intentionally trigger blocking gates and check for them.
-set -u
+# set -e catches any expected-PASS move that unexpectedly fails (so the guard test
+# can't false-pass on a pass-path regression); expect_block's `|| rc=$?` keeps the
+# INTENTIONAL blocking gates -e-safe.
+set -eu
 
 MTT="${MTT_BIN:-mtt}"
 unset MTT_DIR MTT_ROLE   # shell the real binary hermetically (nothing scrubs these for us)
