@@ -1,7 +1,7 @@
 id: t4
 type: task
 title: coding-template demo — showcase the coding flow end-to-end
-status: spec_review
+status: spec_human_review
 priority: medium
 tags:
     - demo
@@ -42,3 +42,8 @@ history:
       checks:
         - cmd: ls docs/superpowers/specs/t4-*.md
           exit: 0
+    - at: "2026-07-19T05:18:14Z"
+      by: Grigorii Pashukhin
+      why: empirical spec review passed (all 3 gate stories verified at exit 3); fixes folded in
+      from: spec_review
+      to: spec_human_review
