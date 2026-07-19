@@ -1,14 +1,14 @@
 id: t47
 type: task
 title: 'KB seed — notes CRUD: KnowledgeStore port + note add/list/show/edit/rm over .mtt/knowledge/<slug>.md'
-status: spec_human_review
+status: planning
 priority: high
 tags:
     - core
     - kb
     - release
 created: "2026-07-19T10:19:07Z"
-updated: "2026-07-19T10:38:42Z"
+updated: "2026-07-19T10:43:21Z"
 history:
     - at: "2026-07-19T10:20:54Z"
       by: Grigorii Pashukhin
@@ -43,3 +43,8 @@ history:
       why: 'adversarial re-review APPROVE: all 9 findings resolved, no regressions, serialization contract precise'
       from: spec_review
       to: spec_human_review
+    - at: "2026-07-19T10:43:21Z"
+      by: Grigorii Pashukhin
+      why: human sign-off on spec (maintainer confirmed)
+      from: spec_human_review
+      to: planning
