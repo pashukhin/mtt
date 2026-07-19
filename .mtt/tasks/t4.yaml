@@ -1,7 +1,7 @@
 id: t4
 type: task
 title: coding-template demo — showcase the coding flow end-to-end
-status: tbd
+status: speccing
 priority: medium
 tags:
     - demo
@@ -9,4 +9,15 @@ tags:
 depends_on:
     - t23
 created: "2026-07-10T13:51:25Z"
-updated: "2026-07-12T07:18:28Z"
+updated: "2026-07-19T05:03:20Z"
+history:
+    - at: "2026-07-19T05:03:20Z"
+      by: Grigorii Pashukhin
+      why: 'brainstormed: runnable+tested coding demo (demo/coding-flow.sh + Go test, all 3 types, bilingual README)'
+      from: tbd
+      to: speccing
+      checks:
+        - cmd: git switch task/t4 || (git switch main && git switch -c task/t4)
+          exit: 0
+        - cmd: test -f .mtt/tasks/t4.yaml || { echo "task file absent on this branch — its add has not reached main (merge/commit the branch that created it first)" >&2; false; }
+          exit: 0
