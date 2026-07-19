@@ -1,14 +1,14 @@
 id: t47
 type: task
 title: 'KB seed — notes CRUD: KnowledgeStore port + note add/list/show/edit/rm over .mtt/knowledge/<slug>.md'
-status: approved
+status: done
 priority: high
 tags:
     - core
     - kb
     - release
 created: "2026-07-19T10:19:07Z"
-updated: "2026-07-19T11:53:26Z"
+updated: "2026-07-19T17:11:12Z"
 history:
     - at: "2026-07-19T10:20:54Z"
       by: Grigorii Pashukhin
@@ -77,3 +77,13 @@ history:
       why: adversarial code review APPROVE; make check green; verified end-to-end
       from: impl_review
       to: approved
+    - at: "2026-07-19T17:11:12Z"
+      by: Grigorii Pashukhin
+      why: 'PR #43 squash-merged to main'
+      from: approved
+      to: done
+      checks:
+        - cmd: git switch main
+          exit: 0
+        - cmd: 'git log -n 200 --format=%s | grep "^t47: " || { echo "no squash commit \"t47: …\" on local main: git pull first, and check the PR/merge title started with \"t47: \"" >&2; false; }'
+          exit: 0
