@@ -1,21 +1,28 @@
-# init creates config; types lists the configured types
+# init creates config; types lists the configured (flat) types
 mkdir proj
 cd proj
 exec mtt init
 stdout 'initialized'
 exists .mtt/config.yaml
 exec mtt types
-stdout 'epic'
 stdout 'task'
-stdout 'subtask'
+stdout 'chore'
 stdout 'active'
 stdout '-> done'
 stdout 'default'
+! stdout 'epic'
+! stdout 'subtask'
+
+# the default type (task) is a root: the first add just works, no --parent
+exec mtt add 'first task'
+stdout 'created t1'
+exec mtt add 'a chore' --type chore
+stdout 'created c1'
 
 # a single type can be filtered
-exec mtt types epic
-stdout 'prefix e'
-! stdout 'subtask'
+exec mtt types task
+stdout 'prefix t'
+! stdout 'chore'
 
 # re-init without --force fails
 ! exec mtt init
@@ -28,6 +35,13 @@ stdout 'feature'
 stdout 'bugfix'
 stdout 'refactor'
 stdout 'make test'
+
+# --force + hierarchy template restores the epic > task > subtask model
+exec mtt init --force --template hierarchy
+exec mtt types
+stdout 'epic'
+stdout 'task'
+stdout 'subtask'
 
 # types outside a project errors — and the error points the way out (U4).
 cd $WORK/empty

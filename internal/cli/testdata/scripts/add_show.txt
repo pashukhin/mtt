@@ -1,7 +1,7 @@
 # init, then create and view tasks
 mkdir proj
 cd proj
-exec mtt init
+exec mtt init --template hierarchy
 stdout 'initialized'
 
 # explicit root type -> e1, then e2
@@ -10,11 +10,11 @@ stdout 'created e1'
 exec mtt add --type epic 'second epic'
 stdout 'created e2'
 
-# default type (task) requires a parent
+# hierarchy task (the default type here) requires a parent
 ! exec mtt add 'bare task'
 stderr 'requires a parent'
 
-# --no-parent creates the default type (task) at top level -> t1
+# --no-parent creates the hierarchy task at top level -> t1
 exec mtt add --no-parent 'orphan task'
 stdout 'created t1'
 

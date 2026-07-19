@@ -19,7 +19,7 @@ func runOut(t *testing.T, args ...string) (string, string, error) {
 func TestAddCommand(t *testing.T) {
 	dir := t.TempDir()
 	chdir(t, dir)
-	if err := runRoot(t, "init"); err != nil {
+	if err := runRoot(t, "init", "--template", "hierarchy"); err != nil {
 		t.Fatalf("init: %v", err)
 	}
 

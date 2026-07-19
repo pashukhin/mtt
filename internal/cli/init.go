@@ -48,7 +48,7 @@ func newInitCmd() *cobra.Command {
 			return nil
 		},
 	}
-	cmd.Flags().StringVar(&tmpl, "template", "default", "starter template: default|coding")
+	cmd.Flags().StringVar(&tmpl, "template", "default", "starter template: default|coding|hierarchy")
 	cmd.Flags().BoolVar(&force, "force", false, "overwrite an existing config")
 	cmd.Flags().StringVar(&name, "name", "", "project name (default: current directory name)")
 	return cmd

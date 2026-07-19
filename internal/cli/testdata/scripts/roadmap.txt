@@ -1,7 +1,7 @@
 # roadmap: dependency-hard, priority-soft execution order + ready/blocked_by
 mkdir proj
 cd proj
-exec mtt init
+exec mtt init --template hierarchy
 stdout 'initialized'
 
 # an epic + three tasks with priorities

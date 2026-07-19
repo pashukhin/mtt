@@ -1,7 +1,7 @@
 # rm: hard-delete; reject-if-referenced; --force; not-found exit 4
 mkdir proj
 cd proj
-exec mtt init
+exec mtt init --template hierarchy
 stdout 'initialized'
 
 exec mtt add --type epic 'E'

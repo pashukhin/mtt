@@ -89,7 +89,7 @@ func TestToShowJSONCarriesHistory(t *testing.T) {
 func TestShowJSON(t *testing.T) {
 	dir := t.TempDir()
 	chdir(t, dir)
-	if err := runRoot(t, "init"); err != nil {
+	if err := runRoot(t, "init", "--template", "hierarchy"); err != nil {
 		t.Fatal(err)
 	}
 	if _, _, err := runOut(t, "add", "--type", "epic", "build auth"); err != nil {

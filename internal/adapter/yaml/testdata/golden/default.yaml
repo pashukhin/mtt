@@ -3,10 +3,11 @@ project:
   name: demo
 command_timeout: 5m
 types:
-  - name: epic
-    description: A large body of work spanning multiple tasks.
-    prefix: e
+  - name: task
+    description: A unit of work.
+    prefix: t
     parents: []
+    default: true
     statuses:
       - {name: tbd,         kind: initial}
       - {name: in_progress, kind: active}
@@ -15,27 +16,12 @@ types:
     transitions:
       - {from: tbd,         to: in_progress, current: set}
       - {from: tbd,         to: cancelled}
-      - {from: in_progress, to: done, description: "all epic tasks closed", current: clear}
+      - {from: in_progress, to: done, current: clear}
       - {from: in_progress, to: cancelled}
-  - name: task
-    description: A unit of work under an epic.
-    prefix: t
-    parents: [epic]
-    default: true
-    statuses:
-      - {name: tbd,         kind: initial}
-      - {name: in_progress, kind: active}
-      - {name: done,        kind: terminal}
-      - {name: cancelled,   kind: terminal}
-    transitions:
-      - {from: tbd,         to: in_progress, description: "review the spec, create a branch", current: set}
-      - {from: tbd,         to: cancelled}
-      - {from: in_progress, to: done, description: "quality gate", current: clear}
-      - {from: in_progress, to: cancelled}
-  - name: subtask
-    description: A small step within a task.
-    prefix: s
-    parents: [task]
+  - name: chore
+    description: A small maintenance change.
+    prefix: c
+    parents: []
     statuses:
       - {name: tbd,         kind: initial}
       - {name: in_progress, kind: active}

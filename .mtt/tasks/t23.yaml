@@ -1,7 +1,7 @@
 id: t23
 type: task
-title: 'mtt init: clarify + extend — default-config review + scaffold an AGENTS.md runbook'
-status: tbd
+title: 'mtt init: default template review — flat, frictionless default (task+chore); keep hierarchy as opt-in'
+status: approved
 priority: high
 tags:
     - dx
@@ -10,5 +10,117 @@ tags:
 depends_on:
     - t29
 created: "2026-07-11T09:34:57Z"
-updated: "2026-07-12T07:18:28Z"
-description: 'Two threads surfaced in the s009 t5 session, broadened by the s009.x batch. (1) DEFAULT CONFIG / TEMPLATES: `mtt init` ships an epic/task/subtask hierarchy where `task` REQUIRES a parent — a smoke test hit "type task requires a parent; use --parent". The default templates (default.yaml/coding.yaml) ergonomics need review vs what a fresh project actually wants (a flat task/chore default like this repo dogfoods? a gentler onboarding default? keep the hierarchy but make the entry type root?) — i.e. tidy the default config templates. (2) BOOTSTRAP THE RUNBOOK: `mtt init` should help a new project adopt the workflow — emit or scaffold an AGENTS.md "Working under mtt" section so a fresh project agents know the flow (attribution, gates, dangerous-ops, the per-move commit) WITHOUT hand-authoring it. (3) SCAFFOLD AGENT DOCS: extend the scaffolding beyond AGENTS.md to also emit/update a root CLAUDE.md and per-package CLAUDE.md stubs (and similar agent docs, e.g. GEMINI.md), so a fresh project gets the in-code doc hierarchy, not just the runbook — decide the template set, new-file-vs-merge behavior, and how templates stay honest as the flow evolves. Design-open: the default config, whether/how init writes/updates these docs, relation to t19 (self-instructing runbook in flow descriptions) and the prime directive "mechanize the process into mtt". (Absorbs the s009.x asks to tidy default templates and to provide AGENTS.md/CLAUDE.md init templates.)'
+updated: "2026-07-17T17:56:33Z"
+description: 'PART B of the original 3-thread t23 (split 2026-07-17); Part A (scaffold how-to-use-mtt agent docs) is t46. Engine is NOT touched here — the fix is config-level only. Problem: mtt init ships default.yaml where ''task'' is default:true but parents:[epic] (non-root), so the natural first command ''mtt add "x"'' fails with ''type task requires a parent''. That error is CORRECT — ''requires a parent'' is a property of a hierarchy config, not an engine bug. Deliver: (1) new FLAT ''default'' template — task(root, default) + chore(root), minimal generic flow (tbd->in_progress->done/cancelled, current set/clear), no make/git/spec assumptions, so ''mtt add'' works out of the box; (2) preserve today''s epic/task/subtask config VERBATIM as a new ''hierarchy'' template (keeps the parent-required placement discipline); (3) ''coding'' untouched (no ergonomics bug; demo polish is t4). Tests: ergonomics regression (fresh default init -> ''mtt add'' succeeds at root), per-template validity (render->Load->Validate for all three), goldens (+hierarchy), migrate the 12 e2e scripts that build epic->task->subtask to ''--template hierarchy''. Docs-sync EN+RU (CLI_REFERENCE/DESIGN/README template mentions, internal/adapter/yaml/CLAUDE.md). Unblocks t4; feeds t42.'
+history:
+    - at: "2026-07-17T15:45:57Z"
+      by: Grigorii Pashukhin
+      why: 'brainstormed scope: default template review (Part B); Part A split to t46'
+      from: tbd
+      to: speccing
+      checks:
+        - cmd: git switch task/t23 || (git switch main && git switch -c task/t23)
+          exit: 0
+        - cmd: test -f .mtt/tasks/t23.yaml || { echo "task file absent on this branch — its add has not reached main (merge/commit the branch that created it first)" >&2; false; }
+          exit: 0
+    - at: "2026-07-17T15:48:35Z"
+      by: Grigorii Pashukhin
+      why: 'spec written: flat default template (Part B)'
+      from: speccing
+      to: spec_review
+      checks:
+        - cmd: ls docs/superpowers/specs/t23-*.md
+          exit: 0
+    - at: "2026-07-17T15:59:30Z"
+      by: Grigorii Pashukhin
+      why: 'adversarial spec review found gaps: migration list wrong (drop types_json, add add_json; 11 red not 12), docs-sync misses README quickstart (EN+RU) + DESIGN 226-227/614/623-650 + init.go:51 help + CLI_REFERENCE 146/303; add embed+templateFiles plumbing note; soften corollary'
+      from: spec_review
+      to: spec_fix
+    - at: "2026-07-17T16:01:29Z"
+      by: Grigorii Pashukhin
+      why: 'spec fixes applied: corrected migration list + enumerated docs-sync + plumbing note'
+      from: spec_fix
+      to: spec_review
+      checks:
+        - cmd: ls docs/superpowers/specs/t23-*.md
+          exit: 0
+    - at: "2026-07-17T16:07:12Z"
+      by: Grigorii Pashukhin
+      why: 're-review found one more parallel occurrence: README.md:46 (+ru) ''epic>task>subtask is just the default config'' becomes false'
+      from: spec_review
+      to: spec_fix
+    - at: "2026-07-17T16:07:56Z"
+      by: Grigorii Pashukhin
+      why: added README:46 (+ru) to docs-sync; all review findings resolved
+      from: spec_fix
+      to: spec_review
+      checks:
+        - cmd: ls docs/superpowers/specs/t23-*.md
+          exit: 0
+    - at: "2026-07-17T16:08:10Z"
+      by: Grigorii Pashukhin
+      why: agent spec review passed after 2 fix rounds; migration list + docs-sync enumerated and verified
+      from: spec_review
+      to: spec_human_review
+    - at: "2026-07-17T16:10:11Z"
+      by: Grigorii Pashukhin
+      why: human signed off the spec (Grigorii)
+      from: spec_human_review
+      to: planning
+    - at: "2026-07-17T16:16:00Z"
+      by: Grigorii Pashukhin
+      why: implementation plan written (3 tasks, TDD, concrete code)
+      from: planning
+      to: plan_review
+      checks:
+        - cmd: ls docs/superpowers/plans/t23-*.md
+          exit: 0
+    - at: "2026-07-17T16:33:07Z"
+      by: Grigorii Pashukhin
+      why: 'plan_review (empirical APPROVE + completeness NEEDS-CHANGES): plan missed 6 Go _test.go files (8 init sites) that bootstrap default then add --type epic — go test ./internal/cli would fail; also DRY-fold validity into existing TestInitLoadValidate; broaden Step 9 grep for RU/backtick occurrences'
+      from: plan_review
+      to: plan_fix
+    - at: "2026-07-17T16:35:38Z"
+      by: Grigorii Pashukhin
+      why: 'plan fixes: Go-test migration added, validity DRY-folded, grep broadened'
+      from: plan_fix
+      to: plan_review
+      checks:
+        - cmd: ls docs/superpowers/plans/t23-*.md
+          exit: 0
+    - at: "2026-07-17T16:43:08Z"
+      by: Grigorii Pashukhin
+      why: 'plan re-review: 2nd blocking miss in ANOTHER package — internal/adapter/yaml/task_test.go initDefault helper inits default, 4 fns Create Type:epic -> ''no prefix'' under flat default; also Step 6 referenced nonexistent TestTemplatesValidate'
+      from: plan_review
+      to: plan_fix
+    - at: "2026-07-17T16:44:31Z"
+      by: Grigorii Pashukhin
+      why: 'plan fix: adapter task_test.go helper migrated; all Go-test packages now covered'
+      from: plan_fix
+      to: plan_review
+      checks:
+        - cmd: ls docs/superpowers/plans/t23-*.md
+          exit: 0
+    - at: "2026-07-17T16:51:54Z"
+      by: Grigorii Pashukhin
+      why: agent plan review passed after 2 fix rounds (exhaustive repo-wide test sweep confirms complete)
+      from: plan_review
+      to: plan_human_review
+    - at: "2026-07-17T17:12:26Z"
+      by: Grigorii Pashukhin
+      why: human signed off the plan (Grigorii)
+      from: plan_human_review
+      to: implementing
+    - at: "2026-07-17T17:25:26Z"
+      by: Grigorii Pashukhin
+      why: 'implemented: flat default template + hierarchy + docs; make check green, smoke verified'
+      from: implementing
+      to: impl_review
+      checks:
+        - cmd: make check
+          exit: 0
+    - at: "2026-07-17T17:56:33Z"
+      by: Grigorii Pashukhin
+      why: adversarial code review passed (APPROVE); make check green, smoke verified
+      from: impl_review
+      to: approved

@@ -13,7 +13,7 @@ import (
 var _ mtt.TaskStore = (*Store)(nil)
 
 func TestListNamesCorruptFile(t *testing.T) {
-	root := initDefault(t)
+	root := initHierarchy(t)
 	// A zero-byte task file (the mint-window / crash artifact from A1): Unmarshal
 	// yields a zero DTO, toDomain fails on the empty id. The List error must name
 	// the offending file so it is a one-command fix at volume.
@@ -34,7 +34,7 @@ func TestListNamesCorruptFile(t *testing.T) {
 }
 
 func TestGetNamesCorruptFile(t *testing.T) {
-	root := initDefault(t)
+	root := initHierarchy(t)
 	// A non-empty but domain-invalid file (empty id) — corrupt, not absent. The
 	// wrapped error must NOT be ErrNotFound (that would mis-map to exit 4).
 	bad := filepath.Join(root, ".mtt", "tasks", "t98.yaml")
@@ -56,17 +56,17 @@ func TestGetNamesCorruptFile(t *testing.T) {
 	}
 }
 
-func initDefault(t *testing.T) string {
+func initHierarchy(t *testing.T) string {
 	t.Helper()
 	root := t.TempDir()
-	if err := Init(root, "default", "demo", false); err != nil {
+	if err := Init(root, "hierarchy", "demo", false); err != nil {
 		t.Fatalf("init: %v", err)
 	}
 	return root
 }
 
 func TestDeleteRemovesFile(t *testing.T) {
-	root := initDefault(t)
+	root := initHierarchy(t)
 	s := NewTaskStore(root)
 	created, err := s.Create(mtt.Task{Type: "epic", Title: "E", Status: "tbd", Created: fixedTime(), Updated: fixedTime()})
 	if err != nil {
@@ -81,14 +81,14 @@ func TestDeleteRemovesFile(t *testing.T) {
 }
 
 func TestDeleteAbsentIsNotFound(t *testing.T) {
-	root := initDefault(t)
+	root := initHierarchy(t)
 	if err := NewTaskStore(root).Delete("t99"); !errors.Is(err, mtt.ErrNotFound) {
 		t.Fatalf("Delete absent = %v; want ErrNotFound", err)
 	}
 }
 
 func TestStoreCreateAndGet(t *testing.T) {
-	root := initDefault(t)
+	root := initHierarchy(t)
 	s := NewTaskStore(root)
 
 	e1, err := s.Create(mtt.Task{Type: "epic", Title: "build auth", Status: "tbd", Created: fixedTime(), Updated: fixedTime()})
@@ -124,7 +124,7 @@ func TestStoreCreateAndGet(t *testing.T) {
 }
 
 func TestStoreList(t *testing.T) {
-	root := initDefault(t)
+	root := initHierarchy(t)
 	s := NewTaskStore(root)
 
 	if tasks, err := s.List(); err != nil || len(tasks) != 0 {
@@ -153,7 +153,7 @@ func TestStoreList(t *testing.T) {
 }
 
 func TestStoreUpdate(t *testing.T) {
-	root := initDefault(t)
+	root := initHierarchy(t)
 	s := NewTaskStore(root)
 
 	created, err := s.Create(mtt.Task{Type: "epic", Title: "old", Status: "tbd", Created: fixedTime(), Updated: fixedTime()})

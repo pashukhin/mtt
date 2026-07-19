@@ -9,7 +9,7 @@ import (
 )
 
 func TestInitLoadValidate(t *testing.T) {
-	for _, name := range []string{"default", "coding"} {
+	for _, name := range []string{"default", "coding", "hierarchy"} {
 		root := t.TempDir()
 		if err := Init(root, name, "demo", false); err != nil {
 			t.Fatalf("init %s: %v", name, err)

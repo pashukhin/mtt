@@ -1,7 +1,7 @@
 # init a project, add tasks, then list/filter/edit
 mkdir proj
 cd proj
-exec mtt init
+exec mtt init --template hierarchy
 stdout 'initialized'
 
 exec mtt add --type epic 'build auth'
