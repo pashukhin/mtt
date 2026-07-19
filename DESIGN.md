@@ -678,7 +678,8 @@ config only.
 
 `mtt init --template coding` ships example coding types — `feature`/`bugfix`/`refactor` — each with its own
 gated Definition of Done (branch + lint/test; `bugfix` also requires a failing test first; `refactor`
-requires no public-API diff), as a ready-made demo of the enforcement value.
+requires no public-API diff), as a ready-made demo of the enforcement value. See `demo/` for a runnable,
+tested end-to-end walkthrough of this template.
 
 ## Dependencies
 
