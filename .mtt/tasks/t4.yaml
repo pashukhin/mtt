@@ -1,7 +1,7 @@
 id: t4
 type: task
 title: coding-template demo — showcase the coding flow end-to-end
-status: speccing
+status: spec_review
 priority: medium
 tags:
     - demo
@@ -9,7 +9,7 @@ tags:
 depends_on:
     - t23
 created: "2026-07-10T13:51:25Z"
-updated: "2026-07-19T05:03:20Z"
+updated: "2026-07-19T05:05:27Z"
 history:
     - at: "2026-07-19T05:03:20Z"
       by: Grigorii Pashukhin
@@ -20,4 +20,12 @@ history:
         - cmd: git switch task/t4 || (git switch main && git switch -c task/t4)
           exit: 0
         - cmd: test -f .mtt/tasks/t4.yaml || { echo "task file absent on this branch — its add has not reached main (merge/commit the branch that created it first)" >&2; false; }
+          exit: 0
+    - at: "2026-07-19T05:05:27Z"
+      by: Grigorii Pashukhin
+      why: 'spec written: runnable+tested coding demo, 3 gate stories'
+      from: speccing
+      to: spec_review
+      checks:
+        - cmd: ls docs/superpowers/specs/t4-*.md
           exit: 0
