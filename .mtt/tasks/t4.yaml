@@ -1,7 +1,7 @@
 id: t4
 type: task
 title: coding-template demo — showcase the coding flow end-to-end
-status: planning
+status: plan_review
 priority: medium
 tags:
     - demo
@@ -9,7 +9,7 @@ tags:
 depends_on:
     - t23
 created: "2026-07-10T13:51:25Z"
-updated: "2026-07-19T07:08:05Z"
+updated: "2026-07-19T07:13:51Z"
 history:
     - at: "2026-07-19T05:03:20Z"
       by: Grigorii Pashukhin
@@ -52,3 +52,11 @@ history:
       why: human signed off the spec (Grigorii)
       from: spec_human_review
       to: planning
+    - at: "2026-07-19T07:13:51Z"
+      by: Grigorii Pashukhin
+      why: plan written (2 tasks, full demo script + Go guard)
+      from: planning
+      to: plan_review
+      checks:
+        - cmd: ls docs/superpowers/plans/t4-*.md
+          exit: 0
