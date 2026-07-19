@@ -1,7 +1,7 @@
 id: t4
 type: task
 title: coding-template demo — showcase the coding flow end-to-end
-status: plan_fix
+status: plan_review
 priority: medium
 tags:
     - demo
@@ -9,7 +9,7 @@ tags:
 depends_on:
     - t23
 created: "2026-07-10T13:51:25Z"
-updated: "2026-07-19T07:20:50Z"
+updated: "2026-07-19T07:21:33Z"
 history:
     - at: "2026-07-19T05:03:20Z"
       by: Grigorii Pashukhin
@@ -65,3 +65,11 @@ history:
       why: 'plan review: empirical APPROVE (script flawless, 3 blocks + 3 dones verified); 2 doc-nav nits in Task 2 (DESIGN grep anchor breaks on a backtick; README.ru heading is Документация)'
       from: plan_review
       to: plan_fix
+    - at: "2026-07-19T07:21:33Z"
+      by: Grigorii Pashukhin
+      why: doc-nav nits fixed; empirical plan review passed (script flawless)
+      from: plan_fix
+      to: plan_review
+      checks:
+        - cmd: ls docs/superpowers/plans/t4-*.md
+          exit: 0
