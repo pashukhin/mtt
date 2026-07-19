@@ -127,3 +127,4 @@ See [CLI_REFERENCE.md](CLI_REFERENCE.md) for the full command surface and exit c
 - [CLI_REFERENCE.md](CLI_REFERENCE.md) — the full CLI command surface (target design)
 - [AGENTS.md](AGENTS.md) — how to work in this repo (rules, gate, principles)
 - [TASKS.md](TASKS.md) — the phased plan
+- [Coding-template demo](demo/README.md) — a runnable, tested `coding`-flow walkthrough

@@ -1,7 +1,7 @@
 id: t4
 type: task
 title: coding-template demo — showcase the coding flow end-to-end
-status: tbd
+status: approved
 priority: medium
 tags:
     - demo
@@ -9,4 +9,103 @@ tags:
 depends_on:
     - t23
 created: "2026-07-10T13:51:25Z"
-updated: "2026-07-12T07:18:28Z"
+updated: "2026-07-19T09:25:00Z"
+history:
+    - at: "2026-07-19T05:03:20Z"
+      by: Grigorii Pashukhin
+      why: 'brainstormed: runnable+tested coding demo (demo/coding-flow.sh + Go test, all 3 types, bilingual README)'
+      from: tbd
+      to: speccing
+      checks:
+        - cmd: git switch task/t4 || (git switch main && git switch -c task/t4)
+          exit: 0
+        - cmd: test -f .mtt/tasks/t4.yaml || { echo "task file absent on this branch — its add has not reached main (merge/commit the branch that created it first)" >&2; false; }
+          exit: 0
+    - at: "2026-07-19T05:05:27Z"
+      by: Grigorii Pashukhin
+      why: 'spec written: runnable+tested coding demo, 3 gate stories'
+      from: speccing
+      to: spec_review
+      checks:
+        - cmd: ls docs/superpowers/specs/t4-*.md
+          exit: 0
+    - at: "2026-07-19T05:16:12Z"
+      by: Grigorii Pashukhin
+      why: 'spec review (empirical PASS-WITH-NITS): fold in git-config-user, refactor git-diff semantics (unstaged tracked edit only; commit pkg baseline), internal-change-outside-pkg, set-e guards, unset MTT_DIR/ROLE, story ordering, assert on script stdout'
+      from: spec_review
+      to: spec_fix
+    - at: "2026-07-19T05:18:14Z"
+      by: Grigorii Pashukhin
+      why: spec fixes applied from empirical review
+      from: spec_fix
+      to: spec_review
+      checks:
+        - cmd: ls docs/superpowers/specs/t4-*.md
+          exit: 0
+    - at: "2026-07-19T05:18:14Z"
+      by: Grigorii Pashukhin
+      why: empirical spec review passed (all 3 gate stories verified at exit 3); fixes folded in
+      from: spec_review
+      to: spec_human_review
+    - at: "2026-07-19T07:08:05Z"
+      by: Grigorii Pashukhin
+      why: human signed off the spec (Grigorii)
+      from: spec_human_review
+      to: planning
+    - at: "2026-07-19T07:13:51Z"
+      by: Grigorii Pashukhin
+      why: plan written (2 tasks, full demo script + Go guard)
+      from: planning
+      to: plan_review
+      checks:
+        - cmd: ls docs/superpowers/plans/t4-*.md
+          exit: 0
+    - at: "2026-07-19T07:20:50Z"
+      by: Grigorii Pashukhin
+      why: 'plan review: empirical APPROVE (script flawless, 3 blocks + 3 dones verified); 2 doc-nav nits in Task 2 (DESIGN grep anchor breaks on a backtick; README.ru heading is Документация)'
+      from: plan_review
+      to: plan_fix
+    - at: "2026-07-19T07:21:33Z"
+      by: Grigorii Pashukhin
+      why: doc-nav nits fixed; empirical plan review passed (script flawless)
+      from: plan_fix
+      to: plan_review
+      checks:
+        - cmd: ls docs/superpowers/plans/t4-*.md
+          exit: 0
+    - at: "2026-07-19T07:21:33Z"
+      by: Grigorii Pashukhin
+      why: empirical plan review APPROVE (3 blocks + 3 dones verified on live binary); Task-2 doc nits fixed
+      from: plan_review
+      to: plan_human_review
+    - at: "2026-07-19T08:53:43Z"
+      by: Grigorii Pashukhin
+      why: human signed off the plan (Grigorii)
+      from: plan_human_review
+      to: implementing
+    - at: "2026-07-19T08:58:05Z"
+      by: Grigorii Pashukhin
+      why: 'implemented: runnable+tested coding demo (all 3 gate stories) + bilingual docs; make check + make demo green'
+      from: implementing
+      to: impl_review
+      checks:
+        - cmd: make check
+          exit: 0
+    - at: "2026-07-19T09:05:16Z"
+      by: Grigorii Pashukhin
+      why: 'code review: guard false-passes on pass-path gate regression (unguarded expected-pass moves under set -u); fix set -u -> set -eu (expect_block''s || keeps intentional blocks -e-safe)'
+      from: impl_review
+      to: impl_fix
+    - at: "2026-07-19T09:06:26Z"
+      by: Grigorii Pashukhin
+      why: guard hardened to set -eu; sabotage now caught, normal run green; make check green
+      from: impl_fix
+      to: impl_review
+      checks:
+        - cmd: make check
+          exit: 0
+    - at: "2026-07-19T09:25:00Z"
+      by: Grigorii Pashukhin
+      why: code review passed (guard hardened to set -eu; make check + make demo green)
+      from: impl_review
+      to: approved

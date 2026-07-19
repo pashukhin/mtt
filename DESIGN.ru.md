@@ -686,7 +686,8 @@ types:
 
 `mtt init --template coding` кладёт примерные coding-типы — `feature`/`bugfix`/`refactor` — каждый со своим
 гейтящим Definition of Done (ветка + lint/test; у `bugfix` ещё сначала падающий тест; у `refactor` — без
-diff публичного API), как готовое демо ценности enforcement.
+diff публичного API), как готовое демо ценности enforcement. Запускаемый end-to-end проход по этому
+шаблону — в `demo/`.
 
 ## Зависимости
 
