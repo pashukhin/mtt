@@ -11,3 +11,9 @@ import (
 func taskNotFound(id mtt.TaskID) error {
 	return fmt.Errorf("task %q: %w", id, mtt.ErrNotFound)
 }
+
+// noteNotFound is the uniform "note not found" error for single-note-by-slug
+// commands. Wrapping mtt.ErrNotFound lets exitCode map it to 4 (like taskNotFound).
+func noteNotFound(slug mtt.NoteSlug) error {
+	return fmt.Errorf("note %q: %w", string(slug), mtt.ErrNotFound)
+}
