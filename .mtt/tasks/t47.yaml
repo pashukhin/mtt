@@ -1,14 +1,14 @@
 id: t47
 type: task
 title: 'KB seed — notes CRUD: KnowledgeStore port + note add/list/show/edit/rm over .mtt/knowledge/<slug>.md'
-status: plan_review
+status: plan_human_review
 priority: high
 tags:
     - core
     - kb
     - release
 created: "2026-07-19T10:19:07Z"
-updated: "2026-07-19T10:53:19Z"
+updated: "2026-07-19T11:05:59Z"
 history:
     - at: "2026-07-19T10:20:54Z"
       by: Grigorii Pashukhin
@@ -55,3 +55,8 @@ history:
       checks:
         - cmd: ls docs/superpowers/plans/t47-*.md
           exit: 0
+    - at: "2026-07-19T11:05:59Z"
+      by: Grigorii Pashukhin
+      why: adversarial plan review APPROVE (verified vs codebase incl. empirical serialization round-trip); folded in optional minors
+      from: plan_review
+      to: plan_human_review
