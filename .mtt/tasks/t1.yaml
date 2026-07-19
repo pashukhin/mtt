@@ -6,5 +6,7 @@ priority: high
 tags:
     - core
     - release
+depends_on:
+    - t47
 created: "2026-07-10T13:51:25Z"
-updated: "2026-07-12T07:18:28Z"
+updated: "2026-07-19T10:19:07Z"

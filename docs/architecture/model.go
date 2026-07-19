@@ -153,7 +153,10 @@ type TypeName string
 // scoped to one flow — a bare StatusName is not globally unique. [T1]
 type StatusName string
 
-// NoteSlug is a knowledge-note identity. [T3]
+// NoteSlug is a knowledge-note identity (shipped t47). Unlike the opaque TaskID/
+// TypeName/StatusName, it is STRUCTURALLY validated (kebab-ASCII) — a deliberate
+// exception to the opaque-identity rule, because it is a filesystem path segment
+// (.mtt/knowledge/<slug>.md); the regex is the traversal defense. [T1]
 type NoteSlug string
 
 // NewStatusName illustrates the identity smart-constructor pattern: normalize /
@@ -282,16 +285,17 @@ type Check struct {
 	Exit int
 }
 
-// Note is a knowledge-base entry (markdown + frontmatter). Notes are versioned:
-// saving creates a new version linked to its predecessor. The domain seam is a
-// version identity + predecessor link; external KBs use their native versioning. [T3]
+// Note is a knowledge-base entry: a markdown Body + metadata (shipped t47). Identity
+// is Slug (the on-disk file name). A note is single-version in the seed; its history
+// is git. Versioning (a Version identity + predecessor link) is deferred to t6, as is
+// Refs on notes (all refs handling is t1). [T1]
 type Note struct {
-	Slug        NoteSlug
-	Version     int
-	Predecessor int // 0 for the first version
-	Body        string
-	Refs        []Ref
-	Created     time.Time
+	Slug    NoteSlug
+	Title   string
+	Tags    []string
+	Body    string
+	Created time.Time
+	Updated time.Time
 }
 
 // ---------------------------------------------------------------------------
@@ -373,12 +377,16 @@ type SearchStore interface {
 }
 
 // KnowledgeStore is the second independent port (KB, like Confluence atop Jira).
-// A pairing = a configured pair of adapters; the two ports can be mixed. [T3]
+// A pairing = a configured pair of adapters; the two ports can be mixed. The base
+// port shipped in t47 (below): no version param, no history — a note has one current
+// version. Versioning (GetNote(slug, version), NoteHistory) and full-text search
+// (SearchStore) are deferred to t6 as separate optional capabilities. [T1]
 type KnowledgeStore interface {
-	CreateNote(n Note) (Note, error)
-	GetNote(slug NoteSlug, version int) (Note, error) // version 0 = latest
+	CreateNote(n Note) (Note, error) // errors if the slug exists (no clobber)
+	GetNote(slug NoteSlug) (Note, error)
 	ListNotes() ([]Note, error)
-	NoteHistory(slug NoteSlug) ([]Note, error)
+	UpdateNote(n Note) (Note, error)
+	DeleteNote(slug NoteSlug) error
 }
 
 // CapabilityReporter is implemented by every backend so the CLI (`mtt caps`) and

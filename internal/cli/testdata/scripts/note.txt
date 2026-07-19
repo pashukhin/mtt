@@ -1,0 +1,64 @@
+# note CRUD + slug validation + json + stdin body
+mkdir proj
+cd proj
+exec mtt init
+
+# create with title, tags, inline body
+exec mtt note add auth-design --title 'Auth design' --tag design --tag auth --body 'First body.'
+stdout 'created auth-design'
+
+# show renders header + body
+exec mtt note show auth-design
+stdout 'title:   Auth design'
+stdout 'First body\.'
+
+# list finds it by tag (slug on its own row)
+exec mtt note list --tag design
+stdout '^auth-design'
+
+# json: slug present, tags a (non-null) array
+exec mtt note show auth-design --json
+stdout '"slug": "auth-design"'
+stdout '"tags":'
+
+# edit replaces tags + bumps the note; created is kept
+exec mtt note edit auth-design --tag design
+stdout 'updated auth-design'
+
+# body via stdin (--file -; the txtar file unpacks into $WORK, not proj)
+stdin $WORK/body.md
+exec mtt note add via-stdin --file -
+exec mtt note show via-stdin
+stdout 'hello from stdin'
+
+# empty body allowed (and shows with a header, no body)
+exec mtt note add stub --title Stub
+stdout 'created stub'
+exec mtt note show stub
+stdout '^stub'
+
+# create refuses an existing slug (no clobber)
+! exec mtt note add auth-design --title dup
+stderr 'already exists'
+
+# invalid slugs rejected (traversal + uppercase)
+! exec mtt note add ../evil
+stderr 'invalid note slug'
+! exec mtt note add Auth
+stderr 'invalid note slug'
+
+# not-found surfaces the note noun (exit 4 via ErrNotFound mapping)
+! exec mtt note show missing
+stderr 'note "missing"'
+
+# list --json is a non-null array
+exec mtt note list --json
+stdout '\['
+
+# rm deletes; a second show fails
+exec mtt note rm stub
+stdout 'removed stub'
+! exec mtt note show stub
+
+-- body.md --
+hello from stdin

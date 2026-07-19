@@ -1,0 +1,79 @@
+id: t47
+type: task
+title: 'KB seed — notes CRUD: KnowledgeStore port + note add/list/show/edit/rm over .mtt/knowledge/<slug>.md'
+status: approved
+priority: high
+tags:
+    - core
+    - kb
+    - release
+created: "2026-07-19T10:19:07Z"
+updated: "2026-07-19T11:53:26Z"
+history:
+    - at: "2026-07-19T10:20:54Z"
+      by: Grigorii Pashukhin
+      from: tbd
+      to: speccing
+      checks:
+        - cmd: git switch task/t47 || (git switch main && git switch -c task/t47)
+          exit: 0
+        - cmd: test -f .mtt/tasks/t47.yaml || { echo "task file absent on this branch — its add has not reached main (merge/commit the branch that created it first)" >&2; false; }
+          exit: 0
+    - at: "2026-07-19T10:21:10Z"
+      by: Grigorii Pashukhin
+      from: speccing
+      to: spec_review
+      checks:
+        - cmd: ls docs/superpowers/specs/t47-*.md
+          exit: 0
+    - at: "2026-07-19T10:30:55Z"
+      by: Grigorii Pashukhin
+      why: 'adversarial spec review: 1 blocker (frontmatter/body serialization contract undefined), 4 major (traversal enforcement, NoteSlug deviation framing, CapKnowledge YAGNI, model.go docs-sync), 4 minor'
+      from: spec_review
+      to: spec_fix
+    - at: "2026-07-19T10:35:25Z"
+      by: Grigorii Pashukhin
+      from: spec_fix
+      to: spec_review
+      checks:
+        - cmd: ls docs/superpowers/specs/t47-*.md
+          exit: 0
+    - at: "2026-07-19T10:38:42Z"
+      by: Grigorii Pashukhin
+      why: 'adversarial re-review APPROVE: all 9 findings resolved, no regressions, serialization contract precise'
+      from: spec_review
+      to: spec_human_review
+    - at: "2026-07-19T10:43:21Z"
+      by: Grigorii Pashukhin
+      why: human sign-off on spec (maintainer confirmed)
+      from: spec_human_review
+      to: planning
+    - at: "2026-07-19T10:53:19Z"
+      by: Grigorii Pashukhin
+      from: planning
+      to: plan_review
+      checks:
+        - cmd: ls docs/superpowers/plans/t47-*.md
+          exit: 0
+    - at: "2026-07-19T11:05:59Z"
+      by: Grigorii Pashukhin
+      why: adversarial plan review APPROVE (verified vs codebase incl. empirical serialization round-trip); folded in optional minors
+      from: plan_review
+      to: plan_human_review
+    - at: "2026-07-19T11:11:44Z"
+      by: Grigorii Pashukhin
+      why: human sign-off on plan (maintainer confirmed)
+      from: plan_human_review
+      to: implementing
+    - at: "2026-07-19T11:29:57Z"
+      by: Grigorii Pashukhin
+      from: implementing
+      to: impl_review
+      checks:
+        - cmd: make check
+          exit: 0
+    - at: "2026-07-19T11:53:26Z"
+      by: Grigorii Pashukhin
+      why: adversarial code review APPROVE; make check green; verified end-to-end
+      from: impl_review
+      to: approved

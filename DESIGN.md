@@ -37,7 +37,7 @@ agent layer over the existing stack).
 | Recategorization | A task's **type is immutable**; recategorize = close old + create new + link via `refs` |
 | History | Append-only `history` of transitions in the task (audit + reconstruction); flow — via git |
 | Capabilities | Features are optional per adapter (`Capabilities()` / `ErrUnsupported`); YAML is the reference |
-| KB & refs | KB is an optional capability; `refs` (note/task/comment/url) — verifiable references, ≠ `depends_on` |
+| KB & refs | KB is an optional capability (base `KnowledgeStore` + `mtt note` shipped t47; versioning/search → t6); `refs` (note/task/comment/url) — verifiable references, ≠ `depends_on` (all refs → t1) |
 | Hosting | GitHub `github.com/pashukhin/mtt`, GitHub Actions |
 | Branching | Per-task branch → PR → CI green → squash into `main` |
 | Gate | `make check`: gofmt + vet + golangci-lint + `go test -race` |
@@ -187,7 +187,7 @@ the Gantt chart, and dependencies are computed in memory. SQLite isn't needed fo
     t17.yaml             # task 17 (parent: e1)
     s3.yaml              # subtask 3 (parent: t17)
   knowledge/
-    <slug>.md            # KB notes (markdown + YAML frontmatter)   [phase 5]
+    <slug>.md            # KB notes (markdown + YAML frontmatter); base store shipped t47 (search + versioning [t6])
 ```
 
 `.mtt/` is **committed** (it's project data). This is the YAML adapter's layout; edits go **only** through
@@ -784,11 +784,23 @@ tested end-to-end walkthrough of this template.
 **The KB is an optional capability** (`KnowledgeStore`, like Confluence atop Jira). Without it, knowledge
 lives right in tasks and comments; the "knowledge base" is them and the links between them.
 
-**Notes are versioned.** A `KnowledgeStore` never destroys note content: saving a note (`note edit`)
-creates a **new version linked to its predecessor**, so history is preserved — same principle as task
-transition `history`. This is a KB capability: the YAML reference adapter implements it (git also tracks
-the files); external backends (Confluence, …) rely on their **native** versioning — that's their concern.
-The domain seam is that a `Note` carries a version identity + a predecessor link. Deferred to phase 5 with the KB.
+> **Shipped (t47): the base `KnowledgeStore` + `mtt note`.** Create/list/show/edit/rm markdown notes, one
+> file per note at `.mtt/knowledge/<slug>.md` — YAML frontmatter (`title`/`tags`/`created`/`updated`, a
+> struct DTO for deterministic order) + the markdown **body verbatim**; the slug is the **file name**, not
+> duplicated in frontmatter. Identity is an **explicit, structurally-validated `NoteSlug`** (kebab-ASCII —
+> the path-traversal guard, re-validated at every adapter path-building method and on load). `CreateNote` is
+> **reserve-then-write** (`O_CREATE|O_EXCL` then atomic temp+rename) — no silent clobber. Tags reuse the task
+> vocabulary (explicit `--tag` only — **no** hashtag extraction from the markdown body). A note is
+> **single-version** (history is git); note **versioning + full-text search stay deferred to t6** (separate
+> optional capabilities), and **all `refs` handling — including refs on notes — is t1**. `mtt.ErrNotFound` is
+> reused (exit 4) via a CLI `noteNotFound` wrapper. No `CapKnowledge`/`Capabilities()` yet (e4_t6).
+
+**Notes will be versioned (t6, deferred).** A future `KnowledgeStore` capability will never destroy note
+content: saving a note would create a **new version linked to its predecessor**, so history is preserved —
+same principle as task transition `history`. The YAML reference adapter would implement it (git also tracks
+the files); external backends (Confluence, …) rely on their **native** versioning. The domain seam is that a
+`Note` carries a version identity + a predecessor link. **The t47 base store is single-version** (its history
+is git); versioning is deferred to t6.
 
 Tasks and comments carry **`refs`** — a structured list of verifiable references:
 
@@ -806,8 +818,8 @@ refs:
 - **Semantics:** on write — warn about a dangling reference (not a hard block); `mtt check` — a repo-wide
   sweep for dangling references; `mtt show` — the references and **backlinks** ("what references this"); on
   deleting a target — warn about incoming references.
-- **Phases:** the `refs` field — in the model already at phase 1; resolving `task`/`comment` — phase 2;
-  `note` + `mtt check`/backlinks — phase 5 (with the KB).
+- **Phases:** the `refs` field — in the model already at phase 1; all `refs` wiring + verification
+  (`task`/`comment`/`url`, and `note` now that the KB target exists since t47) + `mtt check`/backlinks — **t1**.
 
 ## Search (phase 5)
 

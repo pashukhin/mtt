@@ -45,7 +45,8 @@ status + next moves. All commands support --json.`,
 	root.Flags().Bool("version", false, "print the version and exit")
 	root.AddCommand(newVersionCmd(), newInitCmd(), newTypesCmd(), newAddCmd(), newShowCmd(),
 		newListCmd(), newEditCmd(), newTreeCmd(), newDepCmd(), newReadyCmd(), newStatusCmd(),
-		newUseCmd(), newRmCmd(), newRoadmapCmd(), newTagCmd(), newTagsCmd(), newDoCmd())
+		newUseCmd(), newRmCmd(), newRoadmapCmd(), newTagCmd(), newTagsCmd(), newDoCmd(),
+		newNoteCmd())
 	return root
 }
 
