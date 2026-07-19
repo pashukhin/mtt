@@ -1,7 +1,7 @@
 id: t4
 type: task
 title: coding-template demo — showcase the coding flow end-to-end
-status: approved
+status: done
 priority: medium
 tags:
     - demo
@@ -9,7 +9,7 @@ tags:
 depends_on:
     - t23
 created: "2026-07-10T13:51:25Z"
-updated: "2026-07-19T09:25:00Z"
+updated: "2026-07-19T09:35:04Z"
 history:
     - at: "2026-07-19T05:03:20Z"
       by: Grigorii Pashukhin
@@ -109,3 +109,13 @@ history:
       why: code review passed (guard hardened to set -eu; make check + make demo green)
       from: impl_review
       to: approved
+    - at: "2026-07-19T09:35:04Z"
+      by: Grigorii Pashukhin
+      why: 'PR #42 squash-merged to main (Grigorii)'
+      from: approved
+      to: done
+      checks:
+        - cmd: git switch main
+          exit: 0
+        - cmd: 'git log -n 200 --format=%s | grep "^t4: " || { echo "no squash commit \"t4: …\" on local main: git pull first, and check the PR/merge title started with \"t4: \"" >&2; false; }'
+          exit: 0
