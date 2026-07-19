@@ -418,12 +418,12 @@ make demo            # соберёт mtt и прогонит демо
 
 Read the `## Docs` section of `README.md`; add a bullet (match the existing list style), e.g.:
 `- [Coding-template demo](demo/README.md) — a runnable, tested `coding`-flow walkthrough.`
-Mirror in `README.ru.md`:
+Mirror in `README.ru.md` — its heading is **`## Документация`** (not `## Docs`):
 `- [Демо coding-шаблона](demo/README.ru.md) — запускаемый проход по потоку `coding`.`
 
 - [ ] **Step 4: Add a demo pointer in DESIGN (EN + RU).**
 
-Grep the coding-init paragraph: `grep -n 'mtt init --template coding ships example coding types' DESIGN.md DESIGN.ru.md`. Append a sentence to that paragraph in both files, e.g.:
+Grep the coding-init paragraph — note the phrase has a backtick (`` `mtt init --template coding` ships … ``), so grep a break-free substring: `grep -n 'ships example coding types' DESIGN.md` and `grep -n 'coding-типы' DESIGN.ru.md` (paragraph is at DESIGN.md:679 / DESIGN.ru.md:687). Append a sentence to that paragraph in both files, e.g.:
 - EN: `See `demo/` for a runnable, tested end-to-end walkthrough of this template.`
 - RU: `Запускаемый end-to-end проход по этому шаблону — в `demo/`.`
 
