@@ -1,7 +1,7 @@
 id: t4
 type: task
 title: coding-template demo — showcase the coding flow end-to-end
-status: plan_review
+status: plan_human_review
 priority: medium
 tags:
     - demo
@@ -73,3 +73,8 @@ history:
       checks:
         - cmd: ls docs/superpowers/plans/t4-*.md
           exit: 0
+    - at: "2026-07-19T07:21:33Z"
+      by: Grigorii Pashukhin
+      why: empirical plan review APPROVE (3 blocks + 3 dones verified on live binary); Task-2 doc nits fixed
+      from: plan_review
+      to: plan_human_review
