@@ -81,7 +81,8 @@ Note{ Slug NoteSlug; Title string; Tags []string; Body string; Created, Updated 
   (the `HistoryStore` pattern), not baked into the base port.
 - **No** `Refs` field — all ref handling (on tasks, comments, **and** notes) belongs to `t1`. The seed's note
   is refs-free; `t1` adds `Note.Refs` additively when it does refs end-to-end.
-- **Tags reuse the task vocabulary** (`pkg/mtt` `NormalizeTag`, normalized + deduped + **sorted** set) — DRY.
+- **Tags reuse the task vocabulary** (normalized + deduped + **sorted** via `core.canonicalTags`; each value
+  via `pkg/mtt` `NormalizeTag`) — DRY. See D5 for the exact helper split.
   **Explicit `--tag` only; no hashtag extraction from title/body.** A markdown body is full of `#` headings,
   which would produce garbage tags — so unlike tasks (which extract `#hashtags` from title/description), notes
   do not scan text for tags.
