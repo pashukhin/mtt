@@ -1,0 +1,11 @@
+id: t47
+type: task
+title: 'KB seed — notes CRUD: KnowledgeStore port + note add/list/show/edit/rm over .mtt/knowledge/<slug>.md'
+status: tbd
+priority: high
+tags:
+    - core
+    - kb
+    - release
+created: "2026-07-19T10:19:07Z"
+updated: "2026-07-19T10:19:07Z"
