@@ -12,12 +12,15 @@ RELEASE_LDFLAGS := -ldflags "-X github.com/pashukhin/mtt/internal/cli.version=$(
 DIST      := dist
 PLATFORMS := linux/amd64 linux/arm64 darwin/amd64 darwin/arm64 windows/amd64
 
-.PHONY: all build install smoke release test fmt fmt-check vet lint check tidy clean
+.PHONY: all build install smoke release test fmt fmt-check vet lint check tidy clean demo
 
 all: build
 
 build:
 	$(GO) build $(BUILD_LDFLAGS) -o $(BIN) ./cmd/mtt
+
+demo: build
+	@MTT_BIN=$(abspath $(BIN)) bash demo/coding-flow.sh
 
 install:
 	$(GO) install $(BUILD_LDFLAGS) ./cmd/mtt
