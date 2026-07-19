@@ -1,14 +1,14 @@
 id: t47
 type: task
 title: 'KB seed — notes CRUD: KnowledgeStore port + note add/list/show/edit/rm over .mtt/knowledge/<slug>.md'
-status: spec_review
+status: spec_human_review
 priority: high
 tags:
     - core
     - kb
     - release
 created: "2026-07-19T10:19:07Z"
-updated: "2026-07-19T10:35:25Z"
+updated: "2026-07-19T10:38:42Z"
 history:
     - at: "2026-07-19T10:20:54Z"
       by: Grigorii Pashukhin
@@ -38,3 +38,8 @@ history:
       checks:
         - cmd: ls docs/superpowers/specs/t47-*.md
           exit: 0
+    - at: "2026-07-19T10:38:42Z"
+      by: Grigorii Pashukhin
+      why: 'adversarial re-review APPROVE: all 9 findings resolved, no regressions, serialization contract precise'
+      from: spec_review
+      to: spec_human_review
