@@ -1,14 +1,14 @@
 id: t47
 type: task
 title: 'KB seed — notes CRUD: KnowledgeStore port + note add/list/show/edit/rm over .mtt/knowledge/<slug>.md'
-status: spec_review
+status: spec_fix
 priority: high
 tags:
     - core
     - kb
     - release
 created: "2026-07-19T10:19:07Z"
-updated: "2026-07-19T10:21:10Z"
+updated: "2026-07-19T10:30:55Z"
 history:
     - at: "2026-07-19T10:20:54Z"
       by: Grigorii Pashukhin
@@ -26,3 +26,8 @@ history:
       checks:
         - cmd: ls docs/superpowers/specs/t47-*.md
           exit: 0
+    - at: "2026-07-19T10:30:55Z"
+      by: Grigorii Pashukhin
+      why: 'adversarial spec review: 1 blocker (frontmatter/body serialization contract undefined), 4 major (traversal enforcement, NoteSlug deviation framing, CapKnowledge YAGNI, model.go docs-sync), 4 minor'
+      from: spec_review
+      to: spec_fix
