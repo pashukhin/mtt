@@ -1,7 +1,7 @@
 id: t4
 type: task
 title: coding-template demo — showcase the coding flow end-to-end
-status: spec_human_review
+status: planning
 priority: medium
 tags:
     - demo
@@ -9,7 +9,7 @@ tags:
 depends_on:
     - t23
 created: "2026-07-10T13:51:25Z"
-updated: "2026-07-19T05:18:14Z"
+updated: "2026-07-19T07:08:05Z"
 history:
     - at: "2026-07-19T05:03:20Z"
       by: Grigorii Pashukhin
@@ -47,3 +47,8 @@ history:
       why: empirical spec review passed (all 3 gate stories verified at exit 3); fixes folded in
       from: spec_review
       to: spec_human_review
+    - at: "2026-07-19T07:08:05Z"
+      by: Grigorii Pashukhin
+      why: human signed off the spec (Grigorii)
+      from: spec_human_review
+      to: planning
