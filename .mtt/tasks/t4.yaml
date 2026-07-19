@@ -1,7 +1,7 @@
 id: t4
 type: task
 title: coding-template demo — showcase the coding flow end-to-end
-status: plan_human_review
+status: implementing
 priority: medium
 tags:
     - demo
@@ -9,7 +9,7 @@ tags:
 depends_on:
     - t23
 created: "2026-07-10T13:51:25Z"
-updated: "2026-07-19T07:21:33Z"
+updated: "2026-07-19T08:53:43Z"
 history:
     - at: "2026-07-19T05:03:20Z"
       by: Grigorii Pashukhin
@@ -78,3 +78,8 @@ history:
       why: empirical plan review APPROVE (3 blocks + 3 dones verified on live binary); Task-2 doc nits fixed
       from: plan_review
       to: plan_human_review
+    - at: "2026-07-19T08:53:43Z"
+      by: Grigorii Pashukhin
+      why: human signed off the plan (Grigorii)
+      from: plan_human_review
+      to: implementing
