@@ -1,7 +1,7 @@
 id: t1
 type: task
 title: references — structured, verifiable refs on tasks/comments (note/task/comment/url)
-status: plan_review
+status: plan_human_review
 priority: high
 tags:
     - core
@@ -9,7 +9,7 @@ tags:
 depends_on:
     - t47
 created: "2026-07-10T13:51:25Z"
-updated: "2026-07-20T07:30:55Z"
+updated: "2026-07-20T07:33:01Z"
 history:
     - at: "2026-07-20T05:48:32Z"
       by: Grigorii Pashukhin
@@ -68,3 +68,8 @@ history:
       checks:
         - cmd: ls docs/superpowers/plans/t1-*.md
           exit: 0
+    - at: "2026-07-20T07:33:01Z"
+      by: Grigorii Pashukhin
+      why: adversarial plan_review PASS (re-verified by same reviewer); both blocking build/coverage issues fixed
+      from: plan_review
+      to: plan_human_review
