@@ -1,7 +1,7 @@
 id: t44
 type: task
 title: mtt self-update — update the installed binary in place (latest release asset + SHA256 verify, or go install fallback)
-status: impl_fix
+status: impl_review
 priority: medium
 tags:
     - dx
@@ -9,7 +9,7 @@ tags:
 depends_on:
     - t30
 created: "2026-07-12T06:25:37Z"
-updated: "2026-07-20T14:53:02Z"
+updated: "2026-07-20T14:56:06Z"
 description: 'New-feature request from the s009.x assessment. A convenience command to update an installed mtt to the latest published release. Design-open: mechanism (query the GitHub releases API for the latest v* tag, download the platform asset mtt_<os>_<arch> + verify against SHA256SUMS, atomically replace argv0; OR shell out to go install .../cmd/mtt@latest when a Go toolchain is present), safely locating the running binary, --check-only/opt-in, and interaction with the release workflow. Only meaningful once v0.9.0 is tagged and published.'
 history:
     - at: "2026-07-20T12:33:11Z"
@@ -115,3 +115,10 @@ history:
       why: 'adversarial code review: B1 defaultGobin split-before-trim bug (reports GOPATH not GOPATH/bin) + untested; S1 --json check-only must not emit asset; N2 github non-200 test; N4 target resolved eagerly in check-only'
       from: impl_review
       to: impl_fix
+    - at: "2026-07-20T14:56:06Z"
+      by: Grigorii Pashukhin
+      from: impl_fix
+      to: impl_review
+      checks:
+        - cmd: make check
+          exit: 0
