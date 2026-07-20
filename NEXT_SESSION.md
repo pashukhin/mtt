@@ -4,6 +4,14 @@ A living handoff doc. Update it at the end of each session (what's done / what's
 
 ## Where we are
 
+- **NOW (post-s009, tracked by mtt task — not session number):** the whole post-dogfood wave shipped on
+  `main` via flow v2 — flow polish / auto-push / PR-open (`c1`–`c10`, `t19`/`t21`/`t27`), `t30` (semver: the
+  version is now a `git describe` stamp, **not** the old `0.N.M` session scheme), `t23` (flat default
+  template), `t29` (pre-flow knowledge home), `t4` (coding-template demo), `t45` (JSON `--json` consistency),
+  and **`t47` (KB seed — base `KnowledgeStore` + `mtt note add/list/show/edit/rm`)**. **`v0.9.0` is still
+  UNTAGGED** (no git tags yet — release positioning + the tag are outstanding; see `t42` user-docs audit).
+  **Next task: `t1` (references)** — its target (notes) now exists. The live queue is `mtt roadmap`; the
+  historical per-session log below is kept as-is (past tense) — trust `mtt roadmap` for what's current.
 - **Phase 0 (scaffold) + sessions 001–006 + 006.5 + 006.7 + 007 + 008 + 008.5 + 008.6 + 008.7 + 008.9 + 008.95 + 008.97 + 008.98 + 009 are DONE** (version `0.9.0-dev`, `make check` green).
   **Session 009 (dogfood / self-host)** — this repo now tracks its own development in a committed `.mtt/`
   (config + tasks). **Revised to FLOW V2 in the same PR** (post-review redesign: delivery tail with a
@@ -234,7 +242,8 @@ account for the key invariants from DESIGN.md:
 1. [CLAUDE.md](CLAUDE.md) — the entry point
 2. [AGENTS.md](AGENTS.md) — rules, gate, principles, DoD
 3. [DESIGN.md](DESIGN.md) — architecture and decisions
-4. [TASKS.md](TASKS.md) — the plan; next up — section **e2 (Phase 1)**
+4. `mtt roadmap` — the **live queue** (what's next, dependency-ordered). `TASKS.md` is **frozen history**
+   (pre-s009); it is NOT the plan. Backlog view: `mtt list --tag backlog`; tag vocabulary: `mtt tags`.
 
 ## Activating guards (superpowers)
 
@@ -265,47 +274,43 @@ resolved graph, and open gaps. Two decisions locked there that shape s005:
   at its boundary (`toDomain` fails fast on a corrupt empty `id`/`type`/`status`). s005 is written against the
   typed contract. Constructors reject empty, no transform; `Ref.ID` stays `string`; `NoteSlug` deferred (KB).
 
-## Next task — post-merge follow-ups, then s009.5 (release positioning); s009 dogfood is DONE
+## Next task — t1 (references)
 
-> **✅ s009 — dogfood / self-host (DONE, e5_t2), revised to FLOW V2 in the same PR** (post-review redesign —
-> see `docs/superpowers/specs/2026-07-11-flow-v2-mechanized-delivery-design.md`): committed `.mtt/` with **two
-> types** — `task` (design open: spec → plan → implement, 15 statuses incl. the delivery tail `approved →
-> deliver → done`, where `deliver` verifies the squash trace on main so `done` = "in main") and `chore`
-> (design already fixed elsewhere: implement → review → deliver). Flat backlog migration (active `t1`–`t5` +
-> 15 `backlog`-tagged), `TestRepoDogfoodConfig` guard v2 (overlay-proof), e2e `dogfood.txt` v2, repo squash
-> setting = `PR_TITLE`, version `0.9.0-dev`. `TASKS.md` is **frozen**; the live queue is `mtt roadmap`.
->
-> **First actions after PR #23 squash-merges** (each is an `mtt add` on main; commit `.mtt` after the batch):
-> 1. `mtt add 'post-persist actions — after: commands on transitions (run AFTER the task-file write; retires
->    the two manual state-commits and S4)' --priority high` — type `task` (design open: ordering, failure
->    semantics, rollback interplay).
-> 2. `mtt add 'team semantics of the YAML store — state visibility across branches (state-branch / auto-push
->    / claim mechanics)' --tag backlog --priority low`
-> 3. Migration completeness (review finding #7): `mtt add` the orphaned items — `epics/hierarchy return (+
->    re-parenting, corrected self-ref phase gate)`, `advance + modes + cross-edge compensation (parked —
->    unpark trigger recorded)`, `cancelled-blocker semantics revisit`, `durable edit audit`, `boards/views`
->    — all `--tag backlog --priority low`; widen t18's title with the dropped sub-items (resolve current for
->    all single-task ops; multi-assignee providers) via `mtt edit`.
-> 4. The remaining small review-fix items (dead asserts, e2e overlap trims — see the 2026-07-10 review
->    summaries in the flow-v2 spec's findings table) as type `chore`.
-> 5. **`chore`: scrub `MTT_DIR`/`MTT_BY` from the env in the cli test harness** (dress-rehearsal finding,
->    2026-07-11): the testscript suite inherits the caller's env, so a user with `MTT_DIR` exported gets a
->    deterministically RED `make check` (scripts' cwd-discovery is overridden) — and under flow v2 a red
->    check is a blocked `mtt submit` gate. Repro: `MTT_DIR=<anywhere> make check`. Fix in the
->    `internal/cli` testscript setup (unset/override both vars), not in user docs.
->
-> **Then chore s009.5 — release positioning** (e5_t2a): README/DESIGN "why not harness hooks?" + 2026-scan
-> refresh + AGENTS.md adoption snippet (R0–R3), `pkg/mtt.ErrUnsupported` (A7), the stale-`current` exit-code
-> decision (A5), config-review-as-code + Windows-honesty doc lines — then the **user-triggered `v0.9.0` tag**.
-> (Specified in `docs/superpowers/notes/2026-07-09-positioning-and-agent-ux-analysis.md` (R*/U*) and
-> `…-s009-readiness-and-architecture-audit.md` (S*/A*), with repro + fix sketch + acceptance. s009.5 is a
-> session, not an mtt task — it lives here, not in the queue.)
->
-> Then work the queue: references (**`t1` in mtt** / s010), comments (s011), actor profiles (s012) — tracked
-> in mtt (`mtt roadmap`), not here — driving each through flow v2 (the first live `start → … → deliver` run).
-> `advance`/`start-done meta-walk` + modes + roles-on-edges + node-level status-actions + cross-edge
-> compensation stay **PARKED** (roles-on-edges and node-actions are migrated as `t10`/`t11`; advance/modes/
-> compensation get their backlog task in step 3 above).
+**t1 (references)** — structured, verifiable `refs` on tasks/notes (kinds `note`/`task`/`comment`/`url`). It
+is `tbd`, `high`, tags `core`+`release`, `depends_on t47` (now terminal → unblocked). Its target — notes —
+exists since `t47`, so `note` refs can finally be verified. Drive it through flow v2 (`mtt start t1` →
+speccing → …). Primer:
+
+- **Already in code (t1 = wiring + verification, NOT introducing the types):** `pkg/mtt/task.go` has
+  `Ref{Kind,ID,Label}`, `RefKind` (VO: `note`/`task`/`comment`/`url` + `Valid()`), and reserved
+  `Task.Refs`/`Comment.Refs`. The KB target is real: `mtt.KnowledgeStore` (`GetNote`/`ListNotes`/…),
+  `NoteSlug`, `yaml.NewKnowledgeStore`. `Ref.ID` stays a plain `string` (heterogeneous target); backlinks are
+  **computed**, not stored.
+- **Design intent (DESIGN.md → "Knowledge base and references (`refs`)"):** refs are informational, **not**
+  `depends_on` (non-blocking). Verification is **capability-aware**: `task`/`comment` via `TaskStore`
+  (always); `note` via `KnowledgeStore` (now present); `url` external, not resolved (optional HEAD later). On
+  write — warn on a dangling ref (not a hard block); `mtt check` — a repo-wide dangling sweep; `mtt show` —
+  refs + backlinks ("what references this"); on deleting a target — warn about incoming refs. CLI sketch
+  (`CLI_REFERENCE.md` → References + `mtt check`): `mtt ref add <id> <kind>:<target> [--label]`, `mtt ref rm`,
+  `mtt ref list`.
+- **Open questions for the brainstorm (do NOT pre-decide):**
+  1. **Which ref kinds ship in t1.** By the t47 principle (don't ship a kind whose target doesn't exist):
+     `task`/`url`/`note` are real now; **`comment` has no target yet** (comments are `t2`) → likely defer the
+     `comment` kind to `t2`, exactly as `note` was deferred until the KB (t47).
+  2. **Which entities carry refs:** tasks + **notes** (`t47` deferred `Note.Refs` to t1) + comments (per #1).
+  3. **CLI surface:** a `mtt ref add/rm/list` group (like `dep`/`note`) vs flags on `add`/`edit`; the
+     `kind:target` form; `--json`.
+  4. **`mtt check`** (dangling sweep — exit code? format?) + backlinks in `mtt show` (a computed reverse index).
+  5. **Dangling policy:** warn-not-block on write; behaviour when a target is `rm`'d.
+  6. **`url`:** not resolved in tests (no network); maybe syntax-only validation.
+- **Pattern to copy:** `t47`'s spec/plan — `docs/superpowers/{specs,plans}/t47-kb-seed.md` — and its two
+  adversarial reviews. Same loop: brainstorm → spec → adversarial spec_review → human sign-off → plan →
+  adversarial plan_review → human sign-off → TDD → impl_review → approve → PR → merge → deliver.
+
+After t1: the KB follow-ups **`t48`** (note versioning), **`t49`** (extract hashtags from note text), **`t50`**
+(tool-wide `--tag` csv ergonomics), and **`t2`** (comments) — per `mtt roadmap`. `advance`/meta-walk + modes +
+roles-on-edges + node-level status-actions + cross-edge compensation stay **PARKED** (`t10`/`t11`/`t35`).
+Release positioning + the **`v0.9.0` tag** are still outstanding (bundled with `t42` user-docs audit).
 
 ### Carry-over lessons (009 flow v2 — mechanized delivery)
 - **GitHub `squash_merge_commit_title=COMMIT_OR_PR_TITLE` takes the subject FROM THE COMMIT on
