@@ -1,7 +1,7 @@
 id: t1
 type: task
 title: references — structured, verifiable refs on tasks/comments (note/task/comment/url)
-status: implementing
+status: impl_review
 priority: high
 tags:
     - core
@@ -9,7 +9,7 @@ tags:
 depends_on:
     - t47
 created: "2026-07-10T13:51:25Z"
-updated: "2026-07-20T08:00:06Z"
+updated: "2026-07-20T08:34:05Z"
 history:
     - at: "2026-07-20T05:48:32Z"
       by: Grigorii Pashukhin
@@ -78,3 +78,10 @@ history:
       why: human sign-off on plan (maintainer); inline execution of all 12 tasks
       from: plan_human_review
       to: implementing
+    - at: "2026-07-20T08:34:05Z"
+      by: Grigorii Pashukhin
+      from: implementing
+      to: impl_review
+      checks:
+        - cmd: make check
+          exit: 0
