@@ -40,11 +40,12 @@ func (s NoteSlug) Valid() bool { return s != "" && noteSlugRe.MatchString(string
 // Version/Predecessor are deferred to t6. Refs are verifiable references (t1) —
 // informational and non-blocking, like a task's.
 type Note struct {
-	Slug    NoteSlug
-	Title   string
-	Tags    []string
-	Body    string
-	Refs    []Ref
-	Created time.Time
-	Updated time.Time
+	Slug     NoteSlug
+	Title    string
+	Tags     []string
+	Priority Priority
+	Body     string
+	Refs     []Ref
+	Created  time.Time
+	Updated  time.Time
 }
