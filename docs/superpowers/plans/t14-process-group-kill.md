@@ -282,18 +282,23 @@ Under "Responsibilities" (near the shell-seam bullet), add a bullet:
 
 - [ ] **Step 2: Update `DESIGN.md` (EN)**
 
-Grep first: `grep -n "per-command timeout" DESIGN.md DESIGN.ru.md`. In the flow/`Runner` prose (the sentence
-"…the working directory is the project root; there's a per-command timeout; the escape hatch `--no-run`…",
-around line 379), extend the per-command-timeout clause:
+Grep first: `grep -n "per-command timeout" DESIGN.md` → the flow/`Runner` sentence on line 379 ("…the working
+directory is the project root; **per-command timeout;** the escape hatch `--no-run`…"). NOTE: the phrase is
+line-wrapped in the source ("there's a" ends line 378, "per-command timeout;" starts line 379), so anchor on
+the unique fragment `per-command timeout;` (line 385's "per-command timeout is config-driven" has no semicolon
+— no ambiguity). Literal find/replace:
 
-Find: `there's a per-command timeout;`
-Replace: `there's a per-command timeout (which SIGKILLs the command's **whole process group** on Unix — so a gate that backgrounds a daemon can't outlive its deadline; best-effort on Windows);`
+Find: `per-command timeout;`
+Replace: `per-command timeout (which SIGKILLs the command's **whole process group** on Unix — so a gate that backgrounds a daemon can't outlive its deadline; best-effort on Windows);`
 
 - [ ] **Step 3: Update `DESIGN.ru.md` (RU mirror)**
 
-Apply the equivalent Russian clause at the parallel occurrence (grep located it in Step 2). Match the existing
-RU phrasing for "per-command timeout" and add: "…(на Unix по таймауту SIGKILL'ится **вся группа процессов**
-команды — фоновый демон, порождённый гейтом, не переживёт дедлайн; на Windows — best-effort)".
+The RU mirror uses `таймаут на команду`, not the English phrase. Grep: `grep -n "таймаут на команду"
+DESIGN.ru.md` → line 384 ("…рабочая директория — корень проекта; таймаут на команду; escape-hatch
+`--no-run`…"). Literal find/replace at that parallel occurrence:
+
+Find: `таймаут на команду;`
+Replace: `таймаут на команду (на Unix по таймауту SIGKILL'ится **вся группа процессов** команды — фоновый демон, порождённый гейтом, не переживёт дедлайн; на Windows — best-effort);`
 
 - [ ] **Step 4: Update `CHANGELOG.md`**
 
