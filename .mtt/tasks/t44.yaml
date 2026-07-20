@@ -1,7 +1,7 @@
 id: t44
 type: task
 title: mtt self-update — update the installed binary in place (latest release asset + SHA256 verify, or go install fallback)
-status: approved
+status: done
 priority: medium
 tags:
     - dx
@@ -9,7 +9,7 @@ tags:
 depends_on:
     - t30
 created: "2026-07-12T06:25:37Z"
-updated: "2026-07-20T14:57:53Z"
+updated: "2026-07-20T15:12:20Z"
 description: 'New-feature request from the s009.x assessment. A convenience command to update an installed mtt to the latest published release. Design-open: mechanism (query the GitHub releases API for the latest v* tag, download the platform asset mtt_<os>_<arch> + verify against SHA256SUMS, atomically replace argv0; OR shell out to go install .../cmd/mtt@latest when a Go toolchain is present), safely locating the running binary, --check-only/opt-in, and interaction with the release workflow. Only meaningful once v0.9.0 is tagged and published.'
 history:
     - at: "2026-07-20T12:33:11Z"
@@ -127,3 +127,13 @@ history:
       why: 'adversarial code review PASS (2 rounds): B1 gobin-parse bug + S1 json + N2 + N4 resolved; AC-9 real-binary smoke proven (sha256 matches published SHA256SUMS)'
       from: impl_review
       to: approved
+    - at: "2026-07-20T15:12:20Z"
+      by: Grigorii Pashukhin
+      why: 'PR #46 squash-merged to main; delivering'
+      from: approved
+      to: done
+      checks:
+        - cmd: git switch main
+          exit: 0
+        - cmd: 'git log -n 200 --format=%s | grep "^t44: " || { echo "no squash commit \"t44: …\" on local main: git pull first, and check the PR/merge title started with \"t44: \"" >&2; false; }'
+          exit: 0
