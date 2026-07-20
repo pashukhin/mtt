@@ -1,7 +1,7 @@
 id: t1
 type: task
 title: references — structured, verifiable refs on tasks/comments (note/task/comment/url)
-status: impl_review
+status: approved
 priority: high
 tags:
     - core
@@ -9,7 +9,7 @@ tags:
 depends_on:
     - t47
 created: "2026-07-10T13:51:25Z"
-updated: "2026-07-20T08:45:05Z"
+updated: "2026-07-20T08:46:31Z"
 history:
     - at: "2026-07-20T05:48:32Z"
       by: Grigorii Pashukhin
@@ -97,3 +97,8 @@ history:
       checks:
         - cmd: make check
           exit: 0
+    - at: "2026-07-20T08:46:31Z"
+      by: Grigorii Pashukhin
+      why: adversarial code review PASS (re-verified); make check green; verified end-to-end with the real binary
+      from: impl_review
+      to: approved
