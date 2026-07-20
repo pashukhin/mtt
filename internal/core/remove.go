@@ -36,8 +36,8 @@ type RemoveResult struct {
 // Remove deletes a single id. Thin wrapper over RemoveMany([id]); it forwards the
 // pre-flight error and, absent that, the per-id result error. The empty-slice check
 // guards the [0] index on the pre-flight path.
-func (r *Remover) Remove(id mtt.TaskID, force bool, by, why string) error {
-	res, err := r.RemoveMany([]mtt.TaskID{id}, force, by, why)
+func (r *Remover) Remove(id mtt.TaskID, force bool, by, why string, bl Backlinks) error {
+	res, err := r.RemoveMany([]mtt.TaskID{id}, force, by, why, bl)
 	if err != nil {
 		return err
 	}
@@ -51,7 +51,7 @@ func (r *Remover) Remove(id mtt.TaskID, force bool, by, why string) error {
 // DepGraph are built ONCE from a single List snapshot for the referenced-check
 // (counting only referents OUTSIDE the id set, so deleting a subtree needs no
 // --force). Under --force each id is audited BEFORE it is deleted.
-func (r *Remover) RemoveMany(ids []mtt.TaskID, force bool, by, why string) ([]RemoveResult, error) {
+func (r *Remover) RemoveMany(ids []mtt.TaskID, force bool, by, why string, bl Backlinks) ([]RemoveResult, error) {
 	if force {
 		if missing := missingAttributionFields(true, true, by, why); len(missing) > 0 {
 			return nil, fmt.Errorf("%w: %s", ErrMissingAttribution, strings.Join(missing, ", "))
@@ -79,7 +79,7 @@ func (r *Remover) RemoveMany(ids []mtt.TaskID, force bool, by, why string) ([]Re
 
 	results := make([]RemoveResult, 0, len(ordered))
 	for _, id := range ordered {
-		results = append(results, RemoveResult{ID: id, Err: r.removeOne(id, force, by, why, set, idx, g, snapErr)})
+		results = append(results, RemoveResult{ID: id, Err: r.removeOne(id, force, by, why, set, idx, g, bl, snapErr)})
 	}
 	return results, nil
 }
@@ -88,7 +88,7 @@ func (r *Remover) RemoveMany(ids []mtt.TaskID, force bool, by, why string) ([]Re
 // a successful append does it delete (a failed append leaves the task — and the
 // current pointer — intact). Without --force the subgraph referenced-check runs and
 // no audit is written.
-func (r *Remover) removeOne(id mtt.TaskID, force bool, by, why string, set map[mtt.TaskID]bool, idx Index, g DepGraph, snapErr error) error {
+func (r *Remover) removeOne(id mtt.TaskID, force bool, by, why string, set map[mtt.TaskID]bool, idx Index, g DepGraph, bl Backlinks, snapErr error) error {
 	if _, err := r.store.Get(id); err != nil {
 		if errors.Is(err, mtt.ErrNotFound) {
 			return fmt.Errorf("task %q: %w", id, mtt.ErrNotFound)
@@ -99,7 +99,7 @@ func (r *Remover) removeOne(id mtt.TaskID, force bool, by, why string, set map[m
 		if snapErr != nil {
 			return snapErr
 		}
-		if refs := externalReferencingIDs(idx, g, id, set); len(refs) > 0 {
+		if refs := externalReferencingIDs(idx, g, bl, id, set); len(refs) > 0 {
 			return fmt.Errorf("task %q is referenced by %s; use --force to delete anyway",
 				id, strings.Join(refs, ", "))
 		}
@@ -112,24 +112,43 @@ func (r *Remover) removeOne(id mtt.TaskID, force bool, by, why string, set map[m
 	return r.store.Delete(id)
 }
 
-// externalReferencingIDs returns the ids referencing id — its children (via Index)
-// and its dependents (via DepGraph), deduped, children first — EXCLUDING any id in
-// the deletion set (they are being deleted too — the subgraph-ignore). Both sources
-// are already ordered by lessByRecency, so the result is deterministic.
-func externalReferencingIDs(idx Index, g DepGraph, id mtt.TaskID, set map[mtt.TaskID]bool) []string {
-	seen := map[mtt.TaskID]bool{}
+// externalReferencingIDs returns the ids referencing id — its children (via Index),
+// its dependents (via DepGraph), and its incoming refs (via the cross-store
+// Backlinks), deduped, in that order — EXCLUDING any TASK id in the deletion set
+// (they are being deleted too — the subgraph-ignore). A note carrier is never in the
+// set, so an incoming note ref always blocks; it is labelled "note:<slug>" to keep
+// the "referenced by" message unambiguous. Structural sources are ordered by
+// lessByRecency and refs by NewBacklinks, so the result is deterministic.
+func externalReferencingIDs(idx Index, g DepGraph, bl Backlinks, id mtt.TaskID, set map[mtt.TaskID]bool) []string {
+	seen := map[string]bool{}
 	var out []string
-	add := func(refs []mtt.Task) {
+	addTask := func(refs []mtt.Task) {
 		for _, t := range refs {
-			if set[t.ID] || seen[t.ID] {
+			if set[t.ID] || seen[string(t.ID)] {
 				continue
 			}
-			seen[t.ID] = true
+			seen[string(t.ID)] = true
 			out = append(out, string(t.ID))
 		}
 	}
-	add(idx.Children(id))
-	add(g.Dependents(id))
+	addTask(idx.Children(id))
+	addTask(g.Dependents(id))
+	for _, ref := range bl.To(mtt.RefTask, string(id)) {
+		if ref.Carrier == mtt.RefNote {
+			key := "note:" + ref.ID
+			if seen[key] {
+				continue
+			}
+			seen[key] = true
+			out = append(out, key)
+			continue
+		}
+		if set[mtt.TaskID(ref.ID)] || seen[ref.ID] {
+			continue
+		}
+		seen[ref.ID] = true
+		out = append(out, ref.ID)
+	}
 	return out
 }
 

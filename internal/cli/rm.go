@@ -45,7 +45,7 @@ func newRmCmd() *cobra.Command {
 				return err
 			}
 			remover := core.NewRemover(yaml.NewTaskStore(root), yaml.NewAuditStore(root), time.Now)
-			results, err := remover.RemoveMany(ids, force, by, why)
+			results, err := remover.RemoveMany(ids, force, by, why, nil)
 			if err != nil {
 				return err // pre-flight ErrMissingAttribution → exit 2 (raw, not via reportBulk)
 			}
@@ -96,7 +96,7 @@ func runRmSingle(cmd *cobra.Command, root, idArg string, force, dryRun bool) err
 		}
 	}
 	remover := core.NewRemover(store, yaml.NewAuditStore(root), time.Now)
-	if err := remover.Remove(id, force, by, why); err != nil {
+	if err := remover.Remove(id, force, by, why, nil); err != nil {
 		return err
 	}
 	if err := clearCurrentIfMatches(root, id); err != nil {

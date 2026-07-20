@@ -36,7 +36,7 @@ func tbdTask(id mtt.TaskID) mtt.Task {
 
 func TestRemoveUnreferenced(t *testing.T) {
 	m := newMemStore(mtt.Task{ID: "t1", Type: "task", Status: "tbd"})
-	if err := remover(m).Remove("t1", false, "", ""); err != nil {
+	if err := remover(m).Remove("t1", false, "", "", nil); err != nil {
 		t.Fatalf("remove: %v", err)
 	}
 	if _, ok := m.byID["t1"]; ok {
@@ -46,7 +46,7 @@ func TestRemoveUnreferenced(t *testing.T) {
 
 func TestRemoveNotFound(t *testing.T) {
 	m := newMemStore()
-	err := remover(m).Remove("t99", false, "", "")
+	err := remover(m).Remove("t99", false, "", "", nil)
 	if !errors.Is(err, mtt.ErrNotFound) {
 		t.Fatalf("err = %v; want ErrNotFound", err)
 	}
@@ -58,7 +58,7 @@ func TestRemoveRejectedByDependent(t *testing.T) {
 		mtt.Task{ID: "t1", Type: "task", Status: "tbd"},
 		mtt.Task{ID: "t2", Type: "task", Status: "tbd", DependsOn: []mtt.TaskID{"t1"}},
 	)
-	err := remover(m).Remove("t1", false, "", "")
+	err := remover(m).Remove("t1", false, "", "", nil)
 	if err == nil || !strings.Contains(err.Error(), "t2") {
 		t.Fatalf("err = %v; want a referenced-by-t2 error", err)
 	}
@@ -73,7 +73,7 @@ func TestRemoveRejectedByChild(t *testing.T) {
 		mtt.Task{ID: "t1", Type: "task", Status: "tbd"},
 		mtt.Task{ID: "s1", Type: "subtask", Status: "tbd", Parent: "t1"},
 	)
-	err := remover(m).Remove("t1", false, "", "")
+	err := remover(m).Remove("t1", false, "", "", nil)
 	if err == nil || !strings.Contains(err.Error(), "s1") {
 		t.Fatalf("err = %v; want a referenced-by-s1 error", err)
 	}
@@ -84,7 +84,7 @@ func TestRemoveForceDeletesReferenced(t *testing.T) {
 		mtt.Task{ID: "t1", Type: "task", Status: "tbd"},
 		mtt.Task{ID: "t2", Type: "task", Status: "tbd", DependsOn: []mtt.TaskID{"t1"}},
 	)
-	if err := remover(m).Remove("t1", true, "alice", "cleanup"); err != nil {
+	if err := remover(m).Remove("t1", true, "alice", "cleanup", nil); err != nil {
 		t.Fatalf("force remove: %v", err)
 	}
 	if _, ok := m.byID["t1"]; ok {
@@ -98,7 +98,7 @@ func TestRemoveReferencedDedup(t *testing.T) {
 		mtt.Task{ID: "t1", Type: "task", Status: "tbd"},
 		mtt.Task{ID: "t2", Type: "task", Status: "tbd", Parent: "t1", DependsOn: []mtt.TaskID{"t1"}},
 	)
-	err := remover(m).Remove("t1", false, "", "")
+	err := remover(m).Remove("t1", false, "", "", nil)
 	if err == nil || strings.Count(err.Error(), "t2") != 1 {
 		t.Fatalf("err = %v; want t2 mentioned exactly once", err)
 	}
@@ -110,7 +110,7 @@ func TestRemoveManySubgraphIgnore(t *testing.T) {
 		mtt.Task{ID: "e1", Type: "epic", Status: "tbd"},
 		mtt.Task{ID: "t1", Type: "task", Status: "tbd", Parent: "e1"},
 	)
-	res, err := remover(m).RemoveMany([]mtt.TaskID{"e1", "t1"}, false, "", "")
+	res, err := remover(m).RemoveMany([]mtt.TaskID{"e1", "t1"}, false, "", "", nil)
 	if err != nil {
 		t.Fatalf("pre-flight: %v", err)
 	}
@@ -128,7 +128,7 @@ func TestRemoveManyExternalRejects(t *testing.T) {
 		mtt.Task{ID: "e1", Type: "epic", Status: "tbd"},
 		mtt.Task{ID: "t1", Type: "task", Status: "tbd", Parent: "e1"},
 	)
-	res, err := remover(m).RemoveMany([]mtt.TaskID{"e1"}, false, "", "")
+	res, err := remover(m).RemoveMany([]mtt.TaskID{"e1"}, false, "", "", nil)
 	if err != nil {
 		t.Fatalf("pre-flight: %v", err)
 	}
@@ -145,7 +145,7 @@ func TestRemoveManyForceOverrides(t *testing.T) {
 		mtt.Task{ID: "e1", Type: "epic", Status: "tbd"},
 		mtt.Task{ID: "t1", Type: "task", Status: "tbd", Parent: "e1"},
 	)
-	res, err := remover(m).RemoveMany([]mtt.TaskID{"e1"}, true, "alice", "cleanup")
+	res, err := remover(m).RemoveMany([]mtt.TaskID{"e1"}, true, "alice", "cleanup", nil)
 	if err != nil {
 		t.Fatalf("pre-flight: %v", err)
 	}
@@ -160,7 +160,7 @@ func TestRemoveManyForceOverrides(t *testing.T) {
 func TestRemoveManyBestEffort(t *testing.T) {
 	// a missing id does not stop the rest; each has its own result.
 	m := newMemStore(mtt.Task{ID: "t1", Type: "task", Status: "tbd"})
-	res, err := remover(m).RemoveMany([]mtt.TaskID{"t1", "t99"}, false, "", "")
+	res, err := remover(m).RemoveMany([]mtt.TaskID{"t1", "t99"}, false, "", "", nil)
 	if err != nil {
 		t.Fatalf("pre-flight: %v", err)
 	}
@@ -177,7 +177,7 @@ func TestRemoveManyBestEffort(t *testing.T) {
 
 func TestRemoveManyDedup(t *testing.T) {
 	m := newMemStore(mtt.Task{ID: "t1", Type: "task", Status: "tbd"})
-	res, err := remover(m).RemoveMany([]mtt.TaskID{"t1", "t1"}, false, "", "")
+	res, err := remover(m).RemoveMany([]mtt.TaskID{"t1", "t1"}, false, "", "", nil)
 	if err != nil {
 		t.Fatalf("pre-flight: %v", err)
 	}
@@ -191,7 +191,7 @@ func TestRemoveManyDedup(t *testing.T) {
 func TestRemoveMany_ForceRequiresWhoAndWhy(t *testing.T) {
 	store := newMemStore(tbdTask("t1"))
 	audit := &fakeAudit{}
-	res, err := NewRemover(store, audit, testClock).RemoveMany([]mtt.TaskID{"t1"}, true, "", "")
+	res, err := NewRemover(store, audit, testClock).RemoveMany([]mtt.TaskID{"t1"}, true, "", "", nil)
 	if !errors.Is(err, ErrMissingAttribution) {
 		t.Fatalf("want pre-flight ErrMissingAttribution, got %v", err)
 	}
@@ -209,7 +209,7 @@ func TestRemoveMany_ForceRequiresWhoAndWhy(t *testing.T) {
 func TestRemoveMany_ForceAppendsBeforeDelete(t *testing.T) {
 	store := newMemStore(tbdTask("t1"))
 	audit := &fakeAudit{}
-	res, err := NewRemover(store, audit, testClock).RemoveMany([]mtt.TaskID{"t1"}, true, "alice", "cleanup")
+	res, err := NewRemover(store, audit, testClock).RemoveMany([]mtt.TaskID{"t1"}, true, "alice", "cleanup", nil)
 	if err != nil {
 		t.Fatalf("pre-flight error: %v", err)
 	}
@@ -228,7 +228,7 @@ func TestRemoveMany_ForceAppendsBeforeDelete(t *testing.T) {
 func TestRemoveMany_AppendFailureSkipsDelete(t *testing.T) {
 	store := newMemStore(tbdTask("t1"), tbdTask("t2"))
 	audit := &fakeAudit{failOnID: "t1"}
-	res, err := NewRemover(store, audit, testClock).RemoveMany([]mtt.TaskID{"t1", "t2"}, true, "alice", "cleanup")
+	res, err := NewRemover(store, audit, testClock).RemoveMany([]mtt.TaskID{"t1", "t2"}, true, "alice", "cleanup", nil)
 	if err != nil {
 		t.Fatalf("pre-flight error: %v", err)
 	}
@@ -246,7 +246,7 @@ func TestRemoveMany_AppendFailureSkipsDelete(t *testing.T) {
 func TestRemoveMany_NoForceUnchanged(t *testing.T) {
 	store := newMemStore(tbdTask("t1"))
 	audit := &fakeAudit{}
-	res, err := NewRemover(store, audit, testClock).RemoveMany([]mtt.TaskID{"t1"}, false, "", "")
+	res, err := NewRemover(store, audit, testClock).RemoveMany([]mtt.TaskID{"t1"}, false, "", "", nil)
 	if err != nil {
 		t.Fatalf("no-force must not pre-flight error: %v", err)
 	}
@@ -255,5 +255,26 @@ func TestRemoveMany_NoForceUnchanged(t *testing.T) {
 	}
 	if len(audit.entries) != 0 {
 		t.Fatal("no audit on non-force delete")
+	}
+}
+
+func TestRemoverRefGuardCrossStore(t *testing.T) {
+	// t5 exists; t2 (task) and note "a" both reference t5 via a ref.
+	tasks := []mtt.Task{
+		{ID: "t5"},
+		{ID: "t2", Refs: []mtt.Ref{{Kind: mtt.RefTask, ID: "t5"}}},
+	}
+	notes := []mtt.Note{{Slug: "a", Refs: []mtt.Ref{{Kind: mtt.RefTask, ID: "t5"}}}}
+	store := newMemStore(tasks...)
+	bl := NewBacklinks(tasks, notes)
+	r := NewRemover(store, &fakeAudit{}, testClock)
+
+	// refuse: referenced by a task AND a note
+	if err := r.Remove("t5", false, "", "", bl); err == nil {
+		t.Fatal("must refuse: t5 referenced by t2 and note a")
+	}
+	// force deletes (leaves dangling)
+	if err := r.Remove("t5", true, "me", "why", bl); err != nil {
+		t.Fatalf("force: %v", err)
 	}
 }
