@@ -90,6 +90,82 @@ func TestPrepareLatestError(t *testing.T) {
 	}
 }
 
+type fakeReplacer struct {
+	path  string
+	bytes []byte
+	calls int
+	err   error
+}
+
+func (f *fakeReplacer) Replace(path string, b []byte) error {
+	f.calls++
+	f.path, f.bytes = path, b
+	return f.err
+}
+
+type fakeInstaller struct {
+	module, version string
+	path            string
+	err             error
+}
+
+func (f *fakeInstaller) Install(_ context.Context, module, version string) (string, error) {
+	f.module, f.version = module, version
+	return f.path, f.err
+}
+
+func TestApplyAsset(t *testing.T) {
+	u := NewSelfUpdater()
+	asset := []byte("new-binary")
+	name := "mtt_v0.9.0_linux_amd64"
+	src := &fakeSource{fetched: map[string][]byte{
+		"https://dl/asset": asset,
+		"https://dl/sums":  sums(name, asset),
+	}}
+	p := Plan{State: UpdateAvailable, Via: ViaAsset, Tag: "v0.9.0", AssetName: name, AssetURL: "https://dl/asset", ChecksumsURL: "https://dl/sums"}
+
+	rep := &fakeReplacer{}
+	res, err := u.Apply(context.Background(), p, src, rep, &fakeInstaller{}, "/usr/local/bin/mtt")
+	if err != nil {
+		t.Fatalf("apply: %v", err)
+	}
+	if rep.calls != 1 || rep.path != "/usr/local/bin/mtt" || string(rep.bytes) != "new-binary" {
+		t.Fatalf("replacer got path=%q bytes=%q calls=%d", rep.path, rep.bytes, rep.calls)
+	}
+	if res.Via != ViaAsset || res.Path != "/usr/local/bin/mtt" {
+		t.Fatalf("result: %+v", res)
+	}
+
+	// checksum mismatch -> error AND Replace NOT called
+	badSrc := &fakeSource{fetched: map[string][]byte{
+		"https://dl/asset": []byte("tampered"),
+		"https://dl/sums":  sums(name, asset), // sums for the ORIGINAL asset
+	}}
+	rep2 := &fakeReplacer{}
+	if _, err := u.Apply(context.Background(), p, badSrc, rep2, &fakeInstaller{}, "/x"); err == nil {
+		t.Fatal("mismatch must error")
+	}
+	if rep2.calls != 0 {
+		t.Fatal("Replace must NOT be called on a verify failure")
+	}
+}
+
+func TestApplyGoInstall(t *testing.T) {
+	u := NewSelfUpdater()
+	inst := &fakeInstaller{path: "/home/u/go/bin/mtt"}
+	p := Plan{State: UpdateAvailable, Via: ViaGoInstall, Tag: "v0.9.0"}
+	res, err := u.Apply(context.Background(), p, &fakeSource{}, &fakeReplacer{}, inst, "/ignored")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if inst.module != "github.com/pashukhin/mtt/cmd/mtt" || inst.version != "v0.9.0" {
+		t.Fatalf("install args: %q %q", inst.module, inst.version)
+	}
+	if res.Via != ViaGoInstall || res.Path != "/home/u/go/bin/mtt" {
+		t.Fatalf("result: %+v", res)
+	}
+}
+
 func sums(name string, data []byte, extra ...string) []byte {
 	sum := sha256.Sum256(data)
 	lines := []string{fmt.Sprintf("%s  %s", hex.EncodeToString(sum[:]), name)}

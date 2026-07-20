@@ -171,3 +171,42 @@ func findAsset(rel mtt.Release, name string) (string, bool) {
 	}
 	return "", false
 }
+
+// Result reports what Apply did.
+type Result struct {
+	Tag  string
+	Via  UpdateVia
+	Path string
+}
+
+// Apply performs the plan. Asset: download asset + SHA256SUMS, verify, replace —
+// verification precedes any write. go-install: shell the toolchain. Only called by
+// the CLI for an UpdateAvailable plan with a concrete Via.
+func (u *SelfUpdater) Apply(ctx context.Context, p Plan, src mtt.ReleaseSource, replacer mtt.BinaryReplacer, installer mtt.GoInstaller, targetPath string) (Result, error) {
+	switch p.Via {
+	case ViaAsset:
+		asset, err := src.Fetch(ctx, p.AssetURL)
+		if err != nil {
+			return Result{}, fmt.Errorf("download asset %q: %w", p.AssetName, err)
+		}
+		checks, err := src.Fetch(ctx, p.ChecksumsURL)
+		if err != nil {
+			return Result{}, fmt.Errorf("download %s: %w", checksumsAsset, err)
+		}
+		if err := verifyChecksum(p.AssetName, asset, checks); err != nil {
+			return Result{}, err
+		}
+		if err := replacer.Replace(targetPath, asset); err != nil {
+			return Result{}, fmt.Errorf("replace %s: %w", targetPath, err)
+		}
+		return Result{Tag: p.Tag, Via: ViaAsset, Path: targetPath}, nil
+	case ViaGoInstall:
+		path, err := installer.Install(ctx, selfUpdateModule, p.Tag)
+		if err != nil {
+			return Result{}, fmt.Errorf("go install %s@%s: %w", selfUpdateModule, p.Tag, err)
+		}
+		return Result{Tag: p.Tag, Via: ViaGoInstall, Path: path}, nil
+	default:
+		return Result{}, fmt.Errorf("no install method: %s", p.Reason)
+	}
+}
