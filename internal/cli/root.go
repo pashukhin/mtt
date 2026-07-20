@@ -46,7 +46,7 @@ status + next moves. All commands support --json.`,
 	root.AddCommand(newVersionCmd(), newInitCmd(), newTypesCmd(), newAddCmd(), newShowCmd(),
 		newListCmd(), newEditCmd(), newTreeCmd(), newDepCmd(), newReadyCmd(), newStatusCmd(),
 		newUseCmd(), newRmCmd(), newRoadmapCmd(), newTagCmd(), newTagsCmd(), newDoCmd(),
-		newNoteCmd())
+		newNoteCmd(), newRefCmd())
 	return root
 }
 
