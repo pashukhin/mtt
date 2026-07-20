@@ -1,7 +1,7 @@
 id: t44
 type: task
 title: mtt self-update — update the installed binary in place (latest release asset + SHA256 verify, or go install fallback)
-status: plan_fix
+status: plan_review
 priority: medium
 tags:
     - dx
@@ -9,7 +9,7 @@ tags:
 depends_on:
     - t30
 created: "2026-07-12T06:25:37Z"
-updated: "2026-07-20T14:07:23Z"
+updated: "2026-07-20T14:10:10Z"
 description: 'New-feature request from the s009.x assessment. A convenience command to update an installed mtt to the latest published release. Design-open: mechanism (query the GitHub releases API for the latest v* tag, download the platform asset mtt_<os>_<arch> + verify against SHA256SUMS, atomically replace argv0; OR shell out to go install .../cmd/mtt@latest when a Go toolchain is present), safely locating the running binary, --check-only/opt-in, and interaction with the release workflow. Only meaningful once v0.9.0 is tagged and published.'
 history:
     - at: "2026-07-20T12:33:11Z"
@@ -86,3 +86,10 @@ history:
       why: 'adversarial plan review: B1 exec-mtt in testscript; S1 split go get/tidy; S2 sharpen AC-8 deviation; S3 AC-7 structural note; N1 merge-imports; N2 dead case; N3 go-install note only when path differs'
       from: plan_review
       to: plan_fix
+    - at: "2026-07-20T14:10:10Z"
+      by: Grigorii Pashukhin
+      from: plan_fix
+      to: plan_review
+      checks:
+        - cmd: ls docs/superpowers/plans/t44-*.md
+          exit: 0
