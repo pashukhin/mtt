@@ -1,0 +1,27 @@
+# mtt check: read-only ref integrity sweep; exit 7 on dangling, 0 on clean/unverified
+mkdir proj
+cd proj
+exec mtt init
+stdout 'initialized'
+exec mtt add 'A'
+stdout 'created t1'
+
+# clean repo -> exit 0
+exec mtt check
+stdout '0 dangling'
+
+# a well-formed url is unverified, NOT a failure -> still exit 0
+exec mtt ref add t1 url:https://example.com/x
+exec mtt check
+stdout '1 unverified'
+stdout '0 dangling'
+
+# a dangling task ref -> non-zero (exit 7), the dangling line is printed
+exec mtt ref add t1 task:t999
+! exec mtt check
+stdout 'task:t1.*task:t999.*dangling'
+stdout '1 dangling'
+
+# --json emits a non-null array with a status per finding (still dangling -> exit 7)
+! exec mtt check --json
+stdout '"status": "dangling"'

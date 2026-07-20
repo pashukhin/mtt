@@ -72,6 +72,7 @@ func TestExitCode(t *testing.T) {
 		{errors.New("wrap: " + core.ErrInvalidTransition.Error()), 1}, // plain string does not match
 		{core.ErrInvalidTransition, 6},
 		{core.ErrMissingAttribution, 2},
+		{core.ErrDanglingRefs, 7},
 	}
 	for _, c := range cases {
 		if got := exitCode(c.err); got != c.want {
