@@ -82,38 +82,50 @@ Primary user = the coding **agent**; secondary = the human **maintainer**.
   # Knowledge base — important notes
   - **auth-design**  [high]  (auth, design)  — Auth design
   - **positioning-vs-beads**  [high]  (strategy)  — Positioning vs beads
-  (2 of 5 important notes shown — `mtt note show <slug>` for detail)
+  (2 of 2 important notes shown — `mtt note show <slug>` for detail)
   ```
-  Tags omitted when empty; title omitted when absent (slug is the identity). When **no** notes qualify, print a
-  single line (`# Knowledge base — no important notes (mark one: mtt note edit <slug> --priority high)`) — a
-  useful, non-empty digest.
+  The footer is **always** `(<N> of <M> important notes shown — …)` where **M** = the eligible count at the
+  threshold **before** `--limit` and **N** = the shown count after it. So the **uncapped default** prints
+  `N of N` (the example: 2 eligible-high, no cap → `2 of 2`); `mtt prime --limit 1` over the same two prints
+  `1 of 2`. Tags omitted when empty; title omitted when absent (slug is the identity). When **no** notes
+  qualify, print a single line
+  (`# Knowledge base — no important notes (mark one: mtt note edit <slug> --priority high)`) — a useful,
+  non-empty digest.
 - **`--json`:** a **non-null** array of `PrimeEntry` objects (`{slug, title, tags, priority, backlinks}`),
   `tags` a non-null array, for tooling.
 
 ### D5 — `core.Prime` (pure derived read; not in the contract)
 
-- **`Prime(notes []mtt.Note, bl Backlinks, opts PrimeOptions) []PrimeEntry`** — pure, no store/clock, **not**
-  in the `pkg/mtt` contract (like `Roadmap`/`Backlinks`). `PrimeOptions{MinPriority mtt.Priority, Limit int}`.
+- **`Prime(notes []mtt.Note, bl Backlinks, opts PrimeOptions) ([]PrimeEntry, int)`** — pure, no store/clock,
+  **not** in the `pkg/mtt` contract (like `Roadmap`/`Backlinks`). `PrimeOptions{MinPriority mtt.Priority,
+  Limit int}`. The **second return is `total`** — the eligible count at the threshold **before** the cap (the
+  footer's `M`).
 - **Selection (D7):** keep a note iff it has an **explicit** (stored, non-empty) priority whose `Rank()` ≤
   `MinPriority.Rank()`. Unset notes are excluded.
 - **Order:** by `Priority.Rank()` asc (high first); tiebreak **backlink-count desc** (`len(bl.To(RefNote,
   slug))`); final tiebreak recency (`Created` desc) then slug (deterministic).
 - **Cap:** the first `Limit` after ordering (`Limit <= 0` ⇒ no cap). `PrimeEntry{Slug, Title, Tags, Priority,
-  Backlinks int}`; the CLI also needs the **total eligible count** (for the "N of M" footer) — return it
-  alongside (e.g. `Prime` returns `([]PrimeEntry, total int)` where `total` is the eligible count before the
-  cap).
+  Backlinks int}`.
+- **`--json` mapping:** `core` carries no json tags, so the CLI maps `PrimeEntry` → a **`primeJSON`**/
+  `toPrimeJSON` view (mirroring `RoadmapEntry`→`roadmapJSON`), with `tags` forced **non-null** (`[]` when
+  empty, the `toNoteJSON` house rule).
 
 ### D6 — note-priority CLI (parity with task priority, DRY)
 
 - **`--priority high|medium|low`** on `mtt note add` (→ `NoteParams.Priority`) and `mtt note edit` (→
-  `NoteEditParams.Priority`; `--priority ""` clears — `Changed("priority")` true). Reuse the existing
-  `parsePriority` (CLI-boundary validation — an unknown value is a usage error; never leak a bare string into
-  core). `mtt note show`/`--json` surface it (`noteJSON.priority`, `omitempty`).
+  `NoteEditParams.Priority` (a `*mtt.Priority`); `--priority ""` clears — `Changed("priority")` true). Reuse
+  the existing `parsePriority` (CLI-boundary validation — an unknown value is a usage error; never leak a bare
+  string into core). `mtt note show` prints a `priority:` line (after `tags`, when set — like task `show`);
+  `--json` surfaces it (`noteJSON.priority`, `omitempty`).
+- **The `NoteEditor` "nothing to edit" guard gains `p.Priority == nil`** (currently `Title==nil && Tags==nil &&
+  Body==nil`, `internal/core/note.go`) — mirror the task `Editor` — so `--priority ""` clears rather than
+  falling into "nothing to edit".
 - **`mtt note list [--priority <p>]… [--sort priority]`** — mirror task `list`: `--priority` filters on the
-  **stored** label (an unset note matches only when no filter is given), `--sort priority` orders by
-  `Rank()` (high first) with the existing recency tiebreak. Extend `core.NoteFilter{Tags, Priorities}` and
-  add a `SortNotesPriority` beside `SelectNotes` (mirrors `Select`/`SortPriority`).
-- Core note **Adder/Editor** carry the priority through (canonicalize nothing — a scalar VO), exactly as the
+  **stored** label (an unset note matches only when no filter is given); `--sort priority` orders by `Rank()`
+  (high first) with the recency tiebreak. Extend **`core.NoteFilter{Tags, Priorities, Sort}`** and fold the
+  sort **into `SelectNotes`** (dispatch on a `Sort` key, exactly as `Select` folds `lessByPriority` on
+  `ListFilter.Sort` — `SortPriority` is a `SortKey` **constant**, not a function; no standalone `SortNotes*`).
+- Core note **Adder/Editor** carry the priority through (a scalar VO, nothing to canonicalize), exactly as the
   task layer does.
 
 ### D7 — threshold semantics: explicit-only, strict opt-in
@@ -125,6 +137,11 @@ Primary user = the coding **agent**; secondary = the human **maintainer**.
   - **Unset notes are never in `prime`** (regardless of `--min-priority`) — this is deliberate (the safety
     model): you opt a note in by giving it a priority. It differs from `note list --priority`, which is exact-
     match on the stored label; both consult the stored label, never the ordering default.
+  - **Corrupt-but-non-empty priority** (a hand-planted `priority: garbage`): tolerated on load (not a load
+    error), and — being non-empty — treated by its `Rank()` fallback (**medium**) for eligibility. So it is
+    **excluded at the default `high`**, and would appear (ranked medium) only at `--min-priority medium|low`.
+    Acceptable: it is human-authored on disk (still "opt-in-ish"), the mint scheme writes only valid values,
+    and the safety guarantee (unset never leaks, bodies never emit, cap) is unaffected. A test pins this.
 
 ### D8 — the `sessionStart` hook is config, not code
 
@@ -174,9 +191,11 @@ priority in `NoteParams`/`NoteEditParams`/`NoteFilter` + `SortNotesPriority`; th
 
 - **Unit (`pkg/mtt`):** `Note.Priority` is additive; `Priority.Valid()`/`Rank()` already covered — no VO change.
 - **Unit (`internal/core`):** `Prime` — threshold (high default excludes medium+unset; medium includes both
-  explicit bands, still excludes unset; low includes all explicit); order (priority band, then backlink-count
-  desc, then recency); cap + the returned `total`; empty input. `SelectNotes` priority filter (stored-label
-  match, unset only when unfiltered) + `SortNotesPriority`. Note `Adder`/`Editor` carry `Priority` (edit clear).
+  explicit bands, still excludes unset; low includes all explicit; a corrupt-but-non-empty priority behaves as
+  medium — excluded at high, included at medium/low); order (priority band, then backlink-count desc, then
+  recency); cap + the returned `total`; empty input. `SelectNotes` priority filter (stored-label match, unset
+  only when unfiltered) + the folded `--sort priority`. Note `Adder`/`Editor` carry `Priority` (edit clear via
+  the `p.Priority == nil` guard).
 - **Golden / round-trip (`internal/adapter/yaml`):** a note with `priority` (field position); a note without
   (byte-identical to the existing golden); corrupt priority tolerated (loads, ranks medium).
 - **e2e (`internal/cli`, testscript `prime.txt`):** AC-2…AC-5 + AC-7 flows; `note --priority` add/edit/clear +
