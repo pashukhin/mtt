@@ -1,7 +1,7 @@
 id: t1
 type: task
 title: references — structured, verifiable refs on tasks/comments (note/task/comment/url)
-status: spec_human_review
+status: planning
 priority: high
 tags:
     - core
@@ -9,7 +9,7 @@ tags:
 depends_on:
     - t47
 created: "2026-07-10T13:51:25Z"
-updated: "2026-07-20T06:42:29Z"
+updated: "2026-07-20T07:00:30Z"
 history:
     - at: "2026-07-20T05:48:32Z"
       by: Grigorii Pashukhin
@@ -44,3 +44,8 @@ history:
       why: adversarial spec_review PASS (re-verified by same reviewer); ready for human sign-off
       from: spec_review
       to: spec_human_review
+    - at: "2026-07-20T07:00:30Z"
+      by: Grigorii Pashukhin
+      why: human sign-off on spec (maintainer)
+      from: spec_human_review
+      to: planning
