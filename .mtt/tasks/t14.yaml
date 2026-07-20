@@ -1,13 +1,13 @@
 id: t14
 type: task
 title: SEC1 — kill the process group on gate timeout (Setpgid) so a daemon-spawning gate cannot hang past its deadline
-status: approved
+status: done
 priority: medium
 tags:
     - release
     - sec
 created: "2026-07-10T13:53:10Z"
-updated: "2026-07-20T17:23:33Z"
+updated: "2026-07-20T17:51:13Z"
 history:
     - at: "2026-07-20T16:02:59Z"
       by: Grigorii Pashukhin
@@ -81,3 +81,12 @@ history:
       by: Grigorii Pashukhin
       from: impl_review
       to: approved
+    - at: "2026-07-20T17:51:13Z"
+      by: Grigorii Pashukhin
+      from: approved
+      to: done
+      checks:
+        - cmd: git switch main
+          exit: 0
+        - cmd: 'git log -n 200 --format=%s | grep "^t14: " || { echo "no squash commit \"t14: …\" on local main: git pull first, and check the PR/merge title started with \"t14: \"" >&2; false; }'
+          exit: 0
