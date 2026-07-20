@@ -28,12 +28,13 @@ func newNoteCmd() *cobra.Command {
 // noteJSON is the CLI's machine-readable view of a note: slug always present
 // (identity), tags a non-null array ([] when empty).
 type noteJSON struct {
-	Slug    string   `json:"slug"`
-	Title   string   `json:"title,omitempty"`
-	Tags    []string `json:"tags"`
-	Body    string   `json:"body"`
-	Created string   `json:"created"`
-	Updated string   `json:"updated"`
+	Slug     string   `json:"slug"`
+	Title    string   `json:"title,omitempty"`
+	Tags     []string `json:"tags"`
+	Priority string   `json:"priority,omitempty"`
+	Body     string   `json:"body"`
+	Created  string   `json:"created"`
+	Updated  string   `json:"updated"`
 }
 
 func toNoteJSON(n mtt.Note) noteJSON {
@@ -42,12 +43,13 @@ func toNoteJSON(n mtt.Note) noteJSON {
 		tags = []string{}
 	}
 	return noteJSON{
-		Slug:    string(n.Slug),
-		Title:   n.Title,
-		Tags:    tags,
-		Body:    n.Body,
-		Created: n.Created.UTC().Format(time.RFC3339),
-		Updated: n.Updated.UTC().Format(time.RFC3339),
+		Slug:     string(n.Slug),
+		Title:    n.Title,
+		Tags:     tags,
+		Priority: string(n.Priority),
+		Body:     n.Body,
+		Created:  n.Created.UTC().Format(time.RFC3339),
+		Updated:  n.Updated.UTC().Format(time.RFC3339),
 	}
 }
 
@@ -80,9 +82,9 @@ func readNoteBody(cmd *cobra.Command, body, file string) (string, error) {
 
 func newNoteAddCmd() *cobra.Command {
 	var (
-		title, body, file string
-		tags              []string
-		refVals           []string
+		title, body, file, priority string
+		tags                        []string
+		refVals                     []string
 	)
 	cmd := &cobra.Command{
 		Use:   "add <slug>",
@@ -94,6 +96,10 @@ func newNoteAddCmd() *cobra.Command {
 				return err
 			}
 			normTags, err := toTags(tags)
+			if err != nil {
+				return err
+			}
+			prio, err := parsePriority(priority)
 			if err != nil {
 				return err
 			}
@@ -109,7 +115,7 @@ func newNoteAddCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			note, err := core.NewNoteAdder(yaml.NewKnowledgeStore(root), time.Now).Add(core.NoteParams{Slug: slug, Title: title, Tags: normTags, Body: b, Refs: refs})
+			note, err := core.NewNoteAdder(yaml.NewKnowledgeStore(root), time.Now).Add(core.NoteParams{Slug: slug, Title: title, Tags: normTags, Priority: prio, Body: b, Refs: refs})
 			if err != nil {
 				return err
 			}
@@ -125,6 +131,7 @@ func newNoteAddCmd() *cobra.Command {
 	}
 	cmd.Flags().StringVar(&title, "title", "", "note title")
 	cmd.Flags().StringArrayVar(&tags, "tag", nil, "add a tag (repeatable)")
+	cmd.Flags().StringVar(&priority, "priority", "", "note priority: high|medium|low")
 	cmd.Flags().StringVar(&body, "body", "", "note body (markdown)")
 	cmd.Flags().StringVar(&file, "file", "", "read the body from a file ('-' for stdin)")
 	cmd.Flags().StringArrayVar(&refVals, "ref", nil, "add a reference <kind>:<target> (repeatable)")
@@ -132,7 +139,8 @@ func newNoteAddCmd() *cobra.Command {
 }
 
 func newNoteListCmd() *cobra.Command {
-	var tags []string
+	var tags, priorities []string
+	var sortKey string
 	cmd := &cobra.Command{
 		Use:   "list",
 		Short: "List knowledge notes",
@@ -142,6 +150,15 @@ func newNoteListCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			prios, err := toPriorities(priorities)
+			if err != nil {
+				return err
+			}
+			switch sortKey {
+			case "", string(core.SortCreated), string(core.SortUpdated), string(core.SortPriority):
+			default:
+				return fmt.Errorf("invalid --sort %q: want created|updated|priority", sortKey)
+			}
 			root, err := projectRoot(cmd)
 			if err != nil {
 				return err
@@ -150,7 +167,7 @@ func newNoteListCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			sel := core.SelectNotes(notes, core.NoteFilter{Tags: normTags})
+			sel := core.SelectNotes(notes, core.NoteFilter{Tags: normTags, Priorities: prios, Sort: core.SortKey(sortKey)})
 			if jsonFlag(cmd) {
 				out := make([]noteJSON, 0, len(sel))
 				for _, n := range sel {
@@ -167,6 +184,8 @@ func newNoteListCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().StringArrayVar(&tags, "tag", nil, "filter by tag (repeatable; OR within)")
+	cmd.Flags().StringArrayVar(&priorities, "priority", nil, "filter by priority: high|medium|low (repeatable)")
+	cmd.Flags().StringVar(&sortKey, "sort", "", "sort order: created|updated|priority (default created)")
 	return cmd
 }
 
@@ -253,6 +272,9 @@ func writeNote(cmd *cobra.Command, n mtt.Note) error {
 	if len(n.Tags) > 0 {
 		fmt.Fprintf(&b, "  tags:    %s\n", strings.Join(n.Tags, ", "))
 	}
+	if n.Priority != "" {
+		fmt.Fprintf(&b, "  priority: %s\n", n.Priority)
+	}
 	fmt.Fprintf(&b, "  created: %s\n", n.Created.UTC().Format(time.RFC3339))
 	fmt.Fprintf(&b, "  updated: %s\n", n.Updated.UTC().Format(time.RFC3339))
 	if n.Body != "" {
@@ -267,12 +289,12 @@ func writeNote(cmd *cobra.Command, n mtt.Note) error {
 
 func newNoteEditCmd() *cobra.Command {
 	var (
-		title, body, file string
-		tags              []string
+		title, body, file, priority string
+		tags                        []string
 	)
 	cmd := &cobra.Command{
 		Use:   "edit <slug>",
-		Short: "Edit a note's title, tags, and/or body",
+		Short: "Edit a note's title, tags, priority, and/or body",
 		Args:  oneID("provide exactly one slug (example: mtt note edit auth-design)"),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			slug, err := mtt.NewNoteSlug(args[0])
@@ -289,6 +311,13 @@ func newNoteEditCmd() *cobra.Command {
 					return err
 				}
 				p.Tags = &normTags
+			}
+			if cmd.Flags().Changed("priority") {
+				pr, err := parsePriority(priority)
+				if err != nil {
+					return err
+				}
+				p.Priority = &pr
 			}
 			if cmd.Flags().Changed("body") || cmd.Flags().Changed("file") {
 				b, err := readNoteBody(cmd, body, file)
@@ -317,6 +346,7 @@ func newNoteEditCmd() *cobra.Command {
 	}
 	cmd.Flags().StringVar(&title, "title", "", "new title")
 	cmd.Flags().StringArrayVar(&tags, "tag", nil, "replace the tag set (repeatable)")
+	cmd.Flags().StringVar(&priority, "priority", "", "new priority: high|medium|low (empty string clears it)")
 	cmd.Flags().StringVar(&body, "body", "", "new body (markdown)")
 	cmd.Flags().StringVar(&file, "file", "", "read the new body from a file ('-' for stdin)")
 	return cmd
