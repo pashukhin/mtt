@@ -123,6 +123,14 @@ func plural(n int) string {
 	return "s"
 }
 
+// waitDelay bounds how long Cmd.Wait blocks after the process exits or the
+// context is cancelled before os/exec force-closes the I/O pipes and returns
+// (Cmd.WaitDelay, Go 1.20+). It is the safety net for a child that inherited our
+// stdout/stderr pipe and outlives the killed command (e.g. one that setsid'd out
+// of the group): without it, Wait can hang forever. It never elapses for a
+// normally-terminating command.
+const waitDelay = 2 * time.Second
+
 // runOne runs a single command with the given timeout, streaming its output to
 // cmdOut and returning its exit code. A clean non-zero exit yields (code, nil); a
 // timeout or launch failure yields (-1, error).
@@ -134,6 +142,8 @@ func (r *Runner) runOne(cmd string, timeout time.Duration, out io.Writer) (int, 
 	c.Dir = r.dir
 	c.Stdout = out
 	c.Stderr = out
+	configureGroupKill(c) // Unix: own process group + SIGKILL the group on timeout; Windows: no-op
+	c.WaitDelay = waitDelay
 	err := c.Run()
 	if err == nil {
 		return 0, nil
