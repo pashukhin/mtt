@@ -25,6 +25,23 @@ version-stamped from the **tag**, not from any committed string.
 The published assets + `SHA256SUMS` are exactly what **`mtt self-update`** consumes to upgrade an installed
 binary in place (asset + SHA-256 verify, or a `go install` fallback) — see [CLI_REFERENCE.md](CLI_REFERENCE.md).
 
+## Release cadence
+
+Releases are **batched, not per-PR.** Every merged task lands on `main` and adds its line to the
+`[Unreleased]` CHANGELOG section; between releases `main` HEAD reports a `git describe` dev string
+(`vX.Y.Z-N-g<sha>`) that orders *below* the last tag. **`mtt self-update` and `go install …@latest` install the
+latest published *release*, never `main`** — so the cadence is what decides how fresh installed users are (a
+feature merged to `main` is not reachable by them until the next tag).
+
+Cut a release when it is worth publishing — **on demand, driven by the accumulated `[Unreleased]`, not on a
+fixed clock and not per-PR:**
+
+- a **meaningful batch** of user-visible `Added` / `Changed` has accrued (→ a MINOR bump), or
+- a **fix worth shipping now** (security / correctness) is on `main` (→ a PATCH bump).
+
+Keeping each task's `[Unreleased]` entry current (the task adds it during implementation) makes a cut cheap: the
+bump and the section move fall straight out of the changelog per the **Versioning policy** below.
+
 ## Building binaries locally (no publish)
 
 ```sh
