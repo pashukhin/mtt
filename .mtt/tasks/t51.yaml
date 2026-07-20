@@ -1,14 +1,14 @@
 id: t51
 type: task
 title: KB prime — curated, bounded KB digest for session-start injection (+ note importance ranking)
-status: impl_review
+status: approved
 priority: medium
 tags:
     - dx
     - kb
     - think
 created: "2026-07-20T09:12:34Z"
-updated: "2026-07-20T11:44:11Z"
+updated: "2026-07-20T11:46:22Z"
 description: |-
     Expert-flagged adoption gap: agents lack an auto-injected KB summary at session start (analog of beads prime/remember), wired via a Claude Code sessionStart hook. mtt provides the command (e.g. mtt prime); the hook itself is thin config (settings.json) or documented in t46.
 
@@ -116,3 +116,8 @@ history:
       checks:
         - cmd: make check
           exit: 0
+    - at: "2026-07-20T11:46:22Z"
+      by: Grigorii Pashukhin
+      why: adversarial code review PASS (re-verified fix, empirical proof, no regressions); make check green; verified end-to-end with the real binary
+      from: impl_review
+      to: approved
