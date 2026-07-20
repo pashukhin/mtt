@@ -76,3 +76,18 @@ func TestGoInstallerArgs(t *testing.T) {
 		t.Fatal("run error must propagate")
 	}
 }
+
+func TestParseGobin(t *testing.T) {
+	// `go env GOBIN GOPATH` with GOBIN UNSET emits an empty first line then GOPATH.
+	if got, err := parseGobin([]byte("\n/home/u/go\n")); err != nil || got != filepath.Join("/home/u/go", "bin") {
+		t.Fatalf("gobin unset: got %q err=%v (want /home/u/go/bin)", got, err)
+	}
+	// GOBIN set -> used verbatim.
+	if got, err := parseGobin([]byte("/custom/gobin\n/home/u/go\n")); err != nil || got != "/custom/gobin" {
+		t.Fatalf("gobin set: got %q err=%v", got, err)
+	}
+	// both empty -> error.
+	if _, err := parseGobin([]byte("\n\n")); err == nil {
+		t.Fatal("both empty must error")
+	}
+}

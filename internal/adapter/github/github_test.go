@@ -40,3 +40,13 @@ func TestFetch(t *testing.T) {
 		t.Fatalf("fetch: %q err=%v", b, err)
 	}
 }
+
+func TestNon200Errors(t *testing.T) {
+	s := newWithDoer(fakeDoer{resp: map[string]string{}}) // unknown URL -> 404
+	if _, err := s.Latest(context.Background()); err == nil {
+		t.Fatal("Latest on non-200 must error")
+	}
+	if _, err := s.Fetch(context.Background(), "https://dl/missing"); err == nil {
+		t.Fatal("Fetch on non-200 must error")
+	}
+}

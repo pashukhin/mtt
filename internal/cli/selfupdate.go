@@ -38,11 +38,13 @@ func toSelfUpdateJSON(p core.Plan, r core.Result, applied bool, err error) selfU
 		UpdateAvailable: p.State == core.UpdateAvailable,
 		Updated:         applied,
 		Via:             string(p.Via),
-		Asset:           p.AssetName,
 		Reason:          p.Reason,
 	}
+	// asset/path describe what was actually fetched/installed — only on apply (D8:
+	// under --check-only nothing is fetched, so both stay empty).
 	if applied {
 		j.Via = string(r.Via)
+		j.Asset = p.AssetName
 		j.Path = r.Path
 	}
 	if err != nil {
@@ -74,13 +76,6 @@ func newSelfUpdateCmd() *cobra.Command {
 				return refusal
 			}
 
-			target, err := os.Executable()
-			if err != nil {
-				return fmt.Errorf("locate running binary: %w", err)
-			}
-			if resolved, err := filepath.EvalSymlinks(target); err == nil {
-				target = resolved
-			}
 			_, goErr := exec.LookPath("go")
 			src := github.New()
 			updater := core.NewSelfUpdater()
@@ -93,8 +88,17 @@ func newSelfUpdateCmd() *cobra.Command {
 				return err
 			}
 
-			if checkOnly {
-				return renderSelfUpdate(cmd, plan, core.Result{}, false, target, nil)
+			if checkOnly { // reports the plan; nothing fetched, so no target needed
+				return renderSelfUpdate(cmd, plan, core.Result{}, false, "", nil)
+			}
+
+			// Apply path: resolve the running binary to replace.
+			target, err := os.Executable()
+			if err != nil {
+				return fmt.Errorf("locate running binary: %w", err)
+			}
+			if resolved, err := filepath.EvalSymlinks(target); err == nil {
+				target = resolved
 			}
 
 			switch plan.State {

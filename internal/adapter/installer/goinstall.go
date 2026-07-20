@@ -52,7 +52,15 @@ func defaultGobin(ctx context.Context) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("go env: %w", err)
 	}
-	lines := strings.Split(strings.TrimSpace(string(out)), "\n")
+	return parseGobin(out)
+}
+
+// parseGobin extracts the go bin dir from `go env GOBIN GOPATH` output. GOBIN is
+// line 0 (empty when unset — the common case), GOPATH is line 1. It must NOT trim
+// the blob before splitting: an unset GOBIN emits a leading empty line, and
+// trimming it would collapse GOPATH into position 0 (reporting GOPATH as GOBIN).
+func parseGobin(out []byte) (string, error) {
+	lines := strings.Split(string(out), "\n")
 	if len(lines) >= 1 && strings.TrimSpace(lines[0]) != "" {
 		return strings.TrimSpace(lines[0]), nil // GOBIN
 	}
