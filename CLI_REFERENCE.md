@@ -44,8 +44,8 @@ Run `mtt help [command]` or `mtt <command> -h` for built-in help.
 | `--why <text>` | — | A durable free-text reason for the transition, recorded into `history` and rendered by `mtt show`. **Implemented (session 006.5)**. |
 | `-v, --verbose` | — | Stream a gate command's own output to stderr (only meaningful on a gated transition). **Implemented (session 006; root-persistent since 006.5)**. |
 | `--log-file <path>` | — | Write a gate command's own output to a file. **Implemented (session 006; root-persistent since 006.5)**. |
-| `-q, --quiet` | — | Suppress non-essential output (still prints errors and requested data). *(pending)* |
-| `--no-color` | `NO_COLOR` | Disable ANSI color in human output. *(pending)* |
+| `-q, --quiet` | — | Suppress non-essential output (still prints errors and requested data). *(deferred — not built; backlog t55. Use `--json` for clean machine output.)* |
+| `--no-color` | `NO_COLOR` | Disable ANSI color in human output. *(deferred — output is monochrome today; backlog t55.)* |
 | `-h, --help` | — | Help for the command. |
 | `--version` | — | Print the version and exit (same as `mtt version`). **Implemented (session 003)**. Unlike the other flags in this table, this is root-only (cobra's `root.Version`): `mtt --version` works, `mtt <subcommand> --version` does not. |
 
@@ -715,7 +715,7 @@ error (exit `1`).
 | `MTT_DIR` | Project root containing `.mtt/` (same as `--dir`). |
 | `MTT_ROLE` | Acting role recorded in history (same as `--role`). |
 | `MTT_BY` | Acting subject recorded in history (same as `--by`). |
-| `NO_COLOR` | Disable colored output. |
+| `NO_COLOR` | Disable colored output *(deferred — output is monochrome today; backlog t55)*. |
 
 ---
 
