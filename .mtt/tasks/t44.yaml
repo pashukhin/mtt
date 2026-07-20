@@ -1,7 +1,7 @@
 id: t44
 type: task
 title: mtt self-update — update the installed binary in place (latest release asset + SHA256 verify, or go install fallback)
-status: plan_human_review
+status: implementing
 priority: medium
 tags:
     - dx
@@ -9,7 +9,7 @@ tags:
 depends_on:
     - t30
 created: "2026-07-12T06:25:37Z"
-updated: "2026-07-20T14:12:28Z"
+updated: "2026-07-20T14:23:02Z"
 description: 'New-feature request from the s009.x assessment. A convenience command to update an installed mtt to the latest published release. Design-open: mechanism (query the GitHub releases API for the latest v* tag, download the platform asset mtt_<os>_<arch> + verify against SHA256SUMS, atomically replace argv0; OR shell out to go install .../cmd/mtt@latest when a Go toolchain is present), safely locating the running binary, --check-only/opt-in, and interaction with the release workflow. Only meaningful once v0.9.0 is tagged and published.'
 history:
     - at: "2026-07-20T12:33:11Z"
@@ -98,3 +98,8 @@ history:
       why: 'adversarial plan review PASS (2 rounds): B1 exec-mtt, S1 go get/tidy split, S2/S3 AC layer-deviations, N1-N3 all resolved; no compile/consistency breaks'
       from: plan_review
       to: plan_human_review
+    - at: "2026-07-20T14:23:02Z"
+      by: Grigorii Pashukhin
+      why: 'human sign-off on plan (Grigorii): 9-task TDD plan + AC-8/AC-7 test-layer deviations accepted; Windows-unverified-in-CI accepted'
+      from: plan_human_review
+      to: implementing
