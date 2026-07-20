@@ -581,22 +581,26 @@ Creates a note at `<slug>`. Rejects an existing slug (no clobber). Body defaults
 - `<slug>` — stable identifier / file name (kebab-ASCII).
 - `--title <text>` — human title (optional).
 - `--tag <t>` — add a tag (repeatable; explicit only — hashtags in the body are NOT extracted).
+- `--priority high|medium|low` — importance (t51; reuses the task `Priority` VO). Drives `mtt prime`.
 - `--body <text>` — content; **or** `--file <path>` (`--file -` reads stdin). `--body`/`--file` are exclusive.
 - `--ref <kind>:<target>` — attach a reference at creation (repeatable; warn-not-block, t1). `mtt add` takes it too.
 - `--json` — emit the created note object.
 
 Refs/backlinks are shown by `mtt note show` and `mtt note ref list`.
 
-### `mtt note list [--tag <t>]… [--json]` — list notes
-Lists notes (newest first), optionally filtered by tag (OR within tags). `--json` emits a (non-null) array.
+### `mtt note list [--tag <t>]… [--priority <p>]… [--sort <k>] [--json]` — list notes
+Lists notes (newest first), optionally filtered by tag (OR within tags) and/or `--priority` (repeatable; the
+**stored** label — an unset note matches only when no `--priority` is given). `--sort created|updated|priority`
+(`priority` = high→low, recency tiebreak). `--json` emits a (non-null) array.
 
 ### `mtt note show <slug> [--json]` — print a note
-Prints the note's header (title/tags/created/updated) and body; `--json` emits the note object (`slug` always
-present, `tags` a non-null array).
+Prints the note's header (title/tags/**priority**/created/updated) and body; `--json` emits the note object
+(`slug` always present, `tags` a non-null array, `priority` omitempty).
 
 ### `mtt note edit <slug> [flags]` — edit a note
 Updates only the provided fields; `--tag` **replaces** the whole tag set. Bumps `updated`, keeps `created`.
-- `--title <text>`, `--tag <t>` (repeatable), `--body <text>` / `--file <path>` (`-` = stdin), `--json`.
+- `--title <text>`, `--tag <t>` (repeatable), `--priority <p>` (`--priority ""` clears it), `--body <text>` /
+  `--file <path>` (`-` = stdin), `--json`.
 
 ### `mtt note rm <slug> [--force --who <w> --why <r>]` — delete a note
 Removes the note file. **Refuses by default** if any task or note references it (t1); `--force` overrides —
@@ -608,6 +612,22 @@ removed note.
 Simple substring/token search over tasks and notes (no RAG).
 
 - `--tasks` / `--notes` — restrict the scope.
+
+### `mtt prime [--min-priority <p>] [--limit N] [--json]` — curated KB digest  *(shipped t51)*
+Prints a compact, **pointer-only** digest of the **important** KB notes, for injection at session start (the
+beads-`prime` analogue). Curation is **opt-in**: only notes with an **explicit** priority at or above
+`--min-priority` (default **`high`**) appear — an **unset note is never** in the digest; note **bodies are
+never emitted** (the digest lists slug / priority / tags / title; `mtt note show <slug>` for detail). Ordered
+by priority band, then **backlink-count** (more-referenced first), then recency; capped by `--limit`
+(default 20). The footer reads `(<N> of <M> …)` where `M` = eligible before the cap. Empty ⇒ a single
+actionable line (exit 0). `--json` emits a non-null array of `{slug, title, tags, priority, backlinks}`.
+`mtt prime` prints **no tasks** — compose with `mtt roadmap` at the hook if you want both.
+
+**Wire it into session start** (Claude Code `settings.json` — mtt ships only the command; the hook is config):
+
+```json
+{ "hooks": { "SessionStart": [ { "hooks": [ { "type": "command", "command": "mtt prime" } ] } ] } }
+```
 
 ---
 

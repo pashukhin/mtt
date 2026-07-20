@@ -1,0 +1,48 @@
+# note priority: add/edit/clear + list filter/sort
+mkdir proj
+cd proj
+exec mtt init
+stdout 'initialized'
+
+exec mtt note add zeta --priority high
+stdout 'created zeta'
+exec mtt note show zeta
+stdout 'priority: high'
+
+exec mtt note add alpha
+stdout 'created alpha'
+
+# list --priority filters on the stored label (only zeta is high)
+exec mtt note list --priority high
+stdout 'zeta  \(untitled\)'
+! stdout 'alpha  \(untitled\)'
+
+# default order is recency; same-second creations tiebreak by slug asc -> alpha, zeta
+exec mtt note list
+stdout '(?s)alpha  \(untitled\).*zeta  \(untitled\)'
+# --sort priority puts zeta (high, rank 0) before alpha (unset, rank medium)
+exec mtt note list --sort priority
+stdout '(?s)zeta  \(untitled\).*alpha  \(untitled\)'
+# --sort updated is honored (accepted; order pinned by the core unit test)
+exec mtt note list --sort updated
+stdout 'zeta'
+
+# clear the priority
+exec mtt note edit zeta --priority ''
+stdout 'updated zeta'
+exec mtt note show zeta
+! stdout 'priority:'
+
+# invalid --priority is a usage error (exit 1)
+! exec mtt note add c --priority bogus
+stderr 'invalid --priority'
+! exec mtt note edit alpha --priority bogus
+stderr 'invalid --priority'
+
+# invalid --sort
+! exec mtt note list --sort nonsense
+stderr 'invalid --sort'
+
+# priority surfaces in --json (omitempty)
+exec mtt note add p --priority medium --json
+stdout '"priority": "medium"'

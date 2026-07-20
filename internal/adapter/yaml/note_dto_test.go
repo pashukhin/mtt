@@ -108,6 +108,7 @@ func TestNoteGolden(t *testing.T) {
 		{"min", mtt.Note{Slug: "stub", Created: time.Date(2026, 1, 2, 3, 4, 5, 0, time.UTC), Updated: time.Date(2026, 1, 2, 3, 4, 5, 0, time.UTC)}, "note_min.md"},
 		{"full", fixedNote(), "note_full.md"},
 		{"refs", withRefs(fixedNote(), mtt.Ref{Kind: mtt.RefTask, ID: "t2"}, mtt.Ref{Kind: mtt.RefURL, ID: "https://example.com/x", Label: "ext"}), "note_refs.md"},
+		{"priority", withPriority(fixedNote(), mtt.PriorityHigh), "note_priority.md"},
 	} {
 		got, err := marshalNote(tc.note)
 		if err != nil {
@@ -127,5 +128,50 @@ func TestNoteGolden(t *testing.T) {
 		if string(got) != string(want) {
 			t.Errorf("%s serialization != golden:\n%s", tc.name, got)
 		}
+	}
+}
+
+func withPriority(n mtt.Note, p mtt.Priority) mtt.Note { n.Priority = p; return n }
+
+func TestMarshalParseNotePriority(t *testing.T) {
+	in := withPriority(fixedNote(), mtt.PriorityHigh)
+	data, err := marshalNote(in)
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	if !strings.Contains(string(data), "priority: high") {
+		t.Fatalf("priority not serialized:\n%s", data)
+	}
+	got, err := parseNote(in.Slug, data)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	if got.Priority != mtt.PriorityHigh {
+		t.Fatalf("priority round-trip: got %q", got.Priority)
+	}
+}
+
+func TestMarshalNoteNoPriorityUnchanged(t *testing.T) {
+	data, err := marshalNote(fixedNote())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(data), "priority:") {
+		t.Fatalf("unset priority must be omitted:\n%s", data)
+	}
+}
+
+func TestParseNoteCorruptPriority(t *testing.T) {
+	in := withPriority(fixedNote(), mtt.Priority("garbage"))
+	data, err := marshalNote(in)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := parseNote(in.Slug, data)
+	if err != nil {
+		t.Fatalf("corrupt priority must load, not error: %v", err)
+	}
+	if got.Priority != "garbage" || got.Priority.Rank() != 1 {
+		t.Fatalf("corrupt priority: got %q rank=%d", got.Priority, got.Priority.Rank())
 	}
 }

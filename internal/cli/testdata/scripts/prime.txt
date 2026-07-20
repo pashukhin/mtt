@@ -1,0 +1,44 @@
+# mtt prime: curated, opt-in, pointer-only KB digest
+mkdir proj
+cd proj
+exec mtt init
+stdout 'initialized'
+
+# empty repo -> the actionable "no important notes" line (exit 0)
+exec mtt prime
+stdout 'no important notes'
+
+# a mix of priorities; only high is primed by default
+exec mtt note add a --priority high --title 'Auth' --body 'SECRET-BODY'
+exec mtt note add b --priority medium
+exec mtt note add c
+
+exec mtt prime
+stdout '# Knowledge base — important notes'
+stdout '- \*\*a\*\*  \[high\]  — Auth'
+stdout '1 of 1 important notes shown'
+# bodies are NEVER emitted (pointer-only)
+! stdout 'SECRET-BODY'
+# medium/unset are not in the default digest
+! stdout '\*\*b\*\*'
+! stdout '\*\*c\*\*'
+
+# --min-priority medium widens to a+b (still not the unset c); footer 2 of 2
+exec mtt prime --min-priority medium
+stdout '\*\*a\*\*'
+stdout '\*\*b\*\*'
+! stdout '\*\*c\*\*'
+stdout '2 of 2 important notes shown'
+
+# --limit caps the shown count but the footer reports the eligible total
+exec mtt prime --min-priority medium --limit 1
+stdout '1 of 2 important notes shown'
+
+# an invalid --min-priority is a usage error
+! exec mtt prime --min-priority bogus
+stderr 'invalid --min-priority'
+
+# --json emits a non-null array with priority + backlinks
+exec mtt prime --json
+stdout '"priority": "high"'
+stdout '"backlinks": 0'

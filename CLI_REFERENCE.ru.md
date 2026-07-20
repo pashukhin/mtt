@@ -573,22 +573,26 @@ Markdown-заметки, один файл на заметку в `.mtt/knowledg
 - `<slug>` — стабильный идентификатор / имя файла (kebab-ASCII).
 - `--title <text>` — человеческий заголовок (опционально).
 - `--tag <t>` — добавить тег (повторяемый; только явно — хэштеги из тела НЕ извлекаются).
+- `--priority high|medium|low` — важность (t51; переиспользует task-`Priority` VO). Управляет `mtt prime`.
 - `--body <text>` — содержимое; **или** `--file <path>` (`--file -` читает stdin). `--body`/`--file` взаимоисключающие.
 - `--ref <kind>:<target>` — прикрепить ссылку при создании (повторяемый; warn-not-block, t1). У `mtt add` тоже есть.
 - `--json` — вывести объект созданной заметки.
 
 Ссылки/backlinks показывают `mtt note show` и `mtt note ref list`.
 
-### `mtt note list [--tag <t>]… [--json]` — список заметок
-Перечисляет заметки (сначала новые), опц. фильтр по тегам (OR внутри тегов). `--json` — (ненулевой) массив.
+### `mtt note list [--tag <t>]… [--priority <p>]… [--sort <k>] [--json]` — список заметок
+Перечисляет заметки (сначала новые), опц. фильтр по тегам (OR внутри) и/или `--priority` (повторяемый; по
+**хранимому** ярлыку — заметка без priority матчится только без фильтра). `--sort created|updated|priority`
+(`priority` = high→low, тайбрейк по свежести). `--json` — (ненулевой) массив.
 
 ### `mtt note show <slug> [--json]` — напечатать заметку
-Печатает заголовок (title/tags/created/updated) и тело; `--json` — объект заметки (`slug` всегда присутствует,
-`tags` — ненулевой массив).
+Печатает заголовок (title/tags/**priority**/created/updated) и тело; `--json` — объект заметки (`slug` всегда
+присутствует, `tags` — ненулевой массив, `priority` — omitempty).
 
 ### `mtt note edit <slug> [flags]` — редактировать заметку
 Обновляет только переданные поля; `--tag` **заменяет** весь набор тегов. Бампит `updated`, сохраняет `created`.
-- `--title <text>`, `--tag <t>` (повторяемый), `--body <text>` / `--file <path>` (`-` = stdin), `--json`.
+- `--title <text>`, `--tag <t>` (повторяемый), `--priority <p>` (`--priority ""` очищает), `--body <text>` /
+  `--file <path>` (`-` = stdin), `--json`.
 
 ### `mtt note rm <slug> [--force --who <w> --why <r>]` — удалить заметку
 Удаляет файл заметки. **По умолчанию отказывает**, если на неё ссылается задача или заметка (t1); `--force`
@@ -600,6 +604,22 @@ Markdown-заметки, один файл на заметку в `.mtt/knowledg
 Простой поиск по подстроке/токенам по задачам и заметкам (без RAG).
 
 - `--tasks` / `--notes` — ограничить область.
+
+### `mtt prime [--min-priority <p>] [--limit N] [--json]` — курированный дайджест БЗ  *(выпущено в t51)*
+Печатает компактный, **pointer-only** дайджест **важных** заметок БЗ для инжекта в начале сессии (аналог
+beads-`prime`). Курация **opt-in**: попадают только заметки с **явным** priority на уровне ≥ `--min-priority`
+(дефолт **`high`**) — заметка **без priority никогда** не в дайджесте; **тела не выводятся** (только slug /
+priority / tags / title; детали — `mtt note show <slug>`). Порядок: по бэнду priority, затем **backlink-count**
+(чаще упоминаемые выше), затем свежесть; cap — `--limit` (дефолт 20). Футер `(<N> of <M> …)`, где `M` —
+eligible до cap. Пусто ⇒ одна actionable-строка (выход 0). `--json` — ненулевой массив
+`{slug, title, tags, priority, backlinks}`. `mtt prime` **не печатает задачи** — при желании компонуй с
+`mtt roadmap` на уровне хука.
+
+**Проводка в старт сессии** (Claude Code `settings.json` — mtt даёт только команду, хук — конфиг):
+
+```json
+{ "hooks": { "SessionStart": [ { "hooks": [ { "type": "command", "command": "mtt prime" } ] } ] } }
+```
 
 ---
 

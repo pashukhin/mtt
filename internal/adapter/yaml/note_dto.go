@@ -15,11 +15,12 @@ import (
 // of truth for identity). created/updated are always present (frontmatter is never
 // empty), which is what makes the "first closing ---" read rule unambiguous.
 type ymlNote struct {
-	Title   string   `yaml:"title,omitempty"`
-	Tags    []string `yaml:"tags,omitempty"`
-	Refs    []ymlRef `yaml:"refs,omitempty"`
-	Created string   `yaml:"created"`
-	Updated string   `yaml:"updated"`
+	Title    string   `yaml:"title,omitempty"`
+	Tags     []string `yaml:"tags,omitempty"`
+	Priority string   `yaml:"priority,omitempty"`
+	Refs     []ymlRef `yaml:"refs,omitempty"`
+	Created  string   `yaml:"created"`
+	Updated  string   `yaml:"updated"`
 }
 
 // noteDelim is the frontmatter delimiter line (with its newline).
@@ -30,11 +31,12 @@ const noteDelim = "---\n"
 // any "---" lines and its trailing-newline state, are preserved exactly).
 func marshalNote(n mtt.Note) ([]byte, error) {
 	fm, err := goyaml.Marshal(ymlNote{
-		Title:   n.Title,
-		Tags:    n.Tags,
-		Refs:    fromDomainRefs(n.Refs),
-		Created: n.Created.UTC().Format(time.RFC3339),
-		Updated: n.Updated.UTC().Format(time.RFC3339),
+		Title:    n.Title,
+		Tags:     n.Tags,
+		Priority: string(n.Priority),
+		Refs:     fromDomainRefs(n.Refs),
+		Created:  n.Created.UTC().Format(time.RFC3339),
+		Updated:  n.Updated.UTC().Format(time.RFC3339),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("marshal note %s: %w", n.Slug, err)
@@ -76,5 +78,5 @@ func parseNote(slug mtt.NoteSlug, data []byte) (mtt.Note, error) {
 	if err != nil {
 		return mtt.Note{}, fmt.Errorf("note %s: updated: %w", slug, err)
 	}
-	return mtt.Note{Slug: slug, Title: yn.Title, Tags: yn.Tags, Refs: toDomainRefs(yn.Refs), Body: string(body), Created: created, Updated: updated}, nil
+	return mtt.Note{Slug: slug, Title: yn.Title, Tags: yn.Tags, Priority: mtt.Priority(yn.Priority), Refs: toDomainRefs(yn.Refs), Body: string(body), Created: created, Updated: updated}, nil
 }
