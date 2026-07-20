@@ -1,13 +1,13 @@
 id: t14
 type: task
 title: SEC1 — kill the process group on gate timeout (Setpgid) so a daemon-spawning gate cannot hang past its deadline
-status: plan_review
+status: plan_fix
 priority: medium
 tags:
     - release
     - sec
 created: "2026-07-10T13:53:10Z"
-updated: "2026-07-20T16:39:37Z"
+updated: "2026-07-20T16:44:47Z"
 history:
     - at: "2026-07-20T16:02:59Z"
       by: Grigorii Pashukhin
@@ -51,3 +51,7 @@ history:
       checks:
         - cmd: ls docs/superpowers/plans/t14-*.md
           exit: 0
+    - at: "2026-07-20T16:44:47Z"
+      by: Grigorii Pashukhin
+      from: plan_review
+      to: plan_fix
