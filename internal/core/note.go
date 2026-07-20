@@ -23,11 +23,12 @@ func NewNoteAdder(store mtt.KnowledgeStore, now func() time.Time) *NoteAdder {
 
 // NoteParams carries the note-create inputs (already parsed at the CLI boundary).
 type NoteParams struct {
-	Slug  mtt.NoteSlug
-	Title string
-	Tags  []string
-	Body  string
-	Refs  []mtt.Ref // informational references set at creation (canonicalized; not verified here)
+	Slug     mtt.NoteSlug
+	Title    string
+	Tags     []string
+	Priority mtt.Priority // importance axis (t51; unset = medium in ordering)
+	Body     string
+	Refs     []mtt.Ref // informational references set at creation (canonicalized; not verified here)
 }
 
 // Add validates and creates the note.
@@ -41,13 +42,14 @@ func (a *NoteAdder) Add(p NoteParams) (mtt.Note, error) {
 		refs = canonicalRefs(p.Refs)
 	}
 	return a.store.CreateNote(mtt.Note{
-		Slug:    p.Slug,
-		Title:   p.Title,
-		Tags:    canonicalTags(p.Tags),
-		Body:    p.Body,
-		Refs:    refs,
-		Created: ts,
-		Updated: ts,
+		Slug:     p.Slug,
+		Title:    p.Title,
+		Tags:     canonicalTags(p.Tags),
+		Priority: p.Priority,
+		Body:     p.Body,
+		Refs:     refs,
+		Created:  ts,
+		Updated:  ts,
 	})
 }
 
@@ -66,9 +68,10 @@ func NewNoteEditor(store mtt.KnowledgeStore, now func() time.Time) *NoteEditor {
 // NoteEditParams carries the note-edit inputs; a nil pointer means "unchanged".
 // Tags, when non-nil, REPLACES the whole set (declarative, not additive).
 type NoteEditParams struct {
-	Title *string
-	Tags  *[]string
-	Body  *string
+	Title    *string
+	Tags     *[]string
+	Body     *string
+	Priority *mtt.Priority
 }
 
 // Edit applies the provided fields and persists the note.
@@ -76,8 +79,8 @@ func (e *NoteEditor) Edit(slug mtt.NoteSlug, p NoteEditParams) (mtt.Note, error)
 	if !slug.Valid() {
 		return mtt.Note{}, fmt.Errorf("invalid note slug %q", string(slug))
 	}
-	if p.Title == nil && p.Tags == nil && p.Body == nil {
-		return mtt.Note{}, errors.New("nothing to edit (provide --title, --tag, --body, or --file)")
+	if p.Title == nil && p.Tags == nil && p.Body == nil && p.Priority == nil {
+		return mtt.Note{}, errors.New("nothing to edit (provide --title, --tag, --body, --file, or --priority)")
 	}
 	n, err := e.store.GetNote(slug)
 	if err != nil {
@@ -92,30 +95,50 @@ func (e *NoteEditor) Edit(slug mtt.NoteSlug, p NoteEditParams) (mtt.Note, error)
 	if p.Body != nil {
 		n.Body = *p.Body
 	}
+	if p.Priority != nil {
+		n.Priority = *p.Priority
+	}
 	n.Updated = e.now().UTC()
 	return e.store.UpdateNote(n)
 }
 
-// NoteFilter filters a note list. Tags is OR-within (a note matches if it carries any
-// filter tag; an empty filter matches all). Filter tags are pre-normalized (CLI toTags).
+// NoteFilter filters and orders a note list. Tags is OR-within (a note matches if it
+// carries any filter tag; empty matches all; pre-normalized via CLI toTags).
+// Priorities matches the STORED label (unset matches only when the filter is empty —
+// mirrors the task ListFilter). Sort selects the ordering (SortPriority orders by
+// Rank asc; else the default recency order).
 type NoteFilter struct {
-	Tags []string
+	Tags       []string
+	Priorities []mtt.Priority
+	Sort       SortKey
 }
 
-// SelectNotes filters notes and orders them Created desc, tie-broken by slug (opaque
-// string) for determinism. Pure — no store, no clock (mirrors core.Select).
+// SelectNotes filters notes and orders them (default: Created desc, slug tiebreak;
+// SortPriority: Rank asc then that recency order). Pure — no store, no clock
+// (mirrors core.Select / lessByPriority).
 func SelectNotes(notes []mtt.Note, f NoteFilter) []mtt.Note {
 	out := make([]mtt.Note, 0, len(notes))
 	for _, n := range notes {
-		if anyOrEmptyIntersect(f.Tags, n.Tags) {
+		if anyOrEmptyIntersect(f.Tags, n.Tags) && anyOrEmpty(f.Priorities, n.Priority) {
 			out = append(out, n)
 		}
 	}
 	sort.SliceStable(out, func(i, j int) bool {
-		if !out[i].Created.Equal(out[j].Created) {
-			return out[i].Created.After(out[j].Created)
+		if f.Sort == SortPriority {
+			if ri, rj := out[i].Priority.Rank(), out[j].Priority.Rank(); ri != rj {
+				return ri < rj
+			}
 		}
-		return out[i].Slug < out[j].Slug
+		return lessNotesByRecency(out[i], out[j])
 	})
 	return out
+}
+
+// lessNotesByRecency is the default note order — Created desc, slug tiebreak —
+// extracted so the priority sort can fall back to it (mirrors lessByPriority).
+func lessNotesByRecency(a, b mtt.Note) bool {
+	if !a.Created.Equal(b.Created) {
+		return a.Created.After(b.Created)
+	}
+	return a.Slug < b.Slug
 }
