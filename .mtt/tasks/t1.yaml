@@ -1,7 +1,7 @@
 id: t1
 type: task
 title: references — structured, verifiable refs on tasks/comments (note/task/comment/url)
-status: impl_review
+status: impl_fix
 priority: high
 tags:
     - core
@@ -9,7 +9,7 @@ tags:
 depends_on:
     - t47
 created: "2026-07-10T13:51:25Z"
-updated: "2026-07-20T08:34:05Z"
+updated: "2026-07-20T08:42:46Z"
 history:
     - at: "2026-07-20T05:48:32Z"
       by: Grigorii Pashukhin
@@ -85,3 +85,8 @@ history:
       checks:
         - cmd: make check
           exit: 0
+    - at: "2026-07-20T08:42:46Z"
+      by: Grigorii Pashukhin
+      why: 'adversarial impl_review: exit-code table (EN+RU) omits exit 7 (spec required pin); reconcile stale exit 5; add cross-store dangling CheckRefs test'
+      from: impl_review
+      to: impl_fix
