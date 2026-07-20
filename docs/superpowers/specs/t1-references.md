@@ -61,8 +61,9 @@ Deferred to `t2` (comments) — explicitly out:
 - **Carriers of refs in `t1`:** tasks and notes. `Task.Refs`/`Comment.Refs` already exist; **`Note.Refs` is
   added** (D2). Comment-as-carrier → `t2`.
 - **Verification dispatch is table-driven / per-kind** so `t2` adds `comment` as **one** resolver branch plus
-  lifting the input rejection — no three-places edit. This open-vocabulary seam is a hard requirement of the
-  design (not an incidental shape).
+  lifting the input rejection (and, inherent to any new carrier, wiring comment carriers into the existing
+  `check` sweep / `Backlinks` loops — not a scattered edit of the kind-dispatch). The per-kind dispatch and the
+  single input-validation point are a hard requirement of the design (not an incidental shape).
 
 ### D2 — `Note.Refs` domain field + serialization (additive)
 
@@ -90,6 +91,11 @@ Deferred to `t2` (comments) — explicitly out:
   discipline of `Tags`) for clean, machine-independent diffs. (Task refs today are stored in author order;
   `t1` makes ref writes canonicalize — a one-time, deterministic normalization applied whenever the ref set is
   mutated.)
+- **`ref rm` / `note ref rm` of an absent key is an idempotent no-op (exit 0)** — a ref is a *set member* on
+  its carrier (like a `depends_on` edge or a tag), not a standalone entity, so it follows the house
+  idempotent-remove convention (`internal/core/CLAUDE.md`: `DependencyEditor`/`TagEditor` removes are
+  idempotent no-ops). Only a **missing carrier** exits 4 (D10). This deliberately supersedes the earlier
+  CLI_REFERENCE sketch's "exit 4 if no such reference exists" (a docs-sync correction, below).
 
 ### D4 — CLI surface: mirror the note namespace (variant A) + creation-time `--ref`
 
@@ -204,8 +210,12 @@ gone). Recorded decision (maintainer).
   **forces `--who`/`--why`** and writes an audit record (`action: "note rm --force"`) **before** deleting.
   Missing slug → exit 4 (`noteNotFound`, unchanged).
 - **`core.Remover` gains no store port** — it receives the `Backlinks` (or the note-refs snapshot needed to
-  build it) as data, staying store-agnostic exactly like its current `Index`/`DepGraph` inputs. For an
-  external adapter without a KB, the note contribution is simply empty (capability-aware).
+  build it) as data, staying store-agnostic exactly like its current `Index`/`DepGraph` inputs. Concretely:
+  `RemoveMany` today builds `Index`/`DepGraph` **internally** from `store.List()`; the composition root
+  (`cli/rm.go`) will instead list tasks **and** notes, build the pure `Backlinks`, and pass it in — the plan
+  pins the exact new signature (inject `Backlinks`, or inject the note snapshot and build it alongside
+  `Index`/`DepGraph`). Either way `core` imports no adapter and holds no `KnowledgeStore` port. For an external
+  adapter without a KB the note contribution is simply empty (capability-aware — `ListNotes` returns `nil`).
 
 ### D10 — Exit-code taxonomy (reuse + one new code)
 
@@ -213,7 +223,7 @@ gone). Recorded decision (maintainer).
 |---|---|
 | `1` | malformed `kind:target`, unknown kind, `comment:` kind, malformed URL / id / slug (usage) |
 | `2` | missing `--who`/`--why` under `rm --force` **or** `note rm --force` (existing dangerous-ops policy) |
-| `4` | carrier not found (`ref add/list/rm` on a missing task/note); `ref rm` with **no such `(kind,target)`** |
+| `4` | carrier not found (`ref add`/`ref list`/`ref rm` on a missing task/note). **`ref rm` of an absent *key* is exit 0** (idempotent, D3) |
 | `7` | **new:** `mtt check` found ≥1 **dangling** reference |
 
 ### D11 — `--json` shapes (pinned)
@@ -221,11 +231,19 @@ gone). Recorded decision (maintainer).
 - A **ref object**: `{kind, id, label, status}` (`status` ∈ `ok`/`dangling`/`unverified`; `label` may be `""`).
 - `ref add`/`note ref add --json`: the single upserted ref object.
 - `ref list`/`note ref list --json`: `{refs: [ref…], backlinks: [{kind, id, label}…]}` — both **non-null**
-  arrays (`[]` when empty, the house rule). Backlink entries carry the **carrier** kind+id (who points here).
+  arrays (`[]` when empty, the house rule). In a **backlink** entry, `kind` is the **carrier** kind
+  (`task`/`note`) — the entity that points *here*, not a target kind — `id` is that carrier's id/slug, and
+  `label` is that forward ref's own label. (No status on a backlink: it exists because a forward ref exists.)
 - `check --json`: a **non-null** array of `{carrier: {kind, id}, ref: {kind, id, label}, status}` for each
-  dangling (and unverified) entry.
+  dangling (and, for completeness, unverified) entry — `status` per entry; the exit code keys on dangling only.
 - `show`/`note show` gain **Refs** and **Backlinks** sections (human view) and, in `--json`, `refs`/`backlinks`
   arrays consistent with the above (non-null).
+- **`refs`/`backlinks` are `show`-scoped.** They appear only in `show`/`note show` and `ref list`/`note ref
+  list` JSON. `add`/`list`/`edit --json` keep the **lean** `taskJSON` (no refs field) — refs are a `show`-level
+  view like `history` (the t45/U3 lean-view discipline). So a creation-time `--ref` is visible via
+  `show`/`ref list`, **not** echoed in `add --json`; tests must not assert refs on `add`/`list`/`edit --json`.
+- The **human** Refs/Backlinks line formats (in `show`/`note show`/`ref list`) are **pinned by the plan**, as
+  `check`'s dangling line (`t3 → note:x [dangling]`) is pinned here — so e2e assertions target a fixed shape.
 
 ## Scope
 
@@ -250,7 +268,7 @@ tests; docs sync.
 
 1. **Task refs loop (e2e):** `mtt ref add t2 task:t1 --label blocks` → stored, `ok`; `mtt ref list t2` shows
    the ref (with `ok`) and `mtt ref list t1` shows the **backlink** from t2; `mtt ref rm t2 task:t1` removes
-   it; a second `rm` of the same key → exit 4.
+   it; a second `rm` of the same key → **exit 0** (idempotent no-op, matching `dep rm`/`tag rm`).
 2. **Note refs loop (e2e):** `mtt note ref add auth-design task:t2` round-trips through
    `.mtt/knowledge/auth-design.md` frontmatter (`refs:` block), and `mtt show t2` lists the incoming backlink
    from the **note**. `mtt note ref list auth-design` shows outgoing + backlinks.
@@ -307,12 +325,17 @@ Grep **all** parallel occurrences (EN + RU) before editing — the "parallel occ
 - **`CLI_REFERENCE.md ↔ .ru.md`:** the **References** section — drop the phase markers (`field: phase 1;
   commands: phase 2; note targets need a KB, phase 5`) now that refs ship; document `mtt ref add/rm/list`,
   the new **`mtt note ref`** group, creation-time `--ref`, the `(kind,target)` key, statuses, and exit codes;
-  update **`mtt check`** (drop "phase 5", pin exit 7, note `--fix` deferred); update `mtt note rm` (the "refuse
-  if a task references it" guard now ships — refuse+`--force`+who/why/audit); note `comment` refs are `t2`.
+  **correct** the sketch's `ref rm … Exits 4 if no such reference exists` to the **idempotent no-op (exit 0)**
+  (D3); update **`mtt check`** (drop "phase 5", pin exit 7, note `--fix` deferred); update `mtt note rm` (the
+  "refuse if a task references it" guard now ships — refuse+`--force`+who/why/audit); note `comment` refs are `t2`.
 - **`DESIGN.md ↔ .ru.md`:** §"Knowledge base and references" — the **Phases** bullet and the "KB & refs"
   decision row (refs wired in `t1` for `note`/`task`/`url`; `comment` → `t2`); add a "**Shipped (t1)**" block
   (kinds, carriers, computed cross-store backlinks, `check` exit 7, refuse-guard); the deletion note (`rm`
   guard now covers refs, cross-store). Reaffirm the "back-refs computed, never stored" invariant (t1 upholds).
+  **Reconcile the stale s008.5 deletion block** (DESIGN §Dependencies, the `mtt rm` note) that still reads
+  "`--who`/`--why` are **not** mandated (nowhere to record them without a history)" — that reasoning was
+  superseded by **t5** for task `rm --force` (who/why + audit) and is now extended to `note rm --force`; fix
+  the sentence so DESIGN stops contradicting shipped + new behavior.
 - **`docs/architecture/model.go`:** add `Refs []Ref` to the `Note` block; note `RefStatus`/`Backlinks` are
   `core`-derived (not contract), like `Index`/`DepGraph`.
 - **CLAUDE.md files:** `pkg/mtt` (`Note` no longer refs-free; the `comment`-input carve-out lives in the CLI,
