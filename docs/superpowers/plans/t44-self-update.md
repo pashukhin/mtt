@@ -77,7 +77,7 @@ Run:
 go get golang.org/x/mod@latest
 ```
 Expected: `golang.org/x/mod` is added to `go.mod` + `go.sum`. **Do NOT run `go mod tidy` yet** — nothing imports
-`x/mod` until Step 4, so `tidy` would prune the just-added require. `tidy` runs at Step 6 (after the import
+`x/mod` until Step 4, so `tidy` would prune the just-added require. `tidy` runs at Step 5 (after the import
 exists), promoting it from a bare require to a used direct dependency.
 
 - [ ] **Step 2: Write the failing test** — `internal/core/selfupdate_test.go`:
