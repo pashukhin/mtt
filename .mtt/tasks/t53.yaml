@@ -1,0 +1,30 @@
+id: t53
+type: task
+title: 'KB consolidation: distill project decisions into curated prime-worthy notes; archive delivered specs/plans (DESIGN stays source-of-truth)'
+status: tbd
+priority: medium
+tags:
+    - backlog
+    - docs
+    - kb
+    - think
+refs:
+    - kind: task
+      id: t31
+      label: 'decide together: sessions/NEXT_SESSION retire'
+    - kind: task
+      id: t47
+      label: 'context: t47 deferred mass KB migration'
+created: "2026-07-20T12:21:23Z"
+updated: "2026-07-20T12:21:24Z"
+description: |-
+    Housekeeping + dogfood: ~30 specs + ~30 plans accumulate under docs/superpowers/. Consolidate the durable knowledge into the KB (dogfoods t51 prime + t1 refs) and retire the clutter. This is a CURATION DECISION, not a bulk move.
+
+    Three-way split by post-ship value:
+    - Plans (docs/superpowers/plans/*, execution scaffolding: write-test/implement/commit + line numbers) -> archive/delete post-delivery; git keeps them. Cheapest, lowest-risk cleanup, highest ROI.
+    - Specs (docs/superpowers/specs/*, decision records) -> first DISTILL the durable cross-task decisions into DESIGN "Shipped (tX)" blocks (already the pattern) + a few curated notes; THEN archive. Do NOT wholesale-copy specs into notes.
+    - KB target = a SMALL curated set (positioning-vs-beads, architecture invariants, flow model, key trade-offs), priority high (prime-worthy), ref-linked to DESIGN — the agent entry point, not an archive.
+
+    Guard — the parallel-occurrences trap: DESIGN.md stays the architecture source-of-truth; the KB is a curated distillation + knowledge that has no home in DESIGN, NOT a second copy that desyncs. The t47 spec already deferred "mass knowledge migration" as a separate deliberate decision for exactly this reason.
+
+    Design-OPEN (brainstorm first): target note set + what stays in DESIGN vs moves to KB vs archives; archive mechanism (git-only vs a docs/archive/ dir); delete-vs-keep specs (note: the flow gate ls docs/superpowers/specs/<id>-*.md only checks at submit-time, so deleting a DELIVERED task spec is safe). Decide together with t31 (sessions dir + NEXT_SESSION apparatus after self-host: what remains, what retires).
