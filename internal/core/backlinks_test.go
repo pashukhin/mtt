@@ -61,3 +61,18 @@ func TestCheckRefsNoKB(t *testing.T) {
 		t.Fatalf("note ref with no KB must be unverified: %+v", got)
 	}
 }
+
+func TestCheckRefsNoteCarrierDangling(t *testing.T) {
+	// A NOTE that references a missing task must surface as a note-carrier dangling
+	// finding (cross-store sweep symmetry).
+	tasks := []mtt.Task{{ID: "t1"}}
+	notes := []mtt.Note{{Slug: "spec", Refs: []mtt.Ref{{Kind: mtt.RefTask, ID: "t999"}}}}
+	got := CheckRefs(tasks, notes, true)
+	if len(got) != 1 {
+		t.Fatalf("want 1 finding, got %+v", got)
+	}
+	f := got[0]
+	if f.CarrierKind != mtt.RefNote || f.CarrierID != "spec" || f.Status != RefDangling || f.Ref.ID != "t999" {
+		t.Fatalf("note-carrier dangling misreported: %+v", f)
+	}
+}

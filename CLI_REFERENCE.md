@@ -644,15 +644,17 @@ Distinct codes let agents branch on the outcome without parsing text.
 | `2` | Usage error — here: missing required attribution (`ErrMissingAttribution`) |
 | `3` | Transition blocked — a gate command returned non-zero |
 | `4` | Not found (task/note/target does not exist) |
-| `5` | Unsupported — the active adapter lacks the required capability (`ErrUnsupported`) |
+| `5` | Post-action failed after a persisted move (`ErrPostAction`, t21) — the move is kept |
 | `6` | Invalid transition — not allowed by the type's flow |
+| `7` | Integrity: dangling references found by `mtt check` (`ErrDanglingRefs`, t1) |
 
 Codes `3` (gate blocked) and `6` (invalid transition) are **implemented (session 006)**, `2` (missing
-required attribution) is **implemented (session 006.5)**, and `4` (not found) is **implemented (session
-008.5)** — applied **uniformly** to every single-task-by-id path (`rm`/`show`/`edit`/`tree`/`use`/`status`/
-`dep`), which all wrap `mtt.ErrNotFound`. `Execute()` maps `core.ErrBlocked`→3, `core.ErrInvalidTransition`→6,
-`core.ErrMissingAttribution`→2, `mtt.ErrNotFound`→4. The remaining code (`5`, unsupported capability) is still
-**proposed** and lands with capability gates; other error paths keep the generic `1`.
+required attribution) is **implemented (session 006.5)**, `4` (not found) is **implemented (session 008.5)** —
+applied **uniformly** to every single-task-by-id path (`rm`/`show`/`edit`/`tree`/`use`/`status`/`dep`), which
+all wrap `mtt.ErrNotFound` — `5` (post-action, t21), and `7` (dangling refs, t1). `Execute()` maps
+`core.ErrBlocked`→3, `core.ErrInvalidTransition`→6, `core.ErrMissingAttribution`→2, `mtt.ErrNotFound`→4,
+`core.ErrPostAction`→5, and `core.ErrDanglingRefs`→7. An unsupported capability (`ErrUnsupported`) has no
+distinct code yet (it lands with capability gates); other error paths keep the generic `1`.
 
 **Bulk mutations (session 008.9)** are best-effort: a partial or total failure exits `1` (generic, git-style)
 with a per-item report — the aggregate deliberately does **not** map onto `3`/`4`/`6` (a heterogeneous set has
@@ -687,7 +689,8 @@ These are things this reference surfaces that are worth keeping consistent with 
   field — the ID stays stable, no re-mint, no broken inbound refs. **Re-typing** is bigger (the prefix is
   tied to the type): it stays out of scope for `edit` — see recategorization in DESIGN.md.
 - **Capability-gated commands.** `dep*`, `comment*`, `note*`, `search`, and history rely on optional
-  adapter capabilities; against a backend that lacks them they exit `5` (`ErrUnsupported`), not silently.
+  adapter capabilities; against a backend that lacks them they surface `ErrUnsupported` (a distinct exit code
+  lands with capability gates), not silently.
 - **`--json` everywhere.** Every command supports JSON output so agents can drive mtt without parsing
   human text; mutations echo the resulting object — including `add --json`, which emits the created task
   (session 008.97/U3), so the fresh id is `mtt add … --json | jq -r .id` rather than parsed from prose.
