@@ -105,26 +105,43 @@ type GoInstaller interface {
 - **Testability without network:** the adapter takes an injectable **`httpDoer`** (`interface{ Do(*http.Request)
   (*http.Response, error) }`, satisfied by `*http.Client`). Tests inject a fake doer returning canned JSON /
   asset bytes — **no sockets, honoring "No network in tests" literally** (the repo has no `httptest` usage; this
-  keeps it that way). The default client carries a timeout (a package constant); the whole call is
-  `context`-bounded.
+  keeps it that way).
+- **Timeouts are per-operation, not a single `http.Client.Timeout`** (S3): a small `releases/latest` metadata
+  GET and a ~7 MB asset download over a redirect can't share one sane bound. Each call takes a **`context`
+  deadline** — a short one for the API probe (`apiTimeout`, ~15 s) and a generous one for `Fetch`
+  (`downloadTimeout`, ~3 min) — both package constants; the `http.Client` itself sets no global `Timeout` (so
+  the context governs). **Do not override `CheckRedirect` or `Transport.Proxy`:** the default client already
+  follows `browser_download_url → objects.githubusercontent.com` and honors `HTTP(S)_PROXY` — one sentence in
+  the adapter doc so nobody disables them.
 - The repo/owner (`pashukhin/mtt`) is a package constant derived from the module path; not user-configurable in
-  v1 (YAGNI).
+  v1 (YAGNI). **GitHub auth is out for v1:** unauthenticated `releases/latest` is 60 req/hr/IP — fine
+  interactively; honoring `GH_TOKEN`/`GITHUB_TOKEN` (for shared-CI 429s) is a noted, deferred enhancement.
 
 ### D4 — Version resolution & comparison (reuse `t30`; `x/mod/semver`)
 
 - **Current version** is resolved by the **CLI** via the existing `resolveVersion()` and **passed into** the
-  core `Plan` as a string (core imports no `internal/cli`; stays pure and platform-injectable). `runtime.GOOS/
+  core `Prepare` as a string (core imports no `internal/cli`; stays pure and platform-injectable). `runtime.GOOS/
   GOARCH` are likewise passed in.
-- **Comparison** uses `golang.org/x/mod/semver` (see D10) — canonical SemVer ordering:
-  - Current is **valid SemVer** and `latest > current` → update. `latest <= current` → **no-op** ("already up
-    to date"), unless `--force`.
-  - Current is **not valid SemVer** (e.g. `"dev"` from a plain `go build`) → **refuse** without `--force`
-    ("cannot determine the current version; re-run with --force to update to `<latest>` anyway"); `--force`
-    proceeds.
-  - **Locally-built binaries update cleanly without `--force`:** `make build` stamps `git describe --tags`
-    (e.g. `v0.9.0-5-gf7a03cc`), which is **valid SemVer** and, by the pre-release rule, **orders *below***
-    `v0.9.0` — so a dev checkout ahead of the tag sees the release as newer and updates. This is exactly the
-    smoke path (a locally built mtt → published `v0.9.0`).
+- **Comparison** uses `golang.org/x/mod/semver` (see D10) — canonical SemVer ordering. `Prepare` (D9) maps the
+  `(current, latest, force)` triple to a **determinate state** — never a hard error (B2) — so `--check-only`
+  can always report at exit 0:
+  - Current is **valid SemVer** and `latest > current` → **`UpdateAvailable`**. `latest <= current` →
+    **`NoUpdate`** ("already up to date"), unless `--force` (→ `UpdateAvailable`, a re-install).
+  - Current is **not valid SemVer** → **`Undetermined`** (a state, with a reason string; *not* an error).
+    Without `--force` the **apply path** turns `Undetermined` into the exit-1 refusal ("cannot determine the
+    current version; re-run with --force to update to `<latest>`"); **`--check-only` reports it at exit 0**;
+    **`--force`** promotes it to `UpdateAvailable` (install latest anyway).
+  - The three non-SemVer current strings that reach `Undetermined`: **`"dev"`** (plain `go build`/`go test`,
+    no ldflags → `resolve` returns `"dev"`), a **bare commit SHA** (S2 — `make build` runs `git describe
+    --tags --always --dirty`, and `--always` falls back to a bare SHA like `6bf290d` when **no tag is
+    reachable** — a shallow/tagless checkout; `semver.IsValid("6bf290d") == false`), and any other
+    non-`v`-prefixed stamp.
+  - **Locally-built binaries update without `--force` *when a tag is reachable*:** `make build` then stamps
+    `git describe --tags --always --dirty` → e.g. `v0.9.0-5-gf7a03cc` (or a `…-dirty` suffix), which **is**
+    valid SemVer and, by the pre-release rule, **orders *below*** `v0.9.0` — so a dev checkout ahead of the tag
+    sees the release as newer and updates. (Verified: `Compare("v0.9.0-5-gf7a03cc","v0.9.0") == -1`, and the
+    `-dirty` variant likewise.) This is the smoke path (AC-9). The tagless-checkout bare-SHA case degrades
+    **safely** to `Undetermined` (refuse + `--force`), not a wrong update.
 - **`--force`** bypasses **both** guards (invalid-current refusal **and** the not-newer no-op): it always
   installs the resolved **latest** — a re-install when equal, and the explicit override when the current version
   can't be ordered. (A "downgrade" is a non-case: `latest` *is* the highest published tag; without `--force`
@@ -135,6 +152,10 @@ type GoInstaller interface {
 - **`assetName(tag, goos, goarch)`** (pure) → `mtt_<tag>_<goos>_<goarch>` + `.exe` when `goos == "windows"`,
   mirroring `make release` exactly. The name is looked up in the **release's actual asset list** (not a
   hardcoded matrix); absent → the go-install fallback (D1) or, if no Go, an actionable error.
+- **The `SHA256SUMS` URL is discovered, not constructed** (S4): `Prepare` locates the asset **named exactly
+  `SHA256SUMS`** in `Release.Assets` (`release.yml` publishes it alongside `dist/mtt_*`); if the platform asset
+  is present but `SHA256SUMS` is missing → an error (we never replace an unverifiable download). Both URLs
+  (asset + `SHA256SUMS`) ride in the `Plan`.
 - **`verifyChecksum(assetName, assetBytes, sha256sumsBytes)`** (pure) parses `SHA256SUMS` lines
   (`<hex64>␠␠<name>`, the `sha256sum` format), finds `assetName`, compares a freshly computed
   `sha256.Sum256(assetBytes)` (hex, case-insensitive). Name absent from `SHA256SUMS` → error ("asset not listed
@@ -145,15 +166,20 @@ type GoInstaller interface {
 ### D6 — Atomic self-replace: Unix rename-over; Windows rename-then-swap
 
 - **Target path** = `filepath.EvalSymlinks(os.Executable())` (replace the real file a shim points at).
-- **Writability precheck:** if the target's directory is not writable → a clear error ("cannot write
-  `<dir>` — re-run with adequate permissions or update manually"), **no auto-`sudo`**.
-- **Unix (`//go:build !windows`):** write `newBinary` to a temp file **in the same directory** (`O_EXCL`),
-  `chmod` it to the target's current mode, `fsync`, then `os.Rename(temp, target)` — atomic on one filesystem;
-  the running process keeps its open inode. Any pre-rename failure removes the temp; target untouched.
-- **Windows (`//go:build windows`):** a running `.exe` can be **renamed** but not overwritten/deleted. So
-  `os.Rename(target, target+".old")` (moves the running image aside — permitted), then write `newBinary` to
-  `target`; on failure, rename `.old` back. Leave `.old` for best-effort cleanup on a later run (the running
-  process still holds it open). This is the standard swap technique.
+- **Permission handling is attempt-and-surface, not a stat precheck** (nit): a stat-based "is the dir writable"
+  test is racy and wrong under ACLs / read-only FS / immutable files. Instead the temp-create (`O_EXCL`, Unix)
+  or the rename (Windows) is **attempted**, and a permission failure is wrapped into a clear error ("cannot
+  write `<dir>` — re-run with adequate permissions or update manually"), **no auto-`sudo`**.
+- **Unix (`//go:build !windows`):** write `newBinary` to a temp file **in the same directory** (`O_EXCL` — same
+  filesystem guarantees an atomic rename), `chmod` it to the target's current mode, `fsync`, then
+  `os.Rename(temp, target)` — atomic; the running process keeps its open inode. Any pre-rename failure removes
+  the temp; target untouched.
+- **Windows (`//go:build windows`):** a running `.exe` can be **renamed** but not overwritten/deleted. So —
+  **first remove any stale `target+".old"`** (a rename won't overwrite an existing file on Windows; a leftover
+  from a prior update would otherwise fail the swap) — then `os.Rename(target, target+".old")` (moves the
+  running image aside — permitted), then write `newBinary` to `target`; on failure, rename `.old` back. Leave
+  the fresh `.old` for best-effort cleanup on a later run (the running process still holds it open). This is the
+  standard swap technique.
 - **Verification status:** the Windows path is **implemented but not verifiable in this environment** (no
   Windows host/CI runner). It is isolated behind `BinaryReplacer`, exercised in unit tests only via the fake,
   and flagged for real verification on a Windows host before it is trusted. Recorded risk (maintainer chose
@@ -176,32 +202,47 @@ mtt self-update [--check-only] [--force] [--json]
 ```
 
 - **`mtt self-update`** — the full plan+apply (D1–D7).
-- **`--check-only`** — run `Plan` only (resolve + compare + asset/fallback selection); print `current`,
-  `latest`, and whether an update is available; **write nothing**. **Exit 0** regardless (availability is in the
-  output, not the exit code — deliberately *unlike* `mtt check`'s exit 7, because `self-update --check-only` is
-  an informational query, not a repo-integrity gate). Recorded decision.
-- **`--force`** — D4 semantics (bypass invalid-current refusal and the not-newer no-op).
-- **`--json`** — structured output (every mtt command honors `--json`, the `t45` discipline):
-  `{current, latest, update_available, updated, asset, via}` where `via ∈ {"asset","go-install"}` and
-  `updated`/`asset` are populated on an applied update (empty/false under `--check-only` or a no-op).
+- **`--check-only`** — run `Prepare` only (resolve + compare + asset/fallback selection); print `current`,
+  `latest`, and the state (update available / already latest / undetermined); **write nothing**. **Exit 0
+  regardless** — *including* the `Undetermined` (dev/bare-SHA) state, which under `--check-only` is a report,
+  not a refusal (B2). Availability is in the output, not the exit code (deliberately *unlike* `mtt check`'s
+  exit 7 — this is an informational query, not a repo-integrity gate). Recorded decision.
+- **`--force`** — D4 semantics (promote `Undetermined` and `NoUpdate` to an install of latest).
+- **`--json`** — structured output (every mtt command honors `--json`, the `t45` discipline). Pinned schema:
+  `{current, latest, update_available, updated, via, asset, path, error}` where `via ∈ {"","asset","go-install"}`;
+  `asset` is the asset name (asset path only); `path` is the **installed binary path** (populated on the
+  go-install path — S1, where `asset` is empty and the path may differ from the running binary, the fact an
+  agent must act on); `updated` is the applied-success bool; `error` is the message on a failure/refusal path
+  (empty otherwise). Under `--check-only` or a no-op, `updated=false` and `via/asset/path` are empty.
 - **Thin CLI** (`internal/cli/selfupdate.go`): resolve current (`resolveVersion()`), target
-  (`EvalSymlinks(os.Executable())`), `runtime.GOOS/GOARCH`; construct the github adapter (real `http.Client` +
-  timeout), the platform `BinaryReplacer`, the `GoInstaller`; call `core.SelfUpdater`; render text or JSON.
-- **Exit codes:** success / no-op / check-only → **0**; every failure (network/API, checksum mismatch, no
-  asset + no Go, dev build without `--force`, target not writable, replace failure) → **1** with an actionable
-  message. No new taxonomy code (this command is not a gate). `--json` on an error still exits 1.
+  (`EvalSymlinks(os.Executable())`), `runtime.GOOS/GOARCH`, **`goAvailable` via `exec.LookPath("go")`**;
+  construct the github adapter (default `http.Client`, per-op context deadlines — D3), the platform
+  `BinaryReplacer`, the `GoInstaller`; call `core.SelfUpdater`; render text or JSON.
+- **Exit codes:** success / `NoUpdate` / **any `--check-only`** (incl. `Undetermined`) → **0**; a real failure
+  (network/API, checksum mismatch, no asset + no Go, target not writable, replace/install failure) **and** the
+  apply-path `Undetermined`-without-`--force` refusal → **1** with an actionable message. No new taxonomy code
+  (this command is not a gate). `--json` on any exit-1 path still emits the object (with `error` set) then
+  exits 1.
 
-### D9 — Core usecase `SelfUpdater`: `Plan` then `Apply`
+### D9 — Core usecase `SelfUpdater`: `Prepare` then `Apply`
 
-- **`Plan(ctx, current, goos, goarch string, force bool, src ReleaseSource) (Plan, error)`** — pure but for the
-  one `src.Latest(ctx)` call: resolve latest, compare (D4), select asset or fallback (D5/D7). Returns a `Plan`
-  describing the decision (`NoUpdate` / `Via: asset|goInstall` / tag / asset name+URL / checksums URL). Used
-  directly by `--check-only`.
-- **`Apply(ctx, plan, src, replacer, installer, targetPath) (Result, error)`** — asset: `src.Fetch(asset)` +
-  `src.Fetch(SHA256SUMS)` → `verifyChecksum` → `replacer.Replace(targetPath, bytes)`; go-install:
-  `installer.Install(module, tag)`. Never replaces on a verify failure.
+- **`Prepare(ctx, current, goos, goarch string, goAvailable, force bool, src ReleaseSource) (Plan, error)`** —
+  pure but for the one `src.Latest(ctx)` call: resolve latest, compare (D4), select asset or fallback (D5/D7).
+  **`goAvailable` is injected** (B1) — the thin CLI resolves it via `exec.LookPath("go")` and passes it in;
+  `core` never reads `PATH` (hexagon + hermetic-test premise). Method named **`Prepare`** (not `Plan`) to avoid
+  the method==type clash (nit).
+- **`Plan` (the returned value) is a determinate decision, never a hard error for a resolvable release** (B2):
+  a `State ∈ {UpdateAvailable, NoUpdate, Undetermined}`, plus `Via ∈ {asset, goInstall}` / `Tag` / `AssetName`
+  / `AssetURL` / `ChecksumsURL` (asset path) / `Reason` (for `Undetermined`/no-asset-no-go). `Prepare` returns
+  an **error only** for a genuine failure (`src.Latest` network/API error, or a `UpdateAvailable` platform with
+  **no asset and no Go** — an actionable "no way to update here"). `--check-only` renders the `Plan`'s state at
+  exit 0; the apply path maps `Undetermined` (sans `--force`) to the exit-1 refusal.
+- **`Apply(ctx, plan, src, replacer, installer, targetPath) (Result, error)`** — asset: `src.Fetch(assetURL)` +
+  `src.Fetch(checksumsURL)` → `verifyChecksum` → `replacer.Replace(targetPath, bytes)`; go-install:
+  `installer.Install(ctx, module, tag)` → `Result.Path`. Never replaces on a verify failure; only ever called
+  for an `UpdateAvailable` plan.
 - Pure helpers (`assetName`, `verifyChecksum`, `isNewer`) are unit-tested standalone. The usecase is tested with
-  fake `ReleaseSource`/`BinaryReplacer`/`GoInstaller`.
+  fake `ReleaseSource`/`BinaryReplacer`/`GoInstaller` and injected `current`/`goos`/`goarch`/`goAvailable`.
 
 ### D10 — Dependencies
 
@@ -216,7 +257,7 @@ mtt self-update [--check-only] [--force] [--json]
 
 **In:** the three ports (`ReleaseSource`/`BinaryReplacer`/`GoInstaller`) in `pkg/mtt`; the github HTTP adapter
 (injectable doer); the platform `BinaryReplacer` (Unix + Windows) and the `GoInstaller`; the core `SelfUpdater`
-(`Plan`/`Apply`) + pure helpers (`assetName`/`verifyChecksum`/`isNewer`); `mtt self-update` with
+(`Prepare`/`Apply`) + pure helpers (`assetName`/`verifyChecksum`/`isNewer`); `mtt self-update` with
 `--check-only`/`--force`/`--json`; unit tests (core + adapters, all hermetic) + the non-network CLI e2e cases;
 the real-binary smoke as an `impl_review` acceptance step; docs sync.
 
@@ -231,9 +272,10 @@ the real-binary smoke as an `impl_review` acceptance step; docs sync.
 
 ## Acceptance criteria
 
-1. **Plan (unit):** current `v0.9.0-3-gabc` (valid, pre-release) + latest `v0.9.0` → update via **asset**;
-   current `v0.9.0` + latest `v0.9.0` → **no-op** (unless `--force`); current `"dev"` + latest `v0.9.0` →
-   **refuse** without `--force`, **update** with `--force`; latest older than current → no-op without `--force`.
+1. **Prepare states (unit):** current `v0.9.0-3-gabc` (valid pre-release) + latest `v0.9.0` → `UpdateAvailable`
+   via **asset**; current `v0.9.0` = latest → `NoUpdate` (→ `UpdateAvailable` under `--force`); current `"dev"`
+   **or** a bare SHA `6bf290d` + latest `v0.9.0` → `Undetermined` (→ `UpdateAvailable` under `--force`); latest
+   `<` current → `NoUpdate` (defensive/synthetic — `releases/latest` never returns older than a real release).
 2. **Asset selection (unit):** `assetName("v0.9.0","linux","amd64") == "mtt_v0.9.0_linux_amd64"`;
    `…,"windows","amd64" == "mtt_v0.9.0_windows_amd64.exe"`; a platform absent from the release's asset list →
    **go-install** when Go present, else an actionable error.
@@ -247,9 +289,10 @@ the real-binary smoke as an `impl_review` acceptance step; docs sync.
    `Fetch(url)` returns the canned bytes; **no socket opened**.
 7. **Unix replacer (unit, temp dir):** replacing a throwaway file swaps its contents and preserves mode;
    a same-dir temp is used (atomic rename), original untouched on an injected write failure.
-8. **CLI e2e (testscript, hermetic):** `self-update --json` on a **dev** build without `--force` → refusal
-   message, exit 1, valid JSON error; flag/usage errors; `--check-only --json` shape on the dev-refusal path.
-   (The happy path needs network → not e2e; covered by AC-9.)
+8. **CLI e2e (testscript, hermetic):** `self-update` on a **dev** build without `--force` → refusal message,
+   **exit 1**, and `--json` emits an object with `error` set; **`self-update --check-only --json` on the same
+   dev build → `Undetermined` reported, exit 0**; flag/usage errors. (The happy update path needs network →
+   not e2e; covered by AC-9.)
 9. **Real-binary smoke (manual, `impl_review`):** build mtt locally (`make build` → a `v0.9.0-N-g…` stamp),
    run `./bin/mtt self-update` → it resolves `v0.9.0`, downloads the linux asset, verifies SHA-256, replaces
    the binary, and the replaced binary prints `mtt version` → `v0.9.0`. Re-running → "already up to date"
@@ -258,7 +301,7 @@ the real-binary smoke as an `impl_review` acceptance step; docs sync.
 
 ## Testing approach
 
-- **Unit (`internal/core`, hermetic, table-driven):** `Plan` (AC-1/2), `verifyChecksum` (AC-3), `isNewer`,
+- **Unit (`internal/core`, hermetic, table-driven):** `Prepare` (AC-1/2), `verifyChecksum` (AC-3), `isNewer`,
   `assetName`; `Apply` asset + go-install with fakes (AC-4/5) — asserting **no replace on verify failure**.
 - **Unit (`internal/adapter/github`):** fake `httpDoer` → JSON parse + asset URL selection + `Fetch` (AC-6). No
   sockets.
