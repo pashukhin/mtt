@@ -1,0 +1,23 @@
+id: t56
+type: task
+title: 'post-release: bump the Go toolchain floor + refresh dependencies at the start of each dev cycle'
+status: tbd
+priority: low
+tags:
+    - backlog
+    - dx
+    - release
+    - think
+created: "2026-07-20T15:59:28Z"
+updated: "2026-07-20T15:59:28Z"
+description: |-
+    After cutting a release tag, deliberately refresh the Go directive floor and dependencies at the start of the new dev cycle.
+
+    Background: t44 pinned Go deps BACK (golang.org/x/mod v0.21.0; x/tools + x/sys to v0.26.0) and kept the go directive at go 1.23.1, because `go get pkg@latest` silently raised the go directive to 1.25.0 (a Go-floor bump = a compat-surface change) mid-cycle and broke the build (covdata). See the go-get-latest gotcha.
+
+    Do it POST-release (so it lands in the NEXT release cycle changelog and a release line keeps a stable floor):
+    - decide the target go directive (a floor bump is SemVer-relevant -- the go/env compat surface -> a MINOR + a Changed entry + a migration note per RELEASING Versioning policy);
+    - refresh direct + indirect deps to current (golang.org/x/mod, x/tools, x/sys, spf13/cobra, spf13/pflag, gopkg.in/yaml.v3, rogpeppe/go-internal), then `go mod tidy`; make check green;
+    - sync the textual "Requires: Go X.Y+" claim (AGENTS.md line ~55; README EN+RU if present) with go.mod. CI (.github/workflows/ci.yml) and release.yml already read go-version-file: go.mod, so those follow automatically.
+
+    Design-open (think): target Go version (latest stable vs N-1 for user reach), cadence (every release vs every N), floor-bump policy (only when a dep forces it vs proactively), and whether to automate (Dependabot/Renovate) vs keep manual. Ties into the RELEASING "Release cadence".
