@@ -1019,10 +1019,12 @@ func externalReferencingIDs(idx Index, g DepGraph, bl Backlinks, id mtt.TaskID, 
 
 Update the two call sites in `removeOne` (pass `bl`) and the `removeOne` signature to take `bl Backlinks`.
 
+4. **Keep the build green (critical — the signature change ripples to the CLI).** Update the two `internal/cli/rm.go` callers to pass `nil` for the new `bl` arg **in this task**: the bulk path `remover.RemoveMany(ids, force, by, why, nil)` and `runRmSingle`'s `remover.Remove(id, force, by, why, nil)`. Behavior is unchanged (`bl.To` on a nil map returns nil → no ref referents). **Task 11 replaces both `nil`s** with the real `loadBacklinks(root)` value. Without this step, `go build ./...` fails between Task 6 and Task 11.
+
 - [ ] **Step 4: Run to verify it passes**
 
-Run: `go test ./internal/core/ -run 'Remover'`
-Expected: PASS (existing `Remover` tests must be updated to pass a `Backlinks` arg — pass `nil` where refs are irrelevant; `bl.To` on a nil map returns nil, so the structural-only tests are unaffected).
+Run: `make check`
+Expected: PASS. Existing `Remover` unit tests must also be updated to pass a `Backlinks` arg — pass `nil` where refs are irrelevant (`bl.To` on a nil map returns nil, so the structural-only tests are unaffected). The whole tree must build (the `rm.go` `nil` callers above).
 
 - [ ] **Step 5: Commit**
 
