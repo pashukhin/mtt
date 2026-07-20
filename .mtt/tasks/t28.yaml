@@ -1,11 +1,21 @@
 id: t28
 type: task
 title: 'Think: actionable attribution and post-failure errors — exit-2 hints author/MTT_BY setup, exit-5 prints the recovery commands'
-status: tbd
+status: speccing
 priority: medium
 tags:
     - dx
     - release
     - think
 created: "2026-07-11T12:58:07Z"
-updated: "2026-07-12T07:18:28Z"
+updated: "2026-07-20T17:51:47Z"
+history:
+    - at: "2026-07-20T17:51:47Z"
+      by: Grigorii Pashukhin
+      from: tbd
+      to: speccing
+      checks:
+        - cmd: git switch task/t28 || (git switch main && git switch -c task/t28)
+          exit: 0
+        - cmd: test -f .mtt/tasks/t28.yaml || { echo "task file absent on this branch — its add has not reached main (merge/commit the branch that created it first)" >&2; false; }
+          exit: 0
