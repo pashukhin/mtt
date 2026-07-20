@@ -6,6 +6,12 @@ All notable changes to mtt are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+- **`mtt self-update`** — update the installed binary to the latest published release: download the platform
+  asset + `SHA256SUMS`, verify the SHA-256, and atomically replace the running binary; falls back to
+  `go install …/cmd/mtt@<tag>` when no verifiable asset matches the platform. `--check-only` / `--force` /
+  `--json`.
+
 ## [0.9.0] — 2026-07-20
 
 First public release. `mtt` is an agent-friendly "tasks + knowledge" pairing (a Go CLI) built around an

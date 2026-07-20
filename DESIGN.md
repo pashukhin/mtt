@@ -1010,3 +1010,18 @@ docs/
 
 Packaging + release process (cross-platform binaries via `make release`, a tag-triggered GitHub release
 workflow, `SHA256SUMS`) lives in [RELEASING.md](RELEASING.md). The version is derived from the git tag (SemVer).
+
+### Self-update (t44)
+
+`mtt self-update` closes the loop: it consumes the published release assets + `SHA256SUMS` to update the
+installed binary in place. Hexagonally it adds three driven ports in `pkg/mtt` — `ReleaseSource` (latest +
+fetch, a GitHub HTTP adapter faked in tests), `BinaryReplacer` (the platform self-replace), and `GoInstaller`
+(the toolchain fallback) — behind a pure `core.SelfUpdater`. `Prepare` returns a **determinate** `Plan`
+(`UpdateAvailable` / `NoUpdate` / `Undetermined`, with `Via ∈ {asset, go-install, none}`) — it errors only when
+the release can't be resolved, so `--check-only` never fails on a resolvable release. `Apply` verifies the
+SHA-256 **before** any write (the primary path is asset+checksum; `go install …@<tag>` is the fallback when no
+verifiable asset matches the platform). The self-replace is atomic (Unix: same-dir temp + `rename`; Windows:
+rename-then-swap — **unverified in CI**, no runner). Version comparison reuses the t30 `resolveVersion` +
+`golang.org/x/mod/semver`; a dev/bare-SHA current is not orderable and is refused without `--force`. Because the
+network fetch and the self-replace are non-hermetic, they are tested via fakes; the real end-to-end is a manual
+real-binary smoke on `impl_review`.

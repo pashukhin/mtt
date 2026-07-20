@@ -1026,3 +1026,18 @@ docs/
 
 Упаковка и процесс релиза (кросс-платформенные бинарники через `make release`, workflow на тег, `SHA256SUMS`)
 описаны в [RELEASING.md](RELEASING.md). Версия выводится из git-тега (SemVer; см. [RELEASING.md](RELEASING.md)).
+
+### Самообновление (t44)
+
+`mtt self-update` замыкает петлю: потребляет опубликованные ассеты релиза + `SHA256SUMS`, чтобы обновить
+установленный бинарь на месте. По гексагону добавляет три driven-порта в `pkg/mtt` — `ReleaseSource` (latest +
+fetch, GitHub HTTP-адаптер, фейкается в тестах), `BinaryReplacer` (платформенная самозамена) и `GoInstaller`
+(fallback через тулчейн) — за чистым `core.SelfUpdater`. `Prepare` возвращает **детерминированный** `Plan`
+(`UpdateAvailable` / `NoUpdate` / `Undetermined`, с `Via ∈ {asset, go-install, none}`) — ошибается только когда
+релиз не резолвится, поэтому `--check-only` никогда не падает на резолвимом релизе. `Apply` проверяет SHA-256
+**до** любой записи (первичный путь — asset+checksum; `go install …@<tag>` — fallback, когда проверяемого
+ассета под платформу нет). Самозамена атомарна (Unix: temp в той же папке + `rename`; Windows: rename-then-swap
+— **не верифицировано в CI**, нет раннера). Сравнение версий переиспользует t30 `resolveVersion` +
+`golang.org/x/mod/semver`; dev/голый-SHA current не упорядочивается и отклоняется без `--force`. Поскольку
+сетевой fetch и самозамена негерметичны, они тестируются через фейки; реальный e2e — ручной real-binary smoke
+на `impl_review`.

@@ -21,6 +21,12 @@ The **public domain contract**: pure types + (later) ports. No CLI, no files, no
 
 kind↔topology (initial: 0 in/≥1 out; active: ≥1 in/≥1 out; terminal: ≥1 in/0 out); ≥1 of each kind per flow; unique type/status names; transition refs resolve; ≤1 default type; parents exist and are not self; ≤1 `default` status per flow; a `default` status must be `initial`. **Named transitions (s008.98):** an optional `Transition.Name` (a plain open label like `Description`) names an edge; `Config.Validate` enforces it is **unique per source status**, **disjoint from status names** in the type, and that every `(from,to)` pair is **unique per type**. `Type.FindTransitionByName(from, name)` (`type_query.go`) resolves an edge name to its edge (name-agnostic; empty never matches) — backs the `mtt <edge>` sugar / `mtt do`.
 
+## Self-update ports (t44)
+
+`release.go` adds the `Release`/`ReleaseAsset` value types and three driven ports for `mtt self-update`:
+`ReleaseSource` (latest + fetch — a GitHub HTTP adapter, faked in tests), `BinaryReplacer` (platform
+self-replace, already-verified bytes), `GoInstaller` (toolchain fallback). Contract only — no HTTP/OS here.
+
 ## Boundaries
 
 Does NOT: read/write storage, mint IDs, or format output. Those live in adapters / CLI.

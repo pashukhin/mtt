@@ -42,6 +42,7 @@
 package architecture
 
 import (
+	"context"
 	"errors"
 	"time"
 )
@@ -404,6 +405,36 @@ type KnowledgeStore interface {
 // core can discover what is available without trial-and-error. [T2]
 type CapabilityReporter interface {
 	Capabilities() []Capability
+}
+
+// Self-update ports (t44). Three driven ports isolate the non-hermetic effects of
+// `mtt self-update`; the pure core.SelfUpdater (Prepare -> a determinate Plan;
+// Apply -> verify+replace / go-install) depends only on these. Faked in tests
+// (no network, no real self-replace); the real path is a manual real-binary smoke.
+
+// ReleaseAsset is one downloadable file attached to a release. [t44]
+type ReleaseAsset struct{ Name, URL string }
+
+// Release is the provider-agnostic release metadata self-update needs. [t44]
+type Release struct {
+	Tag    string
+	Assets []ReleaseAsset
+}
+
+// ReleaseSource discovers and downloads a release (a GitHub HTTP adapter). [t44]
+type ReleaseSource interface {
+	Latest(ctx context.Context) (Release, error)           // newest published release
+	Fetch(ctx context.Context, url string) ([]byte, error) // download an asset / SHA256SUMS
+}
+
+// BinaryReplacer atomically swaps the running binary (already-verified bytes). [t44]
+type BinaryReplacer interface {
+	Replace(path string, newBinary []byte) error
+}
+
+// GoInstaller is the toolchain fallback (`go install module@version`). [t44]
+type GoInstaller interface {
+	Install(ctx context.Context, module, version string) (path string, err error)
 }
 
 // ---------------------------------------------------------------------------

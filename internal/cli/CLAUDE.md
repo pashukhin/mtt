@@ -248,3 +248,13 @@ clear on empty, the task-`edit` idiom) and `note list --priority`/`--sort` (`toP
 line) or `primeJSON`/`toPrimeJSON` (`tags` non-null). `--min-priority` (default `high`) is validated **inline**
 via `mtt.Priority.Valid()` (not `parsePriority`, which treats `""` as valid); `--limit` default 20. The
 `sessionStart` hook is config (documented in CLI_REFERENCE), not code.
+
+Self-update (t44): **`mtt self-update`** (`selfupdate.go`, `newSelfUpdateCmd`) wires the current version
+(`resolveVersion()`), target (`EvalSymlinks(os.Executable())`), `runtime.GOOS/GOARCH`, `goAvailable`
+(`exec.LookPath("go")`), the `github` + `installer` adapters, and `core.SelfUpdater`. `--check-only` /
+`--force` / `--json` (`selfUpdateJSON`/`toSelfUpdateJSON` — the pinned `{current,latest,update_available,
+updated,via,asset,path,reason,error}`). A **hermetic short-circuit** refuses an unorderable current
+(`!core.Orderable`) before any network call when neither `--force` nor `--check-only` is set (so the e2e
+`selfupdate.txt` dev-refusal needs no network). `renderSelfUpdate` prints the go-install "different location"
+note only when the installed path ≠ the running binary. All failures/refusals map to exit 1 (no new taxonomy
+code). Registered in `root.go`.
