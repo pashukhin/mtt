@@ -1,10 +1,20 @@
 id: t14
 type: task
 title: SEC1 — kill the process group on gate timeout (Setpgid) so a daemon-spawning gate cannot hang past its deadline
-status: tbd
+status: speccing
 priority: medium
 tags:
     - release
     - sec
 created: "2026-07-10T13:53:10Z"
-updated: "2026-07-12T07:18:28Z"
+updated: "2026-07-20T16:02:59Z"
+history:
+    - at: "2026-07-20T16:02:59Z"
+      by: Grigorii Pashukhin
+      from: tbd
+      to: speccing
+      checks:
+        - cmd: git switch task/t14 || (git switch main && git switch -c task/t14)
+          exit: 0
+        - cmd: test -f .mtt/tasks/t14.yaml || { echo "task file absent on this branch — its add has not reached main (merge/commit the branch that created it first)" >&2; false; }
+          exit: 0
