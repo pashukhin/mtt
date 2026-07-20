@@ -154,9 +154,14 @@ type GoInstaller interface {
   hardcoded matrix); absent → the go-install fallback (D1) when `goAvailable`, else a determinate `Via: none`
   (D7/D9) — never a hard `Prepare` error.
 - **The `SHA256SUMS` URL is discovered, not constructed** (S4): `Prepare` locates the asset **named exactly
-  `SHA256SUMS`** in `Release.Assets` (`release.yml` publishes it alongside `dist/mtt_*`); if the platform asset
-  is present but `SHA256SUMS` is missing → an error (we never replace an unverifiable download). Both URLs
-  (asset + `SHA256SUMS`) ride in the `Plan`.
+  `SHA256SUMS`** in `Release.Assets` (`release.yml` publishes it alongside `dist/mtt_*`). **The asset path
+  requires *both* the platform asset *and* a `SHA256SUMS` asset** — mtt never replaces an unverifiable download.
+  If `SHA256SUMS` is absent (a partial/failed CI upload — rare but real), the asset path is **unavailable**, so
+  `Prepare` treats it exactly like a missing asset: **go-install when `goAvailable`, else `Via: none`** with a
+  `Reason` ("checksums unavailable"). This is decided from the release's **asset-name list** (already in
+  `Release` from `Latest()` — no fetch), so it is a determinate `Plan`, **never** a `Prepare` error (which keeps
+  D9's "errors only on `Latest()` failure" absolute). Both URLs (asset + `SHA256SUMS`) ride in an asset-path
+  `Plan`.
 - **`verifyChecksum(assetName, assetBytes, sha256sumsBytes)`** (pure) parses `SHA256SUMS` lines
   (`<hex64>␠␠<name>`, the `sha256sum` format), finds `assetName`, compares a freshly computed
   `sha256.Sum256(assetBytes)` (hex, case-insensitive). Name absent from `SHA256SUMS` → error ("asset not listed
@@ -215,11 +220,14 @@ mtt self-update [--check-only] [--force] [--json]
   Recorded decision.
 - **`--force`** — D4 semantics (promote `Undetermined` and `NoUpdate` to an install of latest).
 - **`--json`** — structured output (every mtt command honors `--json`, the `t45` discipline). Pinned schema:
-  `{current, latest, update_available, updated, via, asset, path, error}` where `via ∈ {"","asset","go-install"}`;
-  `asset` is the asset name (asset path only); `path` is the **installed binary path** (populated on the
-  go-install path — S1, where `asset` is empty and the path may differ from the running binary, the fact an
-  agent must act on); `updated` is the applied-success bool; `error` is the message on a failure/refusal path
-  (empty otherwise). Under `--check-only` or a no-op, `updated=false` and `via/asset/path` are empty.
+  `{current, latest, update_available, updated, via, asset, path, reason, error}` where
+  `via ∈ {"","asset","go-install","none"}` (`none` = a newer release exists but no install method on this
+  platform); `update_available` = a newer resolvable release exists (true even when `via:"none"`); `asset` is
+  the asset name (asset path); `path` is the **installed binary path** (go-install path — S1, where the path may
+  differ from the running binary, the fact an agent must act on); `updated` is the applied-success bool;
+  **`reason`** explains a `none`/`Undetermined` outcome so a US5 agent can branch; `error` is the message on a
+  genuine failure (empty otherwise). Under `--check-only`, `via`/`update_available`/`reason` are populated (the
+  determined plan) but `updated=false` and `asset`/`path` are empty (nothing fetched/installed).
 - **Thin CLI** (`internal/cli/selfupdate.go`): resolve current (`resolveVersion()`), target
   (`EvalSymlinks(os.Executable())`), `runtime.GOOS/GOARCH`, **`goAvailable` via `exec.LookPath("go")`**;
   construct the github adapter (default `http.Client`, per-op context deadlines — D3), the platform
@@ -289,7 +297,8 @@ the real-binary smoke as an `impl_review` acceptance step; docs sync.
 2. **Asset selection (unit):** `assetName("v0.9.0","linux","amd64") == "mtt_v0.9.0_linux_amd64"`;
    `…,"windows","amd64" == "mtt_v0.9.0_windows_amd64.exe"`; a platform absent from the release's asset list →
    `Via: goInstall` when `goAvailable`, else a determinate `Via: none` (apply → exit-1; `--check-only` → exit-0
-   report).
+   report). A release carrying the platform asset but **no `SHA256SUMS` asset** takes the same branch (asset
+   path unavailable → go-install / `Via: none`), **never** a `Prepare` error.
 3. **Checksum verify (unit):** matching bytes → ok; a one-byte change → error and **`Replace` is never called**;
    asset name absent from `SHA256SUMS` → error; malformed `SHA256SUMS` line → error.
 4. **Apply asset (unit, fakes):** fake `ReleaseSource` serves asset + `SHA256SUMS`; on success the fake
