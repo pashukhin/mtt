@@ -151,7 +151,8 @@ type GoInstaller interface {
 
 - **`assetName(tag, goos, goarch)`** (pure) → `mtt_<tag>_<goos>_<goarch>` + `.exe` when `goos == "windows"`,
   mirroring `make release` exactly. The name is looked up in the **release's actual asset list** (not a
-  hardcoded matrix); absent → the go-install fallback (D1) or, if no Go, an actionable error.
+  hardcoded matrix); absent → the go-install fallback (D1) when `goAvailable`, else a determinate `Via: none`
+  (D7/D9) — never a hard `Prepare` error.
 - **The `SHA256SUMS` URL is discovered, not constructed** (S4): `Prepare` locates the asset **named exactly
   `SHA256SUMS`** in `Release.Assets` (`release.yml` publishes it alongside `dist/mtt_*`); if the platform asset
   is present but `SHA256SUMS` is missing → an error (we never replace an unverifiable download). Both URLs
@@ -188,12 +189,15 @@ type GoInstaller interface {
 
 ### D7 — `go install` fallback path
 
-- Triggered only when D5's asset lookup misses **and** `exec.LookPath("go")` succeeds. `GoInstaller.Install`
-  runs `go install github.com/pashukhin/mtt/cmd/mtt@<tag>` and returns the resulting binary path (probe
+- Triggered when D5's asset lookup misses **and** the injected **`goAvailable`** is true (D9 — the CLI resolves
+  it via `exec.LookPath("go")` at the edge; `core` never reads `PATH`). `GoInstaller.Install` runs
+  `go install github.com/pashukhin/mtt/cmd/mtt@<tag>` and returns the resulting binary path (probe
   `go env GOBIN` then `$GOPATH/bin`). No asset/checksum step (Go's module sum DB is the integrity mechanism).
 - The command reports: `installed <tag> via go install → <path>` plus, when `<path>` differs from the running
   binary, a one-line note that the updated binary is at the Go bin dir.
-- Missing asset **and** no Go → actionable error listing both facts (exit 1).
+- **Missing asset *and* no Go** is a determinate `Plan` (`State: UpdateAvailable, Via: none` — D9), **not** a
+  `Prepare` error: `--check-only` reports "update exists, no install method here" (exit 0); the **apply** path
+  refuses (exit 1) listing both facts.
 
 ### D8 — CLI surface, flags, exit codes
 
@@ -203,10 +207,12 @@ mtt self-update [--check-only] [--force] [--json]
 
 - **`mtt self-update`** — the full plan+apply (D1–D7).
 - **`--check-only`** — run `Prepare` only (resolve + compare + asset/fallback selection); print `current`,
-  `latest`, and the state (update available / already latest / undetermined); **write nothing**. **Exit 0
-  regardless** — *including* the `Undetermined` (dev/bare-SHA) state, which under `--check-only` is a report,
-  not a refusal (B2). Availability is in the output, not the exit code (deliberately *unlike* `mtt check`'s
-  exit 7 — this is an informational query, not a repo-integrity gate). Recorded decision.
+  `latest`, and the state; **write nothing**. **Exit 0 for every resolvable state** — `UpdateAvailable`,
+  `NoUpdate`, `Undetermined` (dev/bare-SHA), and `UpdateAvailable`+`Via:none` ("update exists, no install
+  method here") are all reports, not refusals (B2). The **only** exit-1 under `--check-only` is a genuine
+  `Latest()` network/API failure (you couldn't check). Availability is in the output, not the exit code
+  (deliberately *unlike* `mtt check`'s exit 7 — this is an informational query, not a repo-integrity gate).
+  Recorded decision.
 - **`--force`** — D4 semantics (promote `Undetermined` and `NoUpdate` to an install of latest).
 - **`--json`** — structured output (every mtt command honors `--json`, the `t45` discipline). Pinned schema:
   `{current, latest, update_available, updated, via, asset, path, error}` where `via ∈ {"","asset","go-install"}`;
@@ -218,11 +224,11 @@ mtt self-update [--check-only] [--force] [--json]
   (`EvalSymlinks(os.Executable())`), `runtime.GOOS/GOARCH`, **`goAvailable` via `exec.LookPath("go")`**;
   construct the github adapter (default `http.Client`, per-op context deadlines — D3), the platform
   `BinaryReplacer`, the `GoInstaller`; call `core.SelfUpdater`; render text or JSON.
-- **Exit codes:** success / `NoUpdate` / **any `--check-only`** (incl. `Undetermined`) → **0**; a real failure
-  (network/API, checksum mismatch, no asset + no Go, target not writable, replace/install failure) **and** the
-  apply-path `Undetermined`-without-`--force` refusal → **1** with an actionable message. No new taxonomy code
-  (this command is not a gate). `--json` on any exit-1 path still emits the object (with `error` set) then
-  exits 1.
+- **Exit codes:** `--check-only` → **0** for any resolvable state (only a `Latest()` network/API failure exits
+  1). A full run: success / `NoUpdate` → **0**; a genuine failure (network/API, checksum mismatch, target not
+  writable, replace/install failure) **and** the apply-path refusals (`Undetermined`-without-`--force`;
+  `Via:none` — no install method here) → **1** with an actionable message. No new taxonomy code (this command
+  is not a gate). `--json` on any exit-1 path still emits the object (with `error` set) then exits 1.
 
 ### D9 — Core usecase `SelfUpdater`: `Prepare` then `Apply`
 
@@ -232,15 +238,19 @@ mtt self-update [--check-only] [--force] [--json]
   `core` never reads `PATH` (hexagon + hermetic-test premise). Method named **`Prepare`** (not `Plan`) to avoid
   the method==type clash (nit).
 - **`Plan` (the returned value) is a determinate decision, never a hard error for a resolvable release** (B2):
-  a `State ∈ {UpdateAvailable, NoUpdate, Undetermined}`, plus `Via ∈ {asset, goInstall}` / `Tag` / `AssetName`
-  / `AssetURL` / `ChecksumsURL` (asset path) / `Reason` (for `Undetermined`/no-asset-no-go). `Prepare` returns
-  an **error only** for a genuine failure (`src.Latest` network/API error, or a `UpdateAvailable` platform with
-  **no asset and no Go** — an actionable "no way to update here"). `--check-only` renders the `Plan`'s state at
-  exit 0; the apply path maps `Undetermined` (sans `--force`) to the exit-1 refusal.
+  a `State ∈ {UpdateAvailable, NoUpdate, Undetermined}`, plus `Via ∈ {asset, goInstall, none}` / `Tag` /
+  `AssetName` / `AssetURL` / `ChecksumsURL` (asset path) / `Reason` (for `Undetermined` **and** for
+  `UpdateAvailable`+`Via:none`). **`Via: none`** = a newer release exists but this platform has **no asset and
+  no Go** — a determinate outcome, *not* a `Prepare` error. `Prepare` returns an **error only** when
+  `src.Latest(ctx)` itself fails (network/API — you couldn't even check). `--check-only` renders **every**
+  state at exit 0 (incl. `Undetermined` and `UpdateAvailable`+`Via:none`, reported as "update exists, no
+  install method here"); the apply path maps **both** `Undetermined`-sans-`--force` **and** `Via:none` to the
+  exit-1 refusal.
 - **`Apply(ctx, plan, src, replacer, installer, targetPath) (Result, error)`** — asset: `src.Fetch(assetURL)` +
   `src.Fetch(checksumsURL)` → `verifyChecksum` → `replacer.Replace(targetPath, bytes)`; go-install:
   `installer.Install(ctx, module, tag)` → `Result.Path`. Never replaces on a verify failure; only ever called
-  for an `UpdateAvailable` plan.
+  for an `UpdateAvailable` plan **with a concrete `Via` (asset|goInstall)** — the CLI refuses `Via:none`
+  (and `Undetermined`-sans-`--force`) before `Apply` is reached.
 - Pure helpers (`assetName`, `verifyChecksum`, `isNewer`) are unit-tested standalone. The usecase is tested with
   fake `ReleaseSource`/`BinaryReplacer`/`GoInstaller` and injected `current`/`goos`/`goarch`/`goAvailable`.
 
@@ -278,7 +288,8 @@ the real-binary smoke as an `impl_review` acceptance step; docs sync.
    `<` current → `NoUpdate` (defensive/synthetic — `releases/latest` never returns older than a real release).
 2. **Asset selection (unit):** `assetName("v0.9.0","linux","amd64") == "mtt_v0.9.0_linux_amd64"`;
    `…,"windows","amd64" == "mtt_v0.9.0_windows_amd64.exe"`; a platform absent from the release's asset list →
-   **go-install** when Go present, else an actionable error.
+   `Via: goInstall` when `goAvailable`, else a determinate `Via: none` (apply → exit-1; `--check-only` → exit-0
+   report).
 3. **Checksum verify (unit):** matching bytes → ok; a one-byte change → error and **`Replace` is never called**;
    asset name absent from `SHA256SUMS` → error; malformed `SHA256SUMS` line → error.
 4. **Apply asset (unit, fakes):** fake `ReleaseSource` serves asset + `SHA256SUMS`; on success the fake
