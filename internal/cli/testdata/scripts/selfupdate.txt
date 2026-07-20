@@ -1,0 +1,17 @@
+# self-update: hermetic cases only (the test binary reports version "dev", so a
+# plain self-update short-circuits before any network call; --check-only/--force
+# would reach GitHub and are covered by unit tests + the manual smoke, not here).
+# The harness runs mtt via `exec` (testscript.Main; no bare `mtt` command).
+
+# usage: unexpected arg -> error
+! exec mtt self-update bogus
+! stderr 'panic'
+
+# dev build, no --force -> refuse before any network (hermetic), exit 1
+! exec mtt self-update
+stderr 'cannot determine the current version'
+
+# same, --json: the object is emitted with error set, exit 1
+! exec mtt self-update --json
+stdout '"error"'
+stdout '"current": "dev"'

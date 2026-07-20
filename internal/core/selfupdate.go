@@ -80,6 +80,7 @@ func findChecksum(name string, sha256sums []byte) (string, bool) {
 // resolvable release).
 type UpdateState string
 
+// The determinate update states returned by Prepare.
 const (
 	UpdateAvailable UpdateState = "update-available"
 	NoUpdate        UpdateState = "no-update"
@@ -91,6 +92,7 @@ const (
 // install method on this platform".
 type UpdateVia string
 
+// The install-method values carried by Plan.Via.
 const (
 	ViaAsset     UpdateVia = "asset"
 	ViaGoInstall UpdateVia = "go-install"

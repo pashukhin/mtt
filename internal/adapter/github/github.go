@@ -57,7 +57,7 @@ func (s *Source) Latest(ctx context.Context) (mtt.Release, error) {
 	if err != nil {
 		return mtt.Release{}, fmt.Errorf("GET latest release: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusOK {
 		return mtt.Release{}, fmt.Errorf("GET latest release: unexpected status %d", resp.StatusCode)
 	}
@@ -84,7 +84,7 @@ func (s *Source) Fetch(ctx context.Context, url string) ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("download %s: %w", url, err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("download %s: unexpected status %d", url, resp.StatusCode)
 	}
