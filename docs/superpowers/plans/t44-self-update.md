@@ -21,6 +21,10 @@
 - **`--json` schema (pinned):** `{current, latest, update_available, updated, via, asset, path, reason, error}`, `via ∈ {"","asset","go-install","none"}`.
 - **Module path:** `github.com/pashukhin/mtt/cmd/mtt` (the go-install target); owner/repo `pashukhin/mtt`.
 - **Docs bilingual** (EN + RU) where applicable: `DESIGN`, `CLI_REFERENCE`. Grep all parallel occurrences before editing.
+- **Imports:** when a step "append[s] to" a file created in an earlier task, **merge** the shown `import (...)`
+  block into that file's existing one — do not add a second `import` block, and do not re-declare an already-
+  imported package (Go rejects both). The code blocks list every import the file needs at that point; keep the
+  union.
 
 ---
 
@@ -70,9 +74,11 @@
 
 Run:
 ```bash
-go get golang.org/x/mod@latest && go mod tidy
+go get golang.org/x/mod@latest
 ```
-Expected: `golang.org/x/mod` appears in `go.mod`'s `require` block; `go.sum` updated.
+Expected: `golang.org/x/mod` is added to `go.mod` + `go.sum`. **Do NOT run `go mod tidy` yet** — nothing imports
+`x/mod` until Step 4, so `tidy` would prune the just-added require. `tidy` runs at Step 6 (after the import
+exists), promoting it from a bare require to a used direct dependency.
 
 - [ ] **Step 2: Write the failing test** — `internal/core/selfupdate_test.go`:
 
@@ -168,12 +174,18 @@ func assetName(tag, goos, goarch string) string {
 }
 ```
 
-- [ ] **Step 5: Run to verify it passes**
+- [ ] **Step 5: Tidy now that the import exists**
+
+Run: `go mod tidy`
+Expected: `golang.org/x/mod` stays in `go.mod` as a **direct** require (now that `selfupdate.go` imports
+`golang.org/x/mod/semver`).
+
+- [ ] **Step 6: Run to verify it passes**
 
 Run: `go test ./internal/core/ -run 'Orderable|IsNewer|AssetName'`
 Expected: PASS.
 
-- [ ] **Step 6: Commit**
+- [ ] **Step 7: Commit**
 
 ```bash
 git add go.mod go.sum internal/core/selfupdate.go internal/core/selfupdate_test.go
@@ -977,6 +989,24 @@ func TestReplaceUnix(t *testing.T) {
 	}
 }
 
+func TestReplaceUnixErrorSurfaces(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("unix replace path")
+	}
+	// A target whose directory does not exist: the same-dir temp-create fails and
+	// the error surfaces cleanly (attempt-and-surface — no racy stat precheck, no
+	// panic). AC-7's "original untouched on failure" is otherwise STRUCTURAL — the
+	// Unix impl never writes the target until the final atomic rename, so any
+	// pre-rename failure leaves the original by construction; a root-sensitive
+	// read-only-dir test is deliberately avoided (root bypasses dir perms → flaky
+	// in CI). The end-to-end failure/replace behavior is exercised by the manual
+	// smoke (Task 9) and guarded by the core verify-before-replace test (Task 4).
+	err := NewReplacer().Replace(filepath.Join(t.TempDir(), "no-such-dir", "mtt"), []byte("x"))
+	if err == nil {
+		t.Fatal("missing dir must surface an error, not panic")
+	}
+}
+
 func TestGoInstallerArgs(t *testing.T) {
 	var gotName string
 	var gotArgs []string
@@ -1368,24 +1398,25 @@ func newSelfUpdateCmd() *cobra.Command {
 			}
 
 			if checkOnly {
-				return renderSelfUpdate(cmd, plan, core.Result{}, false, nil)
+				return renderSelfUpdate(cmd, plan, core.Result{}, false, target, nil)
 			}
 
 			switch plan.State {
 			case core.NoUpdate:
-				return renderSelfUpdate(cmd, plan, core.Result{}, false, nil)
+				return renderSelfUpdate(cmd, plan, core.Result{}, false, target, nil)
 			case core.Undetermined:
-				refusal := errors.New(plan.Reason)
-				return renderSelfUpdate(cmd, plan, core.Result{}, false, refusal)
+				// Defensive: unreachable here — an unorderable current without --force
+				// short-circuits before Prepare, and --force never yields Undetermined.
+				return renderSelfUpdate(cmd, plan, core.Result{}, false, target, errors.New(plan.Reason))
 			default: // UpdateAvailable
 				if plan.Via == core.ViaNone {
-					return renderSelfUpdate(cmd, plan, core.Result{}, false, errors.New(plan.Reason))
+					return renderSelfUpdate(cmd, plan, core.Result{}, false, target, errors.New(plan.Reason))
 				}
 				res, err := updater.Apply(cmd.Context(), plan, src, installer.NewReplacer(), installer.NewGoInstaller(), target)
 				if err != nil {
-					return renderSelfUpdate(cmd, plan, core.Result{}, false, err)
+					return renderSelfUpdate(cmd, plan, core.Result{}, false, target, err)
 				}
-				return renderSelfUpdate(cmd, plan, res, true, nil)
+				return renderSelfUpdate(cmd, plan, res, true, target, nil)
 			}
 		},
 	}
@@ -1394,9 +1425,11 @@ func newSelfUpdateCmd() *cobra.Command {
 	return cmd
 }
 
-// renderSelfUpdate prints text (or JSON) for a plan/result. A non-nil err makes it
-// return that err (→ exit 1) after emitting the JSON object / a stderr message.
-func renderSelfUpdate(cmd *cobra.Command, p core.Plan, r core.Result, applied bool, err error) error {
+// renderSelfUpdate prints text (or JSON) for a plan/result. runningPath is the
+// resolved path of the currently-running binary (used only for the go-install
+// "different location" note — D7). A non-nil err makes it return that err
+// (→ exit 1) after emitting the JSON object / a stderr message.
+func renderSelfUpdate(cmd *cobra.Command, p core.Plan, r core.Result, applied bool, runningPath string, err error) error {
 	if jsonFlag(cmd) {
 		if werr := writeJSON(cmd.OutOrStdout(), toSelfUpdateJSON(p, r, applied, err)); werr != nil {
 			return werr
@@ -1410,8 +1443,8 @@ func renderSelfUpdate(cmd *cobra.Command, p core.Plan, r core.Result, applied bo
 	case applied:
 		if r.Via == core.ViaGoInstall {
 			fmt.Fprintf(out, "updated to %s via go install → %s\n", r.Tag, r.Path)
-			if r.Path != "" {
-				fmt.Fprintf(out, "note: the updated binary is at %s (ensure it is the mtt on your PATH)\n", r.Path)
+			if r.Path != "" && r.Path != runningPath { // D7: note only when it landed elsewhere
+				fmt.Fprintf(out, "note: the updated binary is at %s, not the running %s (ensure it is the mtt on your PATH)\n", r.Path, runningPath)
 			}
 		} else {
 			fmt.Fprintf(out, "updated %s → %s\n", p.Current, r.Tag)
@@ -1441,19 +1474,23 @@ func renderSelfUpdate(cmd *cobra.Command, p core.Plan, r core.Result, applied bo
 - [ ] **Step 5: Write the e2e script** — `internal/cli/testdata/scripts/selfupdate.txt` (hermetic: the test binary reports version "dev", so a plain `self-update` short-circuits before any network; `--check-only`/`--force` are NOT exercised here since they would call the network):
 
 ```
-# usage: unexpected arg
-! mtt self-update bogus
+# usage: unexpected arg (the harness runs mtt via `exec`; there is no bare `mtt` cmd)
+! exec mtt self-update bogus
 ! stderr 'panic'
 
 # dev build, no --force -> refuse before any network (hermetic), exit 1
-! mtt self-update
+! exec mtt self-update
 stderr 'cannot determine the current version'
 
 # same, --json: the object is emitted with error set, exit 1
-! mtt self-update --json
+! exec mtt self-update --json
 stdout '"error"'
 stdout '"current": "dev"'
 ```
+
+**Harness note:** the `internal/cli` testscript harness registers `mtt` via `testscript.Main` and adds **no**
+custom `Cmds`, so every command line must be prefixed with `exec` (a bare `mtt …` aborts the script with
+"unknown command: mtt"). This matches every existing `internal/cli/testdata/scripts/*.txt`.
 
 - [ ] **Step 6: Run to verify tests pass**
 
@@ -1544,4 +1581,16 @@ Expected: first prints "already up to date (v0.9.0)"; `--force` re-installs.
 
 - **Spec coverage:** D1 mechanism → Tasks 3/4/6/7; D2 ports → Task 3; D3 github adapter/timeouts → Task 5; D4 version states → Tasks 1/3; D5 asset+checksum → Tasks 1/2/3; D6 replacers → Task 6; D7 go-install → Tasks 3/4/6; D8 CLI/flags/exit/json → Task 7; D9 Prepare/Apply → Tasks 3/4; D10 deps → Task 1. AC-1..8 map to Tasks 1–7 unit/e2e; AC-9 → Task 9; AC-10 (docs + `make check`) → Task 8 + every task's gate.
 - **Type consistency:** `Plan`/`Result`/`UpdateState`/`UpdateVia` defined in Task 3/4 and consumed unchanged in Task 7; `Prepare(ctx, current, goos, goarch, goAvailable, force, src)` and `Apply(ctx, p, src, replacer, installer, targetPath)` signatures match spec D9 and Task 7's call sites; `ViaAsset="asset"`/`ViaGoInstall="go-install"`/`ViaNone="none"` match the pinned `--json` `via` vocabulary.
-- **Testing-approach refinement (noted):** the spec's AC-8 listed `--check-only --json` on a dev build as an e2e case; because any path that calls `Latest()` touches the network, that case is covered at the **core** layer (`TestPrepareStates` dev → `Undetermined`) plus the **CLI unit** `toSelfUpdateJSON` view, while the **hermetic testscript** covers the no-network dev-refusal (via the CLI short-circuit) + usage errors. The spec's intent (dev handling is tested) is met without breaking "No network in tests".
+- **Testing-approach refinements (conscious deviations — for the plan_human_review sign-off).** Two ACs are
+  met at a different layer than the spec's wording implies, both forced by "No network in tests":
+  - **AC-8 (`--check-only --json` on a dev build):** any path calling `Latest()` hits the network, so this is
+    covered at the **core** layer (`TestPrepareStates` dev → `Undetermined`) + the **CLI unit**
+    `toSelfUpdateJSON` view, not the testscript. The **hermetic testscript** covers the no-network dev-refusal
+    (via the CLI short-circuit) + usage errors (Task 7). The intent — "dev handling is tested" — holds.
+  - **AC-7 ("original untouched on injected write failure"):** the Unix replacer has no injectable fs (KISS —
+    the spec's attempt-and-surface, no racy stat precheck). The invariant is **structural** (the target is not
+    written until the final atomic rename) and is asserted by `TestReplaceUnixErrorSurfaces` (clean error, no
+    panic) + the core verify-before-replace test + the manual smoke (Task 9) — not a root-sensitive read-only
+    dir test (root bypasses dir perms → CI-flaky).
+  Neither weakens the spec's guarantees; both keep the suite hermetic. Sign off on this layering at
+  `plan_human_review`.
