@@ -6,10 +6,15 @@ All notable changes to mtt are documented here. The format follows
 
 ## [Unreleased]
 
-First public release line. Shipped so far:
+## [0.9.0] — 2026-07-20
+
+First public release. `mtt` is an agent-friendly "tasks + knowledge" pairing (a Go CLI) built around an
+executable, gated status flow. Everything below ships in 0.9.0.
 
 ### Added
-- **Project & flow:** `mtt init` (`default` / `coding` templates), `mtt types`.
+- **Project & flow:** `mtt init` (`default` / `coding` templates — the `default` is flat (`task` + `chore`),
+  hierarchy is opt-in), `mtt types` (type + edge map), `mtt guide` (pre-flow orientation: queue navigation,
+  first-move setup, mid-flight resumption).
 - **Tasks (CRUD):** `mtt add` (`--type` / `--parent` / `--priority` / `--tag` / `--depends-on`), `mtt show`,
   `mtt list` (status/type/kind/parent/priority/tag/ready filters, `--json`), `mtt edit`,
   `mtt rm` (reject-if-referenced + `--force`), `mtt tree` (hierarchy).
@@ -23,8 +28,8 @@ First public release line. Shipped so far:
   `{{.From}}` / `{{.To}}`) and per-command rollback/compensation (reverse-order, best-effort).
 - **Priorities + roadmap:** `--priority` (`high` / `medium` / `low`), `--sort priority`, `mtt roadmap [--json]`
   (dependency + priority execution order).
-- **Tags:** `#hashtags` in title/description (the primary path) + `mtt tag add/rm`, `--tag` filters on
-  `add` / `list` / `tree`.
+- **Tags:** `#hashtags` in title/description (the primary path) + `mtt tag add/rm`; `--tag` / `--exclude-tag`
+  filters on `add` / `list` / `ready` / `tree`, plus `mtt tags` (the tag vocabulary with counts).
 - **Batch & pipeline:** a task-set selector (explicit IDs | `--filter` | stdin `-`), `--ids` output on
   `list` / `ready`, and bulk `tag add/rm` + `rm` (subgraph-aware).
 - **Dogfood hardening (s008.97):** a blocked gate echoes the failing command's output tail (~10 lines) under
@@ -36,6 +41,16 @@ First public release line. Shipped so far:
   symmetric to `mtt status`/`mtt <status>` (e.g. `mtt decline t1` for `review → fix`). Edge names show in
   `mtt types`, the `next:` guidance, and `show --json` (`next[].name`). New flow validation: an edge name is
   unique per source status, disjoint from status names, and every `(from,to)` pair is unique per type.
+- **Knowledge base (notes):** a `KnowledgeStore` port with a YAML/markdown adapter (`.mtt/knowledge/<slug>.md`)
+  and `mtt note add/list/show/edit/rm` — notes carry tags and priorities, and `note list` takes `--priority` /
+  `--sort` filters.
+- **References:** `mtt ref add/rm/list` and `mtt note ref …` attach verifiable `note:` / `task:` / `url:`
+  references (also `--ref` at creation); backlinks are computed, `mtt check` sweeps for dangling refs
+  (exit 7), and delete guards refuse to remove a still-referenced task/note without `--force`.
+- **KB prime:** `mtt prime` — a curated, bounded session-start digest of the knowledge base
+  (`--min-priority`, `--limit`), ranked by note priority and backlinks, for injection at session start.
+- **JSON everywhere:** every command honors `--json` (rounded out across `types` / `version` / `init` /
+  `rm` / `use`), so agents can drive mtt entirely from structured output.
 
 ### Changed
 - The root tagline now names the executable-state-machine + gate feature (was "minimalist file-backed task
@@ -54,4 +69,5 @@ First public release line. Shipped so far:
 - Cross-platform prebuilt binaries via `make release` + a tag-triggered GitHub release workflow;
   `SHA256SUMS` for integrity.
 
-[Unreleased]: https://github.com/pashukhin/mtt/commits/main
+[Unreleased]: https://github.com/pashukhin/mtt/compare/v0.9.0...HEAD
+[0.9.0]: https://github.com/pashukhin/mtt/releases/tag/v0.9.0
