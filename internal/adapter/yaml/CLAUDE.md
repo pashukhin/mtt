@@ -15,7 +15,10 @@ beyond provider-specific checks.
 - `NewKnowledgeStore(root)` / `NoteStore` (t47) — implements `mtt.KnowledgeStore` over `.mtt/knowledge/<slug>.md`, one markdown file per note. **Serialization contract** (`note_dto.go`, `marshalNote`/`parseNote`): `"---\n"` + a **struct** frontmatter DTO (`ymlNote{title,tags,created,updated}` — deterministic order, `omitempty` title/tags; slug is the **file name**, never in frontmatter) + `"---\n"` + the body **verbatim** (trailing-newline preserved). Read splits on the **first** closing `---` and unmarshals **only** the frontmatter — **never** the whole file (`\n---\n` is yaml's doc separator), so `---` inside the body is safe; a file not starting with `---` is a load error (not `ErrNotFound`). `CreateNote` is **reserve-then-write** (`O_CREATE|O_EXCL` on the final path — mirroring `mint` — then `atomicWrite`), so an existing slug errors without clobbering. Every path-building method (`Create`/`Get`/`Update`/`Delete`) and `ListNotes` **re-validate** the slug (`NoteSlug.Valid()` / `NewNoteSlug` on the filename) — defense-in-depth against a raw `NoteSlug("../x")` cast. Golden `note_min.md`/`note_full.md` pin the layout. No versioning/search (t6). **(t1)** `ymlNote.Refs`
 (`yaml:"refs,omitempty"`, after `tags`, before `created`) round-trips `Note.Refs` via the **existing**
 `fromDomainRefs`/`toDomainRefs` (the task DTO's `ymlRef` — no second ref DTO); golden `note_refs.md`. A
-refs-free note stays byte-identical (`omitempty`).
+refs-free note stays byte-identical (`omitempty`). **(t51)** `ymlNote.Priority` (`yaml:"priority,omitempty"`,
+after `tags`, before `refs`) plain-copies `Note.Priority` (like `ymlTask.Priority`); a corrupt on-disk value
+round-trips as-is and ranks medium (validity is a CLI concern); golden `note_priority.md`; priority-less notes
+stay byte-identical.
 
 ## Boundaries
 

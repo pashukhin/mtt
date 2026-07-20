@@ -239,3 +239,12 @@ clash). Deletion guards: `rm` builds the real `Backlinks` (`loadBacklinks`) and 
 `note rm` gains `--force` + the guard via `core.NoteRemover` (referents from `referentIDs`, which drops the
 note's own self-ref), reusing `resolveAttribution` + `yaml.NewAuditStore` (missing who/why → exit 2).
 `exitCode` maps `core.ErrDanglingRefs → 7` (unit-tested in `TestExitCode`).
+
+KB prime (t51): `--priority` on `note add`/`note edit` (`parsePriority`; `Changed("priority")` → `*mtt.Priority`
+clear on empty, the task-`edit` idiom) and `note list --priority`/`--sort` (`toPriorities` + the validated
+`--sort` switch → `core.NoteFilter{Priorities, Sort}`); `noteJSON.priority` (omitempty) + a `note show`
+`priority:` line. **`mtt prime`** (`prime.go`, `newPrimeCmd`) is a pure read: `ListNotes` + `List` →
+`core.NewBacklinks` → `core.Prime` → `writePrime` (markdown pointer digest, `N of M` footer, empty→actionable
+line) or `primeJSON`/`toPrimeJSON` (`tags` non-null). `--min-priority` (default `high`) is validated **inline**
+via `mtt.Priority.Valid()` (not `parsePriority`, which treats `""` as valid); `--limit` default 20. The
+`sessionStart` hook is config (documented in CLI_REFERENCE), not code.

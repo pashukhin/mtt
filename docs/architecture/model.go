@@ -294,14 +294,20 @@ type Check struct {
 // (ok/dangling/unverified) and Backlinks (the computed cross-store inverse index)
 // live in internal/core — verification and backlinks are never stored.
 type Note struct {
-	Slug    NoteSlug
-	Title   string
-	Tags    []string
-	Body    string
-	Refs    []Ref // shipped t1
-	Created time.Time
-	Updated time.Time
+	Slug     NoteSlug
+	Title    string
+	Tags     []string
+	Priority Priority // shipped t51 — importance axis (reuses the task Priority VO); drives mtt prime
+	Body     string
+	Refs     []Ref // shipped t1
+	Created  time.Time
+	Updated  time.Time
 }
+
+// Prime/PrimeEntry (t51) are core-derived (internal/core, not this contract), like
+// Roadmap: a curated, opt-in, pointer-only KB digest for session start. Selection is
+// explicit-priority-only (unset never primed); ranking = priority, then backlink
+// count (t1's Backlinks), then recency; bodies are never emitted.
 
 // ---------------------------------------------------------------------------
 // 4. BASE PORT — the mandatory minimum every adapter implements. Pure: no

@@ -842,6 +842,19 @@ refs:
 > blocks its own delete. **Still t2:** `comment` refs (target + carrier); **follow-up:** `mtt check --fix`, URL
 > liveness (HEAD).
 
+> **Shipped (t51): KB prime — a curated session-start digest.** Notes gain an **importance axis** —
+> `Note.Priority` reuses the task `Priority` VO (high/medium/low; unset = medium in ordering, `omitempty` on
+> disk). **`mtt prime`** is a pure derived read (`core.Prime`, like `Roadmap` — not in the contract) that emits
+> a **pointer-only** markdown digest of the **important** notes for injection at session start (the beads
+> `prime`/`remember` analogue). **Opt-in by construction (the safety model):** only notes with an **explicit**
+> priority ≥ `--min-priority` (default `high`) appear — an **unset note is never** primed — and note **bodies
+> are never emitted**; the digest is capped (`--limit`). Ranking = priority band, then **backlink-count**
+> (reusing t1's computed `Backlinks`), then recency. Note priority is also authored via `--priority` on
+> `note add`/`note edit` and surfaced by `note list --priority`/`--sort priority`. **The `sessionStart` hook is
+> config, not code** — mtt ships only the command; the hook is a documented `settings.json` snippet. KB stays a
+> **supporting** feature (positioning), now with a real prime story. **Follow-up:** an optional body snippet in
+> the digest, URL/`--full` variants.
+
 ## Search (phase 5)
 
 Built-in text search (substring/tokens) over tasks and the KB. No RAG. An "external indexer" — an optional
