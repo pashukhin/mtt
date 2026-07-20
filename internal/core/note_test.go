@@ -133,3 +133,16 @@ func slugs(ns []mtt.Note) []string {
 	}
 	return out
 }
+
+func TestNoteAdderRefs(t *testing.T) {
+	kb := newFakeKB()
+	got, err := NewNoteAdder(kb, testClock).Add(NoteParams{Slug: "a", Refs: []mtt.Ref{
+		{Kind: mtt.RefTask, ID: "t2"}, {Kind: mtt.RefTask, ID: "t2"},
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got.Refs) != 1 { // deduped
+		t.Fatalf("refs: %+v", got.Refs)
+	}
+}
