@@ -1,0 +1,16 @@
+id: t54
+type: task
+title: CHANGELOG [Unreleased] drift guard — flag a user-visible change that did not update the changelog
+status: tbd
+priority: low
+tags:
+    - backlog
+    - dx
+    - release
+    - think
+created: "2026-07-20T15:26:17Z"
+updated: "2026-07-20T15:27:00Z"
+description: |-
+    A user-visible change (a command, flag, --json field, exit code, or store-schema change) should add a CHANGELOG [Unreleased] entry; otherwise the changelog drifts and a release cut gets expensive (had to reconstruct [Unreleased] by hand when cutting v0.9.0). Add an automated guard.
+
+    Design-open (think): (1) What counts as user-visible? A diff-path heuristic (touches internal/cli, pkg/mtt, adds a command/flag) vs an explicit opt-out. (2) Where does it live? A CI PR check, a make target, or -- per the AGENTS TL;DR rule 0 (mechanize the process into mtt) -- a flow gate on implementing->impl_review (or approve) that fails when the diff looks user-visible but CHANGELOG.md [Unreleased] is unchanged on the branch. (3) False-positive control: changelog-worthiness is judgment; the guard must be skippable with a reason (like --no-run) so pure refactors/tests/docs are not blocked. Reinforces the RELEASING "Release cadence" discipline.
