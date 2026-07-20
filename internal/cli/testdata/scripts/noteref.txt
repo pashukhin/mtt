@@ -1,0 +1,50 @@
+# references on notes: note ref add/rm/list + cross-store backlink + creation-time --ref
+mkdir proj
+cd proj
+exec mtt init
+stdout 'initialized'
+
+exec mtt add 'A'
+stdout 'created t1'
+exec mtt add 'B'
+stdout 'created t2'
+exec mtt note add auth-design
+stdout 'created auth-design'
+
+# a note references a task (target exists -> ok)
+exec mtt note ref add auth-design task:t2
+stdout 'added task:t2 to auth-design'
+
+# the note's outgoing ref is listed
+exec mtt note ref list auth-design
+stdout 'refs:'
+stdout 'task:t2  \[ok\]'
+
+# cross-store: task t2 now has an incoming backlink FROM the note
+exec mtt ref list t2
+stdout 'backlinks:'
+stdout 'note:auth-design'
+
+# note ref rm is idempotent (twice, both exit 0)
+exec mtt note ref rm auth-design task:t2
+stdout 'removed task:t2 from auth-design'
+exec mtt note ref rm auth-design task:t2
+stdout 'removed task:t2 from auth-design'
+
+# note ref add on a missing note -> not found (exit 4)
+! exec mtt note ref add ghost task:t2
+stderr 'not found'
+
+# creation-time --ref on note add (canonicalized, verified/warned)
+exec mtt note add spec --ref task:t1 --ref task:t1
+stdout 'created spec'
+exec mtt note ref list spec
+stdout 'task:t1  \[ok\]'
+
+# creation-time --ref on task add; a dangling one warns but stores (exit 0)
+exec mtt add 'C' --ref task:t1 --ref task:t999
+stdout 'created t3'
+stderr 'warning: task:t999 is dangling'
+exec mtt ref list t3
+stdout 'task:t1  \[ok\]'
+stdout 'task:t999  \[dangling\]'

@@ -48,6 +48,8 @@ type showJSON struct {
 	StatusDescription string         `json:"status_description,omitempty"`
 	Next              []nextMoveJSON `json:"next,omitempty"`
 	History           []historyJSON  `json:"history,omitempty"`
+	Refs              []refJSON      `json:"refs,omitempty"`
+	Backlinks         []backlinkJSON `json:"backlinks,omitempty"`
 }
 
 // nextMoveJSON is one onward transition from the current status (the target and

@@ -1,7 +1,7 @@
 id: t1
 type: task
 title: references — structured, verifiable refs on tasks/comments (note/task/comment/url)
-status: tbd
+status: approved
 priority: high
 tags:
     - core
@@ -9,4 +9,96 @@ tags:
 depends_on:
     - t47
 created: "2026-07-10T13:51:25Z"
-updated: "2026-07-19T10:19:07Z"
+updated: "2026-07-20T08:46:31Z"
+history:
+    - at: "2026-07-20T05:48:32Z"
+      by: Grigorii Pashukhin
+      from: tbd
+      to: speccing
+      checks:
+        - cmd: git switch task/t1 || (git switch main && git switch -c task/t1)
+          exit: 0
+        - cmd: test -f .mtt/tasks/t1.yaml || { echo "task file absent on this branch — its add has not reached main (merge/commit the branch that created it first)" >&2; false; }
+          exit: 0
+    - at: "2026-07-20T06:28:35Z"
+      by: Grigorii Pashukhin
+      from: speccing
+      to: spec_review
+      checks:
+        - cmd: ls docs/superpowers/specs/t1-*.md
+          exit: 0
+    - at: "2026-07-20T06:38:32Z"
+      by: Grigorii Pashukhin
+      why: 'adversarial spec_review: ref rm exit-code inconsistency (should be idempotent no-op like dep/tag rm, not exit 4) + 6 clarifications'
+      from: spec_review
+      to: spec_fix
+    - at: "2026-07-20T06:40:29Z"
+      by: Grigorii Pashukhin
+      from: spec_fix
+      to: spec_review
+      checks:
+        - cmd: ls docs/superpowers/specs/t1-*.md
+          exit: 0
+    - at: "2026-07-20T06:42:29Z"
+      by: Grigorii Pashukhin
+      why: adversarial spec_review PASS (re-verified by same reviewer); ready for human sign-off
+      from: spec_review
+      to: spec_human_review
+    - at: "2026-07-20T07:00:30Z"
+      by: Grigorii Pashukhin
+      why: human sign-off on spec (maintainer)
+      from: spec_human_review
+      to: planning
+    - at: "2026-07-20T07:12:59Z"
+      by: Grigorii Pashukhin
+      from: planning
+      to: plan_review
+      checks:
+        - cmd: ls docs/superpowers/plans/t1-*.md
+          exit: 0
+    - at: "2026-07-20T07:25:13Z"
+      by: Grigorii Pashukhin
+      why: 'adversarial plan_review: toShowJSON sig breaks show_json_test (build red); exit-7 needs a unit test not just ! exec; + 4 nits (golden dir, url warn, note self-ref, missing-note=dangling)'
+      from: plan_review
+      to: plan_fix
+    - at: "2026-07-20T07:30:55Z"
+      by: Grigorii Pashukhin
+      from: plan_fix
+      to: plan_review
+      checks:
+        - cmd: ls docs/superpowers/plans/t1-*.md
+          exit: 0
+    - at: "2026-07-20T07:33:01Z"
+      by: Grigorii Pashukhin
+      why: adversarial plan_review PASS (re-verified by same reviewer); both blocking build/coverage issues fixed
+      from: plan_review
+      to: plan_human_review
+    - at: "2026-07-20T08:00:06Z"
+      by: Grigorii Pashukhin
+      why: human sign-off on plan (maintainer); inline execution of all 12 tasks
+      from: plan_human_review
+      to: implementing
+    - at: "2026-07-20T08:34:05Z"
+      by: Grigorii Pashukhin
+      from: implementing
+      to: impl_review
+      checks:
+        - cmd: make check
+          exit: 0
+    - at: "2026-07-20T08:42:46Z"
+      by: Grigorii Pashukhin
+      why: 'adversarial impl_review: exit-code table (EN+RU) omits exit 7 (spec required pin); reconcile stale exit 5; add cross-store dangling CheckRefs test'
+      from: impl_review
+      to: impl_fix
+    - at: "2026-07-20T08:45:05Z"
+      by: Grigorii Pashukhin
+      from: impl_fix
+      to: impl_review
+      checks:
+        - cmd: make check
+          exit: 0
+    - at: "2026-07-20T08:46:31Z"
+      by: Grigorii Pashukhin
+      why: adversarial code review PASS (re-verified); make check green; verified end-to-end with the real binary
+      from: impl_review
+      to: approved

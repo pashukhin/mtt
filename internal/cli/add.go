@@ -22,6 +22,7 @@ func newAddCmd() *cobra.Command {
 		priority  string
 		dependsOn []string
 		tags      []string
+		refVals   []string
 	)
 	cmd := &cobra.Command{
 		Use:   "add [title]",
@@ -67,10 +68,17 @@ explicit ones.`,
 			for i, d := range dependsOn {
 				depIDs[i] = mtt.TaskID(d)
 			}
-			adder := core.NewAdder(yaml.NewTaskStore(root), cfg, time.Now)
-			task, err := adder.Add(core.AddParams{Title: title, TypeName: mtt.TypeName(typeName), Parent: mtt.TaskID(parent), NoParent: noParent, Description: desc, Priority: prio, DependsOn: depIDs, Tags: tagVals})
+			refs, err := parseRefFlags(refVals)
 			if err != nil {
 				return err
+			}
+			adder := core.NewAdder(yaml.NewTaskStore(root), cfg, time.Now)
+			task, err := adder.Add(core.AddParams{Title: title, TypeName: mtt.TypeName(typeName), Parent: mtt.TaskID(parent), NoParent: noParent, Description: desc, Priority: prio, DependsOn: depIDs, Tags: tagVals, Refs: refs})
+			if err != nil {
+				return err
+			}
+			for _, r := range refs {
+				warnIfNotOK(cmd, r, verifyOne(root, r))
 			}
 			if jsonFlag(cmd) {
 				return writeJSON(cmd.OutOrStdout(), toTaskJSON(task))
@@ -86,6 +94,7 @@ explicit ones.`,
 	cmd.Flags().StringVar(&priority, "priority", "", "task priority: high|medium|low (default: unset)")
 	cmd.Flags().StringSliceVar(&dependsOn, "depends-on", nil, "ids this task depends on (repeatable, comma-separated)")
 	cmd.Flags().StringArrayVar(&tags, "tag", nil, "add a tag (repeatable; #hashtags in the title/description are also picked up)")
+	cmd.Flags().StringArrayVar(&refVals, "ref", nil, "add a reference <kind>:<target> (repeatable)")
 	cmd.MarkFlagsMutuallyExclusive("parent", "no-parent")
 	return cmd
 }

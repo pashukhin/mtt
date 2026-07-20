@@ -21,7 +21,7 @@ func newNoteCmd() *cobra.Command {
 		Use:   "note",
 		Short: "Manage knowledge-base notes",
 	}
-	cmd.AddCommand(newNoteAddCmd(), newNoteListCmd(), newNoteShowCmd(), newNoteEditCmd(), newNoteRmCmd())
+	cmd.AddCommand(newNoteAddCmd(), newNoteListCmd(), newNoteShowCmd(), newNoteEditCmd(), newNoteRmCmd(), newNoteRefCmd())
 	return cmd
 }
 
@@ -82,6 +82,7 @@ func newNoteAddCmd() *cobra.Command {
 	var (
 		title, body, file string
 		tags              []string
+		refVals           []string
 	)
 	cmd := &cobra.Command{
 		Use:   "add <slug>",
@@ -96,6 +97,10 @@ func newNoteAddCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			refs, err := parseRefFlags(refVals)
+			if err != nil {
+				return err
+			}
 			b, err := readNoteBody(cmd, body, file)
 			if err != nil {
 				return err
@@ -104,9 +109,12 @@ func newNoteAddCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			note, err := core.NewNoteAdder(yaml.NewKnowledgeStore(root), time.Now).Add(core.NoteParams{Slug: slug, Title: title, Tags: normTags, Body: b})
+			note, err := core.NewNoteAdder(yaml.NewKnowledgeStore(root), time.Now).Add(core.NoteParams{Slug: slug, Title: title, Tags: normTags, Body: b, Refs: refs})
 			if err != nil {
 				return err
+			}
+			for _, r := range refs {
+				warnIfNotOK(cmd, r, verifyOne(root, r))
 			}
 			if jsonFlag(cmd) {
 				return writeJSON(cmd.OutOrStdout(), toNoteJSON(note))
@@ -119,6 +127,7 @@ func newNoteAddCmd() *cobra.Command {
 	cmd.Flags().StringArrayVar(&tags, "tag", nil, "add a tag (repeatable)")
 	cmd.Flags().StringVar(&body, "body", "", "note body (markdown)")
 	cmd.Flags().StringVar(&file, "file", "", "read the body from a file ('-' for stdin)")
+	cmd.Flags().StringArrayVar(&refVals, "ref", nil, "add a reference <kind>:<target> (repeatable)")
 	return cmd
 }
 
@@ -173,6 +182,14 @@ func noteLine(n mtt.Note) string {
 	return fmt.Sprintf("%s  %s", n.Slug, title)
 }
 
+// noteShowJSON is `mtt note show --json`: the lean note view plus its verified refs
+// and computed backlinks (the lean noteJSON stays for note list/add/edit).
+type noteShowJSON struct {
+	noteJSON
+	Refs      []refJSON      `json:"refs,omitempty"`
+	Backlinks []backlinkJSON `json:"backlinks,omitempty"`
+}
+
 func newNoteShowCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "show <slug>",
@@ -187,17 +204,41 @@ func newNoteShowCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			note, err := yaml.NewKnowledgeStore(root).GetNote(slug)
+			kb := yaml.NewKnowledgeStore(root)
+			note, err := kb.GetNote(slug)
 			if err != nil {
 				if errors.Is(err, mtt.ErrNotFound) {
 					return noteNotFound(slug)
 				}
 				return err
 			}
-			if jsonFlag(cmd) {
-				return writeJSON(cmd.OutOrStdout(), toNoteJSON(note))
+			notes, err := kb.ListNotes()
+			if err != nil {
+				return err
 			}
-			return writeNote(cmd, note)
+			tasks, err := yaml.NewTaskStore(root).List()
+			if err != nil {
+				return err
+			}
+			te, ne := taskExistsFn(tasks), noteExistsFn(notes)
+			back := core.NewBacklinks(tasks, notes).To(mtt.RefNote, string(slug))
+			if jsonFlag(cmd) {
+				sj := noteShowJSON{noteJSON: toNoteJSON(note)}
+				if len(note.Refs) > 0 {
+					sj.Refs = verifiedRefsJSON(note.Refs, te, ne)
+				}
+				if len(back) > 0 {
+					sj.Backlinks = toBacklinkJSON(back)
+				}
+				return writeJSON(cmd.OutOrStdout(), sj)
+			}
+			if err := writeNote(cmd, note); err != nil {
+				return err
+			}
+			if block := formatRefsBacklinks(note.Refs, back, te, ne); block != "" {
+				_, err = fmt.Fprint(cmd.OutOrStdout(), block)
+			}
+			return err
 		},
 	}
 }
@@ -282,9 +323,10 @@ func newNoteEditCmd() *cobra.Command {
 }
 
 func newNoteRmCmd() *cobra.Command {
-	return &cobra.Command{
+	var force bool
+	cmd := &cobra.Command{
 		Use:   "rm <slug>",
-		Short: "Delete a knowledge note",
+		Short: "Delete a knowledge note (refuses if referenced; --force overrides)",
 		Args:  oneID("provide exactly one slug (example: mtt note rm auth-design)"),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			slug, err := mtt.NewNoteSlug(args[0])
@@ -295,10 +337,10 @@ func newNoteRmCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			store := yaml.NewKnowledgeStore(root)
+			kb := yaml.NewKnowledgeStore(root)
 			var note mtt.Note
 			if jsonFlag(cmd) { // capture before delete so --json can echo the removed note
-				note, err = store.GetNote(slug)
+				note, err = kb.GetNote(slug)
 				if err != nil {
 					if errors.Is(err, mtt.ErrNotFound) {
 						return noteNotFound(slug)
@@ -306,11 +348,28 @@ func newNoteRmCmd() *cobra.Command {
 					return err
 				}
 			}
-			if err := store.DeleteNote(slug); err != nil {
+			tasks, err := yaml.NewTaskStore(root).List()
+			if err != nil {
+				return err
+			}
+			notes, err := kb.ListNotes()
+			if err != nil {
+				return err
+			}
+			referents := referentIDs(core.NewBacklinks(tasks, notes).To(mtt.RefNote, string(slug)), slug)
+			_, settings, err := yaml.Load(root)
+			if err != nil {
+				return err
+			}
+			_, by, why, err := resolveAttribution(cmd, settings.Author)
+			if err != nil {
+				return err
+			}
+			if err := core.NewNoteRemover(kb, yaml.NewAuditStore(root), time.Now).Remove(slug, referents, force, by, why); err != nil {
 				if errors.Is(err, mtt.ErrNotFound) {
 					return noteNotFound(slug)
 				}
-				return err
+				return err // ErrMissingAttribution -> exit 2; referenced-refusal -> exit 1
 			}
 			if jsonFlag(cmd) {
 				return writeJSON(cmd.OutOrStdout(), toNoteJSON(note))
@@ -319,4 +378,25 @@ func newNoteRmCmd() *cobra.Command {
 			return err
 		},
 	}
+	cmd.Flags().BoolVar(&force, "force", false, "delete even if referenced (leaves dangling refs)")
+	return cmd
+}
+
+// referentIDs formats backlink referents as strings (note carriers labelled),
+// EXCLUDING the note's own self-reference (a note referencing itself must not block
+// its own delete — symmetric with the task guard's subgraph-ignore of the deletion
+// set).
+func referentIDs(refs []core.Referent, self mtt.NoteSlug) []string {
+	out := make([]string, 0, len(refs))
+	for _, r := range refs {
+		if r.Carrier == mtt.RefNote {
+			if r.ID == string(self) {
+				continue // self-ref never blocks
+			}
+			out = append(out, "note:"+r.ID)
+		} else {
+			out = append(out, r.ID)
+		}
+	}
+	return out
 }

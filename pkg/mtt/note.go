@@ -36,14 +36,15 @@ func NewNoteSlug(s string) (NoteSlug, error) {
 func (s NoteSlug) Valid() bool { return s != "" && noteSlugRe.MatchString(string(s)) }
 
 // Note is a knowledge-base entry: a markdown Body plus metadata. Identity is Slug
-// (the on-disk file name). In the seed a note is single-version (its history is git);
-// Version/Predecessor are deferred to t6. Refs on notes are deferred to t1 — the seed
-// note is refs-free.
+// (the on-disk file name). A note is single-version (its history is git);
+// Version/Predecessor are deferred to t6. Refs are verifiable references (t1) —
+// informational and non-blocking, like a task's.
 type Note struct {
 	Slug    NoteSlug
 	Title   string
 	Tags    []string
 	Body    string
+	Refs    []Ref
 	Created time.Time
 	Updated time.Time
 }

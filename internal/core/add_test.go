@@ -210,3 +210,19 @@ func TestAddDependsOnDedup(t *testing.T) {
 		t.Fatalf("DependsOn = %v; want deduped [t1]", got.DependsOn)
 	}
 }
+
+func TestAdderCanonicalizesRefs(t *testing.T) {
+	fs := &fakeStore{retID: "e1"}
+	got, err := NewAdder(fs, cfg(), fixed).Add(AddParams{Title: "x", TypeName: "epic", Refs: []mtt.Ref{
+		{Kind: mtt.RefTask, ID: "t2"}, {Kind: mtt.RefNote, ID: "a"}, {Kind: mtt.RefTask, ID: "t2"},
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got.Refs) != 2 { // deduped by (kind,id)
+		t.Fatalf("refs: %+v", got.Refs)
+	}
+	if got.Refs[0].Kind != mtt.RefNote { // sorted (note < task)
+		t.Fatalf("sort: %+v", got.Refs)
+	}
+}

@@ -17,6 +17,7 @@ import (
 type ymlNote struct {
 	Title   string   `yaml:"title,omitempty"`
 	Tags    []string `yaml:"tags,omitempty"`
+	Refs    []ymlRef `yaml:"refs,omitempty"`
 	Created string   `yaml:"created"`
 	Updated string   `yaml:"updated"`
 }
@@ -31,6 +32,7 @@ func marshalNote(n mtt.Note) ([]byte, error) {
 	fm, err := goyaml.Marshal(ymlNote{
 		Title:   n.Title,
 		Tags:    n.Tags,
+		Refs:    fromDomainRefs(n.Refs),
 		Created: n.Created.UTC().Format(time.RFC3339),
 		Updated: n.Updated.UTC().Format(time.RFC3339),
 	})
@@ -74,5 +76,5 @@ func parseNote(slug mtt.NoteSlug, data []byte) (mtt.Note, error) {
 	if err != nil {
 		return mtt.Note{}, fmt.Errorf("note %s: updated: %w", slug, err)
 	}
-	return mtt.Note{Slug: slug, Title: yn.Title, Tags: yn.Tags, Body: string(body), Created: created, Updated: updated}, nil
+	return mtt.Note{Slug: slug, Title: yn.Title, Tags: yn.Tags, Refs: toDomainRefs(yn.Refs), Body: string(body), Created: created, Updated: updated}, nil
 }

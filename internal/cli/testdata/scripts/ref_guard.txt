@@ -1,0 +1,55 @@
+# deletion guards (task rm + note rm) refuse a referenced target; show refs/backlinks
+mkdir proj
+cd proj
+exec mtt init
+stdout 'initialized'
+exec mtt add 'A'
+stdout 'created t1'
+exec mtt add 'B'
+stdout 'created t2'
+exec mtt note add spec
+stdout 'created spec'
+
+# t2 and note spec both reference t1
+exec mtt ref add t2 task:t1
+exec mtt note ref add spec task:t1
+
+# show t2 renders a refs: section
+exec mtt show t2
+stdout '  refs:'
+stdout 'task:t1  \[ok\]'
+
+# show t1 renders a backlinks: section (from the note AND the task, carrier-sorted)
+exec mtt show t1
+stdout '  backlinks:'
+stdout 'note:spec'
+stdout 'task:t2'
+
+# task rm t1 is refused (referenced by t2 and note spec)
+! exec mtt rm t1
+stderr 'referenced by'
+exec mtt show t1
+stdout 't1'
+
+# --force without who/why -> exit 2
+! exec mtt rm t1 --force
+stderr 'missing required attribution'
+
+# --force with who/why deletes (leaves the refs dangling)
+exec mtt rm t1 --force --who me --why cleanup
+stdout 'removed t1'
+
+# note rm guard: make note spec referenced by t2, then refuse its delete
+exec mtt ref add t2 note:spec
+! exec mtt note rm spec
+stderr 'referenced by'
+! exec mtt note rm spec --force
+stderr 'missing required attribution'
+exec mtt note rm spec --force --who me --why cleanup
+stdout 'removed spec'
+
+# a self-referencing note is NOT blocked by its own ref
+exec mtt note add solo
+exec mtt note ref add solo note:solo
+exec mtt note rm solo
+stdout 'removed solo'

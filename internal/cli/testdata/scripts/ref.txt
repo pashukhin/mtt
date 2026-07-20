@@ -1,0 +1,66 @@
+# references on tasks: add / list (with backlinks) / rm (idempotent) / warn-not-block
+mkdir proj
+cd proj
+exec mtt init
+stdout 'initialized'
+
+exec mtt add 'A'
+stdout 'created t1'
+exec mtt add 'B'
+stdout 'created t2'
+exec mtt note add auth-design
+stdout 'created auth-design'
+
+# add a task ref (target exists -> ok, no warning)
+exec mtt ref add t2 task:t1 --label blocks
+stdout 'added task:t1 to t2'
+! stderr 'warning'
+
+# outgoing ref shows [ok] + label; the target gains a backlink
+exec mtt ref list t2
+stdout 'refs:'
+stdout 'task:t1  \[ok\]  \(blocks\)'
+exec mtt ref list t1
+stdout 'backlinks:'
+stdout 'task:t2'
+
+# a note ref to an existing note is ok
+exec mtt ref add t2 note:auth-design
+stdout 'added note:auth-design to t2'
+
+# warn-not-block: a dangling task target is stored, warns, exits 0
+exec mtt ref add t2 task:t999
+stdout 'added task:t999 to t2'
+stderr 'warning: task:t999 is dangling'
+
+# a missing note target (KB wired) is dangling too (D5), not unverified
+exec mtt ref add t1 note:ghost
+stderr 'warning: note:ghost is dangling'
+
+# a well-formed url is unverified and does NOT warn
+exec mtt ref add t1 url:https://example.com/x
+! stderr 'warning'
+
+# comment kind is rejected (t2)
+! exec mtt ref add t2 comment:t1
+stderr 'comments arrive in t2'
+
+# malformed url -> usage error
+! exec mtt ref add t2 url:example.com
+stderr 'need scheme and host'
+
+# ref rm is idempotent: removing twice both succeed (exit 0)
+exec mtt ref add t2 task:t1
+exec mtt ref rm t2 task:t1
+stdout 'removed task:t1 from t2'
+exec mtt ref rm t2 task:t1
+stdout 'removed task:t1 from t2'
+
+# ref add on a missing carrier -> not found (exit 4)
+! exec mtt ref add t999 task:t1
+stderr 'not found'
+
+# --json emits the ref object with status
+exec mtt ref add t2 task:t1 --json
+stdout '"kind": "task"'
+stdout '"status": "ok"'

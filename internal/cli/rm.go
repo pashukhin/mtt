@@ -44,8 +44,12 @@ func newRmCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			bl, err := loadBacklinks(root)
+			if err != nil {
+				return err
+			}
 			remover := core.NewRemover(yaml.NewTaskStore(root), yaml.NewAuditStore(root), time.Now)
-			results, err := remover.RemoveMany(ids, force, by, why)
+			results, err := remover.RemoveMany(ids, force, by, why, bl)
 			if err != nil {
 				return err // pre-flight ErrMissingAttribution → exit 2 (raw, not via reportBulk)
 			}
@@ -95,8 +99,12 @@ func runRmSingle(cmd *cobra.Command, root, idArg string, force, dryRun bool) err
 			return err
 		}
 	}
+	bl, err := loadBacklinks(root)
+	if err != nil {
+		return err
+	}
 	remover := core.NewRemover(store, yaml.NewAuditStore(root), time.Now)
-	if err := remover.Remove(id, force, by, why); err != nil {
+	if err := remover.Remove(id, force, by, why, bl); err != nil {
 		return err
 	}
 	if err := clearCurrentIfMatches(root, id); err != nil {
@@ -107,6 +115,21 @@ func runRmSingle(cmd *cobra.Command, root, idArg string, force, dryRun bool) err
 	}
 	_, err = fmt.Fprintf(cmd.OutOrStdout(), "removed %s\n", id)
 	return err
+}
+
+// loadBacklinks builds the cross-store backlink index (tasks + notes) so the delete
+// guard refuses a task referenced by another task OR a note (D9). core.Remover stays
+// store-agnostic — it consumes this computed value, never a KnowledgeStore port.
+func loadBacklinks(root string) (core.Backlinks, error) {
+	tasks, err := yaml.NewTaskStore(root).List()
+	if err != nil {
+		return nil, err
+	}
+	notes, err := yaml.NewKnowledgeStore(root).ListNotes()
+	if err != nil {
+		return nil, err
+	}
+	return core.NewBacklinks(tasks, notes), nil
 }
 
 // clearCurrentIfMatches clears the current-task pointer when it names id (a deleted

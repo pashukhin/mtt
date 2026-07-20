@@ -46,7 +46,7 @@ status + next moves. All commands support --json.`,
 	root.AddCommand(newVersionCmd(), newInitCmd(), newTypesCmd(), newAddCmd(), newShowCmd(),
 		newListCmd(), newEditCmd(), newTreeCmd(), newDepCmd(), newReadyCmd(), newStatusCmd(),
 		newUseCmd(), newRmCmd(), newRoadmapCmd(), newTagCmd(), newTagsCmd(), newDoCmd(),
-		newNoteCmd())
+		newNoteCmd(), newRefCmd(), newCheckCmd())
 	return root
 }
 
@@ -191,6 +191,8 @@ func exitCode(err error) int {
 		return 4
 	case errors.Is(err, core.ErrPostAction):
 		return 5
+	case errors.Is(err, core.ErrDanglingRefs):
+		return 7
 	default:
 		return 1
 	}

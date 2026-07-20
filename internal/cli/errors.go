@@ -1,10 +1,14 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/pashukhin/mtt/pkg/mtt"
 )
+
+// isNotFound reports whether err wraps mtt.ErrNotFound (the not-found taxonomy).
+func isNotFound(err error) bool { return errors.Is(err, mtt.ErrNotFound) }
 
 // taskNotFound is the uniform "task not found" error for single-task-by-id
 // commands. Wrapping mtt.ErrNotFound lets exitCode map every such path to 4.

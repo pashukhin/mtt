@@ -35,6 +35,7 @@ type AddParams struct {
 	Priority    mtt.Priority // unset by default (not medium)
 	DependsOn   []mtt.TaskID // blocking edges set at creation (targets validated)
 	Tags        []string     // explicit tags; unioned with #hashtags from title/description
+	Refs        []mtt.Ref    // informational references set at creation (canonicalized; not verified here)
 }
 
 // Add creates one task and returns it with the adapter-minted ID.
@@ -80,6 +81,10 @@ func (a *Adder) Add(p AddParams) (mtt.Task, error) {
 	}
 	now := a.now().UTC().Truncate(time.Second)
 	tags := canonicalTags(p.Tags, mtt.ExtractTags(p.Title), mtt.ExtractTags(p.Description))
+	var refs []mtt.Ref
+	if len(p.Refs) > 0 {
+		refs = canonicalRefs(p.Refs)
+	}
 	return a.store.Create(mtt.Task{
 		Type:        typ.Name,
 		Title:       p.Title,
@@ -88,6 +93,7 @@ func (a *Adder) Add(p AddParams) (mtt.Task, error) {
 		Parent:      parent,
 		Tags:        tags,
 		DependsOn:   deps,
+		Refs:        refs,
 		Description: p.Description,
 		Created:     now,
 		Updated:     now,

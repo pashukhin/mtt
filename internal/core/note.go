@@ -27,6 +27,7 @@ type NoteParams struct {
 	Title string
 	Tags  []string
 	Body  string
+	Refs  []mtt.Ref // informational references set at creation (canonicalized; not verified here)
 }
 
 // Add validates and creates the note.
@@ -35,11 +36,16 @@ func (a *NoteAdder) Add(p NoteParams) (mtt.Note, error) {
 		return mtt.Note{}, fmt.Errorf("invalid note slug %q", string(p.Slug))
 	}
 	ts := a.now().UTC()
+	var refs []mtt.Ref
+	if len(p.Refs) > 0 {
+		refs = canonicalRefs(p.Refs)
+	}
 	return a.store.CreateNote(mtt.Note{
 		Slug:    p.Slug,
 		Title:   p.Title,
 		Tags:    canonicalTags(p.Tags),
 		Body:    p.Body,
+		Refs:    refs,
 		Created: ts,
 		Updated: ts,
 	})
