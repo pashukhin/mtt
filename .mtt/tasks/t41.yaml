@@ -1,12 +1,32 @@
 id: t41
 type: task
 title: 'output verbosity + color: implement or retire -q/--quiet and --no-color (both marked pending, neither tracked)'
-status: tbd
+status: cancelled
 priority: medium
 tags:
     - dx
     - release
     - ux
 created: "2026-07-12T06:25:37Z"
-updated: "2026-07-12T07:18:28Z"
+updated: "2026-07-20T15:43:46Z"
 description: 'From the s009.x assessment. CLI_REFERENCE marks -q/--quiet and --no-color/NO_COLOR as pending, but there is no backlog item and no color in the output path at all. Decide: (1) -q/--quiet suppresses non-essential human output (errors + requested data stay); (2) color — is there a case for ANSI color in human output (status/kind/priority), gated by --no-color/NO_COLOR, or is mono-output the deliberate choice (then drop the pending --no-color claim from CLI_REFERENCE)? Design-open.'
+history:
+    - at: "2026-07-20T15:31:45Z"
+      by: Grigorii Pashukhin
+      from: tbd
+      to: speccing
+      checks:
+        - cmd: git switch task/t41 || (git switch main && git switch -c task/t41)
+          exit: 0
+        - cmd: test -f .mtt/tasks/t41.yaml || { echo "task file absent on this branch — its add has not reached main (merge/commit the branch that created it first)" >&2; false; }
+          exit: 0
+    - at: "2026-07-20T15:43:46Z"
+      by: Grigorii Pashukhin
+      why: 'brainstorm decision: defer -q/--quiet + --no-color to low-priority backlog (agent-primary → --json covers clean output; color = medium-high cost / ~14 render sites / TTY+NO_COLOR+palette, zero agent ROI). Docs corrected directly; t42 dependency on t41 removed. Deferral filed as backlog task.'
+      from: speccing
+      to: cancelled
+      checks:
+        - cmd: git switch main
+          exit: 0
+        - cmd: test -f .mtt/tasks/t41.yaml || { echo "task file absent on main — its add has not reached main (merge/commit the branch that created it first)" >&2; false; }
+          exit: 0
