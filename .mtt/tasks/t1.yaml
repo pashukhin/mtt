@@ -1,7 +1,7 @@
 id: t1
 type: task
 title: references — structured, verifiable refs on tasks/comments (note/task/comment/url)
-status: plan_human_review
+status: implementing
 priority: high
 tags:
     - core
@@ -9,7 +9,7 @@ tags:
 depends_on:
     - t47
 created: "2026-07-10T13:51:25Z"
-updated: "2026-07-20T07:33:01Z"
+updated: "2026-07-20T08:00:06Z"
 history:
     - at: "2026-07-20T05:48:32Z"
       by: Grigorii Pashukhin
@@ -73,3 +73,8 @@ history:
       why: adversarial plan_review PASS (re-verified by same reviewer); both blocking build/coverage issues fixed
       from: plan_review
       to: plan_human_review
+    - at: "2026-07-20T08:00:06Z"
+      by: Grigorii Pashukhin
+      why: human sign-off on plan (maintainer); inline execution of all 12 tasks
+      from: plan_human_review
+      to: implementing
