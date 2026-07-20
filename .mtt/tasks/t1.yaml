@@ -1,7 +1,7 @@
 id: t1
 type: task
 title: references — structured, verifiable refs on tasks/comments (note/task/comment/url)
-status: approved
+status: done
 priority: high
 tags:
     - core
@@ -9,7 +9,7 @@ tags:
 depends_on:
     - t47
 created: "2026-07-10T13:51:25Z"
-updated: "2026-07-20T08:46:31Z"
+updated: "2026-07-20T08:56:49Z"
 history:
     - at: "2026-07-20T05:48:32Z"
       by: Grigorii Pashukhin
@@ -102,3 +102,12 @@ history:
       why: adversarial code review PASS (re-verified); make check green; verified end-to-end with the real binary
       from: impl_review
       to: approved
+    - at: "2026-07-20T08:56:49Z"
+      by: Grigorii Pashukhin
+      from: approved
+      to: done
+      checks:
+        - cmd: git switch main
+          exit: 0
+        - cmd: 'git log -n 200 --format=%s | grep "^t1: " || { echo "no squash commit \"t1: …\" on local main: git pull first, and check the PR/merge title started with \"t1: \"" >&2; false; }'
+          exit: 0
