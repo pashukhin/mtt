@@ -3,12 +3,15 @@ package core
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
 	"strings"
 
 	"golang.org/x/mod/semver"
+
+	"github.com/pashukhin/mtt/pkg/mtt"
 )
 
 const (
@@ -68,6 +71,102 @@ func findChecksum(name string, sha256sums []byte) (string, bool) {
 		}
 		if strings.TrimPrefix(fields[1], "*") == name {
 			return fields[0], true
+		}
+	}
+	return "", false
+}
+
+// UpdateState is the determinate outcome of Prepare (never a hard error for a
+// resolvable release).
+type UpdateState string
+
+const (
+	UpdateAvailable UpdateState = "update-available"
+	NoUpdate        UpdateState = "no-update"
+	Undetermined    UpdateState = "undetermined"
+)
+
+// UpdateVia is how an available update would be applied. The zero value ("") is
+// used for NoUpdate/Undetermined; ViaNone means "a newer release exists but no
+// install method on this platform".
+type UpdateVia string
+
+const (
+	ViaAsset     UpdateVia = "asset"
+	ViaGoInstall UpdateVia = "go-install"
+	ViaNone      UpdateVia = "none"
+)
+
+// Plan is Prepare's determinate decision.
+type Plan struct {
+	Current      string
+	Latest       string
+	State        UpdateState
+	Via          UpdateVia
+	Tag          string
+	AssetName    string
+	AssetURL     string
+	ChecksumsURL string
+	Reason       string // populated for Undetermined and Via:none
+}
+
+// SelfUpdater computes and applies a self-update. All effects are injected ports.
+type SelfUpdater struct{}
+
+// NewSelfUpdater builds the usecase.
+func NewSelfUpdater() *SelfUpdater { return &SelfUpdater{} }
+
+// Prepare resolves the latest release and decides what (if anything) to do. It
+// returns an error ONLY when src.Latest fails; every other outcome is a state.
+func (u *SelfUpdater) Prepare(ctx context.Context, current, goos, goarch string, goAvailable, force bool, src mtt.ReleaseSource) (Plan, error) {
+	rel, err := src.Latest(ctx)
+	if err != nil {
+		return Plan{}, fmt.Errorf("resolve latest release: %w", err)
+	}
+	p := Plan{Current: current, Latest: rel.Tag, Tag: rel.Tag}
+
+	switch {
+	case !Orderable(current):
+		if !force {
+			p.State = Undetermined
+			p.Reason = fmt.Sprintf("cannot determine current version %q; re-run with --force to update to %s", current, rel.Tag)
+			return p, nil
+		}
+	case isNewer(rel.Tag, current):
+		// update
+	default: // latest <= current
+		if !force {
+			p.State = NoUpdate
+			return p, nil
+		}
+	}
+
+	// An update should be applied — pick the install method.
+	p.State = UpdateAvailable
+	an := assetName(rel.Tag, goos, goarch)
+	assetURL, hasAsset := findAsset(rel, an)
+	sumsURL, hasSums := findAsset(rel, checksumsAsset)
+	switch {
+	case hasAsset && hasSums:
+		p.Via = ViaAsset
+		p.AssetName, p.AssetURL, p.ChecksumsURL = an, assetURL, sumsURL
+	case goAvailable:
+		p.Via = ViaGoInstall
+	case !hasAsset:
+		p.Via = ViaNone
+		p.Reason = fmt.Sprintf("no asset %q in release %s and no Go toolchain to build from source", an, rel.Tag)
+	default: // asset present, checksums missing, no Go
+		p.Via = ViaNone
+		p.Reason = fmt.Sprintf("release %s has no %s (unverifiable) and no Go toolchain to build from source", rel.Tag, checksumsAsset)
+	}
+	return p, nil
+}
+
+// findAsset returns the URL of the asset named name, if present.
+func findAsset(rel mtt.Release, name string) (string, bool) {
+	for _, a := range rel.Assets {
+		if a.Name == name {
+			return a.URL, true
 		}
 	}
 	return "", false

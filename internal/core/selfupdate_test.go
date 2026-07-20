@@ -1,12 +1,94 @@
 package core
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"strings"
 	"testing"
+
+	"github.com/pashukhin/mtt/pkg/mtt"
 )
+
+type fakeSource struct {
+	rel      mtt.Release
+	latErr   error
+	fetched  map[string][]byte
+	fetchErr error
+}
+
+func (f *fakeSource) Latest(context.Context) (mtt.Release, error) { return f.rel, f.latErr }
+func (f *fakeSource) Fetch(_ context.Context, url string) ([]byte, error) {
+	if f.fetchErr != nil {
+		return nil, f.fetchErr
+	}
+	return f.fetched[url], nil
+}
+
+func relWith(tag string, names ...string) mtt.Release {
+	r := mtt.Release{Tag: tag}
+	for _, n := range names {
+		r.Assets = append(r.Assets, mtt.ReleaseAsset{Name: n, URL: "https://dl/" + n})
+	}
+	return r
+}
+
+func TestPrepareStates(t *testing.T) {
+	u := NewSelfUpdater()
+	full := relWith("v0.9.0", "mtt_v0.9.0_linux_amd64", checksumsAsset)
+
+	// pre-release current + asset present -> UpdateAvailable via asset
+	p, err := u.Prepare(context.Background(), "v0.9.0-3-gabc", "linux", "amd64", true, false, &fakeSource{rel: full})
+	if err != nil || p.State != UpdateAvailable || p.Via != ViaAsset || p.AssetName != "mtt_v0.9.0_linux_amd64" {
+		t.Fatalf("asset update: %+v err=%v", p, err)
+	}
+	// equal current -> NoUpdate
+	if p, _ := u.Prepare(context.Background(), "v0.9.0", "linux", "amd64", true, false, &fakeSource{rel: full}); p.State != NoUpdate {
+		t.Fatalf("equal: %+v", p)
+	}
+	// equal + force -> UpdateAvailable
+	if p, _ := u.Prepare(context.Background(), "v0.9.0", "linux", "amd64", true, true, &fakeSource{rel: full}); p.State != UpdateAvailable {
+		t.Fatalf("force equal: %+v", p)
+	}
+	// dev current, no force -> Undetermined (+reason)
+	if p, _ := u.Prepare(context.Background(), "dev", "linux", "amd64", true, false, &fakeSource{rel: full}); p.State != Undetermined || p.Reason == "" {
+		t.Fatalf("dev: %+v", p)
+	}
+	// dev current + force -> UpdateAvailable
+	if p, _ := u.Prepare(context.Background(), "dev", "linux", "amd64", true, true, &fakeSource{rel: full}); p.State != UpdateAvailable {
+		t.Fatalf("dev force: %+v", p)
+	}
+}
+
+func TestPrepareViaSelection(t *testing.T) {
+	u := NewSelfUpdater()
+	// platform absent, Go present -> go-install
+	rel := relWith("v0.9.0", "mtt_v0.9.0_linux_amd64", checksumsAsset)
+	if p, _ := u.Prepare(context.Background(), "dev", "linux", "riscv64", true, true, &fakeSource{rel: rel}); p.Via != ViaGoInstall {
+		t.Fatalf("go-install: %+v", p)
+	}
+	// platform absent, no Go -> Via none (+reason), still UpdateAvailable
+	if p, _ := u.Prepare(context.Background(), "dev", "linux", "riscv64", false, true, &fakeSource{rel: rel}); p.State != UpdateAvailable || p.Via != ViaNone || p.Reason == "" {
+		t.Fatalf("via none: %+v", p)
+	}
+	// asset present but SHA256SUMS missing -> same branch (go-install / none)
+	relNoSums := relWith("v0.9.0", "mtt_v0.9.0_linux_amd64")
+	if p, _ := u.Prepare(context.Background(), "dev", "linux", "amd64", true, true, &fakeSource{rel: relNoSums}); p.Via != ViaGoInstall {
+		t.Fatalf("no-sums+go: %+v", p)
+	}
+	if p, _ := u.Prepare(context.Background(), "dev", "linux", "amd64", false, true, &fakeSource{rel: relNoSums}); p.Via != ViaNone {
+		t.Fatalf("no-sums+noGo: %+v", p)
+	}
+}
+
+func TestPrepareLatestError(t *testing.T) {
+	u := NewSelfUpdater()
+	if _, err := u.Prepare(context.Background(), "v0.9.0", "linux", "amd64", true, false, &fakeSource{latErr: errors.New("boom")}); err == nil {
+		t.Fatal("Latest() failure must propagate as a Prepare error")
+	}
+}
 
 func sums(name string, data []byte, extra ...string) []byte {
 	sum := sha256.Sum256(data)
