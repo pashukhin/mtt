@@ -631,6 +631,30 @@ actionable line (exit 0). `--json` emits a non-null array of `{slug, title, tags
 
 ---
 
+## Self-update  *(shipped t44)*
+
+### `mtt self-update [--check-only] [--force] [--json]` — update the installed binary
+
+Replaces the running `mtt` with the latest published GitHub release. **Primary path:** download the platform
+asset `mtt_<tag>_<os>_<arch>[.exe]` **and** `SHA256SUMS`, verify the asset's SHA-256 **before** an atomic
+in-place swap (Unix: same-dir temp + `rename`; Windows: rename-then-swap). **Fallback:** when the platform has
+no verifiable asset (missing asset **or** missing `SHA256SUMS`) and a Go toolchain is present, `go install
+github.com/pashukhin/mtt/cmd/mtt@<tag>` (which installs into `GOBIN`/`$GOPATH/bin` — the command reports that
+path when it differs from the running binary).
+
+- `--check-only` — report `current` / `latest` / availability; write nothing. **Exit 0** for every resolvable
+  state (only a network/API failure exits non-zero) — availability is in the output, not the exit code.
+- `--force` — update from a **dev build** (a non-SemVer version, e.g. `dev` or a bare commit SHA, is otherwise
+  refused because it can't be ordered) or re-install when already on the latest.
+- `--json` — `{current, latest, update_available, updated, via, asset, path, reason, error}`; `via ∈
+  {"", "asset", "go-install", "none"}` (`none` = a newer release exists but no install method on this platform).
+
+Already latest ⇒ a no-op (`already up to date`, exit 0). A failure or a refusal exits `1` with an actionable
+message (no dedicated taxonomy code — unlike `mtt check`). Consumes exactly what `make release` publishes (see
+[RELEASING.md](RELEASING.md)).
+
+---
+
 ## Views
 
 ### `mtt gantt [<id>] [flags]` — text/ASCII Gantt  *(phase 6)*

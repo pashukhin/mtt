@@ -22,6 +22,9 @@ version-stamped from the **tag**, not from any committed string.
 6. **Verify.** Download an asset and `SHA256SUMS`, run `sha256sum -c` on the asset's line, and confirm
    `mtt version` prints `vX.Y.Z`.
 
+The published assets + `SHA256SUMS` are exactly what **`mtt self-update`** consumes to upgrade an installed
+binary in place (asset + SHA-256 verify, or a `go install` fallback) — see [CLI_REFERENCE.md](CLI_REFERENCE.md).
+
 ## Building binaries locally (no publish)
 
 ```sh

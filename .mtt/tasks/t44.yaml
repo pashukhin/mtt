@@ -1,7 +1,7 @@
 id: t44
 type: task
 title: mtt self-update — update the installed binary in place (latest release asset + SHA256 verify, or go install fallback)
-status: tbd
+status: approved
 priority: medium
 tags:
     - dx
@@ -9,5 +9,121 @@ tags:
 depends_on:
     - t30
 created: "2026-07-12T06:25:37Z"
-updated: "2026-07-12T07:18:28Z"
+updated: "2026-07-20T14:57:53Z"
 description: 'New-feature request from the s009.x assessment. A convenience command to update an installed mtt to the latest published release. Design-open: mechanism (query the GitHub releases API for the latest v* tag, download the platform asset mtt_<os>_<arch> + verify against SHA256SUMS, atomically replace argv0; OR shell out to go install .../cmd/mtt@latest when a Go toolchain is present), safely locating the running binary, --check-only/opt-in, and interaction with the release workflow. Only meaningful once v0.9.0 is tagged and published.'
+history:
+    - at: "2026-07-20T12:33:11Z"
+      by: Grigorii Pashukhin
+      from: tbd
+      to: speccing
+      checks:
+        - cmd: git switch task/t44 || (git switch main && git switch -c task/t44)
+          exit: 0
+        - cmd: test -f .mtt/tasks/t44.yaml || { echo "task file absent on this branch — its add has not reached main (merge/commit the branch that created it first)" >&2; false; }
+          exit: 0
+    - at: "2026-07-20T12:50:01Z"
+      by: Grigorii Pashukhin
+      from: speccing
+      to: spec_review
+      checks:
+        - cmd: ls docs/superpowers/specs/t44-*.md
+          exit: 0
+    - at: "2026-07-20T12:58:08Z"
+      by: Grigorii Pashukhin
+      why: 'adversarial spec review: B1 inject goAvailable into Plan; B2 Plan returns determinate state not error; S1-S4 json schema/bare-SHA/timeouts/SHA256SUMS-by-name; nits'
+      from: spec_review
+      to: spec_fix
+    - at: "2026-07-20T13:01:17Z"
+      by: Grigorii Pashukhin
+      from: spec_fix
+      to: spec_review
+      checks:
+        - cmd: ls docs/superpowers/specs/t44-*.md
+          exit: 0
+    - at: "2026-07-20T13:06:17Z"
+      by: Grigorii Pashukhin
+      why: 're-review: fix new --check-only vs no-asset-no-Go contradiction — model no-asset-no-Go as determinate Via:none (Prepare errors only on Latest() failure)'
+      from: spec_review
+      to: spec_fix
+    - at: "2026-07-20T13:06:17Z"
+      by: Grigorii Pashukhin
+      from: spec_fix
+      to: spec_review
+      checks:
+        - cmd: ls docs/superpowers/specs/t44-*.md
+          exit: 0
+    - at: "2026-07-20T13:09:49Z"
+      by: Grigorii Pashukhin
+      why: 're-review: SHA256SUMS-missing was still a Prepare error, contradicting the new absolute ''Prepare errors only on Latest() failure'' — fold it into Via:none; expose reason in --json'
+      from: spec_review
+      to: spec_fix
+    - at: "2026-07-20T13:10:37Z"
+      by: Grigorii Pashukhin
+      from: spec_fix
+      to: spec_review
+      checks:
+        - cmd: ls docs/superpowers/specs/t44-*.md
+          exit: 0
+    - at: "2026-07-20T13:11:58Z"
+      by: Grigorii Pashukhin
+      why: 'adversarial spec review PASS (3 rounds: B1/B2/S1-S4 + no-asset-no-Go + SHA256SUMS-missing all resolved)'
+      from: spec_review
+      to: spec_human_review
+    - at: "2026-07-20T13:49:14Z"
+      by: Grigorii Pashukhin
+      why: 'human sign-off on spec (Grigorii): asset-primary+go-install, 3 ports, verify-before-replace, Windows-unverified accepted'
+      from: spec_human_review
+      to: planning
+    - at: "2026-07-20T13:58:07Z"
+      by: Grigorii Pashukhin
+      from: planning
+      to: plan_review
+      checks:
+        - cmd: ls docs/superpowers/plans/t44-*.md
+          exit: 0
+    - at: "2026-07-20T14:07:23Z"
+      by: Grigorii Pashukhin
+      why: 'adversarial plan review: B1 exec-mtt in testscript; S1 split go get/tidy; S2 sharpen AC-8 deviation; S3 AC-7 structural note; N1 merge-imports; N2 dead case; N3 go-install note only when path differs'
+      from: plan_review
+      to: plan_fix
+    - at: "2026-07-20T14:10:10Z"
+      by: Grigorii Pashukhin
+      from: plan_fix
+      to: plan_review
+      checks:
+        - cmd: ls docs/superpowers/plans/t44-*.md
+          exit: 0
+    - at: "2026-07-20T14:12:28Z"
+      by: Grigorii Pashukhin
+      why: 'adversarial plan review PASS (2 rounds): B1 exec-mtt, S1 go get/tidy split, S2/S3 AC layer-deviations, N1-N3 all resolved; no compile/consistency breaks'
+      from: plan_review
+      to: plan_human_review
+    - at: "2026-07-20T14:23:02Z"
+      by: Grigorii Pashukhin
+      why: 'human sign-off on plan (Grigorii): 9-task TDD plan + AC-8/AC-7 test-layer deviations accepted; Windows-unverified-in-CI accepted'
+      from: plan_human_review
+      to: implementing
+    - at: "2026-07-20T14:44:25Z"
+      by: Grigorii Pashukhin
+      from: implementing
+      to: impl_review
+      checks:
+        - cmd: make check
+          exit: 0
+    - at: "2026-07-20T14:53:02Z"
+      by: Grigorii Pashukhin
+      why: 'adversarial code review: B1 defaultGobin split-before-trim bug (reports GOPATH not GOPATH/bin) + untested; S1 --json check-only must not emit asset; N2 github non-200 test; N4 target resolved eagerly in check-only'
+      from: impl_review
+      to: impl_fix
+    - at: "2026-07-20T14:56:06Z"
+      by: Grigorii Pashukhin
+      from: impl_fix
+      to: impl_review
+      checks:
+        - cmd: make check
+          exit: 0
+    - at: "2026-07-20T14:57:53Z"
+      by: Grigorii Pashukhin
+      why: 'adversarial code review PASS (2 rounds): B1 gobin-parse bug + S1 json + N2 + N4 resolved; AC-9 real-binary smoke proven (sha256 matches published SHA256SUMS)'
+      from: impl_review
+      to: approved
