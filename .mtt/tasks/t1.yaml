@@ -1,7 +1,7 @@
 id: t1
 type: task
 title: references — structured, verifiable refs on tasks/comments (note/task/comment/url)
-status: plan_fix
+status: plan_review
 priority: high
 tags:
     - core
@@ -9,7 +9,7 @@ tags:
 depends_on:
     - t47
 created: "2026-07-10T13:51:25Z"
-updated: "2026-07-20T07:25:13Z"
+updated: "2026-07-20T07:30:55Z"
 history:
     - at: "2026-07-20T05:48:32Z"
       by: Grigorii Pashukhin
@@ -61,3 +61,10 @@ history:
       why: 'adversarial plan_review: toShowJSON sig breaks show_json_test (build red); exit-7 needs a unit test not just ! exec; + 4 nits (golden dir, url warn, note self-ref, missing-note=dangling)'
       from: plan_review
       to: plan_fix
+    - at: "2026-07-20T07:30:55Z"
+      by: Grigorii Pashukhin
+      from: plan_fix
+      to: plan_review
+      checks:
+        - cmd: ls docs/superpowers/plans/t1-*.md
+          exit: 0
