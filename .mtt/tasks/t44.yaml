@@ -1,7 +1,7 @@
 id: t44
 type: task
 title: mtt self-update — update the installed binary in place (latest release asset + SHA256 verify, or go install fallback)
-status: speccing
+status: spec_review
 priority: medium
 tags:
     - dx
@@ -9,7 +9,7 @@ tags:
 depends_on:
     - t30
 created: "2026-07-12T06:25:37Z"
-updated: "2026-07-20T12:33:11Z"
+updated: "2026-07-20T12:50:01Z"
 description: 'New-feature request from the s009.x assessment. A convenience command to update an installed mtt to the latest published release. Design-open: mechanism (query the GitHub releases API for the latest v* tag, download the platform asset mtt_<os>_<arch> + verify against SHA256SUMS, atomically replace argv0; OR shell out to go install .../cmd/mtt@latest when a Go toolchain is present), safely locating the running binary, --check-only/opt-in, and interaction with the release workflow. Only meaningful once v0.9.0 is tagged and published.'
 history:
     - at: "2026-07-20T12:33:11Z"
@@ -20,4 +20,11 @@ history:
         - cmd: git switch task/t44 || (git switch main && git switch -c task/t44)
           exit: 0
         - cmd: test -f .mtt/tasks/t44.yaml || { echo "task file absent on this branch — its add has not reached main (merge/commit the branch that created it first)" >&2; false; }
+          exit: 0
+    - at: "2026-07-20T12:50:01Z"
+      by: Grigorii Pashukhin
+      from: speccing
+      to: spec_review
+      checks:
+        - cmd: ls docs/superpowers/specs/t44-*.md
           exit: 0
