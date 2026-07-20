@@ -42,15 +42,30 @@ func newShowCmd() *cobra.Command {
 				return err
 			}
 			statusDesc, onward := statusGuidance(cfg, task)
-			if jsonFlag(cmd) {
-				return writeJSON(cmd.OutOrStdout(), toShowJSON(task, statusDesc, onward))
-			}
 			tasks, err := store.List()
 			if err != nil {
 				return err
 			}
+			notes, err := yaml.NewKnowledgeStore(root).ListNotes()
+			if err != nil {
+				return err
+			}
+			te, ne := taskExistsFn(tasks), noteExistsFn(notes)
+			back := core.NewBacklinks(tasks, notes).To(mtt.RefTask, string(task.ID))
+			if jsonFlag(cmd) {
+				sj := toShowJSON(task, statusDesc, onward)
+				if len(task.Refs) > 0 {
+					sj.Refs = verifiedRefsJSON(task.Refs, te, ne)
+				}
+				if len(back) > 0 {
+					sj.Backlinks = toBacklinkJSON(back)
+				}
+				return writeJSON(cmd.OutOrStdout(), sj)
+			}
 			idx := core.NewIndex(tasks)
-			_, err = fmt.Fprint(cmd.OutOrStdout(), formatTask(task, idx.Ancestors(task.ID), idx.Children(task.ID), statusDesc, onward))
+			out := formatTask(task, idx.Ancestors(task.ID), idx.Children(task.ID), statusDesc, onward)
+			out += formatRefsBacklinks(task.Refs, back, te, ne)
+			_, err = fmt.Fprint(cmd.OutOrStdout(), out)
 			return err
 		},
 	}

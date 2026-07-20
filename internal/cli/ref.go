@@ -122,6 +122,33 @@ func warnIfNotOK(cmd *cobra.Command, r mtt.Ref, st core.RefStatus) {
 	}
 }
 
+// formatRefsBacklinks renders the human refs:/backlinks: block for show / note show,
+// or "" when the carrier has neither (so a ref-less show is byte-unchanged). Lines
+// are indented under a 2-space header to match formatTask's field style.
+func formatRefsBacklinks(refs []mtt.Ref, back []core.Referent, te func(mtt.TaskID) bool, ne func(mtt.NoteSlug) bool) string {
+	if len(refs) == 0 && len(back) == 0 {
+		return ""
+	}
+	var b strings.Builder
+	if len(refs) > 0 {
+		b.WriteString("  refs:\n")
+		for _, r := range refs {
+			fmt.Fprintf(&b, "    %s\n", refLine(r, core.VerifyRef(r, te, ne)))
+		}
+	}
+	if len(back) > 0 {
+		b.WriteString("  backlinks:\n")
+		for _, r := range back {
+			if r.Label != "" {
+				fmt.Fprintf(&b, "    %s:%s  (%s)\n", r.Carrier, r.ID, r.Label)
+			} else {
+				fmt.Fprintf(&b, "    %s:%s\n", r.Carrier, r.ID)
+			}
+		}
+	}
+	return b.String()
+}
+
 // writeRefsAndBacklinks renders a carrier's outgoing refs (verified) + incoming
 // backlinks for `ref list` / `note ref list`, in text (always both headers) or
 // (--json) {refs:[...], backlinks:[...]} (both non-null).
