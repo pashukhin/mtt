@@ -56,7 +56,7 @@ Override `c.Cancel` (which `CommandContext` defaults to a process-only `Process.
 ```go
 c.Cancel = func() error {
     err := syscall.Kill(-c.Process.Pid, syscall.SIGKILL) // -pid == "every process in group pid"
-    if err == syscall.ESRCH {                            // already gone
+    if errors.Is(err, syscall.ESRCH) {                   // already gone
         return os.ErrProcessDone                         // os/exec treats this as "nothing to cancel"
     }
     return err
@@ -72,21 +72,41 @@ widen the target from the process to its group.
 
 - **`ESRCH → os.ErrProcessDone`:** if the group already exited between the deadline firing and the signal,
   `Kill` returns `ESRCH`; mapping it to `os.ErrProcessDone` keeps `Wait` from surfacing a spurious cancel
-  error (documented `os/exec` special case). Any other `Kill` error propagates.
+  error — `os/exec`'s `watchCtx` special-cases a `Cancel` return of `os.ErrProcessDone` (via
+  `errors.Is`). Use `errors.Is(err, syscall.ESRCH)` (not `==`) for the match — future-proof against wrapping,
+  and `errorlint`-clean. Any other `Kill` error propagates.
 
 ### D3 — Bound `Wait` with `c.WaitDelay` (the pipe-inheritance safety net, cross-platform)
 
 Set `c.WaitDelay = 2 * time.Second` in the shared `runOne` (a package constant, both platforms). Go 1.20+
-`WaitDelay` caps the interval between "process exited / context cancelled" and "force-close the I/O pipes and
-return from `Wait`". Because D2 kills the **whole group**, the inherited pipe normally closes immediately and
-`WaitDelay` never fires; it is the **safety net** for the one case D1/D2 can't reach — a child that
-**double-`setsid`s out of the group** — so mtt returns instead of hanging forever (best-effort: that escapee
-is by construction outside any group we own; we bound our own wait, we don't chase it).
+`WaitDelay` starts its timer at **"the process exited *or* the context was cancelled, whichever is first"** and
+caps the interval before `os/exec` **force-closes the I/O pipes and returns from `Wait`** (with
+`exec.ErrWaitDelay` if it had to). Because D2 kills the **whole group** on timeout, the inherited pipe normally
+closes immediately and `WaitDelay` never elapses on the timeout path.
+
+`WaitDelay` is load-bearing in **two** situations, not one:
+
+1. **Timeout path — makes the test honest (see AC-1).** Without it, when the group-kill is absent, `Wait`
+   blocks until the orphan closes the inherited pipe (i.e. until the orphan *finishes*), so a broken build
+   would still eventually return and look fine. With `WaitDelay` always on, `Run` returns promptly whether or
+   not the group was killed — which is exactly what lets AC-1 distinguish "orphan killed" (PID dead) from
+   "orphan leaked" (PID alive).
+2. **Success path — closes a pre-existing infinite hang.** A gate that **exits 0** but leaves a child holding
+   the inherited stdout/stderr pipe (`start-daemon &` with no redirect) makes today's `Wait` block **forever**
+   (the process is gone, the pipe never EOFs). With `WaitDelay`, `Wait` returns after 2 s with
+   `exec.ErrWaitDelay`; since `ctx.Err()` is **not** `DeadlineExceeded` there, `runOne` reports it as an
+   operational failure `(-1, "command … failed to run: … WaitDelay expired")`. This is a **behavior change for
+   that specific pathological gate** (infinite hang → a `-1` operational failure after 2 s) — a strict
+   improvement, called out here so it is not a surprise. For a **normally-terminating** gate (the overwhelming
+   case) nothing changes: the pipe EOFs at process exit, `WaitDelay` never fires.
+
+The group-kill (D1/D2) cannot reach a child that **double-`setsid`s out of the group**; `WaitDelay` still
+bounds mtt's own wait there (we bound our wait, we don't chase the escapee).
 
 - Cross-platform because the pipe-inheritance hang is not Unix-specific; on Windows (D4) it likewise prevents
   a wedged `Wait`.
-- **2 s** is a fixed constant, not config (YAGNI): it only ever delays the *already-timed-out* error path, and
-  only in the rare escapee case.
+- **2 s** is a fixed constant, not config (YAGNI): it only affects a timed-out or pipe-holding gate, never a
+  normally-terminating one.
 
 ### D4 — Windows: documented best-effort no-op
 
@@ -121,6 +141,12 @@ None new — `syscall` and `os` are stdlib. `c.WaitDelay`/`c.Cancel` are `os/exe
 wiring in `runOne` (`configureGroupKill(c)` + `c.WaitDelay`); a hermetic Unix-only test proving an orphaned
 child is killed on timeout; the `exec` package `CLAUDE.md` update; docs sync (below).
 
+**Coverage note (scope boundary):** only the `core.Runner` gate/post path (this `exec` adapter) spawns
+**arbitrary, trusted-config** commands that can daemonize — so it is the only SEC1 surface. The repo's other
+`exec.Command` call sites — `internal/adapter/installer/goinstall.go` (`go install`/`go env`) and
+`internal/cli/selfupdate.go` — are **fixed toolchain invocations**, not user gate commands, and are
+legitimately out of scope.
+
 **Out:**
 - **Windows real verification** — implemented as a no-op, the process-only kill stays best-effort (isolated,
   unverified — no runner).
@@ -131,11 +157,27 @@ child is killed on timeout; the `exec` package `CLAUDE.md` update; docs sync (be
 
 ## Acceptance criteria
 
-1. **Orphan is killed on timeout (unit, Unix, hermetic).** A gate command spawns a background child that
-   records its PID and would outlive the parent (e.g. `sh -c 'sleep 30 & echo $! > $DIR/pid; sleep 30'`) with a
-   short timeout. After `Run` returns the timeout error, the recorded PID is **dead** — asserted via
-   `syscall.Kill(pid, 0) == syscall.ESRCH` (poll briefly to absorb reaping). This test **fails without D1**
-   (no `Setpgid` → the orphan survives) — i.e. it is a true red→green for the fix.
+1. **Orphan is killed on timeout (unit, Unix, hermetic) — a *true* red→green.** A gate command spawns a
+   background child that records its PID and would far outlive the parent
+   (`sh -c 'sleep 30 & echo $! > $DIR/pid; sleep 30'`) run with a **short command timeout** (e.g. 200 ms).
+   After `Run` returns, the recorded PID must be **dead** — asserted via `syscall.Kill(pid, 0)` returning
+   `syscall.ESRCH`, checked immediately (with a short ≤1 s poll to absorb reaping latency).
+
+   **The red baseline is disabling `configureGroupKill` *entirely* (default process-only `Cancel`, no
+   `Setpgid`) while keeping `WaitDelay` on** — because `WaitDelay` (2 s) is what makes `Run` return *while the
+   30 s orphan is still alive*, so `kill(pid,0)==nil` → the assertion is **RED**. Enabling `configureGroupKill`
+   kills the group → the orphan is gone → **GREEN**. Two traps this baseline avoids, both recorded so the
+   implementer doesn't reintroduce them:
+   - **Do NOT take the red by removing `WaitDelay`.** With `WaitDelay==0` (today's code) `Wait` blocks until
+     the orphan finishes its own `sleep 30`; `Run` returns at ≈30 s, by which time the PID has self-exited →
+     `ESRCH` → a **false green** that guards nothing.
+   - **Do NOT take the red by removing only `Setpgid` but keeping the D2 group-`Cancel`.** Without `Setpgid`
+     the child sits in **mtt's own** process group, so `syscall.Kill(-pid, SIGKILL)` would SIGKILL the **test
+     runner itself** (test-suicide). The red must disable the whole seam, not half of it.
+
+   **Pinned durations (deterministic):** orphan lifetime (30 s) ≫ `WaitDelay` (2 s) ≫ command timeout
+   (200 ms), and the liveness poll bound (≤1 s) ≪ orphan lifetime (so the orphan can't self-die into a false
+   green). The green path returns in ~200 ms (timeout → immediate group-kill → pipe EOF), well under `WaitDelay`.
 2. **Existing timeout behavior preserved (unit).** The current timeout tests (`TestRunTimeout`,
    `TestRunPerCommandTimeoutOverridesGlobal`, `TestRunFallsBackToGlobalTimeout`,
    `TestRunOperationalFailureRecordsFailingCheckLast`) stay green: a timed-out command still yields the
