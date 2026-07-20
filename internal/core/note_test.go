@@ -178,3 +178,16 @@ func TestSelectNotesPriorityFilterSort(t *testing.T) {
 		t.Fatalf("priority sort: %v", []mtt.NoteSlug{s[0].Slug, s[1].Slug, s[2].Slug})
 	}
 }
+
+func TestSelectNotesSortUpdated(t *testing.T) {
+	notes := []mtt.Note{
+		{Slug: "a", Created: time.Unix(10, 0), Updated: time.Unix(20, 0)}, // created older, updated newer
+		{Slug: "b", Created: time.Unix(30, 0), Updated: time.Unix(15, 0)}, // created newer, updated older
+	}
+	if c := SelectNotes(notes, NoteFilter{Sort: SortCreated}); c[0].Slug != "b" {
+		t.Fatalf("sort created: want b first, got %v", []mtt.NoteSlug{c[0].Slug, c[1].Slug})
+	}
+	if u := SelectNotes(notes, NoteFilter{Sort: SortUpdated}); u[0].Slug != "a" {
+		t.Fatalf("sort updated: want a first, got %v", []mtt.NoteSlug{u[0].Slug, u[1].Slug})
+	}
+}

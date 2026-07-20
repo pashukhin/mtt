@@ -48,7 +48,7 @@ func Prime(notes []mtt.Note, bl Backlinks, opts PrimeOptions) ([]PrimeEntry, int
 		if elig[i].bc != elig[j].bc {
 			return elig[i].bc > elig[j].bc // more-referenced first
 		}
-		return lessNotesByRecency(elig[i].n, elig[j].n)
+		return lessNotesByRecency(elig[i].n, elig[j].n, SortCreated)
 	})
 	total := len(elig)
 	if opts.Limit > 0 && len(elig) > opts.Limit {

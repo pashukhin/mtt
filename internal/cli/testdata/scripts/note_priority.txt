@@ -23,6 +23,9 @@ stdout '(?s)alpha  \(untitled\).*zeta  \(untitled\)'
 # --sort priority puts zeta (high, rank 0) before alpha (unset, rank medium)
 exec mtt note list --sort priority
 stdout '(?s)zeta  \(untitled\).*alpha  \(untitled\)'
+# --sort updated is honored (accepted; order pinned by the core unit test)
+exec mtt note list --sort updated
+stdout 'zeta'
 
 # clear the priority
 exec mtt note edit zeta --priority ''

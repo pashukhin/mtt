@@ -128,17 +128,23 @@ func SelectNotes(notes []mtt.Note, f NoteFilter) []mtt.Note {
 			if ri, rj := out[i].Priority.Rank(), out[j].Priority.Rank(); ri != rj {
 				return ri < rj
 			}
+			return lessNotesByRecency(out[i], out[j], SortCreated) // priority tiebreak: created desc
 		}
-		return lessNotesByRecency(out[i], out[j])
+		return lessNotesByRecency(out[i], out[j], f.Sort)
 	})
 	return out
 }
 
-// lessNotesByRecency is the default note order — Created desc, slug tiebreak —
-// extracted so the priority sort can fall back to it (mirrors lessByPriority).
-func lessNotesByRecency(a, b mtt.Note) bool {
-	if !a.Created.Equal(b.Created) {
-		return a.Created.After(b.Created)
+// lessNotesByRecency orders by the chosen timestamp descending (Updated when
+// key == SortUpdated, else Created), tie-broken by slug — the note analogue of
+// lessByRecency. Extracted so the priority sort can fall back to it.
+func lessNotesByRecency(a, b mtt.Note, key SortKey) bool {
+	ta, tb := a.Created, b.Created
+	if key == SortUpdated {
+		ta, tb = a.Updated, b.Updated
+	}
+	if !ta.Equal(tb) {
+		return ta.After(tb)
 	}
 	return a.Slug < b.Slug
 }
