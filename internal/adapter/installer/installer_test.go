@@ -64,7 +64,7 @@ func TestGoInstallerArgs(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if gotName != "go" || len(gotArgs) != 3 || gotArgs[2] != "github.com/pashukhin/mtt/cmd/mtt@v0.9.0" {
+	if gotName != "go" || len(gotArgs) != 2 || gotArgs[0] != "install" || gotArgs[1] != "github.com/pashukhin/mtt/cmd/mtt@v0.9.0" {
 		t.Fatalf("argv: %s %v", gotName, gotArgs)
 	}
 	if path != filepath.Join("/home/u/go/bin", "mtt"+exeSuffix()) {
