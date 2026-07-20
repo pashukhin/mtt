@@ -55,8 +55,8 @@
 **Files:**
 - Modify: `pkg/mtt/note.go` (add `Refs []Ref` to `Note`)
 - Modify: `internal/adapter/yaml/note_dto.go` (`ymlNote.Refs`, `marshalNote`, `parseNote`)
-- Create: `internal/adapter/yaml/testdata/note_refs.md`
-- Test: `internal/adapter/yaml/note_dto_test.go` (extend)
+- Create: `internal/adapter/yaml/testdata/golden/note_refs.md` (goldens live under `testdata/golden/`)
+- Test: `internal/adapter/yaml/note_dto_test.go` (extend; add a `TestNoteGolden` table row)
 
 **Interfaces:**
 - Consumes: existing `ymlRef`, `fromDomainRefs(rs []mtt.Ref) []ymlRef`, `toDomainRefs(rs []ymlRef) []mtt.Ref` from `internal/adapter/yaml/task_dto.go` (same package — reuse, do NOT define a second ref DTO).
@@ -143,7 +143,7 @@ type ymlNote struct {
 
 In `marshalNote`, set `Refs: fromDomainRefs(n.Refs)` in the `ymlNote{...}` literal. In `parseNote`, set `Refs: toDomainRefs(yn.Refs)` in the returned `mtt.Note{...}` literal.
 
-- [ ] **Step 5: Create the golden** `internal/adapter/yaml/testdata/note_refs.md` (matches the round-trip note) and add a golden assertion mirroring the existing `note_full.md` test (read the file, `marshalNote`, compare bytes; regen with the package's `-update` flag if it has one):
+- [ ] **Step 5: Create the golden** `internal/adapter/yaml/testdata/golden/note_refs.md` and add a `{"refs", <note-with-refs>, "note_refs.md"}` row to the existing `TestNoteGolden` table (it does `filepath.Join("testdata","golden",tc.file)`). The package has an `-update` flag (see `init_test.go`) — run `go test ./internal/adapter/yaml/ -run TestNoteGolden -update` to generate the authoritative bytes, then inspect the diff. Expected shape (note: yaml.v3 **quotes** RFC3339 timestamps, as `note_full.md` shows):
 
 ```markdown
 ---
@@ -156,8 +156,8 @@ refs:
     - kind: url
       id: https://example.com/x
       label: ext
-created: 2026-07-20T10:00:00Z
-updated: 2026-07-20T10:00:00Z
+created: "2026-07-20T10:00:00Z"
+updated: "2026-07-20T10:00:00Z"
 ---
 # Auth
 ```
@@ -170,7 +170,7 @@ Expected: PASS (including the pre-existing `note_min.md`/`note_full.md` goldens 
 - [ ] **Step 7: Commit**
 
 ```bash
-git add pkg/mtt/note.go internal/adapter/yaml/note_dto.go internal/adapter/yaml/note_dto_test.go internal/adapter/yaml/testdata/note_refs.md
+git add pkg/mtt/note.go internal/adapter/yaml/note_dto.go internal/adapter/yaml/note_dto_test.go internal/adapter/yaml/testdata/golden/note_refs.md
 git commit -m "t1: Note.Refs domain field + frontmatter round-trip"
 ```
 
@@ -1242,9 +1242,11 @@ func verifyOne(root string, r mtt.Ref) core.RefStatus {
 	return core.VerifyRef(r, taskExistsFn(tasks), noteExistsFn(notes))
 }
 
-// warnIfNotOK prints a stderr warning for a non-ok status (warn-not-block).
+// warnIfNotOK warns (stderr, warn-not-block) about a DANGLING ref, or a note ref
+// that could not be verified (no KB wired). A well-formed url is expected to be
+// unverified and does NOT warn (DESIGN: "warn about a *dangling* reference").
 func warnIfNotOK(cmd *cobra.Command, r mtt.Ref, st core.RefStatus) {
-	if st != core.RefOK {
+	if st == core.RefDangling || (st == core.RefUnverified && r.Kind == mtt.RefNote) {
 		fmt.Fprintf(cmd.ErrOrStderr(), "warning: %s:%s is %s\n", r.Kind, r.ID, st)
 	}
 }
@@ -1365,30 +1367,68 @@ func newRefListCmd() *cobra.Command {
 Add the shared renderer at the bottom of `ref.go` (reused by `note ref list` and `show`):
 
 ```go
+// backlinkJSON is one incoming backlink (carrier kind + id + the forward ref's
+// label). Reused by ref list / note ref list / show / note show.
+type backlinkJSON struct {
+	Kind  string `json:"kind"`
+	ID    string `json:"id"`
+	Label string `json:"label,omitempty"`
+}
+
+func verifiedRefsJSON(refs []mtt.Ref, te func(mtt.TaskID) bool, ne func(mtt.NoteSlug) bool) []refJSON {
+	out := make([]refJSON, 0, len(refs))
+	for _, r := range refs {
+		out = append(out, toRefJSON(r, core.VerifyRef(r, te, ne)))
+	}
+	return out
+}
+
+func toBacklinkJSON(rs []core.Referent) []backlinkJSON {
+	out := make([]backlinkJSON, 0, len(rs))
+	for _, r := range rs {
+		out = append(out, backlinkJSON{Kind: string(r.Carrier), ID: r.ID, Label: r.Label})
+	}
+	return out
+}
+
+// formatRefsBacklinks renders the human refs:/backlinks: block for show / note show,
+// or "" when the carrier has neither (so a ref-less show is byte-unchanged). refs
+// are indented under a 2-space header to match formatTask's field style.
+func formatRefsBacklinks(refs []mtt.Ref, back []core.Referent, te func(mtt.TaskID) bool, ne func(mtt.NoteSlug) bool) string {
+	if len(refs) == 0 && len(back) == 0 {
+		return ""
+	}
+	var b strings.Builder
+	if len(refs) > 0 {
+		b.WriteString("  refs:\n")
+		for _, r := range refs {
+			fmt.Fprintf(&b, "    %s\n", refLine(r, core.VerifyRef(r, te, ne)))
+		}
+	}
+	if len(back) > 0 {
+		b.WriteString("  backlinks:\n")
+		for _, r := range back {
+			if r.Label != "" {
+				fmt.Fprintf(&b, "    %s:%s  (%s)\n", r.Carrier, r.ID, r.Label)
+			} else {
+				fmt.Fprintf(&b, "    %s:%s\n", r.Carrier, r.ID)
+			}
+		}
+	}
+	return b.String()
+}
+
 // writeRefsAndBacklinks renders a carrier's outgoing refs (verified) + incoming
-// backlinks, in text or (--json) {refs:[...], backlinks:[...]} (both non-null).
+// backlinks for `ref list` / `note ref list`, in text (always both headers) or
+// (--json) {refs:[...], backlinks:[...]} (both non-null).
 func writeRefsAndBacklinks(cmd *cobra.Command, carrierKind mtt.RefKind, carrierID string, refs []mtt.Ref, tasks []mtt.Task, notes []mtt.Note) error {
 	te, ne := taskExistsFn(tasks), noteExistsFn(notes)
-	bl := core.NewBacklinks(tasks, notes)
-	back := bl.To(carrierKind, carrierID)
+	back := core.NewBacklinks(tasks, notes).To(carrierKind, carrierID)
 	if jsonFlag(cmd) {
-		type backJSON struct {
-			Kind  string `json:"kind"`
-			ID    string `json:"id"`
-			Label string `json:"label,omitempty"`
-		}
-		refsOut := make([]refJSON, 0, len(refs))
-		for _, r := range refs {
-			refsOut = append(refsOut, toRefJSON(r, core.VerifyRef(r, te, ne)))
-		}
-		backOut := make([]backJSON, 0, len(back))
-		for _, r := range back {
-			backOut = append(backOut, backJSON{Kind: string(r.Carrier), ID: r.ID, Label: r.Label})
-		}
 		return writeJSON(cmd.OutOrStdout(), struct {
-			Refs      []refJSON  `json:"refs"`
-			Backlinks []backJSON `json:"backlinks"`
-		}{refsOut, backOut})
+			Refs      []refJSON      `json:"refs"`
+			Backlinks []backlinkJSON `json:"backlinks"`
+		}{verifiedRefsJSON(refs, te, ne), toBacklinkJSON(back)})
 	}
 	var b strings.Builder
 	b.WriteString("refs:\n")
@@ -1416,7 +1456,7 @@ func isNotFound(err error) bool { return errors.Is(err, mtt.ErrNotFound) }
 
 Register in `internal/cli/root.go`: add `newRefCmd()` to the `AddCommand(...)` list (find the existing list that includes `newDepCmd()`/`newNoteCmd()`).
 
-- [ ] **Step 4: Write the e2e** `internal/cli/testdata/scripts/ref.txt` (txtar). Cover: add task ref (ok), backlink appears on the target, add a dangling ref (warns, exit 0), `ref rm` twice (both exit 0), `comment:` rejected (exit 1). Mirror an existing script (e.g. `dep.txt`/`note.txt`) for the `exec mtt …`/`stdout`/`stderr`/`! exec` idioms and the `env MTT_DIR`/`mtt init` preamble.
+- [ ] **Step 4: Write the e2e** `internal/cli/testdata/scripts/ref.txt` (txtar). Cover: add task ref (ok), backlink appears on the target, add a dangling task ref (`ref add … task:t999` → warns, exit 0, status `dangling`), `ref rm` twice (both exit 0), `comment:t2#1` rejected (exit 1). Mirror an existing script (e.g. `dep.txt`/`note.txt`) for the `exec mtt …`/`stdout`/`stderr`/`! exec` idioms and the `env MTT_DIR`/`mtt init` preamble. **Note (D5):** a missing **note** target with the KB wired (always, in YAML) resolves to `dangling`, NOT `unverified` — do not assert `unverified` for a missing note (spec AC-4's loose wording is superseded by D5). `unverified` is only `url` (and note-with-no-KB, unreachable via the YAML CLI).
 
 - [ ] **Step 5: Run tests to verify they pass**
 
@@ -1580,12 +1620,16 @@ git commit -m "t1: mtt note ref group + creation-time --ref on add/note add"
 - Consumes: `core.CheckRefs`, `core.CheckFinding`, `core.RefDangling`, `core.ErrDanglingRefs`.
 - Produces: `func newCheckCmd() *cobra.Command`; exit 7 when any dangling.
 
-- [ ] **Step 1: Write the e2e first** `internal/cli/testdata/scripts/check.txt`: clean repo → `exec mtt check` exit 0; add a dangling ref (`ref add t1 task:t999`) → `! exec mtt check` with a nonzero status the harness maps to 7 (assert `stderr`/`stdout` names the dangling ref); a url-only ref → `exec mtt check` still exit 0 (unverified is not a failure).
+- [ ] **Step 1: Write the failing tests** — TWO tests, because `testscript`'s `! exec` asserts only **non-zero**, not a specific code (the repo says so itself: `testdata/scripts/tags.txt` — "the exact exit-4 mapping is a unit test"). Exit-code mappings are unit-tested in `TestExitCode` (`internal/cli/status_test.go`).
 
-- [ ] **Step 2: Run to verify it fails**
+  (a) **Unit — the exit-7 mapping.** Add a case to the existing `TestExitCode` table (`internal/cli/status_test.go`): `{err: core.ErrDanglingRefs, want: 7}` (match the table's actual field names — read the test first). This is what actually guards exit 7 against a regression to 1.
 
-Run: `go test ./internal/cli/ -run 'Script/check'`
-Expected: FAIL — unknown command `check`.
+  (b) **e2e** `internal/cli/testdata/scripts/check.txt`: clean repo → `exec mtt check` (exit 0); add a dangling ref (`ref add t1 task:t999`) → `! exec mtt check` (**non-zero** — do not assert the number here) and assert the printed dangling line via `stdout 't1.*t999.*dangling'`; a url-only ref present → `exec mtt check` still **exit 0** (unverified is not a failure).
+
+- [ ] **Step 2: Run to verify they fail**
+
+Run: `go test ./internal/cli/ -run 'TestExitCode|Script/check'`
+Expected: FAIL — `core.ErrDanglingRefs` undefined / mapping absent / unknown command `check`.
 
 - [ ] **Step 3: Implement** `internal/cli/check.go`:
 
@@ -1632,9 +1676,9 @@ func newCheckCmd() *cobra.Command {
 				}
 			}
 			if jsonFlag(cmd) {
-				out := make([]checkJSON, 0, len(findings))
+				out := make([]refCheckJSON, 0, len(findings))
 				for _, f := range findings {
-					out = append(out, toCheckJSON(f))
+					out = append(out, toRefCheckJSON(f))
 				}
 				if err := writeJSON(cmd.OutOrStdout(), out); err != nil {
 					return err
@@ -1657,8 +1701,11 @@ func newCheckCmd() *cobra.Command {
 	}
 }
 
-// checkJSON is the --json shape: carrier + ref + status.
-type checkJSON struct {
+// refCheckJSON is the `mtt check --json` shape: carrier + ref + status. NOTE the
+// name is refCheckJSON, NOT checkJSON — json.go already has a checkJSON (the gate
+// command-result view); reusing it would collide. (Confirmed: grep -n "checkJSON"
+// internal/cli/*.go shows json.go:75.)
+type refCheckJSON struct {
 	Carrier struct {
 		Kind string `json:"kind"`
 		ID   string `json:"id"`
@@ -1667,8 +1714,8 @@ type checkJSON struct {
 	Status string  `json:"status"`
 }
 
-func toCheckJSON(f core.CheckFinding) checkJSON {
-	var j checkJSON
+func toRefCheckJSON(f core.CheckFinding) refCheckJSON {
+	var j refCheckJSON
 	j.Carrier.Kind, j.Carrier.ID = string(f.CarrierKind), f.CarrierID
 	j.Ref = refJSON{Kind: string(f.Ref.Kind), ID: f.Ref.ID, Label: f.Ref.Label, Status: string(f.Status)}
 	j.Status = string(f.Status)
@@ -1684,8 +1731,6 @@ func countCarriers(fs []core.CheckFinding) int {
 }
 ```
 
-Note: `checkJSON` name collides with the existing `checkJSON` in `json.go` (the gate-check view). **Rename this one** to `refCheckJSON`/`toRefCheckJSON` to avoid the clash (verify with `grep -n "checkJSON" internal/cli/*.go` before naming).
-
 In `internal/cli/root.go`: register `newCheckCmd()` in the command list, and add to `exitCode`:
 
 ```go
@@ -1695,13 +1740,13 @@ case errors.Is(err, core.ErrDanglingRefs):
 
 - [ ] **Step 4: Run tests to verify they pass**
 
-Run: `go test ./internal/cli/ -run 'Script/check'`
-Expected: PASS (the harness asserts the exit status; confirm how existing scripts assert a specific nonzero code — most use `! exec`, and the exit-code mapping is exercised via `TestMain`'s `os.Exit(Execute())`).
+Run: `go test ./internal/cli/ -run 'TestExitCode|Script/check'`
+Expected: PASS — the exit-7 mapping is proven by `TestExitCode`; the e2e proves the sweep prints the dangling line and exits non-zero.
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add internal/cli/check.go internal/cli/root.go internal/cli/testdata/scripts/check.txt
+git add internal/cli/check.go internal/cli/root.go internal/cli/status_test.go internal/cli/testdata/scripts/check.txt
 git commit -m "t1: mtt check — read-only ref integrity sweep, exit 7 on dangling"
 ```
 
@@ -1718,7 +1763,7 @@ git commit -m "t1: mtt check — read-only ref integrity sweep, exit 7 on dangli
 **Interfaces:**
 - Consumes: `core.NewBacklinks`, `core.NewNoteRemover`, `core.Remover` (new `bl` param, Task 6), `resolveAttribution`, `yaml.NewAuditStore`.
 
-- [ ] **Step 1: Write the failing e2e** — extend `rm.txt`: `ref add t2 task:t1`; `! exec mtt rm t1` (refused, names t2); `exec mtt rm t1 --force --who me --why x` (deletes); `! exec mtt rm t1 --force` alone → exit 2. Extend `note.txt`: `ref add t2 note:a`; `! exec mtt note rm a`; `exec mtt note rm a --force --who me --why x`; `! exec mtt note rm a --force` → exit 2. Extend `show.txt`: after `ref add`, `exec mtt show t2` shows a `refs:` section and `show t1` a `backlinks:` section.
+- [ ] **Step 1: Write the failing e2e** — (`! exec` asserts **non-zero**; the specific 2/4 codes are already covered by `TestExitCode`/`TestExitCodeNotFound`, so assert non-zero + the message here, not the number). Extend `rm.txt`: `ref add t2 task:t1`; `! exec mtt rm t1` (refused — assert `stderr 'referenced by t2'`, t1 still present); `! exec mtt rm t1 --force` (non-zero — missing who/why pre-flight); `exec mtt rm t1 --force --who me --why x` (deletes). Extend `note.txt`: `ref add t2 note:a`; `! exec mtt note rm a` (refused — assert `stderr 'referenced by'`); `! exec mtt note rm a --force` (non-zero — missing who/why); `exec mtt note rm a --force --who me --why x` (deletes); `! exec mtt note rm missing` (non-zero — not found). Extend `show.txt`: after `ref add`, `exec mtt show t2` shows a `refs:` section and `show t1` a `backlinks:` section.
 
 - [ ] **Step 2: Run to verify it fails**
 
@@ -1782,7 +1827,7 @@ func newNoteRmCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			referents := referentIDs(core.NewBacklinks(tasks, notes).To(mtt.RefNote, string(slug)))
+			referents := referentIDs(core.NewBacklinks(tasks, notes).To(mtt.RefNote, string(slug)), slug)
 			_, settings, err := yaml.Load(root)
 			if err != nil {
 				return err
@@ -1808,11 +1853,16 @@ func newNoteRmCmd() *cobra.Command {
 	return cmd
 }
 
-// referentIDs formats backlink referents as strings (note carriers labelled).
-func referentIDs(refs []core.Referent) []string {
+// referentIDs formats backlink referents as strings (note carriers labelled),
+// EXCLUDING the note's own self-reference (a note referencing itself must not block
+// its own delete — symmetric with the task guard's subgraph-ignore of the deletion set).
+func referentIDs(refs []core.Referent, self mtt.NoteSlug) []string {
 	out := make([]string, 0, len(refs))
 	for _, r := range refs {
 		if r.Carrier == mtt.RefNote {
+			if r.ID == string(self) {
+				continue // self-ref never blocks
+			}
 			out = append(out, "note:"+r.ID)
 		} else {
 			out = append(out, r.ID)
@@ -1822,9 +1872,7 @@ func referentIDs(refs []core.Referent) []string {
 }
 ```
 
-**show.go** — after loading `tasks` for the `Index`, also load `notes`, verify `task.Refs`, and pass a rendered refs/backlinks block. Simplest non-invasive approach: after `formatTask(...)` output, append the refs/backlinks via the shared renderer only when the task has refs or backlinks. Reuse `writeRefsAndBacklinks` (it already handles `--json`? No — `show --json` uses `toShowJSON`). So:
-- **Human path:** after the `formatTask` print, call a new `appendRefsBacklinks(cmd, mtt.RefTask, string(task.ID), task.Refs, tasks, notes)` that prints `refs:`/`backlinks:` sections **only if non-empty** (extract the text half of `writeRefsAndBacklinks`).
-- **JSON path:** extend `toShowJSON` to accept refs + backlinks and add `refs`/`backlinks` (non-null when present, else omitempty). Add fields to `showJSON`:
+**json.go** — add two fields to `showJSON` (do **NOT** change `toShowJSON`'s signature — its 5 callers in `show_json_test.go` must keep compiling; set the fields at the call site instead):
 
 ```go
 type showJSON struct {
@@ -1837,9 +1885,35 @@ type showJSON struct {
 }
 ```
 
-Thread the verified refs + backlinks into `toShowJSON` (add params) and populate. Define `backlinkJSON{Kind,ID,Label}`. Keep `taskJSON` (used by list/edit) untouched.
+**show.go** — restructure `newShowCmd`'s RunE so `tasks`+`notes` load **before** the `jsonFlag` branch (both paths need them), then populate refs/backlinks. `taskJSON` (used by `list`/`edit`/`status --json`) stays untouched:
 
-**note.go `writeNote` / `newNoteShowCmd`** — same: after the note header/body, print `refs:`/`backlinks:` sections (human) via the extracted helper; for `--json`, add `refs`/`backlinks` to a `noteShowJSON` embedding `noteJSON` (keep the lean `noteJSON` for `note list`/`add`/`edit`).
+```go
+tasks, err := store.List()
+if err != nil {
+	return err
+}
+notes, err := yaml.NewKnowledgeStore(root).ListNotes()
+if err != nil {
+	return err
+}
+te, ne := taskExistsFn(tasks), noteExistsFn(notes)
+back := core.NewBacklinks(tasks, notes).To(mtt.RefTask, string(task.ID))
+if jsonFlag(cmd) {
+	sj := toShowJSON(task, statusDesc, onward) // UNCHANGED 3-arg signature
+	sj.Refs = verifiedRefsJSON(task.Refs, te, ne)
+	sj.Backlinks = toBacklinkJSON(back)
+	return writeJSON(cmd.OutOrStdout(), sj)
+}
+idx := core.NewIndex(tasks)
+out := formatTask(task, idx.Ancestors(task.ID), idx.Children(task.ID), statusDesc, onward)
+out += formatRefsBacklinks(task.Refs, back, te, ne) // "" when both empty → byte-unchanged for a ref-less task
+_, err = fmt.Fprint(cmd.OutOrStdout(), out)
+return err
+```
+
+Note: `sj.Refs`/`sj.Backlinks` use `omitempty` on **nil** slices, but `verifiedRefsJSON`/`toBacklinkJSON` return **non-nil empty** slices (`make(..., 0, 0)`). To keep a ref-less task's `show --json` byte-identical, guard: assign only when non-empty (`if len(task.Refs) > 0 { sj.Refs = ... }`, same for `back`).
+
+**note.go `writeNote` / `newNoteShowCmd`** — the note analogue: define `type noteShowJSON struct { noteJSON; Refs []refJSON `json:"refs,omitempty"`; Backlinks []backlinkJSON `json:"backlinks,omitempty"` }` (keep the lean `noteJSON` for `note list`/`add`/`edit`). In `newNoteShowCmd`, load `tasks`+`notes`, build `back := core.NewBacklinks(tasks, notes).To(mtt.RefNote, string(slug))`; JSON path emits `noteShowJSON` with the same non-empty guards; human path appends `formatRefsBacklinks(note.Refs, back, te, ne)` after `writeNote`'s body output.
 
 - [ ] **Step 4: Run the full suite**
 
@@ -1887,6 +1961,8 @@ git commit -m "t1: docs sync — CLI_REFERENCE/DESIGN (EN+RU), model.go, CLAUDE.
 ## Self-review (completed before submit)
 
 - **Spec coverage:** D1 kinds/carriers → T1,T7,T8; D2 Note.Refs → T1; D3 identity/sort/idempotent-rm → T2,T4,T8; D4 CLI groups + `--ref` + parse → T8,T9; D5 verify/RefStatus → T2,T3; D6 warn-not-block → T8,T9; D7 Backlinks → T3,T11; D8 check/exit-7 → T10; D9 deletion guard (task+note, cross-store) → T5,T6,T11; D10 exit codes → T8,T10,T11; D11 JSON shapes → T8,T10,T11. All covered.
-- **Type consistency:** `RefStatus`/`RefOK`/`RefDangling`/`RefUnverified`, `Backlinks`/`Referent`/`RefKey`, `CheckFinding`, `RefEditor`/`NoteRefEditor`/`NoteRemover`, and the `Remover.Remove/RemoveMany` new `bl Backlinks` param are used consistently across T2–T11. `checkJSON` name-clash flagged in T10 (rename to `refCheckJSON`).
+- **Type consistency:** `RefStatus`/`RefOK`/`RefDangling`/`RefUnverified`, `Backlinks`/`Referent`/`RefKey`, `CheckFinding`, `RefEditor`/`NoteRefEditor`/`NoteRemover`, and the `Remover.Remove/RemoveMany` new `bl Backlinks` param are used consistently across T2–T11. The `mtt check` JSON type is `refCheckJSON` (NOT `checkJSON` — avoids the `json.go:75` clash). `toShowJSON` keeps its 3-arg signature (its `show_json_test.go` callers unaffected); `show.go` sets `sj.Refs`/`sj.Backlinks` at the call site. `backlinkJSON`/`verifiedRefsJSON`/`toBacklinkJSON`/`formatRefsBacklinks` (T8) are shared by `ref list`/`note ref list`/`show`/`note show`.
+- **Build-green per task:** T6 changes `Remover.Remove/RemoveMany` and immediately updates the `rm.go` callers to pass `nil` (real `Backlinks` wired in T11) + the `remove_test.go` call sites, so every commit builds. No other cross-task signature ripple.
+- **Exit-code coverage:** exit 7 is proven by a `TestExitCode` unit case (T10) — `! exec` only asserts non-zero, so the number is never left to an e2e.
 - **Placeholder scan:** none — every code step carries real code; the two "mirror the sibling" spots (T9 note-ref rm/list, T11 note-show JSON) name the exact functions and signatures to repeat.
 - **Confirmed against code (names pinned, not guessed):** `internal/core` test fakes are `newMemStore(...tasks)` (TaskStore), `newFakeKB()` seeded via `CreateNote` (KnowledgeStore), `fakeAudit{failOnID}` (AuditStore), clock `testClock`; e2e scripts live in `internal/cli/testdata/scripts/`; `missingAttributionFields(reqWho, reqWhy bool, by, why string) []string` (`internal/core/transition.go:146`).
