@@ -4,6 +4,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -17,6 +18,40 @@ func fixedNote() mtt.Note {
 }
 
 func withBody(n mtt.Note, body string) mtt.Note { n.Body = body; return n }
+
+func withRefs(n mtt.Note, refs ...mtt.Ref) mtt.Note { n.Refs = refs; return n }
+
+func TestMarshalParseNoteWithRefs(t *testing.T) {
+	in := withRefs(fixedNote(),
+		mtt.Ref{Kind: mtt.RefTask, ID: "t2"},
+		mtt.Ref{Kind: mtt.RefURL, ID: "https://example.com/x", Label: "ext"},
+	)
+	data, err := marshalNote(in)
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	got, err := parseNote(in.Slug, data)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	if !reflect.DeepEqual(got.Refs, in.Refs) {
+		t.Fatalf("refs round-trip: got %+v want %+v", got.Refs, in.Refs)
+	}
+	if got.Body != in.Body {
+		t.Fatalf("body: got %q want %q", got.Body, in.Body)
+	}
+}
+
+func TestMarshalNoteNoRefsUnchanged(t *testing.T) {
+	// A refs-free note must not emit a refs: block (byte-identity for existing notes).
+	data, err := marshalNote(fixedNote())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(data), "refs:") {
+		t.Fatalf("empty refs must be omitted, got:\n%s", data)
+	}
+}
 
 func TestNoteRoundTrip(t *testing.T) {
 	cases := map[string]mtt.Note{
@@ -72,6 +107,7 @@ func TestNoteGolden(t *testing.T) {
 	}{
 		{"min", mtt.Note{Slug: "stub", Created: time.Date(2026, 1, 2, 3, 4, 5, 0, time.UTC), Updated: time.Date(2026, 1, 2, 3, 4, 5, 0, time.UTC)}, "note_min.md"},
 		{"full", fixedNote(), "note_full.md"},
+		{"refs", withRefs(fixedNote(), mtt.Ref{Kind: mtt.RefTask, ID: "t2"}, mtt.Ref{Kind: mtt.RefURL, ID: "https://example.com/x", Label: "ext"}), "note_refs.md"},
 	} {
 		got, err := marshalNote(tc.note)
 		if err != nil {
