@@ -1,7 +1,7 @@
 id: t44
 type: task
 title: mtt self-update — update the installed binary in place (latest release asset + SHA256 verify, or go install fallback)
-status: spec_fix
+status: spec_review
 priority: medium
 tags:
     - dx
@@ -45,3 +45,10 @@ history:
       why: 're-review: fix new --check-only vs no-asset-no-Go contradiction — model no-asset-no-Go as determinate Via:none (Prepare errors only on Latest() failure)'
       from: spec_review
       to: spec_fix
+    - at: "2026-07-20T13:06:17Z"
+      by: Grigorii Pashukhin
+      from: spec_fix
+      to: spec_review
+      checks:
+        - cmd: ls docs/superpowers/specs/t44-*.md
+          exit: 0
