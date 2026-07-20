@@ -376,7 +376,7 @@ hides the status-flow mechanics (checks, branch, …) — less distraction on de
 Execution is behind the **`Runner`** port: `core` orchestrates the transition, calls `Runner`, and gates on
 exit codes. `Runner` is defined in `core`, implemented in `internal/adapter/exec`, and faked in tests.
 Commands run in order, aborting on the first non-zero; the working directory is the project root; there's a
-per-command timeout; the escape hatch `--no-run` forces the transition without commands (for emergencies).
+per-command timeout (which SIGKILLs the command's **whole process group** on Unix — so a gate that backgrounds a daemon can't outlive its deadline; best-effort on Windows); the escape hatch `--no-run` forces the transition without commands (for emergencies).
 Commands come from config (trusted, like a Makefile/git hooks), not from the network.
 
 > **Shipped (s006, `mtt status <id> <new>`):** a **single** gated edge. `Runner.Run(commands)` takes no

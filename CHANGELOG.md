@@ -12,6 +12,12 @@ All notable changes to mtt are documented here. The format follows
   `go install …/cmd/mtt@<tag>` when no verifiable asset matches the platform. `--check-only` / `--force` /
   `--json`.
 
+### Fixed
+- **SEC1: gate timeout now kills the whole process group**, not just the top shell — a gate/post command that
+  backgrounds a daemon (`daemon &`, `nohup`) can no longer survive its deadline (Unix `Setpgid` +
+  `kill(-pgid)`; best-effort on Windows). Also closes a former infinite `Wait` hang when a gate exits 0 but
+  leaves a child holding the inherited output pipe (`Cmd.WaitDelay`).
+
 ## [0.9.0] — 2026-07-20
 
 First public release. `mtt` is an agent-friendly "tasks + knowledge" pairing (a Go CLI) built around an

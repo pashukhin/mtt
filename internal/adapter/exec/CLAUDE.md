@@ -29,6 +29,12 @@ transition's `commands` as gates.
   **operational** failure (the command could not launch, or timed out — exit recorded as `-1`).
 - Cross-platform shell seam `shell(cmd)`: `sh -c` on Unix, `cmd /c` on Windows. Commands are trusted
   project config (like a Makefile), never network input.
+- **Process-group kill on timeout (t14/SEC1).** Each command runs as the **leader of its own process group**
+  (Unix `Setpgid`); on a timeout the runner `SIGKILL`s the **whole group** (`kill(-pgid)`), so a gate that
+  backgrounds a child (`daemon &`, `nohup`) cannot outlive its deadline. `Cmd.WaitDelay` (2s) bounds `Wait`
+  against a child that inherited the stdout/stderr pipe (and, as a bonus, closes the former infinite hang of a
+  gate that exits 0 but leaves such a child). The group-kill is build-tagged (`procattr_unix.go`); Windows
+  (`procattr_windows.go`) is a documented **best-effort no-op** (no POSIX groups; CI-unverified — no runner).
 
 ## Boundaries
 
