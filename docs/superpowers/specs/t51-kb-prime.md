@@ -159,7 +159,8 @@ Primary user = the coding **agent**; secondary = the human **maintainer**.
 
 **In:** `Note.Priority` (domain + frontmatter, mirror s008.6); `--priority` on `note add`/`note edit` +
 `note list --priority`/`--sort priority` (+ `noteJSON.priority`, `note show`); `core.Prime` + note
-priority in `NoteParams`/`NoteEditParams`/`NoteFilter` + `SortNotesPriority`; the `mtt prime` command
+priority in `NoteParams`/`NoteEditParams`/`NoteFilter` (incl. `NoteFilter.Sort` folded into `SelectNotes`);
+the `mtt prime` command
 (markdown + `--json`); unit + golden + e2e tests; docs sync (incl. the hook snippet).
 
 **Out:** body snippets / a `summary` field in the digest (follow-up); the `sessionStart` hook **as code**
