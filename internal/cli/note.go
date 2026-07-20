@@ -21,7 +21,7 @@ func newNoteCmd() *cobra.Command {
 		Use:   "note",
 		Short: "Manage knowledge-base notes",
 	}
-	cmd.AddCommand(newNoteAddCmd(), newNoteListCmd(), newNoteShowCmd(), newNoteEditCmd(), newNoteRmCmd())
+	cmd.AddCommand(newNoteAddCmd(), newNoteListCmd(), newNoteShowCmd(), newNoteEditCmd(), newNoteRmCmd(), newNoteRefCmd())
 	return cmd
 }
 
@@ -82,6 +82,7 @@ func newNoteAddCmd() *cobra.Command {
 	var (
 		title, body, file string
 		tags              []string
+		refVals           []string
 	)
 	cmd := &cobra.Command{
 		Use:   "add <slug>",
@@ -96,6 +97,10 @@ func newNoteAddCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			refs, err := parseRefFlags(refVals)
+			if err != nil {
+				return err
+			}
 			b, err := readNoteBody(cmd, body, file)
 			if err != nil {
 				return err
@@ -104,9 +109,12 @@ func newNoteAddCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			note, err := core.NewNoteAdder(yaml.NewKnowledgeStore(root), time.Now).Add(core.NoteParams{Slug: slug, Title: title, Tags: normTags, Body: b})
+			note, err := core.NewNoteAdder(yaml.NewKnowledgeStore(root), time.Now).Add(core.NoteParams{Slug: slug, Title: title, Tags: normTags, Body: b, Refs: refs})
 			if err != nil {
 				return err
+			}
+			for _, r := range refs {
+				warnIfNotOK(cmd, r, verifyOne(root, r))
 			}
 			if jsonFlag(cmd) {
 				return writeJSON(cmd.OutOrStdout(), toNoteJSON(note))
@@ -119,6 +127,7 @@ func newNoteAddCmd() *cobra.Command {
 	cmd.Flags().StringArrayVar(&tags, "tag", nil, "add a tag (repeatable)")
 	cmd.Flags().StringVar(&body, "body", "", "note body (markdown)")
 	cmd.Flags().StringVar(&file, "file", "", "read the body from a file ('-' for stdin)")
+	cmd.Flags().StringArrayVar(&refVals, "ref", nil, "add a reference <kind>:<target> (repeatable)")
 	return cmd
 }
 
