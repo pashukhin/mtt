@@ -81,6 +81,23 @@ func TestMarshalNoteNoPriorityUnchanged(t *testing.T) {
 		t.Fatalf("unset priority must be omitted:\n%s", data)
 	}
 }
+
+func TestParseNoteCorruptPriority(t *testing.T) {
+	// A corrupt-but-non-empty on-disk priority is TOLERATED on load (not an error)
+	// and ranks medium (D2/D7) — validity is a CLI-boundary concern, not load-time.
+	in := withPriority(fixedNote(), mtt.Priority("garbage"))
+	data, err := marshalNote(in)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := parseNote(in.Slug, data)
+	if err != nil {
+		t.Fatalf("corrupt priority must load, not error: %v", err)
+	}
+	if got.Priority != "garbage" || got.Priority.Rank() != 1 {
+		t.Fatalf("corrupt priority: got %q rank=%d", got.Priority, got.Priority.Rank())
+	}
+}
 ```
 
 Add a `TestNoteGolden` row: `{"priority", withPriority(fixedNote(), mtt.PriorityHigh), "note_priority.md"}`.
@@ -124,7 +141,8 @@ In `marshalNote`'s `ymlNote{...}` literal add `Priority: string(n.Priority)`; in
 
 Run: `go test ./internal/adapter/yaml/ -run TestNoteGolden -update` then inspect `internal/adapter/yaml/testdata/golden/note_priority.md` (expect `priority: high` after `tags`, before nothing/created; timestamps quoted). Then:
 Run: `go test ./internal/adapter/yaml/ ./pkg/mtt/`
-Expected: PASS (existing `note_min.md`/`note_full.md`/`note_refs.md` byte-identical — `omitempty`).
+Expected: PASS (existing `note_min.md`/`note_full.md`/`note_refs.md` byte-identical — `omitempty`). Then run
+`make check` (the pre-commit gate) before committing.
 
 - [ ] **Step 6: Commit**
 
@@ -142,7 +160,9 @@ git commit -m "t51: Note.Priority domain field + frontmatter round-trip"
 - Test: `internal/core/note_test.go` (extend)
 
 **Interfaces:**
-- Consumes: `SortKey`/`SortPriority`/`lessByRecency` (`list.go`), `anyOrEmpty` (`list.go`), `mtt.Priority.Rank()`.
+- Consumes: `SortKey`/`SortPriority` + `anyOrEmpty` (`list.go`), `mtt.Priority.Rank()`. (Defines a new
+  `lessNotesByRecency` extracted from `SelectNotes` — the task `lessByRecency` takes a 3rd `SortKey` arg and is
+  not reused.)
 - Produces:
   - `NoteParams.Priority mtt.Priority`; `NoteEditParams.Priority *mtt.Priority` (nil = unchanged; `&""` clears).
   - `NoteFilter{Tags []string; Priorities []mtt.Priority; Sort SortKey}`.
@@ -206,7 +226,7 @@ type NoteEditParams struct {
 	Priority *mtt.Priority
 }
 ```
-In `NoteEditor.Edit`, change the guard to `if p.Title == nil && p.Tags == nil && p.Body == nil && p.Priority == nil {` and add, beside the other applies, `if p.Priority != nil { n.Priority = *p.Priority }`.
+In `NoteEditor.Edit`, change the guard to `if p.Title == nil && p.Tags == nil && p.Body == nil && p.Priority == nil {` and update its **message** to name the new flag (mirror the task Editor): `errors.New("nothing to edit (provide --title, --tag, --body, --file, or --priority)")`. Add, beside the other applies, `if p.Priority != nil { n.Priority = *p.Priority }`.
 
 3. `NoteFilter` gains `Priorities []mtt.Priority` and `Sort SortKey`. In `SelectNotes`, add the priority filter to the keep-condition and fold the sort:
 
@@ -243,7 +263,7 @@ func lessNotesByRecency(a, b mtt.Note) bool {
 - [ ] **Step 4: Run to verify it passes**
 
 Run: `go test ./internal/core/ -run 'Note'`
-Expected: PASS (the sole existing `SelectNotes` caller `NoteFilter{Tags: normTags}` still compiles — named-field literal).
+Expected: PASS (the sole existing `SelectNotes` caller `NoteFilter{Tags: normTags}` still compiles — named-field literal). Then run `make check` (the pre-commit gate) before committing.
 
 - [ ] **Step 5: Commit**
 
@@ -315,6 +335,19 @@ func TestPrimeThresholdOrderCap(t *testing.T) {
 	got, total = Prime(notes, bl, PrimeOptions{MinPriority: mtt.PriorityHigh, Limit: 1})
 	if len(got) != 1 || total != 2 {
 		t.Fatalf("cap: shown=%d total=%d", len(got), total)
+	}
+}
+
+func TestPrimeCorruptPriority(t *testing.T) {
+	// A corrupt-but-non-empty priority ranks medium (D7): excluded at high, included
+	// at medium/low.
+	notes := []mtt.Note{{Slug: "g", Priority: mtt.Priority("garbage")}}
+	bl := NewBacklinks(nil, notes)
+	if got, total := Prime(notes, bl, PrimeOptions{MinPriority: mtt.PriorityHigh}); total != 0 || len(got) != 0 {
+		t.Fatalf("corrupt excluded at high: total=%d got=%+v", total, got)
+	}
+	if got, total := Prime(notes, bl, PrimeOptions{MinPriority: mtt.PriorityMedium}); total != 1 || len(got) != 1 {
+		t.Fatalf("corrupt included at medium: total=%d got=%+v", total, got)
 	}
 }
 ```
@@ -394,7 +427,7 @@ func Prime(notes []mtt.Note, bl Backlinks, opts PrimeOptions) ([]PrimeEntry, int
 - [ ] **Step 4: Run to verify it passes**
 
 Run: `go test ./internal/core/ -run 'Prime'`
-Expected: PASS.
+Expected: PASS. Then run `make check` (the pre-commit gate) before committing.
 
 - [ ] **Step 5: Commit**
 
@@ -469,7 +502,7 @@ cmd.Flags().StringVar(&sortKey, "sort", "", "sort order: created|updated|priorit
 - [ ] **Step 4: Run to verify it passes**
 
 Run: `go test ./internal/cli/ -run 'TestScripts/note_priority'`
-Expected: PASS.
+Expected: PASS. Then run `make check` (the pre-commit gate) before committing.
 
 - [ ] **Step 5: Commit**
 
@@ -488,7 +521,9 @@ git commit -m "t51: note --priority (add/edit) + note list --priority/--sort"
 - Test: `internal/cli/testdata/scripts/prime.txt`
 
 **Interfaces:**
-- Consumes: `core.Prime`/`PrimeOptions`/`PrimeEntry` (Task 3), `core.NewBacklinks` (t1), `parsePriority`, `mtt.PriorityHigh`.
+- Consumes: `core.Prime`/`PrimeOptions`/`PrimeEntry` (Task 3), `core.NewBacklinks` (t1). (`--min-priority` is
+  validated **inline** via `mtt.Priority.Valid()` and defaults to the string literal `"high"` — `parsePriority`
+  is deliberately not reused here, since it treats `""` as valid and would name a `--priority` flag in its error.)
 - Produces: `mtt prime [--min-priority] [--limit] [--json]`; `primeJSON`/`toPrimeJSON`; `writePrime`.
 
 - [ ] **Step 1: Write the e2e first** `internal/cli/testdata/scripts/prime.txt`: empty repo → `mtt prime` prints the "no important notes" line (exit 0); `note add a --priority high` + `note add b --priority medium` + `note add c` → `mtt prime` shows only `a` with footer `1 of 1`; `mtt prime --min-priority medium` shows `a` and `b`, footer `2 of 2` (not `c`); `mtt prime --min-priority medium --limit 1` shows one with footer `1 of 2`; `mtt prime --json` emits `"priority": "high"` and a non-null array. Assert bodies never appear.
@@ -643,7 +678,7 @@ git commit -m "t51: docs sync — CLI_REFERENCE/DESIGN (EN+RU), model.go, CLAUDE
 
 ## Self-review (completed before submit)
 
-- **Spec coverage:** D1 ranking → T1,T2,T3; D2 Note.Priority → T1; D3 pointer-only → T3,T5; D4 command/format/footer → T5; D5 core.Prime → T3; D6 note CLI → T2,T4; D7 threshold/unset/corrupt → T3; D8 hook (docs) → T6; D9 KB-only → T5 (prime prints no tasks). All covered.
+- **Spec coverage:** D1 ranking → T1,T2,T3; D2 Note.Priority → T1; D3 pointer-only → T3,T5; D4 command/format/footer → T5; D5 core.Prime → T3; D6 note CLI → T2,T4; D7 threshold/unset → T3, **corrupt-but-non-empty priority pinned in T1 (round-trip tolerated, ranks medium) AND T3 (excluded at high, included at medium)** — the spec's "a test pins this" is scheduled in both places; D8 hook (docs) → T6; D9 KB-only → T5 (prime prints no tasks). All covered.
 - **Type consistency:** `PrimeOptions`/`PrimeEntry`/`Prime(...)([]PrimeEntry,int)`, `NoteFilter{Priorities,Sort}`, `NoteEditParams.Priority *mtt.Priority`, `primeJSON`/`toPrimeJSON`, `lessNotesByRecency` — used consistently T1–T5. `SortPriority` is the reused `SortKey` constant (no standalone `SortNotes*`).
 - **Build-green per task:** every change is **additive** (new fields on `NoteFilter`/`NoteParams`/`NoteEditParams` — named-field literals unaffected; new files; new flags) — **no signature-break ripple**. Each task's `make check` is green.
 - **Placeholder scan:** none — every code step has real code.
