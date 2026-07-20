@@ -1,7 +1,7 @@
 id: t1
 type: task
 title: references — structured, verifiable refs on tasks/comments (note/task/comment/url)
-status: spec_review
+status: spec_fix
 priority: high
 tags:
     - core
@@ -9,7 +9,7 @@ tags:
 depends_on:
     - t47
 created: "2026-07-10T13:51:25Z"
-updated: "2026-07-20T06:28:35Z"
+updated: "2026-07-20T06:38:32Z"
 history:
     - at: "2026-07-20T05:48:32Z"
       by: Grigorii Pashukhin
@@ -27,3 +27,8 @@ history:
       checks:
         - cmd: ls docs/superpowers/specs/t1-*.md
           exit: 0
+    - at: "2026-07-20T06:38:32Z"
+      by: Grigorii Pashukhin
+      why: 'adversarial spec_review: ref rm exit-code inconsistency (should be idempotent no-op like dep/tag rm, not exit 4) + 6 clarifications'
+      from: spec_review
+      to: spec_fix
