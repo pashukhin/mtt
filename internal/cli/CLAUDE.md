@@ -220,4 +220,22 @@ raw cast); tags reuse the shared `toTags`. Body input is `--body`/`--file` (`--f
 `readNoteBody` (mutually exclusive). `edit` uses `Changed()` (touch only provided fields; `--tag` replaces the
 set). `noteJSON`/`toNoteJSON` is the `--json` view (`slug` always, `tags` non-null `[]`); read+`add`+`edit`
 honor `--json`, `rm` captures-before-delete for its `--json`. `noteNotFound(slug)` (`errors.go`) wraps
-`mtt.ErrNotFound` so a missing slug maps to exit 4 (like `taskNotFound`). Refs/search/versioning are out (t1/t6).
+`mtt.ErrNotFound` so a missing slug maps to exit 4 (like `taskNotFound`). Search/versioning are out (t6).
+
+References (t1): `newRefCmd` (`ref.go`) is `mtt ref add/rm/list` over `core.RefEditor` (task carriers);
+`newNoteRefCmd` (`noteref.go`) the same over `core.NoteRefEditor` (note carriers, wired under `mtt note`).
+`parseRefArg` (`ref.go`) splits `<kind>:<target>` on the **first** `:`, rejects `comment:` (t2) and validates
+each target per kind (`NewTaskID`/`NewNoteSlug`/`url.Parse` scheme+host) → usage error (exit 1). On write,
+`warnIfNotOK` prints a stderr warning for a **dangling** ref (or note-no-KB) but not a well-formed url;
+`verifyOne` resolves against both stores (warn-not-block, exit 0; carrier-not-found → exit 4). `--ref`
+(repeatable) on `add`/`note add` is creation-time (`parseRefFlags` → `core.AddParams/NoteParams.Refs`).
+`ref list`/`note ref list` render outgoing refs (verified) + computed **backlinks** via the shared
+`writeRefsAndBacklinks`; `show`/`note show` append `formatRefsBacklinks` (human) and set `showJSON.Refs/
+Backlinks` / `noteShowJSON` (JSON — the lean `taskJSON`/`noteJSON` used by list/edit stay untouched);
+`refJSON`/`backlinkJSON` + `verifiedRefsJSON`/`toBacklinkJSON` are the shared views. **`mtt check`**
+(`check.go`) sweeps via `core.CheckRefs`, prints findings, returns `core.ErrDanglingRefs` → **exit 7** on any
+dangling (0 on clean/unverified); `--json` emits `refCheckJSON` (renamed to avoid the `json.go` `checkJSON`
+clash). Deletion guards: `rm` builds the real `Backlinks` (`loadBacklinks`) and passes it to `core.Remover`;
+`note rm` gains `--force` + the guard via `core.NoteRemover` (referents from `referentIDs`, which drops the
+note's own self-ref), reusing `resolveAttribution` + `yaml.NewAuditStore` (missing who/why → exit 2).
+`exitCode` maps `core.ErrDanglingRefs → 7` (unit-tested in `TestExitCode`).

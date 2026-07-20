@@ -287,13 +287,18 @@ type Check struct {
 
 // Note is a knowledge-base entry: a markdown Body + metadata (shipped t47). Identity
 // is Slug (the on-disk file name). A note is single-version in the seed; its history
-// is git. Versioning (a Version identity + predecessor link) is deferred to t6, as is
-// Refs on notes (all refs handling is t1). [T1]
+// is git. Versioning (a Version identity + predecessor link) is deferred to t6. Refs
+// (informational verifiable links, like a task's) shipped t1. [T1]
+//
+// Derived, NOT in this contract (like Task's resolved graph): RefStatus
+// (ok/dangling/unverified) and Backlinks (the computed cross-store inverse index)
+// live in internal/core — verification and backlinks are never stored.
 type Note struct {
 	Slug    NoteSlug
 	Title   string
 	Tags    []string
 	Body    string
+	Refs    []Ref // shipped t1
 	Created time.Time
 	Updated time.Time
 }

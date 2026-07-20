@@ -37,7 +37,7 @@ agent layer over the existing stack).
 | Recategorization | A task's **type is immutable**; recategorize = close old + create new + link via `refs` |
 | History | Append-only `history` of transitions in the task (audit + reconstruction); flow — via git |
 | Capabilities | Features are optional per adapter (`Capabilities()` / `ErrUnsupported`); YAML is the reference |
-| KB & refs | KB is an optional capability (base `KnowledgeStore` + `mtt note` shipped t47; versioning/search → t6); `refs` (note/task/comment/url) — verifiable references, ≠ `depends_on` (all refs → t1) |
+| KB & refs | KB is an optional capability (base `KnowledgeStore` + `mtt note` shipped t47; versioning/search → t6); `refs` on tasks+notes — verifiable references, ≠ `depends_on` (shipped t1: `note`/`task`/`url` + `check`/backlinks/refuse-guard; `comment` → t2) |
 | Hosting | GitHub `github.com/pashukhin/mtt`, GitHub Actions |
 | Branching | Per-task branch → PR → CI green → squash into `main` |
 | Gate | `make check`: gofmt + vet + golangci-lint + `go test -race` |
@@ -707,12 +707,13 @@ tested end-to-end walkthrough of this template.
 > It is distinct from `cancel` (a terminal *status*): `rm` is for **backlog hygiene** (purge a mistaken task),
 > not the normal lifecycle, and leaves **no `history`** — the git commit dropping the file is the audit.
 > `core.Remover` is **conservative**: by default it **rejects** deleting a task that others reference (a child
-> via `parent`, or a dependent via `depends_on`, found by reusing `Index`+`DepGraph`), so a delete never
-> silently strands references; `--force` overrides, leaving them **dangling** (already tolerated: `ready` is
-> conservative, `Index` surfaces orphans as roots). It is **agent-facing** — no interactive confirmation (that
-> would hang an agent), and `--who`/`--why` are not mandated (nowhere to record them without a history). A
-> missing id exits `4`, the first consumer of the now-**uniform** not-found taxonomy (every single-task-by-id
-> path wraps `mtt.ErrNotFound`).
+> via `parent`, a dependent via `depends_on`, **or an incoming `ref`** — t1, cross-store, via the computed
+> `Backlinks`), so a delete never silently strands references; `--force` overrides, leaving them **dangling**
+> (already tolerated: `ready` is conservative, `Index` surfaces orphans as roots). It is **agent-facing** — no
+> interactive confirmation (that would hang an agent). **`--force` mandates `--who`/`--why` + an audit record**
+> (t5 dangerous-ops; the base `rm` without `--force` records nothing — the git commit is the audit). A missing
+> id exits `4`, the first consumer of the now-**uniform** not-found taxonomy (every single-task-by-id path
+> wraps `mtt.ErrNotFound`).
 >
 > **Caveat surfaced by `rm --force` — id reuse (pre-existing mint limitation).** The YAML adapter mints ids as
 > `max+1` per prefix with no high-water mark, so deleting the **highest-numbered** task frees its id for a
@@ -817,9 +818,29 @@ refs:
   `KnowledgeStore` (otherwise "cannot verify: no KB"); `url` is external, not resolved (optional HEAD check later).
 - **Semantics:** on write — warn about a dangling reference (not a hard block); `mtt check` — a repo-wide
   sweep for dangling references; `mtt show` — the references and **backlinks** ("what references this"); on
-  deleting a target — warn about incoming references.
-- **Phases:** the `refs` field — in the model already at phase 1; all `refs` wiring + verification
-  (`task`/`comment`/`url`, and `note` now that the KB target exists since t47) + `mtt check`/backlinks — **t1**.
+  deleting a target — **refuse by default** (a delete is irreversible; `--force` overrides, signed).
+- **Phases:** the `refs` field — in the model already at phase 1; all `refs` wiring + verification + backlinks
+  + `mtt check` — **t1**.
+
+> **Shipped (t1): references wired + verified.** `Ref{Kind,ID,Label}` live on **tasks and notes**
+> (`Note.Refs` added; the YAML task adapter already round-tripped `Task.Refs`); kinds `note`/`task`/`url` are
+> live, **`comment` (kind and carrier) is deferred to t2** (its target doesn't exist yet — the t47 "don't ship
+> a dead kind" discipline). Identity is the natural key `(kind, target)`; ref sets are deduped + **sorted**.
+> CLI: `mtt ref add/rm/list` (tasks) + `mtt note ref add/rm/list` (notes) + creation-time `--ref` on
+> `add`/`note add`; `ref rm` of an absent key is an **idempotent no-op** (like `dep rm`/`tag rm`).
+> **Verification is capability-aware and derived** (a `core.RefStatus` — `ok`/`dangling`/`unverified` — never
+> stored): `task`/`note` resolve via the stores (a `note` needs a wired KB, else `unverified`); a `url` is
+> external → always `unverified`. **Write policy = warn-not-block** (a dangling target is stored with a stderr
+> warning, exit 0; the carrier must exist, else exit 4; a malformed `kind:target`/URL/slug is exit 1).
+> **Backlinks are a computed cross-store value** (`core.Backlinks` from a tasks+notes snapshot — the
+> "back-refs computed, never stored" invariant), surfaced in `mtt show`/`note show`/`ref list`. **`mtt check`**
+> is a read-only sweep that **exits 7** on any dangling ref (0 on clean/unverified) — gate/CI-usable.
+> **Deletion is refuse-by-default + `--force`, unified & cross-store:** `mtt rm`/`mtt note rm` consult the same
+> computed `Backlinks` (so a task referenced by a **note** also blocks) and refuse unless `--force`, which —
+> as a destructive override — forces `--who`/`--why` + an audit record (a new `core.NoteRemover` mirrors the
+> task `Remover`; `core.Remover` gains **no** KB port — it consumes the computed value). A self-reference never
+> blocks its own delete. **Still t2:** `comment` refs (target + carrier); **follow-up:** `mtt check --fix`, URL
+> liveness (HEAD).
 
 ## Search (phase 5)
 

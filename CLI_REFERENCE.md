@@ -198,7 +198,9 @@ adapter mints the ID — a flat, per-prefix ID such as `e1` or `t17` — and pri
   as `medium`, written nothing on disk). An unknown value is a usage error. **Implemented (session 008.6)**.
 - `--depends-on <id>…` — set blocking dependencies at creation (repeatable, comma-separated). Each target
   must exist (else the add errors and nothing is created); validated in `core.Adder`. **Implemented (session
-  008.5)**. (`--ref <kind>:<target>…`, e.g. `note:auth-design`/`task:t2`, arrives in a later session.)
+  008.5)**.
+- `--ref <kind>:<target>` — attach an informational reference at creation (repeatable; `note:auth-design`/
+  `task:t2`/`url:https://…`). Warn-not-block: a dangling target is stored with a warning (exit 0). **t1.**
 - `--tag <tag>…` — add a tag (repeatable, session 008.7). `#hashtags` in the title/description are also
   extracted and merged into the same set. Values are normalized (Unicode-lowercased over letters/digits plus
   `. _ -`, any script; an optional leading `#` is allowed); an out-of-charset value is a usage error.
@@ -513,32 +515,45 @@ dependents (`required by:`). With `--json`, emits `{id, depends_on, required_by}
 
 ---
 
-## References  *(field: phase 1; commands: phase 2; `note` targets need a KB, phase 5)*
+## References  *(shipped t1)*
 
-References are informational, verifiable links (`kind` ∈ `note`/`task`/`comment`/`url`) — not blocking
-dependencies. A reference is identified by its natural key — the **pair `(kind, target)`** (no separate
-reference ID). The target is part of the key, so an entity can hold many references of the same `kind` to
-different targets (`note:auth-design` + `note:login-spec` are two distinct references); only an exact
-`kind`+`target` duplicate is collapsed (its `--label` updated). `--label` is an annotation, not part of identity.
+References are informational, verifiable links (`kind` ∈ `note`/`task`/`url`; **`comment` arrives with t2**)
+— not blocking dependencies. They live on **tasks and notes**. A reference is identified by its natural key —
+the **pair `(kind, target)`** (no separate reference ID). The target is part of the key, so an entity can
+hold many references of the same `kind` to different targets (`note:auth-design` + `note:login-spec` are two
+distinct references); only an exact `kind`+`target` duplicate is collapsed. `--label` is an annotation, not
+part of identity. The target syntax splits on the **first** `:` (a URL keeps its own). Refs are stored
+**sorted by `(kind, target)`** (clean diffs). A `comment:` target, an unknown kind, a malformed URL (needs
+scheme + host), a non-kebab note slug, or an empty id is a usage error (**exit 1**).
 
-### `mtt ref add <id> <kind>:<target> [--label <text>]` — add a reference
-Adds a reference from task `<id>` to `<kind>:<target>` (e.g. `note:auth-design`, `task:t2`). Idempotent:
-re-adding the same key updates its `--label`. On success prints the stored reference; if the target can't
-be resolved (a `note` with no KB, a missing task) it is still stored but flagged **unverified/dangling**
-with a warning (not a hard error). With `--json`, echoes the reference object `{kind, id, label, status}`.
+### `mtt ref add <id> <kind>:<target> [--label <text>]` — add a reference to a task
+Adds a reference from task `<id>` to `<kind>:<target>` (e.g. `note:auth-design`, `task:t2`,
+`url:https://…`). **Idempotent upsert**: re-adding the same key overwrites its label only when `--label` is
+given (omitted → unchanged). **Warn-not-block:** a dangling target (a missing `task`/`note`) is **still
+stored**, with a stderr warning and **exit 0**; the carrier task must exist (else **exit 4**). A well-formed
+`url` is stored as `unverified` (external, not resolved) and does not warn. `--json` echoes the reference
+object `{kind, id, label, status}` (`status` ∈ `ok`/`dangling`/`unverified`).
 
-### `mtt ref rm <id> <kind>:<target>` — remove a reference
-Removes the reference with that key from task `<id>`. Exits `4` if no such reference exists.
+### `mtt ref rm <id> <kind>:<target>` — remove a reference from a task
+Removes the reference with that key. **Idempotent no-op** — removing an absent key still succeeds (**exit 0**),
+like `dep rm`/`tag rm`. A missing carrier task exits `4`.
 
-### `mtt ref list <id>` — list references and backlinks
-Prints the task's outgoing references (each: `kind:target`, label, and resolution status
-`ok`/`unverified`/`dangling`) and its incoming **backlinks** — the tasks/comments that reference this one.
+### `mtt ref list <id>` — list a task's references and backlinks
+Prints the task's outgoing references (each: `kind:target`, resolution status `ok`/`dangling`/`unverified`,
+and label) and its incoming **backlinks** — the tasks **and notes** that reference this task (computed, never
+stored). `--json` emits `{refs, backlinks}` (both non-null arrays). Refs/backlinks also appear in `mtt show`.
 
-### `mtt check [flags]` — verify references  *(phase 5)*
-Sweeps the repository for dangling references (targets that don't exist / can't be resolved). Capability-
-aware: `note` refs are only checkable with a knowledge base.
+### `mtt note ref add/rm/list <slug> …` — references on a note
+The same three operations for a **note** carrier (`mtt note ref add auth-design task:t2`, …). Notes can
+reference tasks/notes/urls; a note's backlinks show who references it.
 
-- `--fix` — interactively drop dangling references (optional).
+### `mtt check [--json]` — verify references  *(shipped t1)*
+Read-only repo-wide sweep for **dangling** references (a `task`/`note` target that does not exist). Prints
+each finding (`carrier → kind:target [status]`) plus a summary, and **exits `7`** when any dangling reference
+is found — usable as a CI / flow gate. Capability-aware: `note` refs are only checkable with a knowledge base
+(YAML always has one); a `url` is external and reported `unverified`. **`unverified` is not a failure** (exit
+0). `--json` emits a non-null array of `{carrier, ref, status}`. (An automated `--fix` is deferred — a
+follow-up.)
 
 ---
 
@@ -567,7 +582,10 @@ Creates a note at `<slug>`. Rejects an existing slug (no clobber). Body defaults
 - `--title <text>` — human title (optional).
 - `--tag <t>` — add a tag (repeatable; explicit only — hashtags in the body are NOT extracted).
 - `--body <text>` — content; **or** `--file <path>` (`--file -` reads stdin). `--body`/`--file` are exclusive.
+- `--ref <kind>:<target>` — attach a reference at creation (repeatable; warn-not-block, t1). `mtt add` takes it too.
 - `--json` — emit the created note object.
+
+Refs/backlinks are shown by `mtt note show` and `mtt note ref list`.
 
 ### `mtt note list [--tag <t>]… [--json]` — list notes
 Lists notes (newest first), optionally filtered by tag (OR within tags). `--json` emits a (non-null) array.
@@ -580,8 +598,10 @@ present, `tags` a non-null array).
 Updates only the provided fields; `--tag` **replaces** the whole tag set. Bumps `updated`, keeps `created`.
 - `--title <text>`, `--tag <t>` (repeatable), `--body <text>` / `--file <path>` (`-` = stdin), `--json`.
 
-### `mtt note rm <slug>` — delete a note
-Removes the note file. (A "refuse if a task references it" guard arrives with refs, t1.) `--json` echoes the
+### `mtt note rm <slug> [--force --who <w> --why <r>]` — delete a note
+Removes the note file. **Refuses by default** if any task or note references it (t1); `--force` overrides —
+leaving the refs dangling — and, as a destructive override, **forces `--who`/`--why`** (missing → exit 2) and
+writes an audit record. A note's own self-reference never blocks. A missing slug exits 4. `--json` echoes the
 removed note.
 
 ### `mtt search <query> [flags]` — text search  *(deferred, t6)*
