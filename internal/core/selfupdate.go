@@ -1,7 +1,12 @@
 package core
 
 import (
+	"bufio"
+	"bytes"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
+	"strings"
 
 	"golang.org/x/mod/semver"
 )
@@ -34,4 +39,36 @@ func assetName(tag, goos, goarch string) string {
 		name += ".exe"
 	}
 	return name
+}
+
+// verifyChecksum recomputes the SHA-256 of assetBytes and checks it against the
+// line for name in a sha256sum-format SHA256SUMS ("<hex>  <name>"). An absent
+// name or a mismatch is an error — the caller MUST verify before any replace.
+func verifyChecksum(name string, assetBytes, sha256sums []byte) error {
+	want, ok := findChecksum(name, sha256sums)
+	if !ok {
+		return fmt.Errorf("asset %q not listed in %s", name, checksumsAsset)
+	}
+	sum := sha256.Sum256(assetBytes)
+	got := hex.EncodeToString(sum[:])
+	if !strings.EqualFold(got, want) {
+		return fmt.Errorf("checksum mismatch for %q: got %s, want %s", name, got, want)
+	}
+	return nil
+}
+
+// findChecksum returns the hex digest recorded for name, if present. It tolerates
+// the sha256sum "binary mode" '*' name prefix; malformed lines are skipped.
+func findChecksum(name string, sha256sums []byte) (string, bool) {
+	sc := bufio.NewScanner(bytes.NewReader(sha256sums))
+	for sc.Scan() {
+		fields := strings.Fields(sc.Text())
+		if len(fields) != 2 {
+			continue
+		}
+		if strings.TrimPrefix(fields[1], "*") == name {
+			return fields[0], true
+		}
+	}
+	return "", false
 }

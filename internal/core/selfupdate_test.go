@@ -1,6 +1,40 @@
 package core
 
-import "testing"
+import (
+	"crypto/sha256"
+	"encoding/hex"
+	"fmt"
+	"strings"
+	"testing"
+)
+
+func sums(name string, data []byte, extra ...string) []byte {
+	sum := sha256.Sum256(data)
+	lines := []string{fmt.Sprintf("%s  %s", hex.EncodeToString(sum[:]), name)}
+	lines = append(lines, extra...)
+	return []byte(strings.Join(lines, "\n") + "\n")
+}
+
+func TestVerifyChecksum(t *testing.T) {
+	asset := []byte("the-binary-bytes")
+	name := "mtt_v0.9.0_linux_amd64"
+
+	if err := verifyChecksum(name, asset, sums(name, asset)); err != nil {
+		t.Fatalf("match must pass: %v", err)
+	}
+	// one-byte change -> mismatch
+	if err := verifyChecksum(name, []byte("the-binary-byteX"), sums(name, asset)); err == nil {
+		t.Fatal("mismatch must error")
+	}
+	// name absent from SHA256SUMS -> error
+	if err := verifyChecksum("mtt_v0.9.0_darwin_arm64", asset, sums(name, asset)); err == nil {
+		t.Fatal("absent name must error")
+	}
+	// garbage / malformed sums (no usable line for name) -> error
+	if err := verifyChecksum(name, asset, []byte("garbage-no-columns\n")); err == nil {
+		t.Fatal("malformed sums must error")
+	}
+}
 
 func TestOrderable(t *testing.T) {
 	cases := map[string]bool{
