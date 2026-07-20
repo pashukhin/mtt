@@ -1,0 +1,29 @@
+id: t52
+type: task
+title: 'mtt init: scaffold agent settings + hooks (sessionStart -> mtt prime, etc.) for codex/claude/gemini'
+status: tbd
+priority: medium
+tags:
+    - backlog
+    - dx
+    - kb
+    - think
+refs:
+    - kind: task
+      id: t46
+      label: 'sibling: agent docs scaffolding'
+    - kind: task
+      id: t51
+      label: 'motivates: prime session-start hook'
+created: "2026-07-20T12:06:25Z"
+updated: "2026-07-20T12:07:00Z"
+description: |-
+    Sibling of t46 (which scaffolds agent DOCS: AGENTS.md/CLAUDE.md/GEMINI.md). This task scaffolds agent CONFIG/HOOKS: per-harness settings that wire mtt into the agent loop. Headline: a sessionStart hook running mtt prime (t51 left the hook as config-not-code; this makes init emit it), plus a read-only-mtt permissions allowlist.
+
+    Design-OPEN (brainstorm first, think):
+    - Targets/harnesses: Claude Code settings.json hooks; Codex config; Gemini; a generic snippet. Formats differ per harness.
+    - Merge-vs-create (mirror t46): never clobber an existing settings.json — merge additively or emit a snippet + instructions.
+    - Which hooks beyond sessionStart->prime? (permissions allowlist for read-only mtt; maybe a pre-submit gate). Keep minimal (KISS).
+    - Security: a hook runs a command on session start -> opt-in, documented, reviewed (do not silently inject).
+    - Surface: mtt init --with-hooks / --agent claude|codex|gemini, or a separate mtt setup command.
+    Builds on t51 (mtt prime) and is a sibling of t46 (agent docs).
