@@ -1,0 +1,20 @@
+id: t55
+type: task
+title: output verbosity + color (deferred from t41) — implement -q/--quiet and/or ANSI color when there is a real need
+status: tbd
+priority: low
+tags:
+    - backlog
+    - dx
+    - think
+    - ux
+created: "2026-07-20T15:44:08Z"
+updated: "2026-07-20T15:44:08Z"
+description: |-
+    Deferred from t41 (cancelled). Both -q/--quiet and --no-color/NO_COLOR were advertised in CLI_REFERENCE as pending but never existed, and there is no color in the output path. Decision (maintainer): do not build now; agent-primary + --json already gives clean machine output; revisit only on a real need.
+
+    Cost/need analysis (from the t41 brainstorm):
+    - --quiet: LOW-MEDIUM cost. Non-essential = the post-transition guidance block (1 site, moveGuidance in status.go) + the mutation confirmations created/updated/removed/... (~11 sites). Data commands + stderr errors stay. ~12 mechanical "if !quiet" guards + a persistent flag + quietFlag() + tests. Need: marginal (agents use --json; suppressing guidance fights the flow-teaches pedagogy).
+    - color: MEDIUM-HIGH cost. Needs TTY-detect + NO_COLOR/--no-color/not-a-TTY precedence + a palette (status-kind/priority) + threading color through the render path. taskLine is shared (9 sites: list/tree/roadmap/ready) so one change covers those, but show/prime/dep list/tags (14 writeX/formatX total) need it too for consistency; mechanism = global state (fragile) or a palette param through 14 signatures or a colorizing writer; plus color-ON tests. Need for agent-primary: ~zero (agents never see color).
+
+    If picked up: decide per-flag independently (quiet is cheap and standalone; color is the expensive/low-ROI part). Unblocked from t42 (dependency removed).
