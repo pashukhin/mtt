@@ -1,14 +1,14 @@
 id: t28
 type: task
 title: 'Think: actionable attribution and post-failure errors — exit-2 hints author/MTT_BY setup, exit-5 prints the recovery commands'
-status: spec_fix
+status: spec_review
 priority: medium
 tags:
     - dx
     - release
     - think
 created: "2026-07-11T12:58:07Z"
-updated: "2026-07-21T14:46:16Z"
+updated: "2026-07-21T14:47:52Z"
 history:
     - at: "2026-07-20T17:51:47Z"
       by: Grigorii Pashukhin
@@ -30,3 +30,10 @@ history:
       by: Grigorii Pashukhin
       from: spec_review
       to: spec_fix
+    - at: "2026-07-21T14:47:52Z"
+      by: Grigorii Pashukhin
+      from: spec_fix
+      to: spec_review
+      checks:
+        - cmd: ls docs/superpowers/specs/t28-*.md
+          exit: 0
