@@ -208,7 +208,7 @@ like `(no moves out of <status> — it is terminal)` instead of the empty list. 
 - `exitHint`/`attributionHint`/`notFoundHint` in `internal/cli/errors.go` + the `Execute` hook (exit 2, exit 4).
 - The typed `core.PostActionError` (`runner.go`) built at `Transitioner`'s three POST failure points
   (`transition.go`); the CLI recovery block in `status.go` (exit 5).
-- exit 6 verification + wording alignment (likely no code).
+- exit 6 verification + a small empty-terminal parity fix in `transition.go` (D5).
 - Unit tests (`core.PostActionError` `Remaining`/`Is`), CLI e2e (testscript) for each case; docs sync.
 
 **Out:**
