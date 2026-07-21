@@ -110,34 +110,45 @@ core message already names which fields are missing; the hint shows how to set e
 ### D3 — exit 5: post-failure recovery with the exact remaining commands
 
 **Core change (the only one): a typed `*PostActionError`** replacing the plain-wrapped `ErrPostAction`, so the
-CLI can render the unfinished commands without re-expanding templates (expansion is a `core` concern).
+CLI can render the unfinished commands without re-expanding templates (expansion is a `core` concern). It
+carries **only** the recovery data (`Remaining`, `Cause`) — the id/from/to are already in the CLI's scope at
+the exit-5 site (`runTransition` has `id`, `to`, `last.From`), so duplicating them on the error is YAGNI.
 
 ```go
 // core (runner.go): typed, carries the recovery data; Is() preserves the exit-5 sentinel mapping.
 type PostActionError struct {
-    ID        mtt.TaskID
-    From, To  mtt.StatusName
     Remaining []string // the post commands that did NOT complete: the failed one + those after it
-    Cause     string   // "command %q exited %d" | the operational error | "expand post: …"
+    Cause     string   // the underlying failure, verbatim (see the three branches below)
 }
-func (e *PostActionError) Error() string      { return fmt.Sprintf("%s: %s", ErrPostAction, e.Cause) }
-func (e *PostActionError) Is(t error) bool     { return t == ErrPostAction }
+func (e *PostActionError) Error() string  { return fmt.Sprintf("%s: %s", ErrPostAction, e.Cause) }
+func (e *PostActionError) Is(t error) bool { return t == ErrPostAction }
 ```
 
 `Transitioner`'s POST phase builds it at each of its three failure points
-([transition.go:113/117/120](../../../internal/core/transition.go#L113)):
+([transition.go:113/117/120](../../../internal/core/transition.go#L113)). `expandCommands` returns the **full
+expanded slice before `Run`**, so `expanded` is in scope at the run/check failures; the helper `runsOf([]Command)
+[]string` extracts the `.Run` strings:
 
-- **non-zero check** — `firstFailure` gives index `i`; `Remaining = expanded[i:]` (the failed command + those
-  after, which the runner never reached — `Runner.Run` stops at the first non-zero).
-- **operational error** (`rerr`) — the failing command is the last recorded check (Runner CONTRACT), so
-  `Remaining = expanded[len(pchecks)-1:]`; `Cause = rerr.Error()`.
-- **expand error** — no `expanded` exists; `Remaining = rawRuns(edge.Post)` (the unexpanded `Run` templates,
-  best-effort — expansion is what failed); `Cause = "expand post: …"`.
+- **non-zero check** — `firstFailure` gives index `i` into the aligned `expanded`/`pchecks` slices;
+  `Remaining = runsOf(expanded[i:])` (the failed command + those after, which the runner never reached —
+  `Runner.Run` stops at the first non-zero); `Cause = fmt.Sprintf("command %q exited %d", c.Cmd, c.Exit)`.
+- **operational error** (`rerr`) — the failing command is the **last** recorded check (Runner CONTRACT), so the
+  index is `len(pchecks)-1`; **guard the empty case** (a fake runner may return zero checks — the sibling
+  pre-gate path is explicitly defensive here, [transition.go:86](../../../internal/core/transition.go#L86)):
+  `if len(pchecks) == 0 { Remaining = runsOf(expanded) } else { Remaining = runsOf(expanded[len(pchecks)-1:]) }`;
+  `Cause = rerr.Error()`.
+- **expand error** — no `expanded` exists; `Remaining = runsOf(edge.Post)` (the unexpanded `Run` templates,
+  best-effort — expansion is what failed); `Cause = fmt.Sprintf("expand post for %s (%s->%s): %v", id, from, to,
+  eerr)` — **the full existing wording is kept** (id/from/to preserved), so this branch's `Error()` body is
+  unchanged from today.
 
-`Remaining` commands are **expanded** (placeholders resolved), so they are copy-paste-ready.
+`Remaining` commands are **expanded** (placeholders resolved) on the two common branches, so they are
+copy-paste-ready.
 
 **CLI change (`status.go` `runTransition`, the sole exit-5 site):** replace the terse post-fail line with a
-recovery block on stderr; `errors.As(txErr, &pe)` extracts the typed error:
+recovery block on **stderr, printed in BOTH text and `--json` mode** (moved **before** the `--json` return at
+[status.go:113–117](../../../internal/cli/status.go#L113) so an agent using `--json` — US2's primary mode —
+actually receives it). `errors.As(txErr, &pe)` extracts the typed error:
 
 ```
 move applied — the status change IS saved; do NOT re-run the move.
@@ -146,10 +157,14 @@ finish the finalization by hand:
   <remaining cmd 2>
 ```
 
-- The **cause** is *not* repeated here — `Execute` already prints `error: mtt: post-action failed after the
-  move: <cause>`. The block adds the two things missing today: the **idempotence warning** and the **exact
-  remaining commands**. (This removes the current redundant `%v` echo of the whole error.)
-- The stdout move-render (the `<id>: from → to` line + guidance) is **unchanged** — the move happened.
+- Printed on **stderr**, so it never pollutes the `--json` object on stdout; the JSON object (the task) and the
+  exit code (5) are unchanged. The agent reads the recovery commands from stderr in either mode.
+- The **cause** is *not* repeated in the block — `Execute` already prints `error: mtt: post-action failed after
+  the move: <cause>`. The block adds the two things missing today: the **idempotence warning** and the **exact
+  remaining commands**. (This removes the current redundant `%v` echo of the whole error and the old terse
+  line at [status.go:132](../../../internal/cli/status.go#L132).)
+- The stdout move-render (text mode: `<id>: from → to` + guidance; `--json` mode: the task object) is
+  **unchanged** — the move happened.
 
 ### D4 — exit 4: not-found hint (generic, task + note)
 
@@ -164,17 +179,20 @@ finish the finalization by hand:
   in `Execute` would need a second sentinel for marginal benefit — YAGNI). It points at the discovery
   commands, which is the actionable next step after a typo.
 
-### D5 — exit 6: verify already-actionable, align only
+### D5 — exit 6: verify already-actionable, align the empty-list case
 
-No new mechanism. `t28` **verifies** both invalid-transition messages list the valid moves and aligns wording
-if they drift:
+No new mechanism — both invalid-transition messages already list the valid moves:
 
 - **core path** (`status`/sugar, [transition.go:63](../../../internal/core/transition.go#L63)):
-  `… cannot move <from> → <to> (allowed from <from>: <targets>)` — already lists targets via `allowedTargets`.
+  `… cannot move <from> → <to> (allowed from <from>: <targets>)` — lists targets via `allowedTargets`.
 - **`mtt do` path**: `doMissError` already lists `availableActions`.
 
-If both already read clearly and consistently, D5 ships **zero code** (an acceptance check, not an edit).
-Recorded so the "exit 6 in scope" decision is honored honestly rather than padded with a redundant hint.
+**One real (small) parity fix.** `allowedTargets` returns `nil` for a **terminal** status (no outgoing edges),
+so `strings.Join(nil, ", ")` renders a dangling `(allowed from <terminal>: )` — reachable when a move is
+requested out of a terminal. `do.go`'s `availableActions` handles the same case gracefully
+(`; no named actions from this status`). Align the core path: when `allowedTargets` is empty, emit a phrase
+like `(no moves out of <status> — it is terminal)` instead of the empty list. This is the honest scope of
+"exit 6 in scope" — a targeted empty-case fix, not a redundant hint (AC4 covers it).
 
 ### D6 — Where the hint text lives & format
 
@@ -210,14 +228,21 @@ Recorded so the "exit 6 in scope" decision is honored honestly rather than padde
    with the not-found line **plus** the `check the id — 'mtt roadmap' …` hint.
 3. **exit 5 recovery (unit + e2e).**
    - *Unit:* a `Transitioner` whose post gate fails on the 2nd of 3 post commands returns a `*PostActionError`
-     with `Remaining == expanded[1:]` (the failed + the untried), `errors.Is(err, ErrPostAction) == true`, and
-     `Cause` naming the failed command. The operational-error and expand-error branches populate `Remaining`
-     (last-check-onward / raw) and `Cause`.
-   - *e2e:* a move whose `post:` fails prints, on stderr, `the status change IS saved; do NOT re-run the move`
-     and the exact remaining command(s); the task file shows the **new** status (move persisted); exit **5**.
-4. **exit 6 unchanged-but-verified (e2e).** `mtt done <tbd-task>` (no direct edge) exits **6** and lists
-   `allowed from <status>: …`; `mtt do <task> <bogus-edge>` exits **6** and lists the available actions. If
-   wording was aligned, the e2e asserts the aligned text.
+     with `Remaining == runsOf(expanded[1:])` (the failed + the untried `.Run` strings — a `[]string`, not
+     `[]Command`), `errors.Is(err, ErrPostAction) == true`, and `Cause` naming the failed command. Separate
+     cases: an **operational** error with the failing check last → `Remaining` last-check-onward, **and** a fake
+     returning **zero** checks → `Remaining == runsOf(expanded)` (the empty-`pchecks` guard, no panic); an
+     **expand** error → `Remaining` = the raw post `.Run` templates and `Cause` keeps the `expand post for …`
+     wording.
+   - *e2e (text):* a move whose `post:` fails prints, on stderr, `the status change IS saved; do NOT re-run the
+     move` and the exact remaining command(s); the task file shows the **new** status (move persisted); exit **5**.
+   - *e2e (`--json`):* the **same** move with `--json` still prints the recovery block on **stderr** (US2's
+     primary mode) while stdout carries the task JSON object; exit **5**. (This is the finding-1 regression
+     guard — the block must not be text-mode-only.)
+4. **exit 6 verified + empty-case aligned (e2e).** `mtt done <tbd-task>` (no direct edge) exits **6** and lists
+   `allowed from <status>: …`; `mtt do <task> <bogus-edge>` exits **6** and lists the available actions. **An
+   invalid move requested out of a TERMINAL status** (empty `allowedTargets`) exits **6** with the aligned
+   phrase (`no moves out of <status> …`), not a dangling `allowed from <status>: ` — the D5 parity fix.
 5. **No hint bleed (e2e/unit).** exit-5 output does **not** carry the not-found/attribution hints (its error is
    `*PostActionError`, matched by neither branch); a blocked gate (exit 3) still shows only its own `-v` hint.
 6. **Exit codes unchanged.** `TestExitCode` still maps 2/3/4/5/6/7 exactly (the typed `*PostActionError` still
@@ -234,7 +259,10 @@ Recorded so the "exit 6 in scope" decision is honored honestly rather than padde
   wrap → not-found block; `*PostActionError` and `ErrInvalidTransition` → `""`; unrelated error → `""`.
 - **e2e (testscript, hermetic):** extend/add scripts for exit-2 (transition + a dangerous-ops path), exit-4
   (task + note), exit-5 (a config with a **failing `post:`** command — e.g. `post: ['false']` — assert the
-  recovery block + persisted status + exit 5), exit-6 (both paths). No network.
+  recovery block + persisted status + exit 5, in **both** text and `--json`), exit-6 (both paths + the
+  terminal empty-list case). No network. **Migration:** the existing `internal/cli/testdata/scripts/
+  post_actions.txt` asserts the old terse line `move applied, but a post-action failed` — D3 removes it, so
+  that assertion is **replaced** by the recovery-block assertions (grep for it before editing).
 
 ## Docs to sync (docs-sync judgment, `impl_review`)
 
