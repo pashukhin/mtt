@@ -13,11 +13,11 @@ import (
 	"github.com/pashukhin/mtt/pkg/mtt"
 )
 
-// idPattern is the YAML adapter's on-disk id encoding: a type prefix (letters)
-// followed by a positive sequence number — mint's <prefix><N>. It doubles as the
-// shell-safety guard: a task id is expanded into {{.ID}} inside gate/post shell
-// commands (run via sh -c), so an id bearing shell metacharacters or whitespace
-// must never cross into the domain.
+// idPattern is the YAML adapter's on-disk id encoding: a type prefix (letters,
+// see dto.go's prefixPattern) followed by a positive sequence number — mint's
+// <prefix><N>. It doubles as the shell-safety guard: a task id is expanded into
+// {{.ID}} inside gate/post shell commands (run via sh -c), so an id bearing
+// shell metacharacters or whitespace must never cross into the domain.
 var idPattern = regexp.MustCompile(`^[a-zA-Z]+[0-9]+$`)
 
 // parseTaskFile maps one task file's bytes to the domain, enforcing the store's

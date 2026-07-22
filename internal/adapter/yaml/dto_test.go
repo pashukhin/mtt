@@ -101,6 +101,14 @@ func TestCheckPrefixes(t *testing.T) {
 	if err := checkPrefixes(noDefault, map[string]string{"a": "x", "b": "y"}); err == nil || !strings.Contains(err.Error(), "exactly one") {
 		t.Fatalf("missing default not reported: %v", err)
 	}
+	// A non-letter prefix would mint an id (`<prefix><N>`) outside the load-time
+	// id charset (`idPattern`), so every task under it would silently fail to
+	// load — reject it at config-load with a clear error instead.
+	for _, bad := range []string{"x-", "t_", "1", "a.b"} {
+		if err := checkPrefixes(cfg, map[string]string{"a": bad, "b": "y"}); err == nil || !strings.Contains(err.Error(), "prefix") {
+			t.Fatalf("non-letter prefix %q not reported: %v", bad, err)
+		}
+	}
 }
 
 func TestToDomainTransitionCurrent(t *testing.T) {
