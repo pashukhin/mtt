@@ -110,11 +110,26 @@ func runTransition(cmd *cobra.Command, root string, cfg mtt.Config, settings yam
 	if err := applyCurrent(root, cfg, task, id); err != nil {
 		return fmt.Errorf("transition applied but updating the current pointer failed: %w", err)
 	}
+	// exit-5 (t28): the move IS persisted; print the recovery block on stderr in BOTH
+	// text and --json mode (an agent driving --json must still see how to finish). The
+	// cause is left to Execute's `error:` line — here we add the idempotence warning and
+	// the exact remaining post commands.
+	if postFailed {
+		var pe *core.PostActionError
+		if errors.As(txErr, &pe) {
+			w := cmd.ErrOrStderr()
+			_, _ = fmt.Fprintln(w, "move applied — the status change IS saved; do NOT re-run the move.")
+			_, _ = fmt.Fprintln(w, "finish the finalization by hand:")
+			for _, c := range pe.Remaining {
+				_, _ = fmt.Fprintf(w, "  %s\n", c)
+			}
+		}
+	}
 	if jsonFlag(cmd) {
 		if err := writeJSON(cmd.OutOrStdout(), toTaskJSON(task)); err != nil {
 			return err
 		}
-		return txErr // nil on success, ErrPostAction on post-failure → exit 5 even in --json
+		return txErr // ErrPostAction → exit 5 even in --json
 	}
 	last := task.History[len(task.History)-1]
 	out := cmd.OutOrStdout()
@@ -127,9 +142,6 @@ func runTransition(cmd *cobra.Command, root string, cfg mtt.Config, settings yam
 		if _, e := fmt.Fprint(out, g); e != nil {
 			return e
 		}
-	}
-	if postFailed {
-		_, _ = fmt.Fprintf(cmd.ErrOrStderr(), "move applied, but a post-action failed: %v\n", txErr)
 	}
 	return txErr
 }

@@ -23,6 +23,19 @@ stderr 'mtt roadmap'
 ! exec mtt note show nope
 stderr 'mtt roadmap'
 
+# exit 6: an impossible move from tbd (there is no tbd->done edge) lists the allowed
+# targets. findTransition is checked BEFORE attribution, so this needs no --who/--why.
+! exec mtt done t1
+stderr 'allowed from tbd'
+
+# drive t1 to a terminal (with attribution), then an impossible move OUT of it reads
+# cleanly — no dangling 'allowed from done: '.
+exec mtt in_progress t1 --who a --why b
+exec mtt done t1 --who a --why b
+! exec mtt in_progress t1 --who a --why b
+stderr 'no moves out of done'
+! stderr 'allowed from done:'
+
 -- req.yaml --
 version: 1
 project: {name: reqtest}
