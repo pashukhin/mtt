@@ -1,14 +1,14 @@
 id: t16
 type: task
 title: placeholders in descriptions (not just commands) — expand ID/Type/From/To in shown guidance
-status: spec_human_review
+status: planning
 priority: low
 tags:
     - backlog
     - dx
     - flow
 created: "2026-07-10T13:53:10Z"
-updated: "2026-07-22T05:12:36Z"
+updated: "2026-07-22T05:18:53Z"
 history:
     - at: "2026-07-22T04:59:29Z"
       by: Grigorii Pashukhin
@@ -41,3 +41,7 @@ history:
       by: Grigorii Pashukhin
       from: spec_review
       to: spec_human_review
+    - at: "2026-07-22T05:18:53Z"
+      by: Grigorii Pashukhin
+      from: spec_human_review
+      to: planning
