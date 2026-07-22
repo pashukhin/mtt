@@ -6,6 +6,7 @@ import (
 	"io"
 	"time"
 
+	"github.com/pashukhin/mtt/internal/core"
 	"github.com/pashukhin/mtt/pkg/mtt"
 )
 
@@ -84,7 +85,10 @@ type checkJSON struct {
 func toShowJSON(t mtt.Task, statusDesc string, onward []mtt.Transition) showJSON {
 	sj := showJSON{taskJSON: toTaskJSON(t), StatusDescription: statusDesc}
 	for _, e := range onward {
-		sj.Next = append(sj.Next, nextMoveJSON{Name: e.Name, To: string(e.To), Description: e.Description})
+		sj.Next = append(sj.Next, nextMoveJSON{
+			Name: e.Name, To: string(e.To),
+			Description: core.ExpandText(e.Description, string(t.ID), string(t.Type), string(e.From), string(e.To)),
+		})
 	}
 	for _, h := range t.History {
 		hj := historyJSON{
