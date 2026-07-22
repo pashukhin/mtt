@@ -84,7 +84,7 @@ func formatTask(t mtt.Task, ancestors, children []mtt.Task, statusDesc string, o
 		fmt.Fprintf(&b, "  ▸ %s\n", statusDesc)
 	}
 	if len(onward) > 0 {
-		fmt.Fprintf(&b, "  next:     %s\n", formatNextMoves(onward))
+		fmt.Fprintf(&b, "  next:     %s\n", formatNextMoves(onward, t.ID, t.Type))
 	}
 	if t.Title != "" {
 		fmt.Fprintf(&b, "  title:    %s\n", t.Title)

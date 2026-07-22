@@ -60,6 +60,20 @@ func expandOne(c mtt.Command, ctx cmdContext) (mtt.Command, error) {
 	return out, nil
 }
 
+// ExpandText expands {{.ID}}/{{.Type}}/{{.From}}/{{.To}} in raw for SHOWN guidance
+// (descriptions), returning the raw text UNCHANGED on any parse/execute error —
+// guidance is informational and must never break a command. (Gate commands use the
+// strict expandCommands, which aborts on error; this is the lenient sibling.) Note
+// the fallback is whole-string: a template mixing a valid {{.ID}} with an unknown
+// field renders entirely raw, not partially.
+func ExpandText(raw, id, typ, from, to string) string {
+	out, err := expandTemplate(raw, cmdContext{ID: id, Type: typ, From: from, To: to})
+	if err != nil {
+		return raw
+	}
+	return out
+}
+
 // expandTemplate renders one raw template string against ctx.
 func expandTemplate(raw string, ctx cmdContext) (string, error) {
 	tmpl, err := template.New("cmd").Parse(raw)

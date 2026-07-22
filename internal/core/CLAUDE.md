@@ -123,6 +123,11 @@ Usecase logic. Depends **only** on the `pkg/mtt` domain contract and its ports �
   template error). Expansion is **eager** (both run + rollback, up front), so a malformed rollback template is
   exit 1 **before** any side effect. Copies `Timeout` through. `pkg/mtt` stays template-agnostic (stores the
   raw template); expansion — and its injection policy — live here.
+- `ExpandText` (`expand.go`, t16, pure): the **lenient sibling** of `expandCommands` for **shown guidance**
+  (descriptions) — `ExpandText(raw, id, typ, from, to) string` reuses `expandTemplate`/`cmdContext` but returns
+  the **raw** string (whole, not per-placeholder) on **any** parse/execute error, because guidance is
+  informational and must never break a command (gate commands stay strict). Same four-field whitelist. The CLI
+  guidance helpers call it; node (status) descriptions pass `From=To=status`.
 - `Transitioner` (the flow-gate usecase, a mutation):
   `Transition(id, to, TransitionOptions{Role,By,Why,NoRun,RequireWho,RequireWhy})` applies a **single** edge —
   a **linear lookup** in `Type.Transitions` (no `ResolvedFlow` yet; it earns its keep in s007's multi-edge

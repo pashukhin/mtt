@@ -80,3 +80,19 @@ func TestExpandCommandsNilRollbackStaysNil(t *testing.T) {
 		t.Fatal("nil rollback became non-nil")
 	}
 }
+
+func TestExpandText(t *testing.T) {
+	cases := []struct{ raw, id, typ, from, to, want string }{
+		{"task/{{.ID}}", "t17", "task", "tbd", "in_progress", "task/t17"},
+		{"{{.From}}→{{.To}} ({{.Type}})", "t1", "task", "tbd", "done", "tbd→done (task)"},
+		{"no placeholders", "t1", "task", "a", "b", "no placeholders"},
+		{"", "t1", "task", "a", "b", ""},
+		{"{{.Title}}", "t1", "task", "a", "b", "{{.Title}}"}, // unknown field -> raw (best-effort)
+		{"{{.ID", "t1", "task", "a", "b", "{{.ID"},           // malformed -> raw
+	}
+	for _, c := range cases {
+		if got := ExpandText(c.raw, c.id, c.typ, c.from, c.to); got != c.want {
+			t.Fatalf("ExpandText(%q) = %q, want %q", c.raw, got, c.want)
+		}
+	}
+}

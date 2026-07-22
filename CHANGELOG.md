@@ -27,6 +27,9 @@ All notable changes to mtt are documented here. The format follows
 - **`--tag`/`--exclude-tag` accept comma-separated values** (`--tag a,b,c`) like `--depends-on`, tool-wide
   (authoring + filters), still repeatable. `mtt add`'s too-many-arguments error now explains the comma/repeat
   form instead of only blaming the title.
+- **Shown flow descriptions/guidance expand placeholders** — `{{.ID}}`/`{{.Type}}`/`{{.From}}`/`{{.To}}` now
+  expand in on-move guidance and `mtt show` (human and `--json`), best-effort (a bad template shows raw), so
+  guidance names the concrete task (`task/t17`, not `task/<id>`).
 
 ## [0.9.0] — 2026-07-20
 

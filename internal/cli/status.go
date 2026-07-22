@@ -123,7 +123,7 @@ func runTransition(cmd *cobra.Command, root string, cfg mtt.Config, settings yam
 		if _, e := fmt.Fprintf(out, "%s: %s → %s\n", id, last.From, last.To); e != nil {
 			return e
 		}
-		if g := moveGuidance(cfg, task.Type, last.From, last.To); g != "" {
+		if g := moveGuidance(cfg, task.ID, task.Type, last.From, last.To); g != "" {
 			if _, e := fmt.Fprint(out, g); e != nil {
 				return e
 			}

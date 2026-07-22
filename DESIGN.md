@@ -499,6 +499,15 @@ Commands come from config (trusted, like a Makefile/git hooks), not from the net
 > records the expanded command for a truthful audit). An expansion error aborts the transition as a plain
 > error (exit 1), distinct from a gate block (`ErrBlocked`, exit 3). See sessions/007 and TASKS.md → e4_t9.
 
+> **Shipped (t16): placeholders in shown descriptions/guidance.** The same `{{.ID}}`/`{{.Type}}`/`{{.From}}`/
+> `{{.To}}` now expand in the **descriptions** printed as inline guidance (on-move `moveGuidance` and `mtt show`,
+> human **and** `--json`), via `core.ExpandText` — the **lenient sibling** of `expandCommands`: it returns the
+> **raw** text (whole string) on any parse/execute error, because guidance is informational and must never break
+> a command (a gate command still aborts on a bad template). The whitelist is unchanged (the four shape-safe
+> fields; `{{.Title}}` → raw). **Node rule:** a **status** (node) description expands with `From=To=the status's
+> own name` (a status is not an edge). So flow authors can write `task/{{.ID}}` in a description and guidance
+> names the concrete task (`task/t17`), not `task/<id>`.
+
 > **Seam (deferred, think): node-level status actions.** Today executable pipelines hang only on **edges**
 > (transitions — they change status and gate). But "commit intermediate work / build / run checks **while
 > staying** in a status" is a node operation with no home (a self-loop transition is a hack — false history,

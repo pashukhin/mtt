@@ -1,0 +1,44 @@
+# t16 — shown descriptions/guidance expand {{.ID}}/{{.From}}/{{.To}}/{{.Type}} (best-effort).
+exec mtt init
+cp flow.yaml .mtt/config.yaml
+exec mtt add 'a task'
+stdout 'created t1'
+
+# On-move guidance (text): the edge description and the destination-status description expand.
+# (the target status is named `active`, so the sugar is `mtt active t1`.)
+exec mtt active t1
+stdout 'branch task/t1'
+stdout 'you are at active'
+# best-effort: a {{.Title}} in the onward description renders raw, and the move still succeeds.
+stdout '\{\{.Title\}\}'
+
+# show (text): current-status description (node rule: {{.To}} => the status name `active`, {{.ID}} => t1) +
+# the onward `active→review` description `advance to {{.To}}` expanded (guards formatNextMoves).
+exec mtt show t1
+stdout 'you are at active \(id t1\)'
+stdout 'advance to review'
+
+# show --json: status_description AND next[].description expanded (the onward `advance to review` proves
+# toShowJSON expands next[].description), and no raw {{.ID}} anywhere.
+exec mtt show t1 --json
+stdout '"status_description": *"[^"]*active'
+stdout 'advance to review'
+! stdout '\{\{\.ID\}\}'
+
+-- flow.yaml --
+version: 1
+project: {name: descph}
+types:
+  - name: task
+    prefix: t
+    default: true
+    statuses:
+      - {name: tbd, kind: initial, default: true}
+      - {name: active, kind: active, description: "you are at {{.To}} (id {{.ID}})"}
+      - {name: review, kind: active}
+      - {name: done, kind: terminal}
+    transitions:
+      - {from: tbd, to: active, description: "create branch task/{{.ID}}"}
+      - {from: active, to: review, description: "advance to {{.To}}"}
+      - {from: active, to: done, description: "close (from {{.From}}) — {{.Title}}"}
+      - {from: review, to: done}
