@@ -13,21 +13,22 @@ import (
 // fakeRunner is the test double for the Runner port: it records the commands it
 // was handed and returns canned checks/error without spawning a process.
 type fakeRunner struct {
-	checks     []mtt.Check
-	err        error
-	called     bool
-	gotCmds    []mtt.Command
-	compCmds   []mtt.Command // commands passed to Compensate (nil = never called)
-	compChecks []mtt.Check   // canned Compensate result (nil = all succeed)
-	failSubstr string        // when set (and no canned checks/err): derive one check per command, exit 1 if Run contains it — lets the empty pre-gate pass while the post phase fails (t21)
-	postOpErr  error         // when set, Run returns this operational error ONLY for a non-empty command slice (the post phase; the empty pre-gate passes)
+	checks       []mtt.Check
+	err          error
+	called       bool
+	gotCmds      []mtt.Command
+	compCmds     []mtt.Command // commands passed to Compensate (nil = never called)
+	compChecks   []mtt.Check   // canned Compensate result (nil = all succeed)
+	failSubstr   string        // when set (and no canned checks/err): derive one check per command, exit 1 if Run contains it — lets the empty pre-gate pass while the post phase fails (t21)
+	postOpErr    error         // when set, Run returns this operational error ONLY for a non-empty command slice (the post phase; the empty pre-gate passes)
+	postOpChecks []mtt.Check   // checks returned alongside postOpErr (nil = none recorded; lets a test drive the "failing check last" index)
 }
 
 func (f *fakeRunner) Run(commands []mtt.Command) ([]mtt.Check, error) {
 	f.called = true
 	f.gotCmds = commands
 	if f.postOpErr != nil && len(commands) > 0 {
-		return nil, f.postOpErr
+		return f.postOpChecks, f.postOpErr
 	}
 	if f.checks == nil && f.err == nil && f.failSubstr != "" {
 		out := make([]mtt.Check, len(commands))
@@ -514,6 +515,26 @@ func TestTransition_PostActionOperationalZeroChecks(t *testing.T) {
 	}
 	if want := []string{"echo a", "echo b"}; !slices.Equal(pe.Remaining, want) {
 		t.Fatalf("Remaining = %v, want %v (all, guarded against len(pchecks)==0)", pe.Remaining, want)
+	}
+}
+
+func TestTransition_PostActionOperationalFailingCheckLast(t *testing.T) {
+	// Operational error WITH recorded checks: the failing command is last (Runner
+	// CONTRACT), so i=len(pchecks)-1>0 -> Remaining = that command + those untried.
+	store := newMemStore(baseTask())
+	cfg := flowCfg(nil, nil)
+	cfg.Types[0].Transitions[0].Post = strCmds([]string{"echo a", "echo b", "echo c"})
+	runner := &fakeRunner{
+		postOpErr:    errors.New("boom timeout"),
+		postOpChecks: []mtt.Check{{Cmd: "echo a", Exit: 0}, {Cmd: "echo b", Exit: -1}}, // b failed operationally, last recorded
+	}
+	_, err := NewTransitioner(store, cfg, runner, testClock).Transition("t1", "in_progress", TransitionOptions{})
+	var pe *PostActionError
+	if !errors.As(err, &pe) {
+		t.Fatalf("want *PostActionError, got %T (%v)", err, err)
+	}
+	if want := []string{"echo b", "echo c"}; !slices.Equal(pe.Remaining, want) {
+		t.Fatalf("Remaining = %v, want %v (failing check b + untried c)", pe.Remaining, want)
 	}
 }
 
