@@ -1,11 +1,21 @@
 id: t16
 type: task
 title: placeholders in descriptions (not just commands) — expand ID/Type/From/To in shown guidance
-status: tbd
+status: speccing
 priority: low
 tags:
     - backlog
     - dx
     - flow
 created: "2026-07-10T13:53:10Z"
-updated: "2026-07-12T01:21:41Z"
+updated: "2026-07-22T04:59:29Z"
+history:
+    - at: "2026-07-22T04:59:29Z"
+      by: Grigorii Pashukhin
+      from: tbd
+      to: speccing
+      checks:
+        - cmd: git switch task/t16 || (git switch main && git switch -c task/t16)
+          exit: 0
+        - cmd: test -f .mtt/tasks/t16.yaml || { echo "task file absent on this branch — its add has not reached main (merge/commit the branch that created it first)" >&2; false; }
+          exit: 0
