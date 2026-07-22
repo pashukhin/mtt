@@ -255,7 +255,8 @@ Prints tasks in a stable order. Filters combine with AND.
   dimension (a task matches if it carries **any** given tag), AND across the other filters. Values are
   normalized like `--tag` on `add`. *(implemented)*
 - `--exclude-tag <tag>…` — **negative** filter (c8, repeatable or comma-separated, on `list`, `ready`, **and** `tree` — `tree`
-  added in c10): reject any task carrying **any** of these tags. Composes with `--tag` as AND, so on overlap
+  added in c10; since c16 also on the `rm`/`tag` selector `--filter`): reject any task carrying **any** of
+  these tags. Composes with `--tag` as AND, so on overlap
   exclude wins. E.g. `mtt ready --exclude-tag backlog` de-noises the queue. *(implemented)*
 - `--ready` — only tasks that are ready (no open blockers) — shorthand for `mtt ready`. *(implemented, session 005)*
 - `--sort <created|updated|priority>` — ordering key; default `created`. `created`/`updated` are descending,
@@ -290,7 +291,9 @@ A plain `rm` (no `--force`) is unchanged (reject-if-referenced; no attribution, 
 
 **Task-set selector (session 008.9).** `rm` takes a set from **one** of three mutually-exclusive sources:
 explicit ids (`mtt rm t1 t2`), stdin `-` (ids one per line — `mtt list … --ids | mtt rm -`), or a `--filter`
-(`--status/--type/--kind/--parent/--priority/--tag/--ready` — `mtt rm --status cancelled`). Giving more than
+(`--status/--type/--kind/--parent/--priority/--tag/--exclude-tag/--ready` — `mtt rm --status cancelled`;
+`--exclude-tag` since c16, so `mtt rm --type task --exclude-tag keep` de-noises while sparing tagged tasks).
+Giving more than
 one source, or none, is a usage error; a source that matches nothing is a no-op (exit 0). A **single explicit
 id** keeps the exact single-task behaviour (below); a multi-id / `-` / `--filter` delete is **bulk**:
 best-effort per task, a `removed N task(s): …` summary on stdout, per-task failures on stderr, and **exit 1**
@@ -320,8 +323,10 @@ roots the tree at that task. Children are **computed** (an inverse index in `cor
 order is deterministic (`Created` desc, tie-broken by ID). An orphan (a task whose parent id is absent) is
 surfaced as a root, never dropped.
 
-- `--status <status>…` / `--kind <initial|active|terminal>…` / `--tag <tag>…` / `--exclude-tag <tag>…` — filter
-  displayed nodes (`--tag` session 008.7, OR-within; `--exclude-tag` c10, negative). Filtering uses
+- `--status <status>…` / `--type <type>…` / `--kind <initial|active|terminal>…` / `--priority <high|medium|low>…`
+  / `--tag <tag>…` / `--exclude-tag <tag>…` / `--parent <id>` — filter
+  displayed nodes (`--tag` session 008.7, OR-within; `--exclude-tag` c10, negative; `--type`/`--priority`/
+  `--parent` close the parity with the `list` filter set — c16). Filtering uses
   **keep-ancestors** semantics: a node shows if it
   matches or any descendant matches, and non-matching ancestors are kept as the path to a match (so a matching
   leaf is never lost under a non-matching parent).
@@ -337,7 +342,7 @@ so a whole set changes in one write. Tags are stored as a normalized, deduplicat
 
 **Bulk over a task set (session 008.9).** The argument layout is **context-sensitive**: with a selector
 marker — a `-` (ids from stdin) or a `--filter` flag
-(`--status/--type/--kind/--parent/--priority/--tag/--ready`) — the **positionals are the tags** and they are
+(`--status/--type/--kind/--parent/--priority/--tag/--exclude-tag/--ready`) — the **positionals are the tags** and they are
 applied to every selected task (`mtt tag add urgent --status tbd`, `mtt list --tag x --ids | mtt tag rm x -`).
 Without a marker it is the **single** form `mtt tag add <id> <tag>…` (unchanged). Bulk is best-effort per task
 (a `tagged/untagged N task(s): …` summary on stdout, per-task failures — e.g. the `rm` guard — on stderr, exit
@@ -472,7 +477,8 @@ the history. Does not run the `done` gate.
 
 ### `mtt ready [flags]` — list actionable tasks  *(session 005, implemented)*
 Lists non-terminal tasks whose blockers are all in a terminal status (`done`/`cancelled`) — "what can be
-picked up next". Accepts the `list` filters (`--status`/`--type`/`--kind`/`--parent`/`--tag`/`--exclude-tag`),
+picked up next". Accepts the `list` filters (`--status`/`--type`/`--kind`/`--priority`/`--parent`/`--tag`/
+`--exclude-tag` — `--priority` closed the parity in c16),
 `--json`, and `--ids` (session 008.9; one id per line, mutually exclusive with `--json`). `--tag`/`--exclude-tag
 <tag>…` (repeatable; `--exclude-tag` from c8, `--tag` on `ready` added in c10) include/de-noise the queue, e.g.
 `mtt ready --tag urgent`, `mtt ready --exclude-tag backlog`.
@@ -526,7 +532,10 @@ Removes the edge. Idempotent: removing an edge that is already absent is a no-op
 ### `mtt dep list <id>` — list a task's dependencies and dependents
 Prints the task's direct blockers (`depends on:`, dangling targets flagged `(missing)`) and its **computed**
 dependents (`required by:`). With `--json`, emits `{id, depends_on, required_by}` (non-null arrays).
-- `--tree` — show the transitive dependency tree (cycle-safe; nested `--json`).
+- `--tree` — show the transitive dependency tree (cycle-safe; nested `--json`). A **revisited** node — a
+  diamond's shared blocker, or a hand-broken cycle's back-edge — renders **without children** in both the
+  text tree and the JSON (before c16 the JSON dropped it entirely, so a diamond's second branch looked
+  dependency-free).
 - `--cycles` — report dependency cycles in the project (defensive — `dep add` rejects cycles, so this only
   fires on hand-edited data).
 

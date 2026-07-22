@@ -43,6 +43,30 @@ stdout 't1  task'
 exec mtt tag rm t1 skip
 exec mtt tag rm s1 gone
 
+# --type / --priority / --parent close the filter parity with list (c16);
+# keep-ancestors applies: ancestors stay as the path to a matching descendant
+exec mtt tree --type subtask
+stdout 's1  subtask'
+stdout 't1  task'
+exec mtt tree --type ghost
+! stdout 'e1  epic'
+exec mtt edit s1 --priority high
+stdout 'updated s1'
+exec mtt tree --priority high
+stdout 's1  subtask'
+stdout 'e1  epic'
+exec mtt tree --priority low
+! stdout 's1  subtask'
+! exec mtt tree --priority bogus
+stderr 'invalid'
+exec mtt tree --parent t1
+stdout 's1  subtask'
+stdout 't1  task'
+exec mtt tree --parent s1
+! stdout 'e1  epic'
+# tidy up the priority so later assertions see the original chain
+exec mtt edit s1 --priority ''
+
 # a missing root errors (wraps ErrNotFound → exit 4)
 ! exec mtt tree nope
 stderr 'task "nope": mtt: task not found'

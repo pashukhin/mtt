@@ -31,3 +31,16 @@ stdout 't1  task  \[tbd\]  A'
 # --json on ready is a (possibly empty) array, never null
 exec mtt ready --type subtask --json
 stdout '\[\]'
+
+# --priority filters ready by the stored label (c16 parity with list)
+exec mtt edit t1 --priority high
+stdout 'updated t1'
+exec mtt ready --priority high
+stdout 't1  task'
+! stdout 'e1  epic'
+exec mtt ready --priority low
+! stdout 't1  task'
+
+# an invalid --priority is a usage error
+! exec mtt ready --priority bogus
+stderr 'invalid'

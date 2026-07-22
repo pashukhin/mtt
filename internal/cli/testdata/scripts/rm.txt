@@ -48,3 +48,23 @@ exec mtt rm t1 --json
 stdout '"id": "t1"'
 stdout '"status"'
 ! stdout 'removed t1'
+
+# bulk selector --exclude-tag (c16): de-noise while sparing tagged tasks
+# (the freed max id is re-minted after the deletes above, so these are t1..t3)
+exec mtt add --no-parent 'keep me #keep'
+stdout 'created t1'
+exec mtt add --no-parent 'noise one'
+stdout 'created t2'
+exec mtt add --no-parent 'noise two'
+stdout 'created t3'
+exec mtt rm --type task --exclude-tag keep --dry-run
+stdout 't2'
+stdout 't3'
+! stdout 't1'
+# (summary order follows Created-desc with an ID tiebreak — equal-second
+# creations flip it, so assert the members, not the order)
+exec mtt rm --type task --exclude-tag keep
+stdout 'removed 2 task\(s\): (t2, t3|t3, t2)'
+exec mtt list
+stdout 'keep me'
+! stdout 'noise'

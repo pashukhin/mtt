@@ -17,6 +17,16 @@ All notable changes to mtt are documented here. The format follows
   with its status — `✓` marks a terminal (satisfied) blocker, `(missing)` a dangling one. Previously the
   stored field was invisible outside `dep list`.
 
+### Fixed
+- **`dep list --tree --json` no longer drops diamond dependencies (c16).** A node reachable through two
+  branches (t1→{t2,t3}, both→t4) was emitted only under the first branch — the second looked
+  dependency-free in the headline JSON. A revisited node now renders without children (the text tree's
+  revisit policy), in diamonds and hand-broken cycles alike.
+- **Filter-flag parity across commands (c16).** The bulk selector (`rm`/`tag` `--filter`) gains
+  `--exclude-tag` (extending the documented `--exclude-tag` de-noise idiom to `rm`), `ready` gains
+  `--priority`, and `tree` gains `--type`/`--priority`/`--parent` — `list`/`ready`/`tree`/selector now share
+  the same filter surface.
+
 ### Security
 - **RCE fix (c15): the YAML store rejects a poisoned task file at load.** A hand-written `.mtt/tasks/*.yaml`
   whose `id:` field carried shell metacharacters was expanded into `{{.ID}}` inside gate/post `sh -c`

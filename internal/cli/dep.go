@@ -174,20 +174,26 @@ type depTreeJSON struct {
 	DependsOn []depTreeJSON `json:"depends_on,omitempty"`
 }
 
-// buildDepTreeJSON builds the nested transitive tree, cycle-safe.
+// buildDepTreeJSON builds the nested transitive tree, cycle-safe. A revisited
+// node (a diamond's shared blocker, or a hand-broken cycle's back-edge) is
+// emitted WITHOUT children — the text renderer's revisit policy — never dropped:
+// dropping it made the second branch look dependency-free in the headline JSON.
 func buildDepTreeJSON(g core.DepGraph, id mtt.TaskID) depTreeJSON {
+	nodeFor := func(cur mtt.TaskID) depTreeJSON {
+		if t, ok := g.Get(cur); ok {
+			return depTreeJSON{taskJSON: toTaskJSON(t)}
+		}
+		return depTreeJSON{taskJSON: taskJSON{ID: string(cur)}, Missing: true}
+	}
 	var build func(cur mtt.TaskID, seen map[mtt.TaskID]bool) depTreeJSON
 	build = func(cur mtt.TaskID, seen map[mtt.TaskID]bool) depTreeJSON {
-		node := depTreeJSON{}
-		t, ok := g.Get(cur)
-		if !ok {
-			node.taskJSON = taskJSON{ID: string(cur)}
-			node.Missing = true
+		node := nodeFor(cur)
+		if node.Missing {
 			return node
 		}
-		node.taskJSON = toTaskJSON(t)
 		for _, dep := range g.DependsOn(cur) {
 			if seen[dep] {
+				node.DependsOn = append(node.DependsOn, nodeFor(dep))
 				continue
 			}
 			seen[dep] = true

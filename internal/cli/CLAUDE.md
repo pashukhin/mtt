@@ -48,7 +48,10 @@ shared one-row formatter (list + tree); `parseKinds` validates `--kind` against 
 Dependencies & ready (session 005): `dep add/rm <id> <dep-id>` route through `core.DependencyEditor`
 (self/cycle rejected; add and rm both idempotent — duplicate/absent-edge are no-ops); `dep list <id>` builds `core.DepGraph` from
 `TaskStore.List` and renders `depends on:` (dangling → `(missing)`) + computed `required by:`, with `--tree`
-(transitive, cycle-safe), `--cycles` (project-wide, defensive), and a non-null `--json`. `mtt ready` and
+(transitive, cycle-safe), `--cycles` (project-wide, defensive), and a non-null `--json`. **(c16)**
+`buildDepTreeJSON` mirrors the text renderer's revisit policy: a revisited node (diamond's shared blocker /
+cycle back-edge) is emitted **childless**, never dropped — one shared `seen` map across sibling branches
+used to silently omit it, so a diamond's second branch read as dependency-free in the headline `--json`. `mtt ready` and
 `list --ready` share one primitive — `core.Select(core.Ready(tasks, cfg), filter, cfg)` — so readiness and
 the list filters compose (AND). `toStatusNames`/`toTypeNames` are the shared string→identity converters for
 `list`/`ready`. Pure reads (`dep list`/`ready`) call the store directly; mutations (`dep add/rm`) go through
@@ -158,7 +161,11 @@ are NOT shown in the `taskLine` row (list/tree) — visible via `show`/`--json`/
 (c8, repeatable) on `list`, `ready`, **and** `tree` (`tree` in c10; → `ListFilter.ExcludeTags`, same `toTags`
 boundary) is the negative filter: reject any task carrying one of the tags; composes with `--tag` as AND
 (overlap → exclude wins). c10 closes the tag-filter symmetry — `list`/`ready`/`tree` all take **both** `--tag`
-and `--exclude-tag`. Enables `mtt ready --exclude-tag backlog`. **`mtt tags`** (c9, `tags.go` `newTagsCmd`) is a pure read (like
+and `--exclude-tag`. Enables `mtt ready --exclude-tag backlog`. **(c16)** the remaining filter-flag drift is
+closed: the bulk **selector** (`rm`/`tag --filter`) gains `--exclude-tag`, `ready` gains `--priority`, and
+`tree` gains `--type`/`--priority`/`--parent` — `list`/`ready`/`tree`/selector now share the full
+`ListFilter` surface (the one deliberate seam left: `tree` has no `--ready` and the selector's flags stay
+copy-registered; the single-helper refactor is the deep task t61). **`mtt tags`** (c9, `tags.go` `newTagsCmd`) is a pure read (like
 `roadmap`/`tree`): `TaskStore.List` → `core.Select` (same `ListFilter`; default scope = open
 `initial`+`active` kinds, suppressed by a status-scoping flag — `--all`/`--kind`/`--status`) → `core.TagCounts` → `count  tag` rows
 (most-used first) or a `[{tag,count}]` array (`tagCountJSON`) under `--json`. Registered as `tags` (distinct

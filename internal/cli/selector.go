@@ -16,7 +16,7 @@ import (
 
 // selectorFilterFlags are the list predicates a set-operating command reuses to
 // select tasks (the --filter source). Shared by rm and tag add/rm.
-var selectorFilterFlags = []string{"status", "type", "kind", "parent", "priority", "tag", "ready"}
+var selectorFilterFlags = []string{"status", "type", "kind", "parent", "priority", "tag", "exclude-tag", "ready"}
 
 // addSelectorFilterFlags registers the filter-source flags on a set-operating
 // command (rm, tag add/rm). list/ready keep their own wiring.
@@ -26,6 +26,7 @@ func addSelectorFilterFlags(cmd *cobra.Command) {
 	cmd.Flags().StringArray("kind", nil, "select by status category: initial|active|terminal (repeatable)")
 	cmd.Flags().StringArray("priority", nil, "select by priority: high|medium|low (repeatable)")
 	cmd.Flags().StringSlice("tag", nil, "select by tag (repeatable, comma-separated)")
+	cmd.Flags().StringSlice("exclude-tag", nil, "exclude tasks carrying this tag (repeatable, comma-separated)")
 	cmd.Flags().String("parent", "", "select direct children of this task id")
 	cmd.Flags().Bool("ready", false, "select only ready tasks (no open blockers)")
 }
@@ -49,6 +50,7 @@ func readSelectorFilter(cmd *cobra.Command) (core.ListFilter, bool, error) {
 	kinds, _ := cmd.Flags().GetStringArray("kind")
 	priorities, _ := cmd.Flags().GetStringArray("priority")
 	tags, _ := cmd.Flags().GetStringSlice("tag")
+	excludeTags, _ := cmd.Flags().GetStringSlice("exclude-tag")
 	parent, _ := cmd.Flags().GetString("parent")
 	ready, _ := cmd.Flags().GetBool("ready")
 	kindVals, err := parseKinds(kinds)
@@ -63,9 +65,13 @@ func readSelectorFilter(cmd *cobra.Command) (core.ListFilter, bool, error) {
 	if err != nil {
 		return core.ListFilter{}, false, err
 	}
+	excludeTagVals, err := toTags(excludeTags)
+	if err != nil {
+		return core.ListFilter{}, false, err
+	}
 	return core.ListFilter{
 		Statuses: toStatusNames(statuses), Types: toTypeNames(types), Kinds: kindVals,
-		Priorities: prioVals, Tags: tagVals, Parent: mtt.TaskID(parent),
+		Priorities: prioVals, Tags: tagVals, ExcludeTags: excludeTagVals, Parent: mtt.TaskID(parent),
 	}, ready, nil
 }
 

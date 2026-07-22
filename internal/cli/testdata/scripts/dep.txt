@@ -62,6 +62,18 @@ stdout 't3  task  \[tbd\]  C'
 stdout '└─ t2  task  \[tbd\]  B'
 stdout 't1  task  \[tbd\]  A'
 
+# --tree --json: nested shape, and the diamond regression (c16) — t3 -> {t2, t4},
+# both -> t1; the revisited t1 must still appear under the second branch (as a
+# childless node, the text renderer's revisit policy), not vanish from the JSON.
+exec mtt add --type task --parent e1 'D'
+stdout 'created t4'
+exec mtt dep add t4 t1
+exec mtt dep add t3 t4
+exec mtt dep list t3 --tree --json
+stdout '"id": "t3"'
+stdout '"depends_on"'
+stdout '(?s)"id": "t4".*"id": "t1"'
+
 # --cycles on an acyclic graph reports none (the CLI cannot build a cycle)
 exec mtt dep list t1 --cycles
 stdout 'no cycles'
