@@ -979,7 +979,8 @@ refs:
   `docs/superpowers/specs/2026-07-09-session-008.7-tags-design.md`.
 - **батч и пайплайн — реализовано s008.9** (mtt как Unix-композируемый CLI): переиспользуемый **селектор
   множества задач** для всех set-операций — явные ID | `--filter` (предикаты `list`
-  `--status/--type/--kind/--parent/--priority/--tag/--ready` поверх `Select`/`Match`) | **stdin `-`** (ID
+  `--status/--type/--kind/--parent/--priority/--tag/--exclude-tag/--ready` (`--exclude-tag` с c16) поверх
+  `Select`/`Match`) | **stdin `-`** (ID
   построчно), **взаимоисключающие** (>1 или 0 источников = usage error; источник задан, но пуст = no-op, exit
   0) — плюс вывод **`--ids`** у `list`/`ready` (взаимоисключающий с `--json`), чтобы конвейеры собирались:
   `mtt list --tag x --ids | mtt tag rm x -`. Сначала для `tag add/rm` и `rm` (нет гейтов). Селектор — **дело

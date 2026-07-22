@@ -967,7 +967,8 @@ after dogfood we move mtt's development onto mtt itself. See sessions/README.md 
   `docs/superpowers/specs/2026-07-09-session-008.7-tags-design.md`.
 - **batch & pipeline — shipped s008.9** (mtt as a Unix-composable CLI): a reusable **task-set selector**
   shared by every set-operating command — explicit IDs | a `--filter` (the `list` predicates
-  `--status/--type/--kind/--parent/--priority/--tag/--ready` over `Select`/`Match`) | **stdin `-`** (IDs one per
+  `--status/--type/--kind/--parent/--priority/--tag/--exclude-tag/--ready` (`--exclude-tag` since c16) over
+  `Select`/`Match`) | **stdin `-`** (IDs one per
   line), **mutually exclusive** (>1 or 0 active source = usage error; a present-but-empty source = no-op, exit
   0) — plus an **`--ids`** output on `list`/`ready` (mutually exclusive with `--json`), so pipelines compose:
   `mtt list --tag x --ids | mtt tag rm x -`. Applied first to `tag add/rm` and `rm` (no gates). The selector is

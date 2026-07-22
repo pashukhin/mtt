@@ -255,7 +255,8 @@ Prints tasks in a stable order. Filters combine with AND.
   dimension (a task matches if it carries **any** given tag), AND across the other filters. Values are
   normalized like `--tag` on `add`. *(implemented)*
 - `--exclude-tag <tag>…` — **negative** filter (c8, repeatable or comma-separated, on `list`, `ready`, **and** `tree` — `tree`
-  added in c10): reject any task carrying **any** of these tags. Composes with `--tag` as AND, so on overlap
+  added in c10; since c16 also on the `rm`/`tag` selector `--filter`): reject any task carrying **any** of
+  these tags. Composes with `--tag` as AND, so on overlap
   exclude wins. E.g. `mtt ready --exclude-tag backlog` de-noises the queue. *(implemented)*
 - `--ready` — only tasks that are ready (no open blockers) — shorthand for `mtt ready`. *(implemented, session 005)*
 - `--sort <created|updated|priority>` — ordering key; default `created`. `created`/`updated` are descending,

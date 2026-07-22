@@ -23,7 +23,7 @@ All notable changes to mtt are documented here. The format follows
   dependency-free in the headline JSON. A revisited node now renders without children (the text tree's
   revisit policy), in diamonds and hand-broken cycles alike.
 - **Filter-flag parity across commands (c16).** The bulk selector (`rm`/`tag` `--filter`) gains
-  `--exclude-tag` (so `mtt rm --type task --exclude-tag keep` works as documented), `ready` gains
+  `--exclude-tag` (extending the documented `--exclude-tag` de-noise idiom to `rm`), `ready` gains
   `--priority`, and `tree` gains `--type`/`--priority`/`--parent` — `list`/`ready`/`tree`/selector now share
   the same filter surface.
 
