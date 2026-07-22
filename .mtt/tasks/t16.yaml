@@ -1,14 +1,14 @@
 id: t16
 type: task
 title: placeholders in descriptions (not just commands) — expand ID/Type/From/To in shown guidance
-status: impl_review
+status: approved
 priority: low
 tags:
     - backlog
     - dx
     - flow
 created: "2026-07-10T13:53:10Z"
-updated: "2026-07-22T05:56:39Z"
+updated: "2026-07-22T06:04:11Z"
 history:
     - at: "2026-07-22T04:59:29Z"
       by: Grigorii Pashukhin
@@ -78,3 +78,7 @@ history:
       checks:
         - cmd: make check
           exit: 0
+    - at: "2026-07-22T06:04:11Z"
+      by: Grigorii Pashukhin
+      from: impl_review
+      to: approved
