@@ -43,6 +43,46 @@ func TestRenderUnknownTemplate(t *testing.T) {
 	}
 }
 
+func TestInitWritesGitignore(t *testing.T) {
+	root := t.TempDir()
+	if err := Init(root, "default", "demo", false); err != nil {
+		t.Fatalf("init: %v", err)
+	}
+	data, err := os.ReadFile(filepath.Join(root, ".mtt", ".gitignore"))
+	if err != nil {
+		t.Fatalf("read .mtt/.gitignore: %v", err)
+	}
+	if !bytes.Contains(data, []byte("config.local.yaml")) {
+		t.Fatalf(".mtt/.gitignore does not ignore config.local.yaml:\n%s", data)
+	}
+}
+
+func TestInitKeepsExistingGitignore(t *testing.T) {
+	root := t.TempDir()
+	dir := filepath.Join(root, ".mtt")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	custom := []byte("# hand-authored\ncache/\n")
+	gi := filepath.Join(dir, ".gitignore")
+	if err := os.WriteFile(gi, custom, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := Init(root, "default", "demo", false); err != nil {
+		t.Fatalf("init: %v", err)
+	}
+	if err := Init(root, "coding", "demo", true); err != nil {
+		t.Fatalf("force re-init: %v", err)
+	}
+	data, err := os.ReadFile(gi)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(data, custom) {
+		t.Fatalf(".mtt/.gitignore clobbered:\n%s", data)
+	}
+}
+
 func TestInit(t *testing.T) {
 	root := t.TempDir()
 	if err := Init(root, "default", "demo", false); err != nil {

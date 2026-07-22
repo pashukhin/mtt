@@ -6,6 +6,12 @@ All notable changes to mtt are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+- **`mtt init` writes `.mtt/.gitignore`** ignoring the personal `config.local.yaml` overlay, so it can never
+  be committed (with auto-committing flows like `git add .mtt` post actions it used to land in the shared
+  repo). Create-if-absent: an existing `.mtt/.gitignore` is never overwritten, even with `--force`. Existing
+  projects add it by hand: `echo config.local.yaml > .mtt/.gitignore`.
+
 ### Security
 - **RCE fix (c15): the YAML store rejects a poisoned task file at load.** A hand-written `.mtt/tasks/*.yaml`
   whose `id:` field carried shell metacharacters was expanded into `{{.ID}}` inside gate/post `sh -c`

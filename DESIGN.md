@@ -208,7 +208,9 @@ The local overlay is for **per-user connection parameters to external backends**
 users/credentials on the same project) and local preferences. **Credentials never go in the committed
 `config.yaml`** — only in the gitignored local overlay or env vars. Overriding shared **types/flow** in the
 local overlay is discouraged (it desyncs the team). Deep-merge, per key/section. Seam laid now (loader +
-gitignore); richer per-adapter connection schemas come with the external adapters.
+gitignore: `mtt init` drops a `.mtt/.gitignore` ignoring `config.local.yaml` — create-if-absent, an existing
+file is never clobbered, even under `--force`; self-contained under `.mtt/`, the project root `.gitignore` is
+untouched); richer per-adapter connection schemas come with the external adapters.
 
 ## Types and hierarchy (domain) vs ID/slug (adapter)
 
