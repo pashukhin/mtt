@@ -24,6 +24,9 @@ All notable changes to mtt are documented here. The format follows
   already saved (do not re-run it) and prints the exact remaining `post:` commands to finish by hand (text and
   `--json`); exit 4 (not found) points at `mtt roadmap`/`mtt list`; an invalid move out of a terminal status now
   reads cleanly instead of a dangling "allowed from …:".
+- **`--tag`/`--exclude-tag` accept comma-separated values** (`--tag a,b,c`) like `--depends-on`, tool-wide
+  (authoring + filters), still repeatable. `mtt add`'s too-many-arguments error now explains the comma/repeat
+  form instead of only blaming the title.
 
 ## [0.9.0] — 2026-07-20
 

@@ -201,7 +201,7 @@ adapter mints the ID — a flat, per-prefix ID such as `e1` or `t17` — and pri
   008.5)**.
 - `--ref <kind>:<target>` — attach an informational reference at creation (repeatable; `note:auth-design`/
   `task:t2`/`url:https://…`). Warn-not-block: a dangling target is stored with a warning (exit 0). **t1.**
-- `--tag <tag>…` — add a tag (repeatable, session 008.7). `#hashtags` in the title/description are also
+- `--tag <tag>…` — add a tag (repeatable or comma-separated `--tag a,b`, session 008.7). `#hashtags` in the title/description are also
   extracted and merged into the same set. Values are normalized (Unicode-lowercased over letters/digits plus
   `. _ -`, any script; an optional leading `#` is allowed); an out-of-charset value is a usage error.
   **Implemented (session 008.7)**.
@@ -240,10 +240,10 @@ Prints tasks in a stable order. Filters combine with AND.
 - `--parent <id>` — only direct children of this task (session 004). *(implemented)*
 - `--priority <high|medium|low>…` — filter by priority (session 008.6, repeatable). Matches the **stored**
   label: an unset task matches only when no `--priority` is given. *(implemented)*
-- `--tag <tag>…` — filter by tag (session 008.7, repeatable; on `list`, `ready`, and `tree`). **OR within** the
+- `--tag <tag>…` — filter by tag (session 008.7, repeatable or comma-separated; on `list`, `ready`, and `tree`). **OR within** the
   dimension (a task matches if it carries **any** given tag), AND across the other filters. Values are
   normalized like `--tag` on `add`. *(implemented)*
-- `--exclude-tag <tag>…` — **negative** filter (c8, repeatable, on `list`, `ready`, **and** `tree` — `tree`
+- `--exclude-tag <tag>…` — **negative** filter (c8, repeatable or comma-separated, on `list`, `ready`, **and** `tree` — `tree`
   added in c10): reject any task carrying **any** of these tags. Composes with `--tag` as AND, so on overlap
   exclude wins. E.g. `mtt ready --exclude-tag backlog` de-noises the queue. *(implemented)*
 - `--ready` — only tasks that are ready (no open blockers) — shorthand for `mtt ready`. *(implemented, session 005)*

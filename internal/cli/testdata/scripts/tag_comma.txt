@@ -1,0 +1,80 @@
+# t50 — --tag / --exclude-tag accept comma-separated values (like --depends-on), tool-wide.
+exec mtt init
+cp flow.yaml .mtt/config.yaml
+
+# AC1: comma-split authoring.
+exec mtt add 'x' --tag a,b,c
+exec mtt show t1 --json
+stdout '"a"'
+stdout '"b"'
+stdout '"c"'
+# AC1: comma + repeat compose.
+exec mtt add 'y' --tag a,b --tag c
+exec mtt show t2 --json
+stdout '"c"'
+
+# AC3: the repeated-only form still works (regression).
+exec mtt add 'z' --tag a --tag b
+exec mtt show t3 --json
+stdout '"a"'
+stdout '"b"'
+
+# AC2: comma-split filtering on list (OR-within) + exclude.
+exec mtt list --tag a,c --ids
+stdout 't1'
+exec mtt list --exclude-tag a,b,c --ids
+! stdout 't1'
+
+# AC2 (F2): a filter site BEYOND list must comma-split too — guards ready.go's conversion.
+exec mtt ready --tag a,c --ids
+stdout 't1'
+
+# AC2a (F1): the selector path (silent-failure guard). Add a task NOT carrying a/b, then apply
+# `urgent` to the a-or-b set via the selector. A half-done selector conversion drops the filter →
+# filter.Tags=[] → anyOrEmptyIntersect match-ALL → urgent lands on 'w' too → the `! stdout` reddens.
+exec mtt add 'w' --tag other
+exec mtt tag add urgent --tag a,b
+exec mtt list --tag urgent --ids
+stdout 't1'
+! stdout 't4'
+
+# AC5: a malformed element and a trailing comma both stay clean usage errors.
+! exec mtt add 'bad' --tag 'a,b!'
+! exec mtt add 'bad2' --tag 'a,'
+
+# AC6: empty value — add is a no-op (exit 0, no tags), not the old error.
+# ('w' minted t4; the failed 'bad'/'bad2' adds mint no id, so 'empty' is t5.)
+exec mtt add 'empty' --tag ''
+exec mtt show t5 --json
+! stdout '"tags"'
+
+# AC6 (F3): note edit --tag '' clears the note's tag set (the second pinned shift).
+# NB: assert the tag VALUE is gone, NOT the "tags" key — noteJSON.tags has NO omitempty and
+# toNoteJSON coerces nil→[], so a cleared note emits "tags":[] (the key is always present).
+exec mtt note add n1 --tag keep
+exec mtt note show n1 --json
+stdout 'keep'
+exec mtt note edit n1 --tag ''
+exec mtt note show n1 --json
+! stdout 'keep'
+
+# AC4: extra positionals -> the message names both remedies (quote title / comma-or-repeat the flag).
+! exec mtt add 'fix login' extra
+stderr 'too many arguments'
+stderr 'comma-separated'
+stderr 'repeating the flag'
+
+-- flow.yaml --
+version: 1
+project: {name: tagtest}
+types:
+  - name: task
+    prefix: t
+    default: true
+    statuses:
+      - {name: tbd, kind: initial, default: true}
+      - {name: in_progress, kind: active}
+      - {name: done, kind: terminal}
+    transitions:
+      - {from: tbd, to: in_progress}
+      - {from: in_progress, to: done}

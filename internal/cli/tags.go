@@ -87,8 +87,8 @@ func newTagsCmd() *cobra.Command {
 	cmd.Flags().StringArrayVar(&types, "type", nil, "filter by type (repeatable)")
 	cmd.Flags().StringArrayVar(&kinds, "kind", nil, "filter by status category: initial|active|terminal (repeatable)")
 	cmd.Flags().StringArrayVar(&priorities, "priority", nil, "filter by priority: high|medium|low (repeatable)")
-	cmd.Flags().StringArrayVar(&tags, "tag", nil, "filter by tag (repeatable)")
-	cmd.Flags().StringArrayVar(&excludeTags, "exclude-tag", nil, "exclude tasks carrying this tag (repeatable)")
+	cmd.Flags().StringSliceVar(&tags, "tag", nil, "filter by tag (repeatable, comma-separated)")
+	cmd.Flags().StringSliceVar(&excludeTags, "exclude-tag", nil, "exclude tasks carrying this tag (repeatable, comma-separated)")
 	cmd.Flags().StringVar(&parent, "parent", "", "only direct children of this task id")
 	return cmd
 }

@@ -130,7 +130,7 @@ func newNoteAddCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().StringVar(&title, "title", "", "note title")
-	cmd.Flags().StringArrayVar(&tags, "tag", nil, "add a tag (repeatable)")
+	cmd.Flags().StringSliceVar(&tags, "tag", nil, "add a tag (repeatable, comma-separated)")
 	cmd.Flags().StringVar(&priority, "priority", "", "note priority: high|medium|low")
 	cmd.Flags().StringVar(&body, "body", "", "note body (markdown)")
 	cmd.Flags().StringVar(&file, "file", "", "read the body from a file ('-' for stdin)")
@@ -183,7 +183,7 @@ func newNoteListCmd() *cobra.Command {
 			return err
 		},
 	}
-	cmd.Flags().StringArrayVar(&tags, "tag", nil, "filter by tag (repeatable; OR within)")
+	cmd.Flags().StringSliceVar(&tags, "tag", nil, "filter by tag (repeatable, comma-separated; OR within)")
 	cmd.Flags().StringArrayVar(&priorities, "priority", nil, "filter by priority: high|medium|low (repeatable)")
 	cmd.Flags().StringVar(&sortKey, "sort", "", "sort order: created|updated|priority (default created)")
 	return cmd
@@ -345,7 +345,7 @@ func newNoteEditCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().StringVar(&title, "title", "", "new title")
-	cmd.Flags().StringArrayVar(&tags, "tag", nil, "replace the tag set (repeatable)")
+	cmd.Flags().StringSliceVar(&tags, "tag", nil, "replace the tag set (repeatable, comma-separated; --tag '' clears it)")
 	cmd.Flags().StringVar(&priority, "priority", "", "new priority: high|medium|low (empty string clears it)")
 	cmd.Flags().StringVar(&body, "body", "", "new body (markdown)")
 	cmd.Flags().StringVar(&file, "file", "", "read the new body from a file ('-' for stdin)")

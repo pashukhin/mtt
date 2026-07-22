@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"errors"
 	"fmt"
 	"time"
 
@@ -36,7 +35,7 @@ the text later ('mtt edit') to change text-derived tags, or 'mtt tag add/rm' for
 explicit ones.`,
 		Args: func(_ *cobra.Command, args []string) error {
 			if len(args) > 1 {
-				return errors.New("too many arguments: wrap a multi-word title in quotes (example: mtt add \"fix login\")")
+				return fmt.Errorf("too many arguments (got %d): wrap a multi-word title in quotes (mtt add \"fix login\"), and pass multiple --tag/--depends-on values comma-separated (--tag a,b) or by repeating the flag (--tag a --tag b) — not space-separated", len(args))
 			}
 			return nil
 		},
@@ -93,7 +92,7 @@ explicit ones.`,
 	cmd.Flags().StringVar(&desc, "description", "", "task description")
 	cmd.Flags().StringVar(&priority, "priority", "", "task priority: high|medium|low (default: unset)")
 	cmd.Flags().StringSliceVar(&dependsOn, "depends-on", nil, "ids this task depends on (repeatable, comma-separated)")
-	cmd.Flags().StringArrayVar(&tags, "tag", nil, "add a tag (repeatable; #hashtags in the title/description are also picked up)")
+	cmd.Flags().StringSliceVar(&tags, "tag", nil, "add a tag (repeatable, comma-separated; #hashtags in the title/description are also picked up)")
 	cmd.Flags().StringArrayVar(&refVals, "ref", nil, "add a reference <kind>:<target> (repeatable)")
 	cmd.MarkFlagsMutuallyExclusive("parent", "no-parent")
 	return cmd
