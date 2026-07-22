@@ -95,6 +95,12 @@ transitions:
   status being left), `{{.To}}` (the target). Only these shape-safe fields are available — free text
   (title/description) is never interpolated; a stray `{{.Title}}` is an error. The expanded command is what
   runs and what the transition `history` records.
+- **Shown descriptions/guidance expand the same placeholders (t16).** A transition's or status's `description`,
+  printed as inline guidance (on a move and in `mtt show`, human **and** `--json`), expands `{{.ID}}`/`{{.Type}}`/
+  `{{.From}}`/`{{.To}}` too — but **best-effort**: a malformed or unknown-field template renders **raw** (the
+  whole string), so guidance never breaks a command. **Node rule:** in a **status** (node) description
+  `{{.From}}`/`{{.To}}` both render that status's own name (a status is not a transition — don't expect
+  edge/direction semantics there).
 - **`timeout`** (a Go duration like `30s`, `2m`) bounds that command, overriding `command_timeout` for it.
 - **`rollback`** (session 008) is a **compensator** for that command — itself a scalar or `{run, timeout}`
   (same placeholders). **Intra-pipeline compensation:** when a **later** command in the same pipeline fails,

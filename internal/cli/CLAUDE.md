@@ -183,7 +183,13 @@ edge's `Description`, the destination status's `Description` (each `▸ …`), a
 block (a `▸` line + `next:` under the header via the extended `formatTask`) and in `--json` via `showJSON`
 (`toShowJSON` — **anonymously embeds `taskJSON`** so `list`/`edit`/`status --json` are byte-unchanged, adding
 `status_description`/`next` as `omitempty`). The pure `pkg/mtt` helpers `Type.StatusByName` /
-`Type.TransitionsFrom` back both paths (mirroring `StatusKind`/`FindTransition`).
+`Type.TransitionsFrom` back both paths (mirroring `StatusKind`/`FindTransition`). **Placeholder expansion
+(t16):** every shown description runs through `core.ExpandText` (best-effort — raw on error) so `{{.ID}}`/
+`{{.Type}}`/`{{.From}}`/`{{.To}}` become concrete; the helpers thread `id`/`type` (`moveGuidance(cfg, id,
+type, …)`, `formatNextMoves(onward, id, type)`), edge descriptions use the edge's `from`/`to`, and status
+(node) descriptions use `From=To=status`. **`--json` too:** `toShowJSON` expands `next[].description`
+(`status_description` comes already-expanded from `statusGuidance`), so an agent reading `--json` gets no raw
+`{{.ID}}`. `mtt types`/`writeTypeBlock` renders the flow **schema** (no task in scope) and stays raw.
 
 JSON surfaces (session 008.97/U3): `mtt add --json` emits the created task via the shared `toTaskJSON`
 (instead of the plain `created <id>`), so an agent reads the fresh id from JSON. `mtt show --json` gains a
