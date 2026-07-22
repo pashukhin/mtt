@@ -146,14 +146,23 @@ types:
       - {name: done, kind: terminal}
     transitions:
       - {from: tbd, to: active, description: "create branch task/{{.ID}}"}
-      - {from: active, to: done, description: "close {{.ID}} (from {{.From}}) — {{.Title}}"}
+      - {from: active, to: done, description: "close (from {{.From}}) — {{.Title}}"}
 ```
+
+**CRITICAL note (why the onward desc has NO `{{.ID}}`):** `ExpandText` returns the **whole** string raw on any
+template error — it is not per-placeholder. The onward `active→done` desc deliberately contains a `{{.Title}}`
+(unknown field) to exercise best-effort, so the **entire** string renders raw. If it also contained `{{.ID}}`,
+that `{{.ID}}` would leak raw into `next[].description` and break the `! stdout '\{\{\.ID\}\}'` guard on
+`show --json`. So the `{{.Title}}` demo description carries **no** `{{.ID}}` — only the always-expandable edge
+desc (`task/{{.ID}}`) and status desc (`id {{.ID}}`) carry `{{.ID}}`.
 
 NOTE on the assertions: after `mtt active t1`, `moveGuidance` prints the edge desc `create branch task/t1`
 and the destination `active` status desc `you are at active (id t1)` (node rule From=To=active). The onward
-`active→done` description `close t1 (from active) — {{.Title}}` renders the `{{.Title}}` **raw** (best-effort).
+`active→done` description `close (from active) — {{.Title}}` renders **raw** (best-effort, the whole string).
 `mtt show t1` shows the current `active` status desc `you are at active (id t1)` (node rule `{{.To}}`→`active`)
-+ the onward `done` move. `show --json` must expand both `status_description` and `next[].description`.
++ the onward `done` move. `show --json` expands both `status_description` (→ `…active (id t1)`) and the
+`next[].description` (raw `close (from {{.From}}) — {{.Title}}`, which carries **no** `{{.ID}}`), so the
+`! stdout '\{\{\.ID\}\}'` guard holds.
 
 - [ ] **Step 2: Run to verify it fails (RED)**
 
@@ -248,12 +257,12 @@ import), the `for _, e := range onward` loop:
 
 - [ ] **Step 7: Run e2e + unit to verify GREEN**
 
-Run: `go test ./internal/cli/ -run 'TestScripts/desc_placeholders|TestGuidance|Test.*NextMoves' -race -count=1`
+Run: `go test ./internal/cli/ -run 'TestScripts/desc_placeholders|TestFormatNextMoves' -race -count=1`
 Expected: PASS.
 
 - [ ] **Step 8: No-regression (existing guidance/show/status tests) + `make check`**
 
-Run: `go test ./internal/cli/ -run 'TestScripts|TestShow|TestStatus|TestGuidance' -race -count=1`
+Run: `go test ./internal/cli/ -run 'TestScripts|TestShow|TestStatus|TestFormatNextMoves' -race -count=1`
 Run: `make check`
 Expected: green.
 
