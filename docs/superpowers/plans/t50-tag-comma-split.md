@@ -76,18 +76,37 @@ stdout 't1'
 exec mtt list --exclude-tag a,b,c --ids
 ! stdout 't1'
 
-# AC2a: the selector path (the silent-failure guard) — tag add via a --tag selector.
+# AC2 (F2): a filter site BEYOND list must comma-split too — guards ready.go's conversion.
+# (all tasks are tbd → ready; `ready --tag a,c` reddens if ready.go stayed StringArray, since
+# `NormalizeTag("a,c")` would fail → usage error → nonzero.)
+exec mtt ready --tag a,c --ids
+stdout 't1'
+
+# AC2a (F1): the selector path (the silent-failure guard). Add a task NOT carrying a/b, then apply
+# `urgent` to the a-or-b set via the selector. A half-done selector conversion drops the filter →
+# `filter.Tags=[]` → anyOrEmptyIntersect match-ALL → urgent lands on 'w' too → the `! stdout` reddens.
+exec mtt add 'w' --tag other
 exec mtt tag add urgent --tag a,b
 exec mtt list --tag urgent --ids
 stdout 't1'
+! stdout 't4'
 
 # AC5: a malformed element and a trailing comma both stay clean usage errors.
 ! exec mtt add 'bad' --tag 'a,b!'
 ! exec mtt add 'bad2' --tag 'a,'
 
 # AC6: empty value — add is a no-op (exit 0, no tags), not the old error.
+# ('w' minted t4; the failed 'bad'/'bad2' adds mint no id, so 'empty' is t5.)
 exec mtt add 'empty' --tag ''
-exec mtt show t4 --json
+exec mtt show t5 --json
+! stdout '"tags"'
+
+# AC6 (F3): note edit --tag '' clears the note's tag set (the second pinned shift).
+exec mtt note add n1 --tag keep
+exec mtt note show n1 --json
+stdout 'keep'
+exec mtt note edit n1 --tag ''
+exec mtt note show n1 --json
 ! stdout '"tags"'
 
 -- flow.yaml --
@@ -162,9 +181,10 @@ For each of `list.go:97`, `tree.go:88`, `ready.go:79`, `tags.go:91`:
 - [ ] **Step 6: Run the e2e to verify it passes (GREEN)**
 
 Run: `go test ./internal/cli/ -run 'TestScripts/tag_comma' -race -count=1`
-Expected: PASS (AC1/AC2/AC2a/AC3/AC5/AC6 all satisfied). The AC2a `tag add --tag a,b` line proves the selector
-getter was converted (a half-done conversion would drop the filter → `urgent` applied to nothing → `mtt list
---tag urgent --ids` empty → FAIL).
+Expected: PASS (AC1/AC2/AC2a/AC3/AC5/AC6 all satisfied). The AC2a lines prove the selector getter was converted:
+a half-done conversion drops the filter (`filter.Tags=[]`), and `anyOrEmptyIntersect([], have)` matches **all**
+tasks, so `urgent` would land on `w` (t4) too → the `! stdout 't4'` assertion **reddens**. The `ready --tag a,c`
+line (AC2/F2) reddens if any *filter* site stayed `StringArray` (a comma value → usage error → nonzero).
 
 - [ ] **Step 7: No-regression on the existing tag tests + `make check`**
 
