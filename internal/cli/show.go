@@ -63,7 +63,8 @@ func newShowCmd() *cobra.Command {
 				return writeJSON(cmd.OutOrStdout(), sj)
 			}
 			idx := core.NewIndex(tasks)
-			out := formatTask(task, idx.Ancestors(task.ID), idx.Children(task.ID), statusDesc, onward)
+			out := formatTask(task, idx.Ancestors(task.ID), idx.Children(task.ID),
+				dependsEntries(cfg, tasks, task), statusDesc, onward)
 			out += formatRefsBacklinks(task.Refs, back, te, ne)
 			_, err = fmt.Fprint(cmd.OutOrStdout(), out)
 			return err
@@ -71,13 +72,44 @@ func newShowCmd() *cobra.Command {
 	}
 }
 
+// dependsEntries renders a task's blockers for the human show block: each
+// depends_on id with its current status, ✓ marking a terminal (satisfied)
+// blocker and (missing) a dangling one (an unresolvable kind gets no mark —
+// readiness stays conservative). Nil when the task has no blockers.
+func dependsEntries(cfg mtt.Config, tasks []mtt.Task, t mtt.Task) []string {
+	if len(t.DependsOn) == 0 {
+		return nil
+	}
+	byID := make(map[mtt.TaskID]mtt.Task, len(tasks))
+	for _, x := range tasks {
+		byID[x.ID] = x
+	}
+	entries := make([]string, 0, len(t.DependsOn))
+	for _, dep := range t.DependsOn {
+		d, ok := byID[dep]
+		if !ok {
+			entries = append(entries, fmt.Sprintf("%s (missing)", dep))
+			continue
+		}
+		mark := ""
+		if typ, ok := cfg.TypeByName(d.Type); ok {
+			if k, ok := typ.StatusKind(d.Status); ok && k == mtt.KindTerminal {
+				mark = " ✓"
+			}
+		}
+		entries = append(entries, fmt.Sprintf("%s [%s%s]", d.ID, d.Status, mark))
+	}
+	return entries
+}
+
 // formatTask renders a task as a human-readable block. ancestors is the
 // root-first parent chain (empty for a root task) and children the direct
-// children (both computed by core.Index). The lineage line is the "you are here"
+// children (both computed by core.Index); depends is the pre-rendered blocker
+// list (dependsEntries). The lineage line is the "you are here"
 // path from the root down to and including the task itself (shown only when the
 // task has ancestors); the children line lists direct children (shown only when
 // present). The raw parent is not printed — it is the breadcrumb's tail.
-func formatTask(t mtt.Task, ancestors, children []mtt.Task, statusDesc string, onward []mtt.Transition) string {
+func formatTask(t mtt.Task, ancestors, children []mtt.Task, depends []string, statusDesc string, onward []mtt.Transition) string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "%s  %s  [%s]\n", t.ID, t.Type, t.Status)
 	if statusDesc != "" {
@@ -94,6 +126,9 @@ func formatTask(t mtt.Task, ancestors, children []mtt.Task, statusDesc string, o
 	}
 	if len(t.Tags) > 0 {
 		fmt.Fprintf(&b, "  tags:     %s\n", strings.Join(t.Tags, ", "))
+	}
+	if len(depends) > 0 {
+		fmt.Fprintf(&b, "  depends:  %s\n", strings.Join(depends, ", "))
 	}
 	if len(ancestors) > 0 {
 		ids := make([]string, 0, len(ancestors)+1)

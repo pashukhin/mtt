@@ -21,6 +21,7 @@ type taskJSON struct {
 	Status      string   `json:"status"`
 	Priority    string   `json:"priority,omitempty"`
 	Parent      string   `json:"parent,omitempty"`
+	DependsOn   []string `json:"depends_on,omitempty"`
 	Tags        []string `json:"tags,omitempty"`
 	Created     string   `json:"created"`
 	Updated     string   `json:"updated"`
@@ -29,8 +30,13 @@ type taskJSON struct {
 
 // toTaskJSON maps a domain task to its JSON view (RFC3339 UTC timestamps).
 func toTaskJSON(t mtt.Task) taskJSON {
+	var deps []string
+	if len(t.DependsOn) > 0 {
+		deps = idStrings(t.DependsOn)
+	}
 	return taskJSON{
 		ID: string(t.ID), Type: string(t.Type), Title: t.Title, Status: string(t.Status), Priority: string(t.Priority), Parent: string(t.Parent),
+		DependsOn:   deps,
 		Tags:        t.Tags,
 		Created:     t.Created.UTC().Format(time.RFC3339),
 		Updated:     t.Updated.UTC().Format(time.RFC3339),

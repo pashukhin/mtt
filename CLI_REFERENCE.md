@@ -222,12 +222,15 @@ Shows a task: id, type, status, title, **priority** (a `priority:` line, shown o
 **tags** (a `tags:` line — the sorted set, shown only when non-empty — session 008.7),
 the **flow guidance** for its current status (session 008.95 — the status's `description` as a `▸ …` line when
 set, and the **onward moves** `next: <status> (<transition description>) · …` when the status is non-terminal),
+the **dependencies** (a `depends:` line listing each `depends_on` blocker with its status —
+`depends:  t2 [tbd], t3 [done ✓], t9 (missing)` — a terminal (satisfied) blocker is marked `✓`, a dangling
+one `(missing)`; shown only when the task has blockers — c12),
 the **lineage** breadcrumb, a **children** summary, timestamps, and
 description. The lineage is a "you are here" path from the root **down to and including the task**
 (`lineage:  e1 › t1 › s1`), shown only when the task has a parent; a root task shows none. The children line
 lists direct children (`children: 2 (t1, t2)`), shown only when present. There is no separate `parent:` line
-— the parent is the breadcrumb's second-to-last element. Dependencies, references and **backlinks**, the
-comment tree, and the transition `history` (audit trail) print once those land in later phases.
+— the parent is the breadcrumb's second-to-last element. References and **backlinks** and the transition
+`history` (audit trail) are rendered too (see below); the comment tree prints once comments land (t2).
 
 - `<id>` — the task to show.
 - `--json` — the task object plus **`status_description`** (omitempty), **`next`** (an array of
@@ -506,6 +509,10 @@ returned, best-effort).
 
 `depends_on` is a **blocking** edge (distinct from hierarchy `parent` and informational `refs`). It rides
 the `Task` field and round-trips via `TaskStore.Update` — the YAML reference needs **no dedicated port**.
+Since c12 the stored edge is part of the **agent contract**: the task object carries `depends_on`
+(omitempty, like `priority`) everywhere it is emitted (`show`/`list`/`add`/`edit`/`rm`/`status`/`tag`
+`--json`), and `mtt show` prints a `depends:` line with each blocker's status (`✓` = terminal/satisfied,
+`(missing)` = dangling) — no per-task `dep list` round-trip needed.
 
 ### `mtt dep add <id> <depends-on-id>` — add a blocking dependency
 Makes `<id>` depend on `<depends-on-id>`. Both tasks must exist. Rejected if it would create a **cycle** or

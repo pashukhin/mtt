@@ -16,6 +16,15 @@ exec mtt dep list e3
 stdout 'e3 depends on:'
 stdout '  e2  epic  \[tbd\]  A'
 
+# depends_on is visible in the agent contract: human show + task JSON (c12)
+exec mtt show e3
+stdout 'depends:  e2 \[tbd\]'
+exec mtt show e3 --json
+stdout '"depends_on": \['
+stdout '"e2"'
+exec mtt list --json
+stdout '"depends_on"'
+
 # a missing target is rejected and no task is created
 ! exec mtt add --type epic --depends-on e99 'C'
 stderr 'not found'

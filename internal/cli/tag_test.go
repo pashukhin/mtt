@@ -25,7 +25,7 @@ func TestToTagsInvalid(t *testing.T) {
 
 func TestFormatTaskShowsTags(t *testing.T) {
 	task := mtt.Task{ID: "t1", Type: "task", Title: "a", Status: "tbd", Tags: []string{"auth", "urgent"}}
-	out := formatTask(task, nil, nil, "", nil)
+	out := formatTask(task, nil, nil, nil, "", nil)
 	if !strings.Contains(out, "tags:     auth, urgent") {
 		t.Fatalf("formatTask missing tags line:\n%s", out)
 	}
