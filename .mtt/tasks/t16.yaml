@@ -1,14 +1,14 @@
 id: t16
 type: task
 title: placeholders in descriptions (not just commands) — expand ID/Type/From/To in shown guidance
-status: spec_review
+status: spec_fix
 priority: low
 tags:
     - backlog
     - dx
     - flow
 created: "2026-07-10T13:53:10Z"
-updated: "2026-07-22T05:05:50Z"
+updated: "2026-07-22T05:10:29Z"
 history:
     - at: "2026-07-22T04:59:29Z"
       by: Grigorii Pashukhin
@@ -26,3 +26,7 @@ history:
       checks:
         - cmd: ls docs/superpowers/specs/t16-*.md
           exit: 0
+    - at: "2026-07-22T05:10:29Z"
+      by: Grigorii Pashukhin
+      from: spec_review
+      to: spec_fix
