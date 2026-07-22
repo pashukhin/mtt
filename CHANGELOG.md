@@ -6,6 +6,8 @@ All notable changes to mtt are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.10.0] — 2026-07-22
+
 ### Added
 - **`mtt self-update`** — update the installed binary to the latest published release: download the platform
   asset + `SHA256SUMS`, verify the SHA-256, and atomically replace the running binary; falls back to
@@ -94,5 +96,6 @@ executable, gated status flow. Everything below ships in 0.9.0.
 - Cross-platform prebuilt binaries via `make release` + a tag-triggered GitHub release workflow;
   `SHA256SUMS` for integrity.
 
-[Unreleased]: https://github.com/pashukhin/mtt/compare/v0.9.0...HEAD
+[Unreleased]: https://github.com/pashukhin/mtt/compare/v0.10.0...HEAD
+[0.10.0]: https://github.com/pashukhin/mtt/compare/v0.9.0...v0.10.0
 [0.9.0]: https://github.com/pashukhin/mtt/releases/tag/v0.9.0
