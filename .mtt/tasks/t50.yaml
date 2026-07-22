@@ -1,10 +1,20 @@
 id: t50
 type: task
 title: 'tool-wide --tag ergonomics: accept comma-separated values (like --depends-on) + clearer too-many-positionals error on add/note add (StringArrayVar takes one value; extras become positionals; space-separated is unfixable)'
-status: tbd
+status: speccing
 priority: low
 tags:
     - backlog
     - ux
 created: "2026-07-19T16:27:33Z"
-updated: "2026-07-19T16:27:33Z"
+updated: "2026-07-22T03:35:30Z"
+history:
+    - at: "2026-07-22T03:35:30Z"
+      by: Grigorii Pashukhin
+      from: tbd
+      to: speccing
+      checks:
+        - cmd: git switch task/t50 || (git switch main && git switch -c task/t50)
+          exit: 0
+        - cmd: test -f .mtt/tasks/t50.yaml || { echo "task file absent on this branch — its add has not reached main (merge/commit the branch that created it first)" >&2; false; }
+          exit: 0
