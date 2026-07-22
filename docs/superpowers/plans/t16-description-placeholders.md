@@ -158,7 +158,8 @@ desc (`task/{{.ID}}`) and status desc (`id {{.ID}}`) carry `{{.ID}}`.
 
 NOTE on the assertions: after `mtt active t1`, `moveGuidance` prints the edge desc `create branch task/t1`
 and the destination `active` status desc `you are at active (id t1)` (node rule From=To=active). The onward
-`active→done` description `close (from active) — {{.Title}}` renders **raw** (best-effort, the whole string).
+`active→done` description renders **raw** as `close (from {{.From}}) — {{.Title}}` (best-effort: `{{.Title}}`
+errors, so the WHOLE string — incl. the `{{.From}}` — stays raw).
 `mtt show t1` shows the current `active` status desc `you are at active (id t1)` (node rule `{{.To}}`→`active`)
 + the onward `done` move. `show --json` expands both `status_description` (→ `…active (id t1)`) and the
 `next[].description` (raw `close (from {{.From}}) — {{.Title}}`, which carries **no** `{{.ID}}`), so the
