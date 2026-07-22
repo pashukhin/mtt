@@ -1,13 +1,13 @@
 id: t50
 type: task
 title: 'tool-wide --tag ergonomics: accept comma-separated values (like --depends-on) + clearer too-many-positionals error on add/note add (StringArrayVar takes one value; extras become positionals; space-separated is unfixable)'
-status: spec_review
+status: spec_human_review
 priority: low
 tags:
     - backlog
     - ux
 created: "2026-07-19T16:27:33Z"
-updated: "2026-07-22T04:00:46Z"
+updated: "2026-07-22T04:01:31Z"
 history:
     - at: "2026-07-22T03:35:30Z"
       by: Grigorii Pashukhin
@@ -36,3 +36,7 @@ history:
       checks:
         - cmd: ls docs/superpowers/specs/t50-*.md
           exit: 0
+    - at: "2026-07-22T04:01:31Z"
+      by: Grigorii Pashukhin
+      from: spec_review
+      to: spec_human_review
