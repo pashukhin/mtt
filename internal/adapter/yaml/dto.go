@@ -7,12 +7,19 @@ package yaml
 import (
 	"errors"
 	"fmt"
+	"regexp"
 	"time"
 
 	goyaml "gopkg.in/yaml.v3"
 
 	"github.com/pashukhin/mtt/pkg/mtt"
 )
+
+// prefixPattern constrains a type's ID prefix to letters. It is the mint-side
+// half of the load-time id guard: mint builds `<prefix><N>`, so keeping the
+// prefix within [a-zA-Z] guarantees every minted id satisfies task.go's
+// `idPattern` (`^[a-zA-Z]+[0-9]+$`) and stays shell-safe under {{.ID}}.
+var prefixPattern = regexp.MustCompile(`^[a-zA-Z]+$`)
 
 // ymlConfig and friends are the on-disk DTOs: they hold the yaml tags and the
 // adapter-only prefix, and are mapped to the domain by toDomain.
@@ -174,6 +181,13 @@ func checkPrefixes(cfg mtt.Config, prefixes map[string]string) error {
 		if p == "" {
 			errs = append(errs, fmt.Errorf("type %q: missing prefix", t.Name))
 			continue
+		}
+		// mint produces `<prefix><N>`; a non-letter prefix would yield an id
+		// outside the load-time id charset (`idPattern`), so the type's tasks
+		// would silently fail to load. Reject it here, at config-load, with a
+		// clear error instead of a confusing first-read failure.
+		if !prefixPattern.MatchString(p) {
+			errs = append(errs, fmt.Errorf("type %q: prefix %q must be letters only (a-z, A-Z)", t.Name, p))
 		}
 		if other, dup := seen[p]; dup {
 			errs = append(errs, fmt.Errorf("type %q: prefix %q already used by type %q", t.Name, p, other))

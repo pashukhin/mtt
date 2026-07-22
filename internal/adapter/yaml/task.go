@@ -5,12 +5,44 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	goyaml "gopkg.in/yaml.v3"
 
 	"github.com/pashukhin/mtt/pkg/mtt"
 )
+
+// idPattern is the YAML adapter's on-disk id encoding: a type prefix (letters,
+// see dto.go's prefixPattern) followed by a positive sequence number — mint's
+// <prefix><N>. It doubles as the shell-safety guard: a task id is expanded into
+// {{.ID}} inside gate/post shell commands (run via sh -c), so an id bearing
+// shell metacharacters or whitespace must never cross into the domain.
+var idPattern = regexp.MustCompile(`^[a-zA-Z]+[0-9]+$`)
+
+// parseTaskFile maps one task file's bytes to the domain, enforcing the store's
+// id invariants before the mapping: the in-file id: must equal the filename stem
+// (no id/filename split-brain — a duplicate id in another file) and match the
+// adapter's id encoding (no injection payload riding {{.ID}}). path supplies the
+// stem and the error context.
+func parseTaskFile(path string, data []byte) (mtt.Task, error) {
+	var yt ymlTask
+	if err := goyaml.Unmarshal(data, &yt); err != nil {
+		return mtt.Task{}, fmt.Errorf("parse %s: %w", path, err)
+	}
+	stem := strings.TrimSuffix(filepath.Base(path), ".yaml")
+	if yt.ID != stem {
+		return mtt.Task{}, fmt.Errorf("%s: id %q does not match filename", path, yt.ID)
+	}
+	if !idPattern.MatchString(yt.ID) {
+		return mtt.Task{}, fmt.Errorf("%s: invalid task id %q (want <prefix><number>)", path, yt.ID)
+	}
+	task, err := yt.toDomain()
+	if err != nil {
+		return mtt.Task{}, fmt.Errorf("%s: %w", path, err)
+	}
+	return task, nil
+}
 
 // Store is the YAML implementation of mtt.TaskStore: one file per task under
 // .mtt/tasks/, with flat per-prefix ID minting. It loads config lazily (for the
@@ -104,13 +136,9 @@ func (s *Store) List() ([]mtt.Task, error) {
 		if err != nil {
 			return nil, fmt.Errorf("read %s: %w", path, err)
 		}
-		var yt ymlTask
-		if err := goyaml.Unmarshal(data, &yt); err != nil {
-			return nil, fmt.Errorf("parse %s: %w", path, err)
-		}
-		task, err := yt.toDomain()
+		task, err := parseTaskFile(path, data)
 		if err != nil {
-			return nil, fmt.Errorf("%s: %w", path, err)
+			return nil, err
 		}
 		tasks = append(tasks, task)
 	}
@@ -127,13 +155,5 @@ func (s *Store) Get(id mtt.TaskID) (mtt.Task, error) {
 		}
 		return mtt.Task{}, fmt.Errorf("read %s: %w", path, err)
 	}
-	var yt ymlTask
-	if err := goyaml.Unmarshal(data, &yt); err != nil {
-		return mtt.Task{}, fmt.Errorf("parse %s: %w", path, err)
-	}
-	task, err := yt.toDomain()
-	if err != nil {
-		return mtt.Task{}, fmt.Errorf("%s: %w", path, err)
-	}
-	return task, nil
+	return parseTaskFile(path, data)
 }

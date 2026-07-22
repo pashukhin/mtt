@@ -6,6 +6,15 @@ All notable changes to mtt are documented here. The format follows
 
 ## [Unreleased]
 
+### Security
+- **RCE fix (c15): the YAML store rejects a poisoned task file at load.** A hand-written `.mtt/tasks/*.yaml`
+  whose `id:` field carried shell metacharacters was expanded into `{{.ID}}` inside gate/post `sh -c`
+  commands — arbitrary code execution on the next `mtt` move (task files are machine-written, so a poisoned
+  one rode a PR through the review blind spot). `Get`/`List` now fail closed: the in-file `id:` must equal the
+  filename stem (also catching the duplicate-id split-brain) and match the adapter's id encoding
+  `^[a-zA-Z]+[0-9]+$`; a non-letter type `prefix` is rejected at config-load so mint can never produce an id
+  outside that shell-safe charset.
+
 ## [0.10.0] — 2026-07-22
 
 ### Added

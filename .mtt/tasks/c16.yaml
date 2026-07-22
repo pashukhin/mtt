@@ -1,0 +1,10 @@
+id: c16
+type: chore
+title: fix dep list --tree --json dropping diamond deps + close the drifted filter-flag asymmetries
+status: tbd
+tags:
+    - core
+    - ux
+created: "2026-07-22T08:39:39Z"
+updated: "2026-07-22T08:39:39Z"
+description: 'Two user-visible symptoms of the CLI-side traversal/flag duplication (arch review 2026-07-22; the deep refactor is tracked separately). (1) CONFIRMED bug: dep list --tree --json shares one seen-map across sibling branches and omits a revisited node entirely, so a diamond (t1->{t2,t3}, both->t4) renders t3 with NO depends_on in JSON while the text tree shows t4 under both — an agent reading the headline --json surface gets a wrong graph. Minimal fix: on revisit emit the node WITHOUT children (mirror the text renderer''s revisit policy); add the diamond case to the currently-0%-tested dep --json e2e. (2) The filter-flag blocks are copy-pasted 5x and have drifted: the bulk selector (rm/tag --filter) lacks --exclude-tag, ready lacks --priority, tree lacks --type/--priority/--parent. Restore parity for the release-relevant ones (at least selector --exclude-tag, since ''mtt rm --exclude-tag'' is a documented de-noise idiom). The clean single-helper refactor is the deep task.'

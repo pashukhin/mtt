@@ -1,0 +1,10 @@
+id: t61
+type: task
+title: 'architecture seam cleanup: move graph traversal + selection into core, one filter-flag helper, and close the DDD seam smells'
+status: tbd
+tags:
+    - core
+    - dx
+created: "2026-07-22T08:39:39Z"
+updated: "2026-07-22T08:53:14Z"
+description: 'Design-open cleanup from the arch review 2026-07-22 — the bar-raising refactor behind the c16 symptom-patch (NOT a release blocker; do after the release-gating chores). Two review agents independently named this the highest-leverage change. Scope: (1) pull the transitive dep-tree walk and tree.go keep-ancestors selection OUT of the CLI into core (DepGraph.Visit or a core walker) with an explicit revisit policy, so text and JSON share ONE traversal (root cause of the c16 diamond bug); (2) collapse the 5x-copy-pasted filter-flag registration into one helper parameterized by exposed dimensions (root cause of the c16 asymmetries), plus the duplicated --sort validation and --ids/--json exclusivity loop; (3) DDD seam smells: remodel AuditEntry''s subject so note rm stops casting a slug to TaskID into committed JSONL (agent A''s headline pick), give ports one home (Runner in core vs release ports in pkg/mtt — pick a rule), move CLI flag names out of core error strings into the sentinel taxonomy, extract one loadTask/loadNote helper (Get+wrap copy-pasted 6x, 2 divergent conventions), define the ErrUnsupported that store.go''s doc promises, and give parseRefArg/referentIDs a domain home (mtt.NewRef / core.NoteRemover). References c16. (4) minor local nits (arch review 2026-07-22, low priority): unify the timestamp policy — task mutations stamp now().UTC().Truncate(second) while note mutations stamp untruncated now().UTC(); a shared stamp(now) helper; replace removeOne''s 9 positional params (remove.go) with a removeCtx struct; and de-dup the identical cmdContext literal built twice in transition.go (the gate and post phases), extracting at least the context literal (the full expand->run->firstFailure sequence differs in error semantics between the two phases, so extracting it fully is debatable — judge at implementation time).'

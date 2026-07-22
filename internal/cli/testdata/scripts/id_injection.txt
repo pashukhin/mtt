@@ -1,0 +1,37 @@
+# c15 — a poisoned .mtt/tasks/*.yaml must not run its id: field as a shell command.
+# core expands the task's id into {{.ID}} inside gate/post commands (run via sh -c),
+# so an injection payload in a hand-written task file is RCE on the next mtt move.
+# The load path must refuse the file BEFORE any command runs.
+exec mtt init
+cp flow.yaml .mtt/config.yaml
+mkdir .mtt/tasks
+
+# t1.yaml has an ordinary filename (rides the PR-review blind spot — reviewers
+# scrutinise config.yaml, not machine-written tasks/*.yaml) but its id: carries
+# an injection. The tbd->in_progress gate runs `echo {{.ID}}`; with the payload
+# expanded that is `echo t1; touch PWNED` — the bare `;` breaks out and creates
+# PWNED. The move must fail closed, and PWNED must never appear.
+cp poison.yaml .mtt/tasks/t1.yaml
+! exec mtt status t1 in_progress
+! exists PWNED
+
+-- flow.yaml --
+version: 1
+project: {name: sec}
+types:
+  - name: task
+    prefix: t
+    default: true
+    statuses:
+      - {name: tbd, kind: initial}
+      - {name: in_progress, kind: active}
+      - {name: done, kind: terminal}
+    transitions:
+      - {from: tbd, to: in_progress, commands: ["echo {{.ID}}"]}
+      - {from: in_progress, to: done}
+-- poison.yaml --
+id: 't1; touch PWNED'
+type: task
+status: tbd
+created: 2026-01-01T00:00:00Z
+updated: 2026-01-01T00:00:00Z
