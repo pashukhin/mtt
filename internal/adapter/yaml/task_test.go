@@ -14,22 +14,131 @@ var _ mtt.TaskStore = (*Store)(nil)
 
 func TestListNamesCorruptFile(t *testing.T) {
 	root := initHierarchy(t)
-	// A zero-byte task file (the mint-window / crash artifact from A1): Unmarshal
-	// yields a zero DTO, toDomain fails on the empty id. The List error must name
-	// the offending file so it is a one-command fix at volume.
+	// A non-empty but domain-invalid task file (empty id): the List error must
+	// name the offending file so it is a one-command fix at volume (A1).
 	bad := filepath.Join(root, ".mtt", "tasks", "t99.yaml")
 	if err := os.MkdirAll(filepath.Dir(bad), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(bad, nil, 0o644); err != nil {
+	if err := os.WriteFile(bad, []byte("type: task\nstatus: tbd\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	_, err := NewTaskStore(root).List()
 	if err == nil {
-		t.Fatal("List over a zero-byte task file must error")
+		t.Fatal("List over a corrupt task file must error")
 	}
 	if !strings.Contains(err.Error(), "t99.yaml") {
 		t.Fatalf("List error must name the offending file, got: %v", err)
+	}
+}
+
+func TestReserveArtifactIsInvisibleAndNeverReminted(t *testing.T) {
+	root := initHierarchy(t)
+	s := NewTaskStore(root)
+	if _, err := s.Create(mtt.Task{Type: "task", Title: "A", Status: "tbd", Created: fixedTime(), Updated: fixedTime()}); err != nil {
+		t.Fatalf("create: %v", err)
+	}
+	// A zero-byte task file is the mint reserve window artifact (a crash between
+	// the O_EXCL reserve and the content write, c18) — not corruption. Reads must
+	// skip it instead of fail-stopping the whole store.
+	artifact := filepath.Join(root, ".mtt", "tasks", "t7.yaml")
+	if err := os.WriteFile(artifact, nil, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	tasks, err := NewTaskStore(root).List()
+	if err != nil {
+		t.Fatalf("List must skip a zero-byte reserve artifact, got: %v", err)
+	}
+	if len(tasks) != 1 || tasks[0].ID != "t1" {
+		t.Fatalf("List = %v, want just t1", tasks)
+	}
+	// Get on the artifact is "no such task", not a corrupt-file error.
+	if _, err := s.Get("t7"); !errors.Is(err, mtt.ErrNotFound) {
+		t.Fatalf("Get on a reserve artifact = %v; want ErrNotFound", err)
+	}
+	// The reserved id stays consumed: mint counts the filename, so the next
+	// create must NOT reuse t7 (a reuse would re-point dangling references).
+	next, err := s.Create(mtt.Task{Type: "task", Title: "B", Status: "tbd", Created: fixedTime(), Updated: fixedTime()})
+	if err != nil {
+		t.Fatalf("create after artifact: %v", err)
+	}
+	if next.ID != "t8" {
+		t.Fatalf("next minted id = %q, want t8 (never reuse the reserved t7)", next.ID)
+	}
+}
+
+func TestAtomicWritePreservesExistingMode(t *testing.T) {
+	root := initHierarchy(t)
+	s := NewTaskStore(root)
+	created, err := s.Create(mtt.Task{Type: "task", Title: "A", Status: "tbd", Created: fixedTime(), Updated: fixedTime()})
+	if err != nil {
+		t.Fatalf("create: %v", err)
+	}
+	// A deliberately-tightened mode survives an update (installer-style
+	// preserve-existing; the 0644 policy applies to NEW files only) — the store
+	// must never silently loosen what the user restricted.
+	path := filepath.Join(root, ".mtt", "tasks", string(created.ID)+".yaml")
+	if err := os.Chmod(path, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	created.Title = "B"
+	if _, err := s.Update(created); err != nil {
+		t.Fatalf("update: %v", err)
+	}
+	info, err := os.Stat(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if perm := info.Mode().Perm(); perm != 0o600 {
+		t.Fatalf("update loosened a user-tightened mode: %o, want 600", perm)
+	}
+}
+
+func TestUpdateAndDeleteRejectReserveArtifact(t *testing.T) {
+	root := initHierarchy(t)
+	s := NewTaskStore(root)
+	artifact := filepath.Join(root, ".mtt", "tasks", "t7.yaml")
+	if err := os.MkdirAll(filepath.Dir(artifact), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(artifact, nil, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	// The artifact must be invisible on EVERY port path: an Update through the
+	// raw port must not resurrect a "not found" id, and a Delete must not free
+	// the consumed id back to mint.
+	if _, err := s.Update(mtt.Task{ID: "t7", Type: "task", Status: "tbd", Created: fixedTime(), Updated: fixedTime()}); !errors.Is(err, mtt.ErrNotFound) {
+		t.Fatalf("Update on a reserve artifact = %v; want ErrNotFound", err)
+	}
+	if err := s.Delete("t7"); !errors.Is(err, mtt.ErrNotFound) {
+		t.Fatalf("Delete on a reserve artifact = %v; want ErrNotFound", err)
+	}
+	if _, err := os.Stat(artifact); err != nil {
+		t.Fatalf("the artifact file must survive (id stays consumed): %v", err)
+	}
+}
+
+func TestWritePermsUniform(t *testing.T) {
+	root := initHierarchy(t)
+	s := NewTaskStore(root)
+	created, err := s.Create(mtt.Task{Type: "task", Title: "A", Status: "tbd", Created: fixedTime(), Updated: fixedTime()})
+	if err != nil {
+		t.Fatalf("create: %v", err)
+	}
+	// One perm policy (0644, the git-checkout default) for every store write —
+	// CreateTemp's 0600 must not leak through atomicWrite (c18: fresh writes vs
+	// committed checkouts flip-flopped and were noisy cross-machine).
+	for _, p := range []string{
+		filepath.Join(root, ".mtt", "config.yaml"),
+		filepath.Join(root, ".mtt", "tasks", string(created.ID)+".yaml"),
+	} {
+		info, err := os.Stat(p)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if perm := info.Mode().Perm(); perm != 0o644 {
+			t.Fatalf("%s perm = %o, want 644", p, perm)
+		}
 	}
 }
 

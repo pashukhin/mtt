@@ -107,6 +107,31 @@ func TestNoteStoreRejectsTraversalSlug(t *testing.T) {
 	}
 }
 
+func TestNoteReserveArtifactIsInvisible(t *testing.T) {
+	root := t.TempDir()
+	s := NewKnowledgeStore(root)
+	ts := time.Date(2026, 1, 2, 3, 4, 5, 0, time.UTC)
+	if _, err := s.CreateNote(mtt.Note{Slug: "real", Body: "x\n", Created: ts, Updated: ts}); err != nil {
+		t.Fatalf("create: %v", err)
+	}
+	// A zero-byte note file is CreateNote's reserve window artifact (a crash
+	// between the O_EXCL reserve and the content write, c18 — mirroring mint) —
+	// reads must skip it instead of fail-stopping the whole store.
+	if err := os.WriteFile(filepath.Join(root, ".mtt", "knowledge", "ghost.md"), nil, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	notes, err := s.ListNotes()
+	if err != nil {
+		t.Fatalf("ListNotes must skip a zero-byte reserve artifact, got: %v", err)
+	}
+	if len(notes) != 1 || notes[0].Slug != "real" {
+		t.Fatalf("ListNotes = %v, want just real", notes)
+	}
+	if _, err := s.GetNote("ghost"); !errors.Is(err, mtt.ErrNotFound) {
+		t.Fatalf("GetNote on a reserve artifact = %v; want ErrNotFound", err)
+	}
+}
+
 func TestNoteStoreListRejectsInvalidFilename(t *testing.T) {
 	root := t.TempDir()
 	dir := filepath.Join(root, ".mtt", "knowledge")

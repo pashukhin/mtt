@@ -74,6 +74,26 @@ func TestSetOnAbsentFileThenClear(t *testing.T) {
 	}
 }
 
+func TestNewConfigLocalIsPrivate(t *testing.T) {
+	root := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(root, dirName), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	// config.local.yaml is the documented home for personal data (up to backend
+	// credentials — DESIGN "Configuration"), so a freshly-created one lands 0600,
+	// not the store-wide 0644 policy (c18; an existing file keeps its own mode).
+	if err := NewCurrent(root).SetCurrent("t1"); err != nil {
+		t.Fatal(err)
+	}
+	info, err := os.Stat(filepath.Join(root, dirName, localConfigName))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if perm := info.Mode().Perm(); perm != 0o600 {
+		t.Fatalf("fresh config.local.yaml perm = %o, want 600", perm)
+	}
+}
+
 func TestClearPreservesOtherKeys(t *testing.T) {
 	root := t.TempDir()
 	writeLocal(t, root, "author: bob\ncurrent: t9\n")

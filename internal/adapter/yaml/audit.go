@@ -26,6 +26,9 @@ type auditLine struct {
 }
 
 // Append writes one JSON line, creating .mtt if absent. Append-only (O_APPEND).
+// The line is fsynced before returning (c18): the record is the precondition for
+// a destructive delete ("no destruction without a trail"), so it must be durable
+// before the caller proceeds.
 func (s *AuditStore) Append(e mtt.AuditEntry) error {
 	dir := filepath.Join(s.root, ".mtt")
 	if err := os.MkdirAll(dir, 0o755); err != nil {
@@ -48,6 +51,14 @@ func (s *AuditStore) Append(e mtt.AuditEntry) error {
 	defer func() { _ = f.Close() }()
 	if _, err := f.Write(append(b, '\n')); err != nil {
 		return fmt.Errorf("audit: write: %w", err)
+	}
+	if err := f.Sync(); err != nil {
+		return fmt.Errorf("audit: sync: %w", err)
+	}
+	// The first-ever append O_CREATEs the file; without a directory fsync that
+	// new dirent can vanish with a crash even though the line itself is synced.
+	if err := syncDir(dir); err != nil {
+		return fmt.Errorf("audit: %w", err)
 	}
 	return nil
 }
