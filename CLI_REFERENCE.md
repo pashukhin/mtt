@@ -700,6 +700,12 @@ all wrap `mtt.ErrNotFound` — `5` (post-action, t21), and `7` (dangling refs, t
 `core.ErrPostAction`→5, and `core.ErrDanglingRefs`→7. An unsupported capability (`ErrUnsupported`) has no
 distinct code yet (it lands with capability gates); other error paths keep the generic `1`.
 
+**Actionable messages (t28).** Beyond the code, the stderr message tells you how to recover: an **exit 2** prints
+how to set who/why (`author:` in `.mtt/config.local.yaml`, `MTT_BY`, or `--who`/`--why`); an **exit 5** says the
+move is **already saved** (do not re-run it) and prints the exact remaining `post:` commands to finish by hand
+(in both text and `--json` mode, on stderr); an **exit 4** points at `mtt roadmap`/`mtt list`; an **exit 6** lists
+the moves allowed from the current status (or notes the status is terminal).
+
 **Bulk mutations (session 008.9)** are best-effort: a partial or total failure exits `1` (generic, git-style)
 with a per-item report — the aggregate deliberately does **not** map onto `3`/`4`/`6` (a heterogeneous set has
 no single code). A **single** `rm <id>` / `tag add/rm <id>` still exits `4` on not-found. An empty selector

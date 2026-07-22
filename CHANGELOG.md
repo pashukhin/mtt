@@ -18,6 +18,13 @@ All notable changes to mtt are documented here. The format follows
   `kill(-pgid)`; best-effort on Windows). Also closes a former infinite `Wait` hang when a gate exits 0 but
   leaves a child holding the inherited output pipe (`Cmd.WaitDelay`).
 
+### Changed
+- **Errors are now actionable.** Exit 2 (missing attribution) prints how to set who/why (`author:` in
+  `.mtt/config.local.yaml` / `MTT_BY` / `--who` / `--why`); exit 5 (post-action failed) says the move is
+  already saved (do not re-run it) and prints the exact remaining `post:` commands to finish by hand (text and
+  `--json`); exit 4 (not found) points at `mtt roadmap`/`mtt list`; an invalid move out of a terminal status now
+  reads cleanly instead of a dangling "allowed from …:".
+
 ## [0.9.0] — 2026-07-20
 
 First public release. `mtt` is an agent-friendly "tasks + knowledge" pairing (a Go CLI) built around an
