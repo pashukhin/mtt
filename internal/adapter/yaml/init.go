@@ -22,6 +22,9 @@ func Init(root, tmplName, projectName string, force bool) error {
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return fmt.Errorf("create %s: %w", dir, err)
 	}
+	if err := writeGitignore(dir); err != nil {
+		return err
+	}
 	dst := filepath.Join(dir, configName)
 	if !force {
 		if _, statErr := os.Stat(dst); statErr == nil {
@@ -31,6 +34,31 @@ func Init(root, tmplName, projectName string, force bool) error {
 		}
 	}
 	return atomicWrite(dst, content)
+}
+
+// writeGitignore drops .mtt/.gitignore ignoring the personal config.local.yaml
+// overlay, so it never becomes committable. Create-if-absent (O_EXCL): an
+// existing file is the user's — never clobbered, even under Init force. It runs
+// before the config existence check, so a re-init heals a missing .gitignore.
+func writeGitignore(dir string) error {
+	path := filepath.Join(dir, ".gitignore")
+	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o644)
+	if errors.Is(err, os.ErrExist) {
+		return nil
+	}
+	if err != nil {
+		return fmt.Errorf("create %s: %w", path, err)
+	}
+	if _, err := f.Write([]byte("config.local.yaml\n")); err != nil {
+		_ = f.Close()
+		_ = os.Remove(path)
+		return fmt.Errorf("write %s: %w", path, err)
+	}
+	if err := f.Close(); err != nil {
+		_ = os.Remove(path)
+		return fmt.Errorf("close %s: %w", path, err)
+	}
+	return nil
 }
 
 // atomicWrite writes data to path via a temp file in the same directory + rename.

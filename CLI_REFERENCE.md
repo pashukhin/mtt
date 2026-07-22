@@ -152,7 +152,9 @@ gate a failure → exit 3, status unchanged). `--no-run` skips **both** `command
 Creates `.mtt/` with a default `config.yaml` (types `task`/`chore`, flow `tbd → in_progress →
 done` plus the terminal `cancelled`, no commands) and the `tasks/` (and later `knowledge/`) directories. A
 personal, gitignored `.mtt/config.local.yaml` may override it (connection params, local prefs — see
-Configuration).
+Configuration). Also drops a `.mtt/.gitignore` ignoring that `config.local.yaml` overlay, so it never
+becomes committable (create-if-absent: an existing `.gitignore` is never overwritten, even with `--force`).
+Projects initialized before this shipped should add it by hand: `echo config.local.yaml > .mtt/.gitignore`.
 
 - `--force` — overwrite an existing `config.yaml`.
 - `--name <name>` — project name written into the config (default: directory name).

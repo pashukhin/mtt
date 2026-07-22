@@ -121,6 +121,10 @@ mtt roadmap                 # dependency + priority execution order
 
 See [CLI_REFERENCE.md](CLI_REFERENCE.md) for the full command surface and exit codes.
 
+> **Existing projects:** `mtt init` now also writes a `.mtt/.gitignore` that keeps the personal
+> `config.local.yaml` overlay out of git. If your project was initialized before this shipped, add it by
+> hand: `echo config.local.yaml > .mtt/.gitignore`.
+
 ## Docs
 
 - [DESIGN.md](DESIGN.md) — architecture and decisions (the source of truth)

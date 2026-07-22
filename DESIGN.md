@@ -182,6 +182,7 @@ the Gantt chart, and dependencies are computed in memory. SQLite isn't needed fo
 .mtt/
   config.yaml            # project, task types, and flow (shared, committed)
   config.local.yaml      # personal overlay: connection params, local prefs (gitignored)
+  .gitignore             # written by init: ignores config.local.yaml (create-if-absent)
   tasks/
     e1.yaml              # epic 1
     t17.yaml             # task 17 (parent: e1)
@@ -208,7 +209,9 @@ The local overlay is for **per-user connection parameters to external backends**
 users/credentials on the same project) and local preferences. **Credentials never go in the committed
 `config.yaml`** — only in the gitignored local overlay or env vars. Overriding shared **types/flow** in the
 local overlay is discouraged (it desyncs the team). Deep-merge, per key/section. Seam laid now (loader +
-gitignore); richer per-adapter connection schemas come with the external adapters.
+gitignore: `mtt init` drops a `.mtt/.gitignore` ignoring `config.local.yaml` — create-if-absent, an existing
+file is never clobbered, even under `--force`; self-contained under `.mtt/`, the project root `.gitignore` is
+untouched); richer per-adapter connection schemas come with the external adapters.
 
 ## Types and hierarchy (domain) vs ID/slug (adapter)
 

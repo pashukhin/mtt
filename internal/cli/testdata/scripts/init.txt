@@ -4,6 +4,7 @@ cd proj
 exec mtt init
 stdout 'initialized'
 exists .mtt/config.yaml
+grep 'config\.local\.yaml' .mtt/.gitignore
 exec mtt types
 stdout 'task'
 stdout 'chore'
