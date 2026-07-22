@@ -1,14 +1,14 @@
 id: t28
 type: task
 title: 'Think: actionable attribution and post-failure errors — exit-2 hints author/MTT_BY setup, exit-5 prints the recovery commands'
-status: approved
+status: impl_fix
 priority: medium
 tags:
     - dx
     - release
     - think
 created: "2026-07-11T12:58:07Z"
-updated: "2026-07-22T02:58:41Z"
+updated: "2026-07-22T03:11:55Z"
 history:
     - at: "2026-07-20T17:51:47Z"
       by: Grigorii Pashukhin
@@ -82,3 +82,10 @@ history:
       by: Grigorii Pashukhin
       from: impl_review
       to: approved
+    - at: "2026-07-22T03:11:55Z"
+      by: Grigorii Pashukhin
+      from: approved
+      to: impl_fix
+      checks:
+        - cmd: git switch task/t28
+          exit: 0
