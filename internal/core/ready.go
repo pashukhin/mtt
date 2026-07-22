@@ -57,8 +57,10 @@ func isReady(t mtt.Task, byID map[mtt.TaskID]mtt.Task, cfg mtt.Config) bool {
 // terminalSatisfied reports whether blocker id resolves to a present task whose
 // status kind is terminal — so it imposes no readiness/ordering constraint. A
 // dangling (absent) blocker or an unresolvable-status one is NOT satisfied
-// (conservative). The single home for "is this blocker satisfied", shared by
-// Ready and Roadmap.
+// (conservative). The single home for "is this blocker satisfied" as a
+// *decision*, shared by Ready and Roadmap (the CLI's `show` depends-line
+// rendering re-derives the same predicate for display only — c12; keep the
+// semantics aligned if this ever changes).
 func terminalSatisfied(id mtt.TaskID, byID map[mtt.TaskID]mtt.Task, cfg mtt.Config) bool {
 	blocker, ok := byID[id]
 	if !ok {

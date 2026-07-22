@@ -12,10 +12,10 @@ All notable changes to mtt are documented here. The format follows
   repo). Create-if-absent: an existing `.mtt/.gitignore` is never overwritten, even with `--force`. Existing
   projects add it by hand: `echo config.local.yaml > .mtt/.gitignore`.
 - **`depends_on` is visible in the agent contract (c12).** The task object carries `depends_on` (omitempty,
-  like `priority`) everywhere it is emitted (`show`/`list`/`add`/`edit`/`rm`/`status`/`tag` `--json`), and
-  `mtt show` prints a `depends:` line listing each blocker with its status — `✓` marks a terminal
-  (satisfied) blocker, `(missing)` a dangling one. Previously the stored field was invisible outside
-  `dep list`.
+  like `priority`) on every task `--json` surface (the one exception: `dep list --tree --json` nodes, where
+  `depends_on` is the nested child-node array), and `mtt show` prints a `depends:` line listing each blocker
+  with its status — `✓` marks a terminal (satisfied) blocker, `(missing)` a dangling one. Previously the
+  stored field was invisible outside `dep list`.
 
 ### Security
 - **RCE fix (c15): the YAML store rejects a poisoned task file at load.** A hand-written `.mtt/tasks/*.yaml`

@@ -229,7 +229,7 @@ the **lineage** breadcrumb, a **children** summary, timestamps, and
 description. The lineage is a "you are here" path from the root **down to and including the task**
 (`lineage:  e1 › t1 › s1`), shown only when the task has a parent; a root task shows none. The children line
 lists direct children (`children: 2 (t1, t2)`), shown only when present. There is no separate `parent:` line
-— the parent is the breadcrumb's second-to-last element. References and **backlinks** and the transition
+— the parent is the breadcrumb's second-to-last element. References, **backlinks**, and the transition
 `history` (audit trail) are rendered too (see below); the comment tree prints once comments land (t2).
 
 - `<id>` — the task to show.
@@ -510,8 +510,10 @@ returned, best-effort).
 `depends_on` is a **blocking** edge (distinct from hierarchy `parent` and informational `refs`). It rides
 the `Task` field and round-trips via `TaskStore.Update` — the YAML reference needs **no dedicated port**.
 Since c12 the stored edge is part of the **agent contract**: the task object carries `depends_on`
-(omitempty, like `priority`) everywhere it is emitted (`show`/`list`/`add`/`edit`/`rm`/`status`/`tag`
-`--json`), and `mtt show` prints a `depends:` line with each blocker's status (`✓` = terminal/satisfied,
+(omitempty, like `priority`) everywhere it is emitted — every task `--json` surface (`show`/`list`/`ready`/
+`add`/`edit`/`rm`/`status`/`tag`/`use`/`dep add`/`dep rm`/`dep list`), the one exception being `dep list
+--tree --json` nodes, whose `depends_on` is the *nested child-node array* (the tree shape shadows the flat
+id list) — and `mtt show` prints a `depends:` line with each blocker's status (`✓` = terminal/satisfied,
 `(missing)` = dangling) — no per-task `dep list` round-trip needed.
 
 ### `mtt dep add <id> <depends-on-id>` — add a blocking dependency
