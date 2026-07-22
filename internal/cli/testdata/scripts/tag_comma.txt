@@ -58,6 +58,12 @@ exec mtt note edit n1 --tag ''
 exec mtt note show n1 --json
 ! stdout 'keep'
 
+# AC4: extra positionals -> the message names both remedies (quote title / comma-or-repeat the flag).
+! exec mtt add 'fix login' extra
+stderr 'too many arguments'
+stderr 'comma-separated'
+stderr 'repeating the flag'
+
 -- flow.yaml --
 version: 1
 project: {name: tagtest}

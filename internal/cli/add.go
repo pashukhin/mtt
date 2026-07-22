@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"errors"
 	"fmt"
 	"time"
 
@@ -36,7 +35,7 @@ the text later ('mtt edit') to change text-derived tags, or 'mtt tag add/rm' for
 explicit ones.`,
 		Args: func(_ *cobra.Command, args []string) error {
 			if len(args) > 1 {
-				return errors.New("too many arguments: wrap a multi-word title in quotes (example: mtt add \"fix login\")")
+				return fmt.Errorf("too many arguments (got %d): wrap a multi-word title in quotes (mtt add \"fix login\"), and pass multiple --tag/--depends-on values comma-separated (--tag a,b) or by repeating the flag (--tag a --tag b) — not space-separated", len(args))
 			}
 			return nil
 		},
