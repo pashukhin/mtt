@@ -25,6 +25,22 @@ func TestTaskJSONCarriesPriority(t *testing.T) {
 	}
 }
 
+func TestTaskJSONCarriesDependsOn(t *testing.T) {
+	ts := time.Date(2026, 7, 22, 9, 0, 0, 0, time.UTC)
+	j := toTaskJSON(mtt.Task{ID: "t1", Type: "task", Status: "tbd", DependsOn: []mtt.TaskID{"t2", "t3"}, Created: ts, Updated: ts})
+	if len(j.DependsOn) != 2 || j.DependsOn[0] != "t2" || j.DependsOn[1] != "t3" {
+		t.Fatalf("taskJSON.DependsOn = %v, want [t2 t3]", j.DependsOn)
+	}
+	// No dependencies → the field is omitted (omitempty, like priority).
+	data, err := json.Marshal(toTaskJSON(mtt.Task{ID: "t2", Type: "task", Status: "tbd", Created: ts, Updated: ts}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(data), "depends_on") {
+		t.Fatalf("empty depends_on must be omitted from JSON: %s", data)
+	}
+}
+
 func TestToShowJSON(t *testing.T) {
 	ts := time.Date(2026, 7, 7, 9, 0, 0, 0, time.UTC)
 	task := mtt.Task{ID: "t1", Type: "task", Status: "in_progress", Created: ts, Updated: ts}

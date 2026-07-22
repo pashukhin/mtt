@@ -21,6 +21,7 @@ type taskJSON struct {
 	Status      string   `json:"status"`
 	Priority    string   `json:"priority,omitempty"`
 	Parent      string   `json:"parent,omitempty"`
+	DependsOn   []string `json:"depends_on,omitempty"`
 	Tags        []string `json:"tags,omitempty"`
 	Created     string   `json:"created"`
 	Updated     string   `json:"updated"`
@@ -31,6 +32,7 @@ type taskJSON struct {
 func toTaskJSON(t mtt.Task) taskJSON {
 	return taskJSON{
 		ID: string(t.ID), Type: string(t.Type), Title: t.Title, Status: string(t.Status), Priority: string(t.Priority), Parent: string(t.Parent),
+		DependsOn:   idStrings(t.DependsOn),
 		Tags:        t.Tags,
 		Created:     t.Created.UTC().Format(time.RFC3339),
 		Updated:     t.Updated.UTC().Format(time.RFC3339),

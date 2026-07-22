@@ -19,7 +19,7 @@ func TestFormatTaskRendersHistory(t *testing.T) {
 			Checks: []mtt.Check{{Cmd: "make lint", Exit: 0}},
 		}},
 	}
-	out := formatTask(task, nil, nil, "", nil)
+	out := formatTask(task, nil, nil, nil, "", nil)
 	for _, want := range []string{"history:", "tbd → in_progress", "by grisha", "role impl", `why "start work"`, "make lint(0)"} {
 		if !strings.Contains(out, want) {
 			t.Fatalf("formatTask output missing %q:\n%s", want, out)
@@ -34,7 +34,7 @@ func TestFormatTask(t *testing.T) {
 	anc := []mtt.Task{{ID: "e1"}}
 	kids := []mtt.Task{{ID: "s1"}, {ID: "s2"}}
 	got := formatTask(mtt.Task{ID: "t1", Type: "task", Title: "fix login", Status: "tbd",
-		Parent: "e1", Created: ts, Updated: ts, Description: "do the thing"}, anc, kids, "", nil)
+		Parent: "e1", Created: ts, Updated: ts, Description: "do the thing"}, anc, kids, nil, "", nil)
 	want := "t1  task  [tbd]\n" +
 		"  title:    fix login\n" +
 		"  lineage:  e1 › t1\n" +
@@ -49,21 +49,69 @@ func TestFormatTask(t *testing.T) {
 		t.Fatalf("the raw parent line must be dropped: %q", got)
 	}
 	// a root task with no ancestors and no children: no lineage/children/parent lines
-	bare := formatTask(mtt.Task{ID: "e1", Type: "epic", Status: "tbd", Created: ts, Updated: ts}, nil, nil, "", nil)
+	bare := formatTask(mtt.Task{ID: "e1", Type: "epic", Status: "tbd", Created: ts, Updated: ts}, nil, nil, nil, "", nil)
 	if strings.Contains(bare, "lineage:") || strings.Contains(bare, "children:") || strings.Contains(bare, "parent:") {
 		t.Fatalf("bare root task should omit lineage/children/parent lines: %q", bare)
 	}
 }
 
 func TestFormatTaskShowsPriority(t *testing.T) {
-	out := formatTask(mtt.Task{ID: "t1", Type: "task", Status: "tbd", Title: "a", Priority: mtt.PriorityHigh}, nil, nil, "", nil)
+	out := formatTask(mtt.Task{ID: "t1", Type: "task", Status: "tbd", Title: "a", Priority: mtt.PriorityHigh}, nil, nil, nil, "", nil)
 	if !strings.Contains(out, "priority: high") {
 		t.Fatalf("show output missing priority line:\n%s", out)
 	}
 	// Unset priority is omitted.
-	out2 := formatTask(mtt.Task{ID: "t2", Type: "task", Status: "tbd", Title: "b"}, nil, nil, "", nil)
+	out2 := formatTask(mtt.Task{ID: "t2", Type: "task", Status: "tbd", Title: "b"}, nil, nil, nil, "", nil)
 	if strings.Contains(out2, "priority:") {
 		t.Fatalf("unset priority must be omitted:\n%s", out2)
+	}
+}
+
+func TestDependsEntries(t *testing.T) {
+	cfg := mtt.Config{Types: []mtt.Type{{
+		Name: "task",
+		Flow: mtt.Flow{
+			Statuses: []mtt.Status{
+				{Name: "tbd", Kind: mtt.KindInitial},
+				{Name: "in_progress", Kind: mtt.KindActive},
+				{Name: "done", Kind: mtt.KindTerminal},
+			},
+			Transitions: []mtt.Transition{
+				{From: "tbd", To: "in_progress"}, {From: "in_progress", To: "done"},
+			},
+		},
+	}}}
+	tasks := []mtt.Task{
+		{ID: "t2", Type: "task", Status: "tbd"},
+		{ID: "t3", Type: "task", Status: "done"},
+	}
+	task := mtt.Task{ID: "t1", Type: "task", Status: "tbd", DependsOn: []mtt.TaskID{"t2", "t3", "t9"}}
+	got := dependsEntries(cfg, tasks, task)
+	want := []string{"t2 [tbd]", "t3 [done ✓]", "t9 (missing)"}
+	if len(got) != len(want) {
+		t.Fatalf("dependsEntries = %v, want %v", got, want)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("dependsEntries[%d] = %q, want %q", i, got[i], want[i])
+		}
+	}
+	// No dependencies → nil (no depends line).
+	if e := dependsEntries(cfg, tasks, mtt.Task{ID: "t4", Type: "task", Status: "tbd"}); e != nil {
+		t.Fatalf("no deps must yield nil, got %v", e)
+	}
+}
+
+func TestFormatTaskShowsDepends(t *testing.T) {
+	out := formatTask(mtt.Task{ID: "t1", Type: "task", Status: "tbd", Title: "a"}, nil, nil,
+		[]string{"t2 [tbd]", "t9 (missing)"}, "", nil)
+	if !strings.Contains(out, "depends:  t2 [tbd], t9 (missing)") {
+		t.Fatalf("show output missing depends line:\n%s", out)
+	}
+	// No blockers → the line is omitted.
+	out2 := formatTask(mtt.Task{ID: "t2", Type: "task", Status: "tbd", Title: "b"}, nil, nil, nil, "", nil)
+	if strings.Contains(out2, "depends:") {
+		t.Fatalf("depends line must be omitted without blockers:\n%s", out2)
 	}
 }
 

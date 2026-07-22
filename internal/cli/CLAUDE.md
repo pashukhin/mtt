@@ -52,7 +52,12 @@ Dependencies & ready (session 005): `dep add/rm <id> <dep-id>` route through `co
 `list --ready` share one primitive — `core.Select(core.Ready(tasks, cfg), filter, cfg)` — so readiness and
 the list filters compose (AND). `toStatusNames`/`toTypeNames` are the shared string→identity converters for
 `list`/`ready`. Pure reads (`dep list`/`ready`) call the store directly; mutations (`dep add/rm`) go through
-`core`.
+`core`. **(c12)** `depends_on` is part of the agent contract: `taskJSON.DependsOn` (`json:"depends_on,omitempty"`,
+via `idStrings`) rides every task-object emission (all task `--json` surfaces; the one carve-out is
+`dep list --tree --json`, whose depth-0 `depTreeJSON.DependsOn` child-array statically shadows the embedded flat list),
+and human `show` prints a `depends:` line — `dependsEntries(cfg, tasks, task)` (in `show.go`) renders each
+blocker as `<id> [<status>]` with `✓` on a terminal (satisfied) one and `(missing)` on a dangling one
+(unresolvable kind → no mark, mirroring conservative readiness); `formatTask` takes the pre-rendered slice.
 
 Flow gate (session 006): `mtt status <id> <new>` wires `yaml.Load` (→ `Settings`) +
 `exec.NewRunner(root, timeout, progress, cmdOut)` + `core.Transitioner`; `--no-run` bypasses the gate.
