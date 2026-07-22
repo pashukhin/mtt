@@ -12,22 +12,24 @@ exec mtt start t1 -v
 stdout 't1: tbd → speccing'
 stderr 'POSTRAN'
 
-# a failing post → move is KEPT and RENDERED, plus the post-failure surfaced.
-# These distinguish the restructured CLI from the old one: the OLD runTransition
-# early-returns the error and prints "error: …" WITHOUT the move line; only the new
-# code renders the move THEN surfaces "move applied, but a post-action failed".
+# a failing post → move is KEPT and RENDERED, plus the recovery block surfaced (t28):
+# the move IS saved, and the exact remaining post commands to finish by hand.
 ! exec mtt submit t1
 stdout 't1: speccing → review'
-stderr 'move applied, but a post-action failed'
+stderr 'the status change IS saved'
+stderr 'do NOT re-run the move'
+stderr '^  false$'
 exec mtt show t1
 stdout '\[review\]'
 
-# --json on the failing post STILL emits the task object (RED before Step 4: the old
-# CLI returns before the JSON branch) and stays non-zero.
+# --json on the failing post STILL emits the task object AND prints the recovery block
+# on stderr (t28: both modes — an agent driving --json must still see how to finish).
 exec mtt add 'b task'
 exec mtt start t2
 ! exec mtt submit t2 --json
 stdout '"status": *"review"'
+stderr 'the status change IS saved'
+stderr '^  false$'
 exec mtt show t2
 stdout '\[review\]'
 

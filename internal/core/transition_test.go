@@ -2,6 +2,7 @@ package core
 
 import (
 	"errors"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -12,18 +13,23 @@ import (
 // fakeRunner is the test double for the Runner port: it records the commands it
 // was handed and returns canned checks/error without spawning a process.
 type fakeRunner struct {
-	checks     []mtt.Check
-	err        error
-	called     bool
-	gotCmds    []mtt.Command
-	compCmds   []mtt.Command // commands passed to Compensate (nil = never called)
-	compChecks []mtt.Check   // canned Compensate result (nil = all succeed)
-	failSubstr string        // when set (and no canned checks/err): derive one check per command, exit 1 if Run contains it — lets the empty pre-gate pass while the post phase fails (t21)
+	checks       []mtt.Check
+	err          error
+	called       bool
+	gotCmds      []mtt.Command
+	compCmds     []mtt.Command // commands passed to Compensate (nil = never called)
+	compChecks   []mtt.Check   // canned Compensate result (nil = all succeed)
+	failSubstr   string        // when set (and no canned checks/err): derive one check per command, exit 1 if Run contains it — lets the empty pre-gate pass while the post phase fails (t21)
+	postOpErr    error         // when set, Run returns this operational error ONLY for a non-empty command slice (the post phase; the empty pre-gate passes)
+	postOpChecks []mtt.Check   // checks returned alongside postOpErr (nil = none recorded; lets a test drive the "failing check last" index)
 }
 
 func (f *fakeRunner) Run(commands []mtt.Command) ([]mtt.Check, error) {
 	f.called = true
 	f.gotCmds = commands
+	if f.postOpErr != nil && len(commands) > 0 {
+		return f.postOpChecks, f.postOpErr
+	}
 	if f.checks == nil && f.err == nil && f.failSubstr != "" {
 		out := make([]mtt.Check, len(commands))
 		for i, c := range commands {
@@ -435,6 +441,10 @@ func TestTransition_PostFailureKeepsMove(t *testing.T) {
 	if !errors.Is(err, ErrPostAction) {
 		t.Fatalf("want ErrPostAction, got %v", err)
 	}
+	var pe *PostActionError
+	if !errors.As(err, &pe) || len(pe.Remaining) != 1 || pe.Remaining[0] != "false" {
+		t.Fatalf("Remaining should be [false]; pe=%+v", pe)
+	}
 	if reloaded, _ := store.Get("t1"); reloaded.Status != "in_progress" {
 		t.Fatalf("post failure must not roll back; status = %q", reloaded.Status)
 	}
@@ -460,6 +470,87 @@ func TestTransition_PostExpandErrorIsPostAction(t *testing.T) {
 	_, err := NewTransitioner(store, cfg, &fakeRunner{}, testClock).Transition("t1", "in_progress", TransitionOptions{})
 	if !errors.Is(err, ErrPostAction) {
 		t.Fatalf("expand error must be ErrPostAction, got %v", err)
+	}
+	var pe *PostActionError
+	if !errors.As(err, &pe) || len(pe.Remaining) != 1 || pe.Remaining[0] != "echo {{.Nope}}" {
+		t.Fatalf("expand-error Remaining should be the raw post run; got %+v", pe)
+	}
+}
+
+func TestTransition_PostActionErrorRemaining(t *testing.T) {
+	// 3 post commands; the 2nd fails -> Remaining = the failed + the untried (2 of 3).
+	store := newMemStore(baseTask())
+	cfg := flowCfg(nil, nil)
+	cfg.Types[0].Transitions[0].Post = strCmds([]string{"echo one", "boom-two", "echo three"})
+	runner := &fakeRunner{failSubstr: "boom"} // empty pre-gate passes; post "boom-two" fails
+	_, err := NewTransitioner(store, cfg, runner, testClock).Transition("t1", "in_progress", TransitionOptions{})
+	var pe *PostActionError
+	if !errors.As(err, &pe) {
+		t.Fatalf("want *PostActionError, got %T (%v)", err, err)
+	}
+	if !errors.Is(err, ErrPostAction) {
+		t.Fatalf("PostActionError must map to ErrPostAction")
+	}
+	want := []string{"boom-two", "echo three"}
+	if !slices.Equal(pe.Remaining, want) {
+		t.Fatalf("Remaining = %v, want %v", pe.Remaining, want)
+	}
+	if !strings.Contains(pe.Cause, "boom-two") {
+		t.Fatalf("Cause = %q, want it to name the failed command", pe.Cause)
+	}
+}
+
+func TestTransition_PostActionOperationalZeroChecks(t *testing.T) {
+	// Operational error in the POST phase with NO recorded checks -> Remaining = all
+	// expanded (guarded against len(pchecks)==0, no panic). postOpErr fires only for a
+	// non-empty command slice, so the empty pre-gate passes and only the post errors.
+	store := newMemStore(baseTask())
+	cfg := flowCfg(nil, nil)
+	cfg.Types[0].Transitions[0].Post = strCmds([]string{"echo a", "echo b"})
+	runner := &fakeRunner{postOpErr: errors.New("boom timeout")}
+	_, err := NewTransitioner(store, cfg, runner, testClock).Transition("t1", "in_progress", TransitionOptions{})
+	var pe *PostActionError
+	if !errors.As(err, &pe) {
+		t.Fatalf("want *PostActionError, got %T (%v)", err, err)
+	}
+	if want := []string{"echo a", "echo b"}; !slices.Equal(pe.Remaining, want) {
+		t.Fatalf("Remaining = %v, want %v (all, guarded against len(pchecks)==0)", pe.Remaining, want)
+	}
+}
+
+func TestTransition_PostActionOperationalFailingCheckLast(t *testing.T) {
+	// Operational error WITH recorded checks: the failing command is last (Runner
+	// CONTRACT), so i=len(pchecks)-1>0 -> Remaining = that command + those untried.
+	store := newMemStore(baseTask())
+	cfg := flowCfg(nil, nil)
+	cfg.Types[0].Transitions[0].Post = strCmds([]string{"echo a", "echo b", "echo c"})
+	runner := &fakeRunner{
+		postOpErr:    errors.New("boom timeout"),
+		postOpChecks: []mtt.Check{{Cmd: "echo a", Exit: 0}, {Cmd: "echo b", Exit: -1}}, // b failed operationally, last recorded
+	}
+	_, err := NewTransitioner(store, cfg, runner, testClock).Transition("t1", "in_progress", TransitionOptions{})
+	var pe *PostActionError
+	if !errors.As(err, &pe) {
+		t.Fatalf("want *PostActionError, got %T (%v)", err, err)
+	}
+	if want := []string{"echo b", "echo c"}; !slices.Equal(pe.Remaining, want) {
+		t.Fatalf("Remaining = %v, want %v (failing check b + untried c)", pe.Remaining, want)
+	}
+}
+
+func TestTransition_InvalidMoveOutOfTerminalReadsCleanly(t *testing.T) {
+	// A move requested out of a terminal status: empty allowedTargets -> no dangling list.
+	store := newMemStore(func() mtt.Task { tk := baseTask(); tk.Status = "done"; return tk }())
+	cfg := flowCfg(nil, nil)
+	_, err := NewTransitioner(store, cfg, &fakeRunner{}, testClock).Transition("t1", "in_progress", TransitionOptions{})
+	if !errors.Is(err, ErrInvalidTransition) {
+		t.Fatalf("want ErrInvalidTransition, got %v", err)
+	}
+	if strings.Contains(err.Error(), "allowed from done: )") || strings.HasSuffix(err.Error(), ": ") {
+		t.Fatalf("terminal message has a dangling empty list: %q", err.Error())
+	}
+	if !strings.Contains(err.Error(), "terminal") {
+		t.Fatalf("terminal message should say so: %q", err.Error())
 	}
 }
 

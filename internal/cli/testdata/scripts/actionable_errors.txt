@@ -1,0 +1,53 @@
+# t28 — actionable exit-2 (attribution) + exit-4 (not-found) hints.
+exec mtt init
+cp req.yaml .mtt/config.yaml
+exec mtt add 'a task'
+stdout 'created t1'
+
+# exit 2: a transition with required who/why but none supplied -> hint how to set them.
+! exec mtt in_progress t1
+stderr 'missing required attribution'
+stderr 'MTT_BY'
+stderr '--why'
+
+# exit 2 via a dangerous op (rm --force forces who+why) -> same shared hint.
+! exec mtt rm t1 --force
+stderr 'MTT_BY'
+
+# exit 4: a bogus id -> not-found hint points at discovery.
+! exec mtt show t404
+stderr 'not found'
+stderr 'mtt roadmap'
+
+# exit 4: a bogus note slug -> same hint.
+! exec mtt note show nope
+stderr 'mtt roadmap'
+
+# exit 6: an impossible move from tbd (there is no tbd->done edge) lists the allowed
+# targets. findTransition is checked BEFORE attribution, so this needs no --who/--why.
+! exec mtt done t1
+stderr 'allowed from tbd'
+
+# drive t1 to a terminal (with attribution), then an impossible move OUT of it reads
+# cleanly — no dangling 'allowed from done: '.
+exec mtt in_progress t1 --who a --why b
+exec mtt done t1 --who a --why b
+! exec mtt in_progress t1 --who a --why b
+stderr 'no moves out of done'
+! stderr 'allowed from done:'
+
+-- req.yaml --
+version: 1
+project: {name: reqtest}
+require: {who: true, why: true}
+types:
+  - name: task
+    prefix: t
+    default: true
+    statuses:
+      - {name: tbd, kind: initial, default: true}
+      - {name: in_progress, kind: active}
+      - {name: done, kind: terminal}
+    transitions:
+      - {from: tbd, to: in_progress}
+      - {from: in_progress, to: done}

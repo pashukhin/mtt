@@ -2,6 +2,7 @@ package core
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/pashukhin/mtt/pkg/mtt"
 )
@@ -42,3 +43,20 @@ var ErrMissingAttribution = errors.New("mtt: missing required attribution")
 // finalization failed; the CLI keeps the move and maps it to exit code 5. This is
 // the ONLY case where Transition returns a valid task with a non-nil error.
 var ErrPostAction = errors.New("mtt: post-action failed after the move")
+
+// PostActionError is the typed form of ErrPostAction: it carries the post commands
+// that did NOT complete (the failed one + those never reached) so the CLI can print
+// exact recovery steps, plus the underlying Cause. Is() maps it to ErrPostAction, so
+// the CLI still exits 5. This is the single case where Transition returns a valid
+// task with a non-nil error (the move IS persisted).
+type PostActionError struct {
+	Remaining []string // unfinished post commands (expanded where available)
+	Cause     string   // the underlying failure, verbatim
+}
+
+// Error renders the sentinel prefix plus the underlying cause.
+func (e *PostActionError) Error() string { return fmt.Sprintf("%s: %s", ErrPostAction, e.Cause) }
+
+// Is reports whether target is ErrPostAction, so errors.Is (and the CLI's exit-5
+// mapping) treat a *PostActionError exactly like the plain sentinel.
+func (e *PostActionError) Is(target error) bool { return target == ErrPostAction }

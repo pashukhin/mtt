@@ -60,8 +60,12 @@ func (tr *Transitioner) Transition(id mtt.TaskID, to mtt.StatusName, opts Transi
 	}
 	edge, ok := findTransition(typ, t.Status, to)
 	if !ok {
-		return mtt.Task{}, fmt.Errorf("%w: %s cannot move %s → %s (allowed from %s: %s)",
-			ErrInvalidTransition, id, t.Status, to, t.Status, strings.Join(allowedTargets(typ, t.Status), ", "))
+		if targets := allowedTargets(typ, t.Status); len(targets) > 0 {
+			return mtt.Task{}, fmt.Errorf("%w: %s cannot move %s → %s (allowed from %s: %s)",
+				ErrInvalidTransition, id, t.Status, to, t.Status, strings.Join(targets, ", "))
+		}
+		return mtt.Task{}, fmt.Errorf("%w: %s cannot move %s → %s (no moves out of %s — it is terminal)",
+			ErrInvalidTransition, id, t.Status, to, t.Status)
 	}
 	effWho := opts.RequireWho || edge.Require.Who || opts.NoRun
 	effWhy := opts.RequireWhy || edge.Require.Why || opts.NoRun
@@ -110,16 +114,36 @@ func (tr *Transitioner) Transition(id mtt.TaskID, to mtt.StatusName, opts Transi
 		ID: string(t.ID), Type: string(t.Type), From: string(from), To: string(to),
 	})
 	if eerr != nil {
-		return updated, fmt.Errorf("%w: expand post for %s (%s->%s): %v", ErrPostAction, id, from, to, eerr)
+		return updated, &PostActionError{
+			Remaining: runsOf(edge.Post), // raw templates — expansion is what failed
+			Cause:     fmt.Sprintf("expand post for %s (%s->%s): %v", id, from, to, eerr),
+		}
 	}
 	pchecks, rerr := tr.runner.Run(expanded)
 	if rerr != nil {
-		return updated, fmt.Errorf("%w: %v", ErrPostAction, rerr)
+		i := len(pchecks) - 1 // failing command is last (Runner CONTRACT); guard the empty case
+		if i < 0 {
+			i = 0
+		}
+		return updated, &PostActionError{Remaining: runsOf(expanded[i:]), Cause: rerr.Error()}
 	}
-	if _, c, failed := firstFailure(pchecks); failed {
-		return updated, fmt.Errorf("%w: command %q exited %d", ErrPostAction, c.Cmd, c.Exit)
+	if i, c, failed := firstFailure(pchecks); failed {
+		return updated, &PostActionError{
+			Remaining: runsOf(expanded[i:]),
+			Cause:     fmt.Sprintf("command %q exited %d", c.Cmd, c.Exit),
+		}
 	}
 	return updated, nil
+}
+
+// runsOf extracts each command's .Run string — the copy-paste-ready form the CLI
+// prints as a post-failure recovery hint.
+func runsOf(cmds []mtt.Command) []string {
+	out := make([]string, len(cmds))
+	for i, c := range cmds {
+		out[i] = c.Run
+	}
+	return out
 }
 
 // findTransition returns the edge from → to in typ's flow, if any. Delegates to

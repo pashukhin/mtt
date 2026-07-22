@@ -449,7 +449,10 @@ Commands come from config (trusted, like a Makefile/git hooks), not from the net
 > dirty `.mtt/config.yaml` can't ride the main-landing commit/push past review (c3 — see the SEC2 note in the
 > dogfood section). **Two phases, different failure semantics:** `commands:` gate the **entry** (fail → no persist, the
 > s008 compensation runs); `post:` finalize **after** entry (fail → the move is **kept**, `core.ErrPostAction`,
-> CLI exit **5** — mtt never rolls back a persisted move for a post hiccup). `--no-run` skips **both** phases.
+> CLI exit **5** — mtt never rolls back a persisted move for a post hiccup). **(t28)** the exit-5 error is the
+> typed `core.PostActionError`, carrying the **unfinished post commands** (the failed one + those never reached)
+> so the CLI prints exact recovery steps + "the move is already saved" — actionable, not just a code. `--no-run`
+> skips **both** phases.
 > Why not a global default `post`? Precedence/merge/opt-out questions we deferred (t24) — per-edge only for now.
 > The `git switch` in `deliver`/`start`/`cancel` is exactly why a naive "persist → run everything → roll back"
 > single phase can't work: context switches must precede persist, commits must follow it. **(c1) auto-push**

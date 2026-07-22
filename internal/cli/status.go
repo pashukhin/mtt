@@ -110,28 +110,41 @@ func runTransition(cmd *cobra.Command, root string, cfg mtt.Config, settings yam
 	if err := applyCurrent(root, cfg, task, id); err != nil {
 		return fmt.Errorf("transition applied but updating the current pointer failed: %w", err)
 	}
+	// Render the move FIRST (it happened): --json emits the task object on stdout, text
+	// prints the move line + guidance. NB: local `e` for the render writes — never txErr,
+	// or a successful write would clobber ErrPostAction to nil and lose exit 5.
 	if jsonFlag(cmd) {
-		if err := writeJSON(cmd.OutOrStdout(), toTaskJSON(task)); err != nil {
-			return err
-		}
-		return txErr // nil on success, ErrPostAction on post-failure → exit 5 even in --json
-	}
-	last := task.History[len(task.History)-1]
-	out := cmd.OutOrStdout()
-	// NB: local `e` for the render writes — never txErr, or a successful write would
-	// clobber ErrPostAction to nil and lose exit 5 in text mode.
-	if _, e := fmt.Fprintf(out, "%s: %s → %s\n", id, last.From, last.To); e != nil {
-		return e
-	}
-	if g := moveGuidance(cfg, task.Type, last.From, last.To); g != "" {
-		if _, e := fmt.Fprint(out, g); e != nil {
+		if e := writeJSON(cmd.OutOrStdout(), toTaskJSON(task)); e != nil {
 			return e
 		}
+	} else {
+		last := task.History[len(task.History)-1]
+		out := cmd.OutOrStdout()
+		if _, e := fmt.Fprintf(out, "%s: %s → %s\n", id, last.From, last.To); e != nil {
+			return e
+		}
+		if g := moveGuidance(cfg, task.Type, last.From, last.To); g != "" {
+			if _, e := fmt.Fprint(out, g); e != nil {
+				return e
+			}
+		}
 	}
+	// exit-5 (t28): AFTER the move is rendered (it IS persisted), print the recovery block
+	// on stderr in BOTH modes — so the order reads move-render → recovery → Execute's
+	// `error:` line, not the inverted "move applied" before the move line. The cause is
+	// left to Execute; here we add the idempotence warning + the exact remaining commands.
 	if postFailed {
-		_, _ = fmt.Fprintf(cmd.ErrOrStderr(), "move applied, but a post-action failed: %v\n", txErr)
+		var pe *core.PostActionError
+		if errors.As(txErr, &pe) {
+			w := cmd.ErrOrStderr()
+			_, _ = fmt.Fprintln(w, "move applied — the status change IS saved; do NOT re-run the move.")
+			_, _ = fmt.Fprintln(w, "finish the finalization by hand:")
+			for _, c := range pe.Remaining {
+				_, _ = fmt.Fprintf(w, "  %s\n", c)
+			}
+		}
 	}
-	return txErr
+	return txErr // nil on success, ErrPostAction → exit 5 in both modes
 }
 
 // applyCurrent moves the personal current-task pointer per the edge just
