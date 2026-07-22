@@ -1,11 +1,11 @@
 id: c11
 type: chore
 title: 'mtt init: emit .mtt/.gitignore for config.local.yaml — the personal overlay must never be committable'
-status: impl_fix
+status: impl_review
 tags:
     - dx
 created: "2026-07-22T08:01:24Z"
-updated: "2026-07-22T16:01:57Z"
+updated: "2026-07-22T16:03:43Z"
 description: 'Verified footgun (audit 2026-07-22): every doc calls config.local.yaml gitignored, but nothing gitignores it and init does not warn; with dogfood-style post actions (git add .mtt) the personal file — author plus the current pointer — lands in the shared repo, guaranteeing merge conflicts between agents. Fixed design: mtt init writes .mtt/.gitignore containing config.local.yaml (create-if-absent, never clobber an existing file); keep it self-contained under .mtt/ — do not touch the project root .gitignore. Existing adopters get a README note.'
 history:
     - at: "2026-07-22T15:52:52Z"
@@ -28,3 +28,10 @@ history:
       by: Grigorii Pashukhin
       from: impl_review
       to: impl_fix
+    - at: "2026-07-22T16:03:43Z"
+      by: Grigorii Pashukhin
+      from: impl_fix
+      to: impl_review
+      checks:
+        - cmd: make check
+          exit: 0
