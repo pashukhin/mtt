@@ -123,10 +123,10 @@ are expanded — the primary agent surface); the `guidance_test.go` caller updat
    placeholders expanded (the F1 consistency guard — no raw `{{.ID}}` survives in either JSON field).
 4. **Best-effort in situ (e2e).** A description containing `{{.Title}}` (unknown field) renders **verbatim**
    (raw `{{.Title}}`), and the command still exits 0 — guidance never breaks the move/show.
-5. **Dogfood config still valid.** `TestRepoDogfoodConfig` stays green after the D3 edits; on this repo,
-   `mtt show <a tbd task>` renders a D3-changed description with the concrete id (e.g. the `start` edge's
-   `task/{{.ID}}` → `task/t16`, or a `speccing` task's `docs/superpowers/specs/{{.ID}}-…`) — spot-checked on
-   `impl_review` against a description that actually carries a placeholder (not a raw==expanded no-op).
+5. **Dogfood config still valid.** `TestRepoDogfoodConfig` stays green after the D3 edits; during the
+   `impl_review` verification, `mtt show <a tbd task>` on this repo renders a D3-changed, placeholder-bearing
+   description with the concrete id (e.g. the `start` edge's `task/{{.ID}}` → `task/t16`, or a `speccing` task's
+   `docs/superpowers/specs/{{.ID}}-…`) — a real expansion, not a raw==expanded no-op.
 6. `make check` green. Docs synced (below).
 
 ## Testing approach
