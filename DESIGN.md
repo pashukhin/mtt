@@ -495,7 +495,10 @@ Commands come from config (trusted, like a Makefile/git hooks), not from the net
 > exec adapter stays dumb; **(3)** injection defense is a **structural whitelist** — `text/template` over a
 > struct exposing only the four shape-safe fields, so free text (`title`) is never interpolated and a stray
 > `{{.Title}}` is a template error (no shell-quoting needed; if a free-text field is ever exposed it MUST be
-> quoted — a documented seam); **(4)** `Runner.Run` takes `[]Command` (Run already expanded; `Check.Cmd`
+> quoted — a documented seam). The whitelist trusts each exposed field's **value** to be shape-safe; for
+> `{{.ID}}` that holds only because the YAML adapter **validates the id charset at load** (**c15** — a poisoned
+> `tasks/*.yaml` whose `id:` carried shell metacharacters was otherwise RCE via the gate/post `sh -c`);
+> **(4)** `Runner.Run` takes `[]Command` (Run already expanded; `Check.Cmd`
 > records the expanded command for a truthful audit). An expansion error aborts the transition as a plain
 > error (exit 1), distinct from a gate block (`ErrBlocked`, exit 3). See sessions/007 and TASKS.md → e4_t9.
 
