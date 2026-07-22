@@ -56,6 +56,9 @@ func Execute() int {
 	root := NewRootCmd()
 	if err := root.Execute(); err != nil {
 		_, _ = fmt.Fprintln(root.ErrOrStderr(), "error:", err)
+		if h := exitHint(err); h != "" {
+			_, _ = fmt.Fprint(root.ErrOrStderr(), h)
+		}
 		return exitCode(err)
 	}
 	return 0

@@ -73,6 +73,8 @@ func TestExitCode(t *testing.T) {
 		{core.ErrInvalidTransition, 6},
 		{core.ErrMissingAttribution, 2},
 		{core.ErrDanglingRefs, 7},
+		{core.ErrPostAction, 5},
+		{&core.PostActionError{Cause: "x"}, 5}, // typed form still maps to 5 via Is()
 	}
 	for _, c := range cases {
 		if got := exitCode(c.err); got != c.want {
