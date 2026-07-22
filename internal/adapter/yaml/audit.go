@@ -55,5 +55,10 @@ func (s *AuditStore) Append(e mtt.AuditEntry) error {
 	if err := f.Sync(); err != nil {
 		return fmt.Errorf("audit: sync: %w", err)
 	}
+	// The first-ever append O_CREATEs the file; without a directory fsync that
+	// new dirent can vanish with a crash even though the line itself is synced.
+	if err := syncDir(dir); err != nil {
+		return fmt.Errorf("audit: %w", err)
+	}
 	return nil
 }

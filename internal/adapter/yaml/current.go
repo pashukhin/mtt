@@ -109,7 +109,10 @@ func (c *Current) upsert(mutate func(root *goyaml.Node)) error {
 	if err != nil {
 		return fmt.Errorf("marshal %s: %w", c.path(), err)
 	}
-	return atomicWrite(c.path(), out)
+	// A fresh config.local.yaml lands 0600 (an existing one keeps its mode):
+	// this personal, gitignored overlay is the documented home for data up to
+	// backend credentials — never the store-wide world-readable 0644 (c18).
+	return atomicWriteMode(c.path(), out, 0o600)
 }
 
 // documentRoot returns the root mapping node of a parsed document (nil if empty).

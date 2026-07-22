@@ -95,26 +95,42 @@ func (s *NoteStore) GetNote(slug mtt.NoteSlug) (mtt.Note, error) {
 	return note, nil
 }
 
-// UpdateNote overwrites an existing note by n.Slug; missing note -> ErrNotFound.
+// UpdateNote overwrites an existing note by n.Slug; missing note -> ErrNotFound
+// — including a zero-byte reserve artifact (c18, same policy as the task store).
 func (s *NoteStore) UpdateNote(n mtt.Note) (mtt.Note, error) {
 	path, err := s.notePath(n.Slug)
 	if err != nil {
 		return mtt.Note{}, err
 	}
-	if _, err := os.Stat(path); err != nil {
+	info, err := os.Stat(path)
+	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			return mtt.Note{}, mtt.ErrNotFound
 		}
 		return mtt.Note{}, fmt.Errorf("stat %s: %w", path, err)
 	}
+	if info.Size() == 0 {
+		return mtt.Note{}, mtt.ErrNotFound
+	}
 	return s.write(n, path)
 }
 
-// DeleteNote removes .mtt/knowledge/<slug>.md; missing note -> ErrNotFound.
+// DeleteNote removes .mtt/knowledge/<slug>.md; missing note -> ErrNotFound —
+// including a zero-byte reserve artifact (c18, same policy as the task store).
 func (s *NoteStore) DeleteNote(slug mtt.NoteSlug) error {
 	path, err := s.notePath(slug)
 	if err != nil {
 		return err
+	}
+	info, err := os.Stat(path)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return mtt.ErrNotFound
+		}
+		return fmt.Errorf("stat %s: %w", path, err)
+	}
+	if info.Size() == 0 {
+		return mtt.ErrNotFound
 	}
 	if err := os.Remove(path); err != nil {
 		if errors.Is(err, os.ErrNotExist) {

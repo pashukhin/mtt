@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"syscall"
 )
 
 // ErrAlreadyInitialized is returned by Init when config exists and force is false.
@@ -62,17 +63,32 @@ func writeGitignore(dir string) error {
 	return nil
 }
 
-// filePerm is the store's single write-perm policy (c18): every file atomicWrite
-// lands gets 0644 — the git-checkout default, so fresh writes and checked-out
-// files agree cross-machine (CreateTemp's 0600 must not leak through).
+// filePerm is the store's write-perm policy for NEW files (c18): 0644, the
+// git-checkout default, so fresh writes and checked-out files agree
+// cross-machine (CreateTemp's 0600 must not leak through). An existing file
+// keeps its own mode (installer-style preserve) — the store never silently
+// loosens a deliberately-tightened file.
 const filePerm = 0o644
 
-// atomicWrite writes data to path via a temp file in the same directory + rename,
-// with the installer's durability discipline (c18): chmod to the uniform perm,
-// fsync the file before close (the rename must never promote un-flushed bytes —
-// this is the source of truth), and fsync the parent directory after the rename
-// so the new directory entry itself survives a crash.
+// atomicWrite writes data to path via a temp file in the same directory +
+// rename, with the installer's durability discipline (c18): chmod (preserve an
+// existing target's mode, else filePerm), fsync the file before close (the
+// rename must never promote un-flushed bytes — this is the source of truth),
+// and fsync the parent directory after the rename so the new directory entry
+// itself survives a crash.
 func atomicWrite(path string, data []byte) error {
+	return atomicWriteMode(path, data, filePerm)
+}
+
+// atomicWriteMode is atomicWrite with an explicit fallback mode for a NEW file
+// (an existing target's mode always wins). The Current store uses 0600 for a
+// fresh config.local.yaml — the documented home for personal data up to backend
+// credentials.
+func atomicWriteMode(path string, data []byte, fallback os.FileMode) error {
+	mode := fallback
+	if info, err := os.Stat(path); err == nil {
+		mode = info.Mode().Perm()
+	}
 	f, err := os.CreateTemp(filepath.Dir(path), ".config-*.tmp")
 	if err != nil {
 		return fmt.Errorf("create temp: %w", err)
@@ -83,7 +99,7 @@ func atomicWrite(path string, data []byte) error {
 		_ = os.Remove(tmp)
 		return fmt.Errorf("write temp: %w", err)
 	}
-	if err := f.Chmod(filePerm); err != nil {
+	if err := f.Chmod(mode); err != nil {
 		_ = f.Close()
 		_ = os.Remove(tmp)
 		return fmt.Errorf("chmod temp: %w", err)
@@ -101,20 +117,28 @@ func atomicWrite(path string, data []byte) error {
 		_ = os.Remove(tmp)
 		return fmt.Errorf("rename temp: %w", err)
 	}
+	// The rename has landed; a syncDir failure below surfaces as a write error
+	// even though the content is in place (a retrying Create would mint a fresh
+	// id and leave this one a consumed reserve artifact — safe, just wasteful).
+	// Fail-loud is deliberate: a store that cannot make its writes durable
+	// should say so.
 	return syncDir(filepath.Dir(path))
 }
 
-// syncDir fsyncs a directory so a just-renamed entry is durable. Best-effort on
-// platforms where a directory handle cannot be synced (Windows returns an error
-// for it) — the write itself is already flushed, only the entry's durability
-// window stays platform-dependent there.
+// syncDir fsyncs a directory so a just-renamed entry is durable. Best-effort
+// where a directory handle cannot be synced: Windows (FlushFileBuffers on a
+// directory fails), filesystems reporting unsupported, and mounts (some
+// network/FUSE) that return EINVAL for directory fsync — git tolerates EINVAL
+// the same way. The write itself is already flushed; only the entry's
+// durability window stays platform-dependent there.
 func syncDir(dir string) error {
 	d, err := os.Open(dir)
 	if err != nil {
 		return fmt.Errorf("open dir %s: %w", dir, err)
 	}
 	defer func() { _ = d.Close() }()
-	if err := d.Sync(); err != nil && !errors.Is(err, errors.ErrUnsupported) {
+	if err := d.Sync(); err != nil &&
+		!errors.Is(err, errors.ErrUnsupported) && !errors.Is(err, syscall.EINVAL) {
 		if runtime.GOOS == "windows" {
 			return nil
 		}

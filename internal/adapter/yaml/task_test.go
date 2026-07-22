@@ -67,6 +67,57 @@ func TestReserveArtifactIsInvisibleAndNeverReminted(t *testing.T) {
 	}
 }
 
+func TestAtomicWritePreservesExistingMode(t *testing.T) {
+	root := initHierarchy(t)
+	s := NewTaskStore(root)
+	created, err := s.Create(mtt.Task{Type: "task", Title: "A", Status: "tbd", Created: fixedTime(), Updated: fixedTime()})
+	if err != nil {
+		t.Fatalf("create: %v", err)
+	}
+	// A deliberately-tightened mode survives an update (installer-style
+	// preserve-existing; the 0644 policy applies to NEW files only) — the store
+	// must never silently loosen what the user restricted.
+	path := filepath.Join(root, ".mtt", "tasks", string(created.ID)+".yaml")
+	if err := os.Chmod(path, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	created.Title = "B"
+	if _, err := s.Update(created); err != nil {
+		t.Fatalf("update: %v", err)
+	}
+	info, err := os.Stat(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if perm := info.Mode().Perm(); perm != 0o600 {
+		t.Fatalf("update loosened a user-tightened mode: %o, want 600", perm)
+	}
+}
+
+func TestUpdateAndDeleteRejectReserveArtifact(t *testing.T) {
+	root := initHierarchy(t)
+	s := NewTaskStore(root)
+	artifact := filepath.Join(root, ".mtt", "tasks", "t7.yaml")
+	if err := os.MkdirAll(filepath.Dir(artifact), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(artifact, nil, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	// The artifact must be invisible on EVERY port path: an Update through the
+	// raw port must not resurrect a "not found" id, and a Delete must not free
+	// the consumed id back to mint.
+	if _, err := s.Update(mtt.Task{ID: "t7", Type: "task", Status: "tbd", Created: fixedTime(), Updated: fixedTime()}); !errors.Is(err, mtt.ErrNotFound) {
+		t.Fatalf("Update on a reserve artifact = %v; want ErrNotFound", err)
+	}
+	if err := s.Delete("t7"); !errors.Is(err, mtt.ErrNotFound) {
+		t.Fatalf("Delete on a reserve artifact = %v; want ErrNotFound", err)
+	}
+	if _, err := os.Stat(artifact); err != nil {
+		t.Fatalf("the artifact file must survive (id stays consumed): %v", err)
+	}
+}
+
 func TestWritePermsUniform(t *testing.T) {
 	root := initHierarchy(t)
 	s := NewTaskStore(root)
