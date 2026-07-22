@@ -57,6 +57,23 @@ func TestInitWritesGitignore(t *testing.T) {
 	}
 }
 
+func TestInitHealsMissingGitignore(t *testing.T) {
+	root := t.TempDir()
+	if err := Init(root, "default", "demo", false); err != nil {
+		t.Fatalf("init: %v", err)
+	}
+	gi := filepath.Join(root, ".mtt", ".gitignore")
+	if err := os.Remove(gi); err != nil {
+		t.Fatal(err)
+	}
+	if err := Init(root, "default", "demo", false); !errors.Is(err, ErrAlreadyInitialized) {
+		t.Fatalf("re-init err = %v, want ErrAlreadyInitialized", err)
+	}
+	if _, err := os.Stat(gi); err != nil {
+		t.Fatalf("re-init did not heal the missing .gitignore: %v", err)
+	}
+}
+
 func TestInitKeepsExistingGitignore(t *testing.T) {
 	root := t.TempDir()
 	dir := filepath.Join(root, ".mtt")

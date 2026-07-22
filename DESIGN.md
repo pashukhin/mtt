@@ -182,6 +182,7 @@ the Gantt chart, and dependencies are computed in memory. SQLite isn't needed fo
 .mtt/
   config.yaml            # project, task types, and flow (shared, committed)
   config.local.yaml      # personal overlay: connection params, local prefs (gitignored)
+  .gitignore             # written by init: ignores config.local.yaml (create-if-absent)
   tasks/
     e1.yaml              # epic 1
     t17.yaml             # task 17 (parent: e1)
