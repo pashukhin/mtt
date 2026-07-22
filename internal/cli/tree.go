@@ -16,9 +16,12 @@ import (
 func newTreeCmd() *cobra.Command {
 	var (
 		statuses    []string
+		types       []string
 		kinds       []string
+		priorities  []string
 		tags        []string
 		excludeTags []string
+		parent      string
 		depth       int
 	)
 	cmd := &cobra.Command{
@@ -32,6 +35,10 @@ func newTreeCmd() *cobra.Command {
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			kindVals, err := parseKinds(kinds)
+			if err != nil {
+				return err
+			}
+			prioVals, err := toPriorities(priorities)
 			if err != nil {
 				return err
 			}
@@ -74,7 +81,11 @@ func newTreeCmd() *cobra.Command {
 			for i, s := range statuses {
 				statusNames[i] = mtt.StatusName(s)
 			}
-			f := core.ListFilter{Statuses: statusNames, Kinds: kindVals, Tags: tagVals, ExcludeTags: excludeTagVals}
+			f := core.ListFilter{
+				Statuses: statusNames, Types: toTypeNames(types), Kinds: kindVals,
+				Priorities: prioVals, Tags: tagVals, ExcludeTags: excludeTagVals,
+				Parent: mtt.TaskID(parent),
+			}
 			if jsonFlag(cmd) {
 				return writeJSON(cmd.OutOrStdout(), buildTreeJSON(idx, roots, f, cfg, depth))
 			}
@@ -83,9 +94,12 @@ func newTreeCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().StringArrayVar(&statuses, "status", nil, "filter by status (repeatable)")
+	cmd.Flags().StringArrayVar(&types, "type", nil, "filter by type (repeatable)")
 	cmd.Flags().StringArrayVar(&kinds, "kind", nil, "filter by status category: initial|active|terminal (repeatable)")
+	cmd.Flags().StringArrayVar(&priorities, "priority", nil, "filter by priority: high|medium|low (repeatable)")
 	cmd.Flags().StringSliceVar(&tags, "tag", nil, "filter by tag (repeatable, comma-separated)")
 	cmd.Flags().StringSliceVar(&excludeTags, "exclude-tag", nil, "exclude tasks carrying this tag (repeatable, comma-separated)")
+	cmd.Flags().StringVar(&parent, "parent", "", "only direct children of this task id")
 	cmd.Flags().IntVar(&depth, "depth", 0, "limit visible levels (0 = unlimited)")
 	return cmd
 }
