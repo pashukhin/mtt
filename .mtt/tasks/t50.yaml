@@ -1,13 +1,13 @@
 id: t50
 type: task
 title: 'tool-wide --tag ergonomics: accept comma-separated values (like --depends-on) + clearer too-many-positionals error on add/note add (StringArrayVar takes one value; extras become positionals; space-separated is unfixable)'
-status: approved
+status: done
 priority: low
 tags:
     - backlog
     - ux
 created: "2026-07-19T16:27:33Z"
-updated: "2026-07-22T04:54:39Z"
+updated: "2026-07-22T04:59:15Z"
 history:
     - at: "2026-07-22T03:35:30Z"
       by: Grigorii Pashukhin
@@ -92,3 +92,12 @@ history:
       by: Grigorii Pashukhin
       from: impl_review
       to: approved
+    - at: "2026-07-22T04:59:15Z"
+      by: Grigorii Pashukhin
+      from: approved
+      to: done
+      checks:
+        - cmd: git switch main
+          exit: 0
+        - cmd: 'git log -n 200 --format=%s | grep "^t50: " || { echo "no squash commit \"t50: …\" on local main: git pull first, and check the PR/merge title started with \"t50: \"" >&2; false; }'
+          exit: 0
