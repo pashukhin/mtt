@@ -84,8 +84,8 @@ func newTreeCmd() *cobra.Command {
 	}
 	cmd.Flags().StringArrayVar(&statuses, "status", nil, "filter by status (repeatable)")
 	cmd.Flags().StringArrayVar(&kinds, "kind", nil, "filter by status category: initial|active|terminal (repeatable)")
-	cmd.Flags().StringArrayVar(&tags, "tag", nil, "filter by tag (repeatable)")
-	cmd.Flags().StringArrayVar(&excludeTags, "exclude-tag", nil, "exclude tasks carrying this tag (repeatable)")
+	cmd.Flags().StringSliceVar(&tags, "tag", nil, "filter by tag (repeatable, comma-separated)")
+	cmd.Flags().StringSliceVar(&excludeTags, "exclude-tag", nil, "exclude tasks carrying this tag (repeatable, comma-separated)")
 	cmd.Flags().IntVar(&depth, "depth", 0, "limit visible levels (0 = unlimited)")
 	return cmd
 }

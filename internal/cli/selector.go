@@ -25,7 +25,7 @@ func addSelectorFilterFlags(cmd *cobra.Command) {
 	cmd.Flags().StringArray("type", nil, "select by type (repeatable)")
 	cmd.Flags().StringArray("kind", nil, "select by status category: initial|active|terminal (repeatable)")
 	cmd.Flags().StringArray("priority", nil, "select by priority: high|medium|low (repeatable)")
-	cmd.Flags().StringArray("tag", nil, "select by tag (repeatable)")
+	cmd.Flags().StringSlice("tag", nil, "select by tag (repeatable, comma-separated)")
 	cmd.Flags().String("parent", "", "select direct children of this task id")
 	cmd.Flags().Bool("ready", false, "select only ready tasks (no open blockers)")
 }
@@ -48,7 +48,7 @@ func readSelectorFilter(cmd *cobra.Command) (core.ListFilter, bool, error) {
 	types, _ := cmd.Flags().GetStringArray("type")
 	kinds, _ := cmd.Flags().GetStringArray("kind")
 	priorities, _ := cmd.Flags().GetStringArray("priority")
-	tags, _ := cmd.Flags().GetStringArray("tag")
+	tags, _ := cmd.Flags().GetStringSlice("tag")
 	parent, _ := cmd.Flags().GetString("parent")
 	ready, _ := cmd.Flags().GetBool("ready")
 	kindVals, err := parseKinds(kinds)
