@@ -1,0 +1,10 @@
+id: c12
+type: chore
+title: expose depends_on in task JSON and human show — the stored field is invisible in the agent contract
+status: tbd
+tags:
+    - core
+    - dx
+created: "2026-07-22T08:01:24Z"
+updated: "2026-07-22T08:01:24Z"
+description: 'Verified (audit 2026-07-22): depends_on is stored on disk but absent from show --json, list --json and human show; an agent must call dep list per task, and roadmap blocked_by shows only non-terminal blockers. Fixed design: serialize depends_on (omitempty, like priority) in the task object everywhere it is emitted (show/list/add/rm --json), and add a depends line to human show listing blocker ids with their status, terminal ones and (missing) marked.'

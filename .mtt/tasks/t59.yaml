@@ -1,0 +1,14 @@
+id: t59
+type: task
+title: 'MILESTONE: pilot migration — move a neighboring project onto mtt and battle-test the flow in real work'
+status: tbd
+priority: high
+tags:
+    - release
+depends_on:
+    - c11
+    - c12
+    - t57
+created: "2026-07-22T08:01:24Z"
+updated: "2026-07-22T08:01:24Z"
+description: 'Definition of done: a neighboring project runs its day-to-day work on mtt with its own flow config (possibly different statuses/verbs than the dogfood flow), driven by agents, on real tasks long enough to trust the findings; every friction point is filed back as an mtt task. Blockers (audit 2026-07-22) are the adoption footguns: the init gitignore fix, a shippable flow template or adaptation guide, and the depends_on JSON contract gap. The article and public release wait for this pilot — see the release milestone.'

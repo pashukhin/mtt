@@ -4,7 +4,6 @@ title: 'mtt init: scaffold agent settings + hooks (sessionStart -> mtt prime, et
 status: tbd
 priority: medium
 tags:
-    - backlog
     - dx
     - kb
     - think
@@ -16,7 +15,7 @@ refs:
       id: t51
       label: 'motivates: prime session-start hook'
 created: "2026-07-20T12:06:25Z"
-updated: "2026-07-20T12:07:00Z"
+updated: "2026-07-22T08:01:24Z"
 description: |-
     Sibling of t46 (which scaffolds agent DOCS: AGENTS.md/CLAUDE.md/GEMINI.md). This task scaffolds agent CONFIG/HOOKS: per-harness settings that wire mtt into the agent loop. Headline: a sessionStart hook running mtt prime (t51 left the hook as config-not-code; this makes init emit it), plus a read-only-mtt permissions allowlist.
 

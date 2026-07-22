@@ -7,4 +7,5 @@ tags:
     - backlog
     - dx
 created: "2026-07-10T13:53:10Z"
-updated: "2026-07-12T01:21:41Z"
+updated: "2026-07-22T08:01:24Z"
+description: 'Parked grammar generalization: one resolution model for the mtt STATUS / mtt EDGE sugar before more sugar forms are added. Cross-note (audit 2026-07-22): the narrow wrong-status sugar miss — unknown command exit 1 where mtt do exits 6 and lists available actions — is fixed separately in the error-polish chore; this task remains the umbrella for the grammar itself.'
