@@ -47,7 +47,22 @@
   - `type PostActionError struct { Remaining []string; Cause string }` with `Error() string` and `Is(error) bool` (→ `ErrPostAction`).
   - `func runsOf(cmds []mtt.Command) []string` (extract `.Run`).
 
-- [ ] **Step 1: Write failing tests** — append to `internal/core/transition_test.go`:
+- [ ] **Step 1: Write failing tests** — first extend `fakeRunner`, then append the tests, to `internal/core/transition_test.go`.
+
+**Extend `fakeRunner`** (L14–22) with a **post-scoped** operational error — the plain `err` field fires on
+*every* `Run` including the empty pre-gate (which would block before POST), so we need one that fires only for
+a non-empty command slice (the post phase; the empty pre-gate stays clean). Add the field:
+```go
+	postOpErr  error         // when set, Run returns this operational error ONLY for a non-empty command slice (the post phase; the empty pre-gate passes)
+```
+and, as the **first** check inside `Run` (before the `failSubstr` derive-path), add:
+```go
+	if f.postOpErr != nil && len(commands) > 0 {
+		return nil, f.postOpErr
+	}
+```
+
+**Append the tests:**
 
 ```go
 func TestTransition_PostActionErrorRemaining(t *testing.T) {
@@ -74,11 +89,13 @@ func TestTransition_PostActionErrorRemaining(t *testing.T) {
 }
 
 func TestTransition_PostActionOperationalZeroChecks(t *testing.T) {
-	// Operational error with NO recorded checks -> Remaining = all expanded (guarded, no panic).
+	// Operational error in the POST phase with NO recorded checks -> Remaining = all
+	// expanded (guarded against len(pchecks)==0, no panic). postOpErr fires only for a
+	// non-empty command slice, so the empty pre-gate passes and only the post errors.
 	store := newMemStore(baseTask())
 	cfg := flowCfg(nil, nil)
 	cfg.Types[0].Transitions[0].Post = strCmds([]string{"echo a", "echo b"})
-	runner := &fakeRunner{err: errors.New("boom timeout")} // checks nil, err set -> Run returns (nil, err)
+	runner := &fakeRunner{postOpErr: errors.New("boom timeout")}
 	_, err := NewTransitioner(store, cfg, runner, testClock).Transition("t1", "in_progress", TransitionOptions{})
 	var pe *PostActionError
 	if !errors.As(err, &pe) {
@@ -238,8 +255,10 @@ import (
 	"testing"
 
 	"github.com/pashukhin/mtt/internal/core"
-	"github.com/pashukhin/mtt/pkg/mtt"
 )
+
+// (No pkg/mtt import: taskNotFound takes an untyped string constant, so mtt.TaskID
+// is never named here — importing pkg/mtt would be an unused-import compile error.)
 
 func TestExitHint(t *testing.T) {
 	attrib := fmt.Errorf("%w: who, why", core.ErrMissingAttribution)
@@ -455,23 +474,25 @@ This removes the old terse `if postFailed { Fprintf("move applied, but a post-ac
 L131–133 (superseded by the recovery block above, which now runs in both modes). Keep the `postFailed :=
 errors.Is(txErr, core.ErrPostAction)` computation and the early `return txErr` for non-post errors unchanged.
 
-- [ ] **Step 4: Add exit-6 e2e** — append to `internal/cli/testdata/scripts/actionable_errors.txt` (reuse its `req.yaml` task type):
+- [ ] **Step 4: Add exit-6 e2e** — append to `internal/cli/testdata/scripts/actionable_errors.txt` (reuse its
+`req.yaml` task type). No script re-sequencing is needed: `t1` is still in `tbd` here (the earlier
+`! exec mtt in_progress t1` failed with exit 2 for missing who/why, and `! exec mtt rm t1 --force` failed with
+exit 2 for the same reason — a `--force` pre-flight, so **`t1` is never actually removed**).
 
 ```
-# exit 6: an impossible move lists the allowed targets (already actionable).
-exec mtt in_progress t1 --who a --why b
+# exit 6: an impossible move from tbd (there is no tbd->done edge) lists the allowed
+# targets. findTransition is checked BEFORE attribution, so this needs no --who/--why.
 ! exec mtt done t1
-stderr 'allowed from in_progress'
+stderr 'allowed from tbd'
 
-# exit 6 out of a TERMINAL status reads cleanly (no dangling 'allowed from done: ').
+# drive t1 to a terminal (with attribution), then an impossible move OUT of it reads
+# cleanly — no dangling 'allowed from done: '.
+exec mtt in_progress t1 --who a --why b
 exec mtt done t1 --who a --why b
 ! exec mtt in_progress t1 --who a --why b
 stderr 'no moves out of done'
-! stderr 'allowed from done: *$'
+! stderr 'allowed from done:'
 ```
-(Adjust the earlier part of the script: t1 must not be removed before these lines — move the `rm t1 --force`
-exit-2 check to a second task `t2`, or place these exit-6 lines before the rm. Simplest: add `exec mtt add 'b'`
-→ `t2` and run the `rm --force` exit-2 check on `t2` so `t1` survives for the exit-6 flow.)
 
 - [ ] **Step 5: Run the e2e**
 
@@ -524,7 +545,10 @@ git commit -m "t28: docs — actionable errors (CLI_REFERENCE EN/RU, DESIGN EN/R
 - **AC1** (exit-2 hint) → Task 2 (Steps 1–8).
 - **AC2** (exit-4 hint) → Task 2.
 - **AC3** (exit-5 recovery, unit + e2e text + `--json`) → Task 1 (unit) + Task 3 (e2e).
-- **AC4** (exit-6 verified + terminal parity) → Task 1 (core message) + Task 3 (e2e).
+- **AC4** (exit-6 verified + terminal parity) → Task 1 (core message) + Task 3 (e2e: core-path non-terminal +
+  terminal). The `mtt do <bogus-edge>` path is **already** exercised by the existing `do.txt`
+  (`stderr 'available:'`), so it needs no new script — Task 3 covers only the core/status path and the
+  terminal-status parity fix.
 - **AC5** (no hint bleed) → Task 2 (`TestExitHint` PostActionError/invalid→"").
 - **AC6** (exit codes unchanged) → Task 2 (`TestExitCode` + `*PostActionError`→5).
 - **AC7** (`make check` + docs) → every task's commit + Task 4.
