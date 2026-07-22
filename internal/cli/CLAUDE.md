@@ -65,11 +65,13 @@ wraps an `ErrBlocked` error with a `hint: re-run with -v or --log-file …` (the
 with `-v`/`--log-file` neither fires (output already visible). **Post-persist (t21):** `runTransition` holds
 the transition error in `txErr`; on `core.ErrPostAction` (the move IS persisted — only the post phase failed) it
 **falls through** to render the move (a **local `e`** for the `Fprintf` writes, never `txErr`, or a successful
-write would clobber the sentinel and lose exit 5). **Actionable recovery (t28):** it `errors.As`-extracts the
-typed `*core.PostActionError` and prints a recovery block on stderr **before** the `--json`/text branch (so it
-shows in **both** modes) — `the status change IS saved; do NOT re-run the move` + the exact remaining `post:`
-commands (`pe.Remaining`), one per indented line; the cause is left to `Execute`'s `error:` line (no dup). The
-old terse `move applied, but a post-action failed: …` echo is gone. **`Execute()`
+write would clobber the sentinel and lose exit 5). **Actionable recovery (t28):** it renders the move **first**
+(`--json` task object on stdout, else the move line + guidance), then `errors.As`-extracts the typed
+`*core.PostActionError` and prints a recovery block on stderr in **both** modes — `the status change IS saved;
+do NOT re-run the move` + the exact remaining `post:` commands (`pe.Remaining`), one per indented line. Printing
+it **after** the render keeps the order `move-line → recovery → Execute's error:` line (not an inverted "move
+applied" before the move); the cause is left to `Execute`'s `error:` line (no dup). The old terse
+`move applied, but a post-action failed: …` echo is gone. **`Execute()`
 returns an `int` exit code** (`exitCode`: `core.ErrBlocked`→3, `core.ErrInvalidTransition`→6,
 `core.ErrMissingAttribution`→2, `core.ErrPostAction`→5, else 1) and, before returning, prints the context-free
 **`exitHint(err)`** block (`errors.go`) under the `error:` line — exit 2 → how to set who/why, exit 4 → point at

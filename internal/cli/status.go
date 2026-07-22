@@ -110,10 +110,29 @@ func runTransition(cmd *cobra.Command, root string, cfg mtt.Config, settings yam
 	if err := applyCurrent(root, cfg, task, id); err != nil {
 		return fmt.Errorf("transition applied but updating the current pointer failed: %w", err)
 	}
-	// exit-5 (t28): the move IS persisted; print the recovery block on stderr in BOTH
-	// text and --json mode (an agent driving --json must still see how to finish). The
-	// cause is left to Execute's `error:` line — here we add the idempotence warning and
-	// the exact remaining post commands.
+	// Render the move FIRST (it happened): --json emits the task object on stdout, text
+	// prints the move line + guidance. NB: local `e` for the render writes — never txErr,
+	// or a successful write would clobber ErrPostAction to nil and lose exit 5.
+	if jsonFlag(cmd) {
+		if e := writeJSON(cmd.OutOrStdout(), toTaskJSON(task)); e != nil {
+			return e
+		}
+	} else {
+		last := task.History[len(task.History)-1]
+		out := cmd.OutOrStdout()
+		if _, e := fmt.Fprintf(out, "%s: %s → %s\n", id, last.From, last.To); e != nil {
+			return e
+		}
+		if g := moveGuidance(cfg, task.Type, last.From, last.To); g != "" {
+			if _, e := fmt.Fprint(out, g); e != nil {
+				return e
+			}
+		}
+	}
+	// exit-5 (t28): AFTER the move is rendered (it IS persisted), print the recovery block
+	// on stderr in BOTH modes — so the order reads move-render → recovery → Execute's
+	// `error:` line, not the inverted "move applied" before the move line. The cause is
+	// left to Execute; here we add the idempotence warning + the exact remaining commands.
 	if postFailed {
 		var pe *core.PostActionError
 		if errors.As(txErr, &pe) {
@@ -125,25 +144,7 @@ func runTransition(cmd *cobra.Command, root string, cfg mtt.Config, settings yam
 			}
 		}
 	}
-	if jsonFlag(cmd) {
-		if err := writeJSON(cmd.OutOrStdout(), toTaskJSON(task)); err != nil {
-			return err
-		}
-		return txErr // ErrPostAction → exit 5 even in --json
-	}
-	last := task.History[len(task.History)-1]
-	out := cmd.OutOrStdout()
-	// NB: local `e` for the render writes — never txErr, or a successful write would
-	// clobber ErrPostAction to nil and lose exit 5 in text mode.
-	if _, e := fmt.Fprintf(out, "%s: %s → %s\n", id, last.From, last.To); e != nil {
-		return e
-	}
-	if g := moveGuidance(cfg, task.Type, last.From, last.To); g != "" {
-		if _, e := fmt.Fprint(out, g); e != nil {
-			return e
-		}
-	}
-	return txErr
+	return txErr // nil on success, ErrPostAction → exit 5 in both modes
 }
 
 // applyCurrent moves the personal current-task pointer per the edge just
