@@ -81,12 +81,15 @@ func atomicWrite(path string, data []byte) error {
 }
 
 // atomicWriteMode is atomicWrite with an explicit fallback mode for a NEW file
-// (an existing target's mode always wins). The Current store uses 0600 for a
-// fresh config.local.yaml — the documented home for personal data up to backend
-// credentials.
+// (a non-empty existing target's mode wins). A zero-byte target is the O_EXCL
+// reserve artifact — "absent" on every store path, so its umask-filtered mode
+// must not masquerade as a user-tightened one (else a create under umask 077
+// would land 0600 and break the documented new-file policy). The Current store
+// uses 0600 for a fresh config.local.yaml — the documented home for personal
+// data up to backend credentials.
 func atomicWriteMode(path string, data []byte, fallback os.FileMode) error {
 	mode := fallback
-	if info, err := os.Stat(path); err == nil {
+	if info, err := os.Stat(path); err == nil && info.Size() > 0 {
 		mode = info.Mode().Perm()
 	}
 	f, err := os.CreateTemp(filepath.Dir(path), ".config-*.tmp")
