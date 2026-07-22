@@ -72,6 +72,19 @@ Concretely:
 
 Callers: `status.go:126` (`moveGuidance` — `task.ID` available), `show.go:44` (`statusGuidance`) + `:87`
 (`formatNextMoves` — `task` available), and the `formatNextMoves` call inside `moveGuidance` (threads its `id`).
+The signature change also breaks the existing `guidance_test.go` `formatNextMoves(...)` callers (old arity) —
+they are updated in the same change (a compile break, so self-catching; the plan lists it).
+
+**`mtt show --json` must be expanded too (the primary agent surface).** `show.go:44` computes
+`statusGuidance` **once** and feeds both the human render and `toShowJSON`, so `status_description` in `--json`
+is already expanded via `statusGuidance`. But the onward `next[].description` in JSON comes from
+`json.go`'s `nextMoveJSON{Description: e.Description}` — the **raw** transition text, bypassing
+`formatNextMoves`. Left alone, `--json` would ship `status_description` expanded next to `next[].description`
+raw — inconsistent, and an agent reading `--json` (the main consumer) would still see `{{.ID}}`. So
+**`toShowJSON` expands `next[].description`** via `core.ExpandText(e.Description, task.ID, task.Type, e.From,
+e.To)` — `--json` is then fully expanded and consistent with the human output. (The move path's `--json` emits
+only `toTaskJSON` — no description — so it needs no change; `mtt types`/`writeTypeBlock` renders the flow
+**schema** with no task in scope, so it stays raw — there is no `.ID` to expand, consistent by nature.)
 
 ### D3 — Dogfood: use `{{.ID}}` in a few repo descriptions (demo)
 
@@ -85,7 +98,9 @@ ones where expansion is clearly useful; `<slug>` stays literal, there is no slug
 ## Scope
 
 **In:** `core.ExpandText` (+ unit tests); expansion wired into `moveGuidance`/`formatNextMoves`/`statusGuidance`
-(signatures gain `id`/`type`); a few repo `.mtt/config.yaml` descriptions switched to `{{.ID}}`; e2e; docs sync.
+(signatures gain `id`/`type`) **and `toShowJSON`** (so `show --json`'s `status_description` + `next[].description`
+are expanded — the primary agent surface); the `guidance_test.go` caller updates for the new arity; a few repo
+`.mtt/config.yaml` descriptions switched to `{{.ID}}`; e2e; docs sync.
 
 **Out:**
 - **Expanding `title`/free text as a placeholder source** — the whitelist stays `{ID,Type,From,To}` (safety).
@@ -101,13 +116,17 @@ ones where expansion is clearly useful; `<slug>` stays literal, there is no slug
 2. **Move guidance expands (e2e).** A config whose `tbd→active` edge description is `create branch
    task/{{.ID}}` and whose destination status description references `{{.ID}}` — after `mtt <status> <id>`, the
    printed guidance shows the **concrete** id (`task/t1`), not `{{.ID}}`/`<id>`.
-3. **Show guidance expands (e2e).** `mtt show t1` renders the current-status description and the `next:` onward
-   descriptions with placeholders expanded (node rule: `{{.From}}`/`{{.To}}` in a status description both render
-   the current status; an onward edge description renders its own `from`/`to`).
+3. **Show guidance expands, human + `--json` (e2e).** `mtt show t1` (human) renders the current-status
+   description and the `next:` onward descriptions with placeholders expanded (node rule: `{{.From}}`/`{{.To}}`
+   in a status description both render the current status; an onward edge description renders its own
+   `from`/`to`). **`mtt show t1 --json`** emits **both** `status_description` **and** `next[].description` with
+   placeholders expanded (the F1 consistency guard — no raw `{{.ID}}` survives in either JSON field).
 4. **Best-effort in situ (e2e).** A description containing `{{.Title}}` (unknown field) renders **verbatim**
    (raw `{{.Title}}`), and the command still exits 0 — guidance never breaks the move/show.
-5. **Dogfood config still valid.** `TestRepoDogfoodConfig` stays green after the D3 edits; `mtt roadmap`/`mtt
-   show` on this repo render the expanded descriptions (spot-check on `impl_review`).
+5. **Dogfood config still valid.** `TestRepoDogfoodConfig` stays green after the D3 edits; on this repo,
+   `mtt show <a tbd task>` renders a D3-changed description with the concrete id (e.g. the `start` edge's
+   `task/{{.ID}}` → `task/t16`, or a `speccing` task's `docs/superpowers/specs/{{.ID}}-…`) — spot-checked on
+   `impl_review` against a description that actually carries a placeholder (not a raw==expanded no-op).
 6. `make check` green. Docs synced (below).
 
 ## Testing approach
@@ -127,7 +146,10 @@ Grep **all** parallel occurrences (EN + RU) before editing.
   {{.To}}` placeholders now expand in **shown descriptions/guidance** too (best-effort: raw on error; node
   descriptions see `From=To=status`), not just `commands`. One parallel clause each.
 - **`CLI_REFERENCE.md ↔ .ru.md`:** where transition `description`/guidance is documented, mention the
-  placeholder expansion (and that a bad template degrades to raw). Grep for `description`/`guidance`.
+  placeholder expansion (in human **and** `--json` output; a bad template degrades to raw). **Note the node
+  rule:** in a **status** (node) description `{{.From}}`/`{{.To}}` both render that status's own name (a status
+  is not a transition), so authors shouldn't expect edge/direction semantics there. Grep for
+  `description`/`guidance`.
 - **`CHANGELOG.md`** `[Unreleased]` → **Changed** (or Added): shown flow descriptions/guidance now expand the
   `{{.ID}}`/`{{.Type}}`/`{{.From}}`/`{{.To}}` placeholders (best-effort), so guidance names the concrete task.
 - **CLAUDE.md:** `internal/core` (`ExpandText` — the lenient sibling of `expandCommands`) and `internal/cli`
