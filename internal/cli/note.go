@@ -345,7 +345,7 @@ func newNoteEditCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().StringVar(&title, "title", "", "new title")
-	cmd.Flags().StringSliceVar(&tags, "tag", nil, "replace the tag set (repeatable, comma-separated)")
+	cmd.Flags().StringSliceVar(&tags, "tag", nil, "replace the tag set (repeatable, comma-separated; --tag '' clears it)")
 	cmd.Flags().StringVar(&priority, "priority", "", "new priority: high|medium|low (empty string clears it)")
 	cmd.Flags().StringVar(&body, "body", "", "new body (markdown)")
 	cmd.Flags().StringVar(&file, "file", "", "read the new body from a file ('-' for stdin)")
