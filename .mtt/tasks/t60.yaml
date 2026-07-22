@@ -15,6 +15,10 @@ depends_on:
     - t58
     - c13
     - c14
+    - t2
+    - c16
+    - c17
+    - c18
 created: "2026-07-22T08:01:24Z"
-updated: "2026-07-22T08:01:24Z"
+updated: "2026-07-22T08:39:40Z"
 description: 'Definition of done: docs facade truthful (t42 incl. CHANGELOG and DESIGN fixes), the pilot migration delivered and its findings triaged, concurrency lost-update addressed (t10 — minimum acceptable: a write lock around task-file read-modify-write or a documented single-writer contract), init scaffolding for adopters (t46 docs, t52 hooks), integrity and text-hygiene audit fixes landed; then the Medium article and the announced release.'

@@ -1,0 +1,9 @@
+id: c18
+type: chore
+title: 'durability: fsync in atomicWrite + audit append; self-identifying mint reservation; consistent file perms'
+status: tbd
+tags:
+    - adapter
+created: "2026-07-22T08:39:39Z"
+updated: "2026-07-22T08:39:39Z"
+description: 'Arch review 2026-07-22: the storage adapter''s atomicWrite (init.go) does temp-write -> Close -> Rename with NO f.Sync() and no parent-dir fsync, while the installer''s replace_unix.go already does Sync+Chmod right — the discipline exists in-repo, just not where the source of truth is written. audit.log Append (audit.go) also has no fsync, undercutting the ''no destruction without a trail'' guarantee. Separately, mint reserves the next id as a 0-byte O_EXCL file BEFORE content is written (mint.go), so a crash between reserve and Create bricks every list/roadmap/ready/tree (empty id -> toDomain fails, fail-stop List); make the reservation self-identifying or skip 0-byte files in both List and mint''s scan. And unify file perms (fresh writes land 0600 via CreateTemp, committed files come back 0644 — noisy cross-machine): pick one policy and Chmod in atomicWrite, mirroring the installer. All small, all copy the installer''s existing discipline.'
