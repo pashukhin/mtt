@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 )
 
 // ErrAlreadyInitialized is returned by Init when config exists and force is false.
@@ -61,7 +62,16 @@ func writeGitignore(dir string) error {
 	return nil
 }
 
-// atomicWrite writes data to path via a temp file in the same directory + rename.
+// filePerm is the store's single write-perm policy (c18): every file atomicWrite
+// lands gets 0644 — the git-checkout default, so fresh writes and checked-out
+// files agree cross-machine (CreateTemp's 0600 must not leak through).
+const filePerm = 0o644
+
+// atomicWrite writes data to path via a temp file in the same directory + rename,
+// with the installer's durability discipline (c18): chmod to the uniform perm,
+// fsync the file before close (the rename must never promote un-flushed bytes —
+// this is the source of truth), and fsync the parent directory after the rename
+// so the new directory entry itself survives a crash.
 func atomicWrite(path string, data []byte) error {
 	f, err := os.CreateTemp(filepath.Dir(path), ".config-*.tmp")
 	if err != nil {
@@ -73,6 +83,16 @@ func atomicWrite(path string, data []byte) error {
 		_ = os.Remove(tmp)
 		return fmt.Errorf("write temp: %w", err)
 	}
+	if err := f.Chmod(filePerm); err != nil {
+		_ = f.Close()
+		_ = os.Remove(tmp)
+		return fmt.Errorf("chmod temp: %w", err)
+	}
+	if err := f.Sync(); err != nil {
+		_ = f.Close()
+		_ = os.Remove(tmp)
+		return fmt.Errorf("sync temp: %w", err)
+	}
 	if err := f.Close(); err != nil {
 		_ = os.Remove(tmp)
 		return fmt.Errorf("close temp: %w", err)
@@ -80,6 +100,25 @@ func atomicWrite(path string, data []byte) error {
 	if err := os.Rename(tmp, path); err != nil {
 		_ = os.Remove(tmp)
 		return fmt.Errorf("rename temp: %w", err)
+	}
+	return syncDir(filepath.Dir(path))
+}
+
+// syncDir fsyncs a directory so a just-renamed entry is durable. Best-effort on
+// platforms where a directory handle cannot be synced (Windows returns an error
+// for it) — the write itself is already flushed, only the entry's durability
+// window stays platform-dependent there.
+func syncDir(dir string) error {
+	d, err := os.Open(dir)
+	if err != nil {
+		return fmt.Errorf("open dir %s: %w", dir, err)
+	}
+	defer func() { _ = d.Close() }()
+	if err := d.Sync(); err != nil && !errors.Is(err, errors.ErrUnsupported) {
+		if runtime.GOOS == "windows" {
+			return nil
+		}
+		return fmt.Errorf("sync dir %s: %w", dir, err)
 	}
 	return nil
 }

@@ -18,6 +18,14 @@ All notable changes to mtt are documented here. The format follows
   stored field was invisible outside `dep list`.
 
 ### Fixed
+- **Storage durability (c18).** Every store write (tasks, notes, config, `config.local.yaml`) is now
+  fsynced before the atomic rename and the parent directory is fsynced after it — a crash can no longer
+  promote un-flushed bytes or lose the just-renamed entry; `.mtt/audit.log` appends fsync too ("no
+  destruction without a trail" now survives power loss). One file-perm policy: everything lands `0644`
+  (the git-checkout default) instead of flip-flopping 0600/0644 across machines. A **zero-byte** task or
+  note file — the artifact of a crash inside the id-reserve window — no longer bricks every
+  `list`/`roadmap`/`ready`/`tree`: reads skip it (`show` of it is "not found"), and its id stays consumed
+  so dangling references are never silently re-pointed.
 - **`dep list --tree --json` no longer drops diamond dependencies (c16).** A node reachable through two
   branches (t1→{t2,t3}, both→t4) was emitted only under the first branch — the second looked
   dependency-free in the headline JSON. A revisited node now renders without children (the text tree's

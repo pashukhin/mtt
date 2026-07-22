@@ -810,7 +810,8 @@ lives right in tasks and comments; the "knowledge base" is them and the links be
 > struct DTO for deterministic order) + the markdown **body verbatim**; the slug is the **file name**, not
 > duplicated in frontmatter. Identity is an **explicit, structurally-validated `NoteSlug`** (kebab-ASCII —
 > the path-traversal guard, re-validated at every adapter path-building method and on load). `CreateNote` is
-> **reserve-then-write** (`O_CREATE|O_EXCL` then atomic temp+rename) — no silent clobber. Tags reuse the task
+> **reserve-then-write** (`O_CREATE|O_EXCL` then atomic temp+rename) — no silent clobber; a zero-byte file
+> (a crash in the reserve window) is skipped by reads, not a load error (c18). Tags reuse the task
 > vocabulary (explicit `--tag` only — **no** hashtag extraction from the markdown body). A note is
 > **single-version** (history is git); note **versioning + full-text search stay deferred to t6** (separate
 > optional capabilities), and **all `refs` handling — including refs on notes — is t1**. `mtt.ErrNotFound` is

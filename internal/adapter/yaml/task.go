@@ -136,6 +136,9 @@ func (s *Store) List() ([]mtt.Task, error) {
 		if err != nil {
 			return nil, fmt.Errorf("read %s: %w", path, err)
 		}
+		if len(data) == 0 {
+			continue // mint reserve artifact (c18) — an id reserved but never written; not corruption
+		}
 		task, err := parseTaskFile(path, data)
 		if err != nil {
 			return nil, err
@@ -145,7 +148,8 @@ func (s *Store) List() ([]mtt.Task, error) {
 	return tasks, nil
 }
 
-// Get loads a task by ID, returning mtt.ErrNotFound when the file is absent.
+// Get loads a task by ID, returning mtt.ErrNotFound when the file is absent —
+// or zero-byte: a mint reserve artifact (c18) is "no such task", not corruption.
 func (s *Store) Get(id mtt.TaskID) (mtt.Task, error) {
 	path := filepath.Join(s.root, dirName, tasksDirName, string(id)+".yaml")
 	data, err := os.ReadFile(path)
@@ -154,6 +158,9 @@ func (s *Store) Get(id mtt.TaskID) (mtt.Task, error) {
 			return mtt.Task{}, mtt.ErrNotFound
 		}
 		return mtt.Task{}, fmt.Errorf("read %s: %w", path, err)
+	}
+	if len(data) == 0 {
+		return mtt.Task{}, mtt.ErrNotFound
 	}
 	return parseTaskFile(path, data)
 }

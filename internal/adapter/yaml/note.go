@@ -85,6 +85,9 @@ func (s *NoteStore) GetNote(slug mtt.NoteSlug) (mtt.Note, error) {
 		}
 		return mtt.Note{}, fmt.Errorf("read %s: %w", path, err)
 	}
+	if len(data) == 0 {
+		return mtt.Note{}, mtt.ErrNotFound // CreateNote reserve artifact (c18) — "no such note"
+	}
 	note, err := parseNote(slug, data)
 	if err != nil {
 		return mtt.Note{}, fmt.Errorf("%s: %w", path, err)
@@ -147,6 +150,9 @@ func (s *NoteStore) ListNotes() ([]mtt.Note, error) {
 		data, err := os.ReadFile(path)
 		if err != nil {
 			return nil, fmt.Errorf("read %s: %w", path, err)
+		}
+		if len(data) == 0 {
+			continue // CreateNote reserve artifact (c18) — reserved but never written; not corruption
 		}
 		note, err := parseNote(slug, data)
 		if err != nil {

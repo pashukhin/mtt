@@ -89,7 +89,9 @@ agent: **test-before-code** (TDD: red → green → refactor), the **Principles 
   reviewed like code (see "Working under mtt"), and guarded by `TestRepoDogfoodConfig`.
 - IDs are **flat, per-prefix** (`e1`, `t17`) and independent of `title` **and of position** — re-parenting
   changes only the `parent` field, never the ID. (Hierarchy is stored in `parent`, computed for display.)
-- File writes are atomic (temp + rename); a new ID is created via `O_EXCL`.
+- File writes are atomic **and durable** (temp + chmod `0644` + fsync + rename + parent-dir fsync — one
+  perm policy, the git-checkout default); a new ID is created via `O_EXCL`. A zero-byte task/note file is
+  the reserve-window artifact (a crash between reserve and write): reads skip it, its id stays consumed.
 
 ## Tests
 
