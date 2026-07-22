@@ -1,14 +1,14 @@
 id: t28
 type: task
 title: 'Think: actionable attribution and post-failure errors — exit-2 hints author/MTT_BY setup, exit-5 prints the recovery commands'
-status: plan_human_review
+status: implementing
 priority: medium
 tags:
     - dx
     - release
     - think
 created: "2026-07-11T12:58:07Z"
-updated: "2026-07-22T02:34:44Z"
+updated: "2026-07-22T02:37:37Z"
 history:
     - at: "2026-07-20T17:51:47Z"
       by: Grigorii Pashukhin
@@ -67,3 +67,7 @@ history:
       by: Grigorii Pashukhin
       from: plan_review
       to: plan_human_review
+    - at: "2026-07-22T02:37:37Z"
+      by: Grigorii Pashukhin
+      from: plan_human_review
+      to: implementing
