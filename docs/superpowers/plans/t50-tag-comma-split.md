@@ -102,12 +102,14 @@ exec mtt show t5 --json
 ! stdout '"tags"'
 
 # AC6 (F3): note edit --tag '' clears the note's tag set (the second pinned shift).
+# NB: assert the tag VALUE is gone, NOT the "tags" key — noteJSON.tags has NO omitempty and
+# toNoteJSON coerces nil→[], so a cleared note emits "tags":[] (the key is always present).
 exec mtt note add n1 --tag keep
 exec mtt note show n1 --json
 stdout 'keep'
 exec mtt note edit n1 --tag ''
 exec mtt note show n1 --json
-! stdout '"tags"'
+! stdout 'keep'
 
 -- flow.yaml --
 version: 1
