@@ -12,13 +12,17 @@ stdout 'you are at active'
 # best-effort: a {{.Title}} in the onward description renders raw, and the move still succeeds.
 stdout '\{\{.Title\}\}'
 
-# show (text): current-status description (node rule: {{.To}} => the status name `active`, {{.ID}} => t1).
+# show (text): current-status description (node rule: {{.To}} => the status name `active`, {{.ID}} => t1) +
+# the onward `active→review` description `advance to {{.To}}` expanded (guards formatNextMoves).
 exec mtt show t1
 stdout 'you are at active \(id t1\)'
+stdout 'advance to review'
 
-# show --json: BOTH status_description AND next[].description expanded (no raw {{.ID}}).
+# show --json: status_description AND next[].description expanded (the onward `advance to review` proves
+# toShowJSON expands next[].description), and no raw {{.ID}} anywhere.
 exec mtt show t1 --json
 stdout '"status_description": *"[^"]*active'
+stdout 'advance to review'
 ! stdout '\{\{\.ID\}\}'
 
 -- flow.yaml --
@@ -31,7 +35,10 @@ types:
     statuses:
       - {name: tbd, kind: initial, default: true}
       - {name: active, kind: active, description: "you are at {{.To}} (id {{.ID}})"}
+      - {name: review, kind: active}
       - {name: done, kind: terminal}
     transitions:
       - {from: tbd, to: active, description: "create branch task/{{.ID}}"}
+      - {from: active, to: review, description: "advance to {{.To}}"}
       - {from: active, to: done, description: "close (from {{.From}}) — {{.Title}}"}
+      - {from: review, to: done}
