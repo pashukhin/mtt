@@ -124,8 +124,8 @@ tweak; the `add` error message; e2e coverage; docs sync (CLI_REFERENCE EN/RU, CH
 
 ## Testing approach
 
-- **e2e (testscript, hermetic):** extend a tags script (or add `tag_comma.txt`) — AC1–AC5. Assert via
-  `mtt show --json` / `mtt list --ids`. No network.
+- **e2e (testscript, hermetic):** extend a tags script (or add `tag_comma.txt`) — AC1–AC6 (incl. the AC2a
+  selector guard and the AC6 empty-value pins). Assert via `mtt show --json` / `mtt list --ids`. No network.
 - **Unit:** none new required (`toTags`/`NormalizeTag` unchanged and already covered); the conversion is flag
   wiring, exercised end-to-end by the e2e.
 
