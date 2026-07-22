@@ -142,7 +142,9 @@ unset as medium (and propagates it up the blocker chain), the *label* is never f
 
 Tags (session 008.7): `mtt tag add/rm <id> <tag>…` (variadic; `tag.go`) route through `core.TagEditor`
 (`runTagEdit` shared path); a not-found id maps to exit 4 (the editor wraps `ErrNotFound`), the `rm` guard
-surfaces as a plain error (exit 1). `--tag` (repeatable, `StringArrayVar`) on `add` (→ `AddParams.Tags`),
+surfaces as a plain error (exit 1). `--tag`/`--exclude-tag` are **`StringSliceVar`** (t50: comma-split **and**
+repeatable — `--tag a,b` or `--tag a --tag b`, tool-wide incl. the `selector.go` `--filter` tag and its
+`GetStringSlice` reader; the non-tag filter flags stay `StringArray`) on `add` (→ `AddParams.Tags`),
 `list`, `tree`, and `ready` (→ `ListFilter.Tags`; `ready` in c10); the shared `toTags` normalizes/validates each value at the boundary
 (`mtt.NormalizeTag`; invalid → usage error) so no bare string leaks into `core`. Text `#hashtags` are handled
 in `core` (Adder/Editor), not parsed in the CLI. `mtt show` prints a `tags:` line (`formatTask`, after
