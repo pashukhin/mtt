@@ -1,12 +1,12 @@
 id: c14
 type: chore
 title: 'error-message polish round 2 (t28 follow-up): unknown --template lists valid names; unknown-status move not called terminal; sugar wrong-status routed to the exit-6 actions list; tag rm no-op wording; (none) for empty ref/backlink sections'
-status: approved
+status: done
 tags:
     - dx
     - ux
 created: "2026-07-22T08:01:24Z"
-updated: "2026-07-23T02:38:56Z"
+updated: "2026-07-23T02:41:55Z"
 description: 'Audit micro-findings (2026-07-22): init --template bogus does not list default/coding/hierarchy; a hand-broken status yields the wrong diagnosis (no moves out of X — it is terminal); the edge-verb sugar at the wrong status (mtt submit tN when submit is not an edge out of the current status but IS a known edge name in the type) falls through to unknown command exit 1, while mtt do exits 6 and lists the available actions — route the sugar miss to the same actionable error; tag rm of an absent tag prints untagged, claiming an action that did not happen; ref list renders bare empty headers where dep list prints (none). Cross-note added to t12; the full grammar generalization stays parked there.'
 history:
     - at: "2026-07-23T02:12:28Z"
@@ -29,3 +29,12 @@ history:
       by: Grigorii Pashukhin
       from: impl_review
       to: approved
+    - at: "2026-07-23T02:41:55Z"
+      by: Grigorii Pashukhin
+      from: approved
+      to: done
+      checks:
+        - cmd: git switch main
+          exit: 0
+        - cmd: 'git log -n 200 --format=%s | grep "^c14: " || { echo "no squash commit \"c14: …\" on local main: git pull first, and check the PR/merge title started with \"c14: \"" >&2; false; }'
+          exit: 0
