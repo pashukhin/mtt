@@ -1,12 +1,12 @@
 id: t57
 type: task
 title: 'ship the flagship flow: init template and/or adaptation guide for the dogfood-grade config (branch, auto-commit, PR, deliver)'
-status: impl_review
+status: impl_fix
 tags:
     - dx
     - flow
 created: "2026-07-22T08:01:24Z"
-updated: "2026-07-23T05:43:30Z"
+updated: "2026-07-23T05:53:43Z"
 description: 'The audit (2026-07-22) dry-ran a pilot migration by hand-copying this repo 320-line config into a foreign repo: the whole pipeline works end-to-end (spec/plan/impl reviews, exit-5 PR tail, deliver push), but nothing ships it — init templates stop at coding (make lint/test, no git integration) and there is no how-to-adapt guide (Makefile gate, artifact paths, gh+jq, branch name, gitignore). Design open: a new init template vs a documented walkthrough vs both; interacts with t24 — default/global post actions would collapse the 7x duplicated cancel blocks before templating.'
 history:
     - at: "2026-07-23T02:52:45Z"
@@ -71,3 +71,8 @@ history:
       checks:
         - cmd: make check
           exit: 0
+    - at: "2026-07-23T05:53:43Z"
+      by: Grigorii Pashukhin
+      why: 'impl review: §10 run-loop had a non-working command (mtt <status> sugar rejects --no-run; --no-run also forces who+why) — fix to mtt status ... --no-run --who --why; anchor the run-loop ids to the §2 item config; soften §8 ''pre-gate'' wording (git switch main is the first gate command)'
+      from: impl_review
+      to: impl_fix
