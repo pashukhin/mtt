@@ -161,9 +161,10 @@ AGENTS.md → DESIGN.md → `mtt roadmap` + `mtt prime`.
 
 1. `make check` green; `TestRepoDogfoodConfig` asserts the new exact gate/description strings.
 2. `mtt prime` prints the curated digest (highs first); `mtt note list` matches the D1 set.
-3. The D3 files are gone; `git grep -l 'NEXT_SESSION\|TASKS\.md'` over the tree returns only
-   CHANGELOG.md (history) and, if any, plain-text historical mentions — zero markdown links to
-   deleted files; no `sessions/` path references outside CHANGELOG.
+3. The D3 files are gone; `git grep -l 'NEXT_SESSION\|TASKS\.md'` over the tree returns nothing
+   beyond CHANGELOG.md (history), `.mtt/` records (task data is history too), and t31's own
+   spec/plan artifacts — and even there only plain-text mentions: zero markdown links to deleted
+   files anywhere; no `sessions/` path references outside the same exclusions.
 4. A dirty tree blocks `mtt submit` (observed live on t31 itself); the CHANGELOG gate passes on
    t31's own submit via a real changelog entry.
 5. AGENTS.md/CLAUDE.md carry the D4 rules; EN/RU mirrors consistent where touched.
