@@ -163,10 +163,16 @@ func writeRefsAndBacklinks(cmd *cobra.Command, carrierKind mtt.RefKind, carrierI
 	}
 	var b strings.Builder
 	b.WriteString("refs:\n")
+	if len(refs) == 0 {
+		b.WriteString("  (none)\n") // match dep list — no bare empty header (c14)
+	}
 	for _, r := range refs {
 		fmt.Fprintf(&b, "  %s\n", refLine(r, core.VerifyRef(r, te, ne)))
 	}
 	b.WriteString("backlinks:\n")
+	if len(back) == 0 {
+		b.WriteString("  (none)\n")
+	}
 	for _, r := range back {
 		if r.Label != "" {
 			fmt.Fprintf(&b, "  %s:%s  (%s)\n", r.Carrier, r.ID, r.Label)

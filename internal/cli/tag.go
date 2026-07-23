@@ -137,23 +137,26 @@ func runTagEdit(cmd *cobra.Command, args []string, add bool) error {
 		return err
 	}
 	verb := "tagged"
-	apply := func(id mtt.TaskID) error { _, e := ed.AddTags(id, tags); return e }
+	apply := func(id mtt.TaskID) error { _, _, e := ed.AddTags(id, tags); return e }
 	if !add {
 		verb = "untagged"
-		apply = func(id mtt.TaskID) error { _, e := ed.RemoveTags(id, tags); return e }
+		apply = func(id mtt.TaskID) error { _, _, e := ed.RemoveTags(id, tags); return e }
 	}
 	return runBulk(cmd, ids, verb, apply)
 }
 
-// applyTagSingle is the single-task add/rm with the original output.
+// applyTagSingle is the single-task add/rm. It reports only the tags that
+// actually changed, so a no-op (adding a present tag / removing an absent one)
+// reads honestly instead of a false "tagged/untagged" (c14).
 func applyTagSingle(cmd *cobra.Command, ed *core.TagEditor, id mtt.TaskID, tags []string, add bool) error {
 	var task mtt.Task
+	var changed []string
 	var err error
 	verb := "tagged"
 	if add {
-		task, err = ed.AddTags(id, tags)
+		task, changed, err = ed.AddTags(id, tags)
 	} else {
-		task, err = ed.RemoveTags(id, tags)
+		task, changed, err = ed.RemoveTags(id, tags)
 		verb = "untagged"
 	}
 	if err != nil {
@@ -162,6 +165,14 @@ func applyTagSingle(cmd *cobra.Command, ed *core.TagEditor, id mtt.TaskID, tags 
 	if jsonFlag(cmd) {
 		return writeJSON(cmd.OutOrStdout(), toTaskJSON(task))
 	}
-	_, err = fmt.Fprintf(cmd.OutOrStdout(), "%s %s: %s\n", verb, id, strings.Join(tags, ", "))
+	if len(changed) == 0 {
+		noop := "no such tag"
+		if add {
+			noop = "already tagged"
+		}
+		_, err = fmt.Fprintf(cmd.OutOrStdout(), "%s: %s %s (no change)\n", id, noop, strings.Join(tags, ", "))
+		return err
+	}
+	_, err = fmt.Fprintf(cmd.OutOrStdout(), "%s %s: %s\n", verb, id, strings.Join(changed, ", "))
 	return err
 }

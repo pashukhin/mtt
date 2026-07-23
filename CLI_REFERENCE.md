@@ -352,12 +352,14 @@ Without a marker it is the **single** form `mtt tag add <id> <tag>…` (unchange
 carrying a tag — distinct from the positional tags being added/removed.
 
 - `mtt tag add <id> <tag>...` — add tags (idempotent: re-adding an existing tag writes nothing). Prints
-  `tagged <id>: <tags>`, or the task object with `--json`.
+  `tagged <id>: <added>` (only the tags actually added; adding a tag already present prints
+  `<id>: already tagged <tags> (no change)`), or the task object with `--json`.
 - `mtt tag rm <id> <tag>...` — remove tags. **Guarded:** a tag whose `#hashtag` is still in the title or
   description is **refused** (`cannot remove tag "x": #x is present in the title …`) — edit the text to remove
   it (the guard is faithful to "the text is authoritative", and has no bypass). The guard is checked for
   **all** targets before any change, so a multi-tag call is atomic; removing an absent tag is a no-op. Prints
-  `untagged <id>: <tags>`, or the task object with `--json`.
+  `untagged <id>: <removed>` (only the tags actually removed; a no-op prints `<id>: no such tag <tags> (no
+  change)`), or the task object with `--json`.
 - A missing `<id>` exits `4` (not found); the `rm` guard is a plain error (exit `1`).
 - Tag values are normalized: Unicode-lowercased over letters/digits plus `. _ -` (any script — `#Бэкенд` →
   `бэкенд`), with an optional leading `#`. Whitespace or other characters are a usage error. (Comparison is by
@@ -410,8 +412,10 @@ exactly two arguments where the first is not a real subcommand, an existing task
 status in that task's type flow, mtt routes to the `status` path (reusing all its validation, gates, exit
 codes, and `--who`/`--why`). A real command always wins a name clash (e.g. there is no sugar that shadows
 `list`). If `<status>` is a plausible status verb but `<id>` does not exist, it is a **not-found** error
-(exit `4`, consistent with the explicit `mtt status` form); anything else that does not classify as a status
-move is an `unknown command` (exit `1`). The sugar takes
+(exit `4`, consistent with the explicit `mtt status` form); a first arg that is a known **edge name** in that
+task's type but not valid out of its current status routes to the actionable `mtt do` error (exit `6`, listing
+the available actions — c14); anything else that does not classify as a status move is an `unknown command`
+(exit `1`). The sugar takes
 no gate-control flags (`--no-run`/`-v`/`--log-file` remain on `mtt status`); it is forward-compatible — its
 semantics can grow single-edge → `advance` later without a surface change.
 
@@ -569,7 +573,8 @@ like `dep rm`/`tag rm`. A missing carrier task exits `4`.
 ### `mtt ref list <id>` — list a task's references and backlinks
 Prints the task's outgoing references (each: `kind:target`, resolution status `ok`/`dangling`/`unverified`,
 and label) and its incoming **backlinks** — the tasks **and notes** that reference this task (computed, never
-stored). `--json` emits `{refs, backlinks}` (both non-null arrays). Refs/backlinks also appear in `mtt show`.
+stored). An empty `refs:`/`backlinks:` section prints `(none)` (like `dep list`), not a bare header.
+`--json` emits `{refs, backlinks}` (both non-null arrays). Refs/backlinks also appear in `mtt show`.
 
 ### `mtt note ref add/rm/list <slug> …` — references on a note
 The same three operations for a **note** carrier (`mtt note ref add auth-design task:t2`, …). Notes can

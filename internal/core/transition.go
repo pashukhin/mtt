@@ -64,6 +64,13 @@ func (tr *Transitioner) Transition(id mtt.TaskID, to mtt.StatusName, opts Transi
 			return mtt.Task{}, fmt.Errorf("%w: %s cannot move %s → %s (allowed from %s: %s)",
 				ErrInvalidTransition, id, t.Status, to, t.Status, strings.Join(targets, ", "))
 		}
+		// No outgoing edges: distinguish a genuine terminal (in the flow, final by
+		// design) from a status that is not in the flow at all — a hand-edited /
+		// config-drift value, which is NOT terminal, just unknown (c14).
+		if _, known := typ.StatusKind(t.Status); !known {
+			return mtt.Task{}, fmt.Errorf("%w: %s cannot move %s → %s (status %s is not in the %q flow — config drift?)",
+				ErrInvalidTransition, id, t.Status, to, t.Status, typ.Name)
+		}
 		return mtt.Task{}, fmt.Errorf("%w: %s cannot move %s → %s (no moves out of %s — it is terminal)",
 			ErrInvalidTransition, id, t.Status, to, t.Status)
 	}

@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"embed"
 	"fmt"
+	"sort"
+	"strings"
 	"text/template"
 )
 
@@ -17,11 +19,22 @@ var templateFiles = map[string]string{
 	"hierarchy": "templates/hierarchy.yaml",
 }
 
+// templateNames returns the valid init template names, sorted (map order is
+// non-deterministic) — for the unknown-template error and discoverability.
+func templateNames() []string {
+	names := make([]string, 0, len(templateFiles))
+	for k := range templateFiles {
+		names = append(names, k)
+	}
+	sort.Strings(names)
+	return names
+}
+
 // renderTemplate renders the named init template, substituting the project name.
 func renderTemplate(name, projectName string) ([]byte, error) {
 	path, ok := templateFiles[name]
 	if !ok {
-		return nil, fmt.Errorf("unknown template %q", name)
+		return nil, fmt.Errorf("unknown template %q (valid: %s)", name, strings.Join(templateNames(), ", "))
 	}
 	raw, err := templatesFS.ReadFile(path)
 	if err != nil {

@@ -60,18 +60,28 @@ func statusInAnyFlow(cfg mtt.Config, name string) bool {
 	return false
 }
 
+// edgeNameInType reports whether name is a transition name anywhere in typ's flow
+// (any source status). Lets the sugar treat a known edge verb used at the wrong
+// status as a routable move (an actionable error) rather than an unknown command.
+func edgeNameInType(typ mtt.Type, name string) bool {
+	if name == "" {
+		return false
+	}
+	for _, tr := range typ.Transitions {
+		if tr.Name == name {
+			return true
+		}
+	}
+	return false
+}
+
 // edgeNameInAnyFlow reports whether name is a transition name anywhere in the
 // config (any type, any source). Lets the sugar treat a bare arg as a plausible
 // edge verb (claim the command with an actionable error) vs an unknown command.
 func edgeNameInAnyFlow(cfg mtt.Config, name string) bool {
-	if name == "" {
-		return false
-	}
 	for _, t := range cfg.Types {
-		for _, tr := range t.Transitions {
-			if tr.Name == name {
-				return true
-			}
+		if edgeNameInType(t, name) {
+			return true
 		}
 	}
 	return false

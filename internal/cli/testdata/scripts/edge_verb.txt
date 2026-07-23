@@ -12,6 +12,13 @@ stdout '\[decline\] review -> fix'
 exec mtt add 'a task' --no-parent
 stdout 'created t1'
 
+# c14: the edge-verb sugar at the WRONG status — `decline` is a known edge NAME in
+# the flow but not valid out of tbd — routes to the actionable exit-6 error (like
+# `mtt do`), not a misleading "unknown command" (exit 1).
+! exec mtt decline t1
+stderr 'no action "decline" from status "tbd"'
+! stderr 'unknown command'
+
 # move by STATUS name (existing behavior): tbd -> review; the move footer's
 # next: shows the onward VERBS (decline → fix · approve → done)
 exec mtt review t1
