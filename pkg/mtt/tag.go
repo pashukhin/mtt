@@ -35,6 +35,8 @@ func NormalizeTag(raw string) (string, bool) {
 
 // ExtractTags returns the normalized #hashtags in text, first-seen order, deduped
 // (nil when none). See hashtagRe for the token rule; results are Unicode-lowercased.
+// A #fragment inside a scheme:// URL run is skipped, so a pasted link mints no tags
+// (a schemeless "url-ish" string is still scanned — see urlRe).
 func ExtractTags(text string) []string {
 	matches := hashtagRe.FindAllStringSubmatchIndex(text, -1)
 	if len(matches) == 0 {
