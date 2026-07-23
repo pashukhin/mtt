@@ -3,16 +3,41 @@ version: "2"
 linters:
   default: standard
   enable:
+    - errorlint # error wrapping/comparison hygiene (%w, errors.Is/As)
     - gocritic
+    - gosec # security lint — this tool shell-executes gates and self-updates
     - misspell
     - revive
     - unconvert
+  settings:
+    gosec:
+      # The .mtt store is committed project data, so it lands at the git-checkout
+      # default perms (0755 dirs / 0644 files), NOT gosec's private 0750/0600 —
+      # this is the documented store perm policy (AGENTS.md "Storage invariants",
+      # c18). Encode the policy as the rule thresholds so gosec still fires on
+      # genuinely loose perms; credentials live in config.local.yaml at 0600.
+      config:
+        G301: "0755" # dir perms (MkdirAll) — .mtt, .mtt/tasks
+        G302: "0644" # file perms (OpenFile) — task/config/audit files
   exclusions:
     generated: lax
     rules:
+      # Test fixtures deliberately use loose perms and variable subprocess/file
+      # paths to exercise the code; gosec scans for production posture only.
       - path: _test\.go
         linters:
           - errcheck
+          - gosec
+      # G304 (file inclusion via variable) across the YAML store adapter: this
+      # adapter's whole job is file-per-task/note I/O, and every path it opens is
+      # composed from the discovered .mtt root plus a *validated* id (idPattern,
+      # the c15 shell-safety boundary) or NoteSlug — never runtime/network input.
+      # The taint is structural (a variable path), the values are not attacker
+      # controlled. Scoped to the one adapter that legitimately owns file I/O.
+      - path: internal/adapter/yaml/
+        linters:
+          - gosec
+        text: "G304:"
 
 formatters:
   enable:

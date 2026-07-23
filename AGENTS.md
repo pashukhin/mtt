@@ -68,13 +68,15 @@ agent: **test-before-code** (TDD: red → green → refactor), the **Principles 
 
 - `gofmt -l` — fail on unformatted code;
 - `go vet ./...`;
-- `golangci-lint run` (config in `.golangci.yml`, v2 format);
+- `golangci-lint run` (config in `.golangci.yml`, v2 format) — includes **gosec** (security scan) and
+  **errorlint** (error-wrapping hygiene) alongside the standard/style set, fitting a tool that shell-executes
+  gates and self-updates;
 - `go test -race -cover ./...`;
 - `go build ./...`.
 
 ## Go conventions
 
-- Wrap errors with `fmt.Errorf("...: %w", err)`; never ignore `err`.
+- Wrap errors with `fmt.Errorf("...: %w", err)` (enforced by `errorlint`); never ignore `err`.
 - No `panic` in library code (`core`/`adapter`/`pkg`); a panic means a programmer error only.
 - CLI commands stay thin: flag parsing and output; all logic in `core`.
 - Small packages, export the minimum. Everything exported gets a doc comment.

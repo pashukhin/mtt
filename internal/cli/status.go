@@ -182,7 +182,9 @@ func gateOutputWriter(cmd *cobra.Command, verbose bool, logFile string) (io.Writ
 	}
 	closeOut := func() {}
 	if logFile != "" {
-		f, err := os.Create(logFile)
+		// G304: logFile is the user's own --log-file argument to a local CLI;
+		// writing the path they named is the intended behavior, not a sink.
+		f, err := os.Create(logFile) //nolint:gosec
 		if err != nil {
 			return nil, nil, fmt.Errorf("open log file %q: %w", logFile, err)
 		}

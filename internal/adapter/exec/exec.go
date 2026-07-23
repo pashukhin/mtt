@@ -138,7 +138,10 @@ func (r *Runner) runOne(cmd string, timeout time.Duration, out io.Writer) (int, 
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 	name, args := shell(cmd)
-	c := exec.CommandContext(ctx, name, args...)
+	// G204: the gate runner exists to run configured commands — cmd is trusted
+	// project config (like a Makefile), never network input (SEC2). This is the
+	// killer feature, not an injection sink.
+	c := exec.CommandContext(ctx, name, args...) //nolint:gosec
 	c.Dir = r.dir
 	c.Stdout = out
 	c.Stderr = out
