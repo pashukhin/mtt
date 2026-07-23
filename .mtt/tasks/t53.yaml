@@ -1,7 +1,7 @@
 id: t53
 type: task
 title: 'KB consolidation: distill project decisions into curated prime-worthy notes; archive delivered specs/plans (DESIGN stays source-of-truth)'
-status: tbd
+status: cancelled
 priority: medium
 tags:
     - backlog
@@ -16,7 +16,7 @@ refs:
       id: t47
       label: 'context: t47 deferred mass KB migration'
 created: "2026-07-20T12:21:23Z"
-updated: "2026-07-20T12:21:24Z"
+updated: "2026-07-23T16:44:12Z"
 description: |-
     Housekeeping + dogfood: ~30 specs + ~30 plans accumulate under docs/superpowers/. Consolidate the durable knowledge into the KB (dogfoods t51 prime + t1 refs) and retire the clutter. This is a CURATION DECISION, not a bulk move.
 
@@ -28,3 +28,14 @@ description: |-
     Guard — the parallel-occurrences trap: DESIGN.md stays the architecture source-of-truth; the KB is a curated distillation + knowledge that has no home in DESIGN, NOT a second copy that desyncs. The t47 spec already deferred "mass knowledge migration" as a separate deliberate decision for exactly this reason.
 
     Design-OPEN (brainstorm first): target note set + what stays in DESIGN vs moves to KB vs archives; archive mechanism (git-only vs a docs/archive/ dir); delete-vs-keep specs (note: the flow gate ls docs/superpowers/specs/<id>-*.md only checks at submit-time, so deleting a DELIVERED task spec is safe). Decide together with t31 (sessions dir + NEXT_SESSION apparatus after self-host: what remains, what retires).
+history:
+    - at: "2026-07-23T16:44:12Z"
+      by: Grigorii Pashukhin
+      why: 'resolved by t31: lessons distilled into the KB (12 notes, prime live), delivered-task artifacts archived to git history; the DESIGN-unload remainder is t63'
+      from: tbd
+      to: cancelled
+      checks:
+        - cmd: git switch main
+          exit: 0
+        - cmd: test -f .mtt/tasks/t53.yaml || { echo "task file absent on main — its add has not reached main (merge/commit the branch that created it first)" >&2; false; }
+          exit: 0
