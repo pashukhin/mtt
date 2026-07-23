@@ -136,8 +136,9 @@ under `.mtt/knowledge/` — excluded from gate (a) and swept by the submit's own
   session specs that live DESIGN.md Shipped blocks still cite by path** (session-009-dogfood,
   flow-v2-mechanized-delivery, session-008.7-tags, session-008.9-batch — cited at DESIGN.md:955-956,
   :972, :991 + RU mirrors): those four are **deferred to t63**, which unloads exactly those Shipped
-  blocks (append the four filenames to t63's description during implementing — the `.mtt` edit rides
-  the submit post-commit)
+  blocks (extend t63's description with the four filenames during implementing via
+  `mtt edit t63 --description` passing the FULL composed text — the flag replaces, it does not
+  append; the `.mtt` edit rides the submit post-commit)
 - `docs/superpowers/notes/*` — after D1 distillation (verify the debt/security triage items all
   exist as tasks before deleting that one; file anything missing as backlog first)
 
