@@ -4,7 +4,8 @@
 
 The complete **target** command surface of the `mtt` CLI, derived from [DESIGN.md](DESIGN.md). It serves
 two purposes: a reference for humans and agents, and a way to sanity-check the design from the CLI angle
-(man/usage) rather than from requirements.
+(man/usage) rather than from requirements. To **author a flow** (types/statuses/transitions + gates/`post:`),
+see [FLOW_GUIDE.md](FLOW_GUIDE.md).
 
 **Status:** this is the target command surface. **Implemented today (through session 008.98, `0.8.98-dev`):**
 `version`, `init`, `types`, `add`, `show`, `list`, `edit`, `tree`, `dep add/rm/list`, `ready`, `roadmap`,
