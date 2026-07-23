@@ -202,10 +202,26 @@ the reader knows what is rejected; note that reference integrity (`mtt check`, `
 
 For each of S1, S2, S3 (S4 is a fragment — skip): write it to a scratch config and run `mtt types`.
 
-Run (example for S1, repeat for S2/S3 with their own file):
+Run (example for S1, repeat for S2/S3 by pasting that snippet's YAML in place of S1's):
 ```bash
 SC=/tmp/claude-1000/-home-gss-projects-mtt/b8e7f29a-4972-498f-a2f2-8f7a0a17a682/scratchpad/flowtest
-mkdir -p "$SC/.mtt" && cp <snippet>.yaml "$SC/.mtt/config.yaml"
+mkdir -p "$SC/.mtt"
+cat > "$SC/.mtt/config.yaml" <<'YAML'
+version: 1
+project: {name: demo}
+types:
+  - name: item
+    prefix: i
+    parents: []
+    default: true
+    statuses:
+      - {name: todo,  kind: initial}
+      - {name: doing, kind: active}
+      - {name: done,  kind: terminal}
+    transitions:
+      - {from: todo,  to: doing}
+      - {from: doing, to: done, commands: ["./gate.sh"]}
+YAML
 ./bin/mtt --dir "$SC" types
 ```
 Expected: the flow renders (types/statuses/transitions/edge verbs printed) with **no** validation error. If any
