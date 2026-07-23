@@ -1,12 +1,12 @@
 id: t57
 type: task
 title: 'ship the flagship flow: init template and/or adaptation guide for the dogfood-grade config (branch, auto-commit, PR, deliver)'
-status: approved
+status: done
 tags:
     - dx
     - flow
 created: "2026-07-22T08:01:24Z"
-updated: "2026-07-23T05:55:57Z"
+updated: "2026-07-23T05:59:06Z"
 description: 'The audit (2026-07-22) dry-ran a pilot migration by hand-copying this repo 320-line config into a foreign repo: the whole pipeline works end-to-end (spec/plan/impl reviews, exit-5 PR tail, deliver push), but nothing ships it — init templates stop at coding (make lint/test, no git integration) and there is no how-to-adapt guide (Makefile gate, artifact paths, gh+jq, branch name, gitignore). Design open: a new init template vs a documented walkthrough vs both; interacts with t24 — default/global post actions would collapse the 7x duplicated cancel blocks before templating.'
 history:
     - at: "2026-07-23T02:52:45Z"
@@ -88,3 +88,12 @@ history:
       why: 'impl review passed: §10 broken command fixed + verified against a scratch config; §8 wording corrected; all mechanism claims independently verified accurate; docs-only, make check green, EN/RU parity holds'
       from: impl_review
       to: approved
+    - at: "2026-07-23T05:59:06Z"
+      by: Grigorii Pashukhin
+      from: approved
+      to: done
+      checks:
+        - cmd: git switch main
+          exit: 0
+        - cmd: 'git log -n 200 --format=%s | grep "^t57: " || { echo "no squash commit \"t57: …\" on local main: git pull first, and check the PR/merge title started with \"t57: \"" >&2; false; }'
+          exit: 0
