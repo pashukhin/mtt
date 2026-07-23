@@ -117,7 +117,8 @@ agent: **test-before-code** (TDD: red → green → refactor), the **Principles 
 
 - **Agent-facing docs are English only:** `AGENTS.md`, the `CLAUDE.md` files, `TASKS.md`, `NEXT_SESSION.md`.
 - **Bilingual docs (English primary + Russian mirror):** `README.md` ↔ `README.ru.md`,
-  `DESIGN.md` ↔ `DESIGN.ru.md`, `CLI_REFERENCE.md` ↔ `CLI_REFERENCE.ru.md`. English is the source of
+  `DESIGN.md` ↔ `DESIGN.ru.md`, `CLI_REFERENCE.md` ↔ `CLI_REFERENCE.ru.md`,
+  `FLOW_GUIDE.md` ↔ `FLOW_GUIDE.ru.md`. English is the source of
   truth; when either changes, update both and keep them consistent.
 
 ## Git

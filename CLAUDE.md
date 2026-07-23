@@ -29,7 +29,7 @@ external pairing (Jira+Confluence, etc.) can be plugged in via an adapter.
 
 Agent-facing docs (this file, AGENTS.md, TASKS.md, NEXT_SESSION.md) are English. Human-facing docs are
 bilingual (English primary, keep in sync): `README.md` ↔ `README.ru.md`, `DESIGN.md` ↔ `DESIGN.ru.md`,
-`CLI_REFERENCE.md` ↔ `CLI_REFERENCE.ru.md`.
+`CLI_REFERENCE.md` ↔ `CLI_REFERENCE.ru.md`, `FLOW_GUIDE.md` ↔ `FLOW_GUIDE.ru.md`.
 
 ## Skills / guards
 

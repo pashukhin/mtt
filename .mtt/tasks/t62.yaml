@@ -1,0 +1,17 @@
+id: t62
+type: task
+title: 'ship runnable init templates: universal domain-neutral flow samples (content/approval/generic script-gate) + the git-integration flagship after t24'
+status: tbd
+tags:
+    - dx
+    - flow
+created: "2026-07-23T03:58:11Z"
+updated: "2026-07-23T03:58:11Z"
+description: |-
+    Split out of t57 (2026-07-23 brainstorm). t57 ships the flow-authoring GUIDE (docs-only); this ships the runnable, discoverable SAMPLES.
+
+    Two parts:
+    1. Universal, domain-neutral `mtt init --template <name>` samples — simple but extensible — that demonstrate mtt's generality: a flow binds transitions of your config-defined entities to external actions/artifacts (a script run, a file write, a git op, an HTTP call), and running a test suite is just ONE instance. Candidate set (decide in this task's own design): a content-review flow, an approval/sign-off flow, and a generic script-gated flow (a placeholder external action). Each: template YAML + templates.go registration + golden test + testscript e2e + a CLI_REFERENCE line. NOT blocked by t24.
+    2. The git-integration FLAGSHIP template (our dogfood flow: branch/auto-commit/PR/deliver) — deferred until t24 (global/default post: actions) collapses the ~7x duplicated post blocks, so the shipped template is clean.
+
+    The FLOW_GUIDE (t57) forward-links here. Keep templates minimal and clearly labelled as adaptable samples, per the t57 framing (the engine is the product; a flow is per-project data; our flow is a sample, not a mandate).
