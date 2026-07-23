@@ -7,6 +7,10 @@ All notable changes to mtt are documented here. The format follows
 ## [Unreleased]
 
 ### Added
+- **Dogfood flow gates (t31).** Every `submit` and both `impl_review → approved` edges now require a clean
+  working tree (`.mtt` excluded — the move's own post-commit sweeps it); impl submits additionally require
+  a CHANGELOG entry when code changed vs the merge base (audited bypass:
+  `mtt do submit --no-run --who … --why …`); `deliver` reminds to capture lessons via `mtt note add`.
 - **`mtt init` writes `.mtt/.gitignore`** ignoring the personal `config.local.yaml` overlay, so it can never
   be committed (with auto-committing flows like `git add .mtt` post actions it used to land in the shared
   repo). Create-if-absent: an existing `.mtt/.gitignore` is never overwritten, even with `--force`. Existing
