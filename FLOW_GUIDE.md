@@ -188,9 +188,9 @@ agent works in task terms while the flow hides the git mechanics. The moving par
   its own state change.
 - **`approve`** `post:` pushes the task branch and opens/updates the PR (`git push -u …`, then a `gh pr create`
   that is idempotent — skipped if an open PR exists).
-- **`deliver`/`cancel`** switch to `main` first (a pre-gate context switch), then their `post:` pushes `main`,
-  with the add-pathspec **narrowed** to the task file (+ audit log) so a dirty `config.yaml` can't ride the
-  main-landing commit past review.
+- **`deliver`/`cancel`** run `git switch main` as their **first gate command** (so the terminal state lands on
+  `main`), then their `post:` pushes `main`, with the add-pathspec **narrowed** to the task file (+ audit log)
+  so a dirty `config.yaml` can't ride the main-landing commit past review.
 
 **Honest caveats — this is opinionated.** It assumes GitHub + `gh` + `jq` + the `task/<id>` branch model + a
 direct push to `main`. To adapt: swap `gh pr create` for a GitLab MR command (or drop it for a no-PR / trunk
@@ -215,12 +215,12 @@ To adopt the git flow, copy this repo's `.mtt/config.yaml` and change:
 Author test-first: change the config, then drive it and watch the gate.
 
 ```bash
-mtt init                     # or: cp your-config.yaml .mtt/config.yaml
+# uses the §2 minimal flow (type `item`; todo → doing → done) as .mtt/config.yaml
 mtt types                    # inspect the graph + gates + edge verbs (also validates the config)
-mtt add "trial"              # create an entity at the initial status
-mtt doing i1                 # a move; the gate's ▶/✓/✗ pipeline prints to stderr
-mtt done i1 --no-run         # iterate past a side-effecting gate without running it
-mtt done i1 -v               # or --log-file gate.log — stream the gate's own output to debug a failure
+mtt add "trial"              # creates i1 at the initial status `todo`
+mtt doing i1                 # a gate-less move: todo → doing (the ▶/✓/✗ pipeline prints to stderr)
+mtt done i1 -v               # runs the gate; -v (or --log-file gate.log) streams its output to debug a fail
+mtt status i1 done --no-run --who me --why "skip"   # bypass the gate: --no-run is on `mtt status` only, and forces who+why
 ```
 
 A blocked gate leaves the entity unchanged and echoes the failing command's output tail; re-run with `-v` or
