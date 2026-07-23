@@ -1,11 +1,11 @@
 id: c13
 type: chore
 title: 'text and tag hygiene: hashtag extraction skips URL fragments; newlines in titles rejected'
-status: approved
+status: done
 tags:
     - ux
 created: "2026-07-22T08:01:24Z"
-updated: "2026-07-23T02:08:50Z"
+updated: "2026-07-23T02:11:49Z"
 description: 'Verified (audit 2026-07-22): a pasted URL like example.com/page(hash)anchor mints the tag anchor, and the tag-rm guard then refuses removal because the hashtag is present in the text — no escape short of editing the URL out; a title with embedded newlines renders as multiple rows in list/tree, indistinguishable from separate tasks for line-oriented consumers (JSON escapes correctly). Fixed design: the extractor skips fragments inside URLs (anything with a scheme://); add/edit reject newlines in the title with a usage error (description stays free-form).'
 history:
     - at: "2026-07-23T01:51:00Z"
@@ -28,3 +28,12 @@ history:
       by: Grigorii Pashukhin
       from: impl_review
       to: approved
+    - at: "2026-07-23T02:11:49Z"
+      by: Grigorii Pashukhin
+      from: approved
+      to: done
+      checks:
+        - cmd: git switch main
+          exit: 0
+        - cmd: 'git log -n 200 --format=%s | grep "^c13: " || { echo "no squash commit \"c13: …\" on local main: git pull first, and check the PR/merge title started with \"c13: \"" >&2; false; }'
+          exit: 0
