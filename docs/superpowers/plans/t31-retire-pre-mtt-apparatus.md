@@ -15,7 +15,10 @@ rewire pointers, codify mtt-first rules.
 
 ## Global constraints
 
-- Branch: `task/t31` (already on it; t31 status: `planning`). Every commit leaves `make check` green.
+- Branch: `task/t31` (already on it). **t31 is in `implementing` while this plan executes** — every
+  `mtt submit t31` below exercises `implementing→impl_review` with the FULL new gate stack
+  (clean-tree → CHANGELOG → make check), and a probe run on a fully-committed tree without the
+  scratch file would REALLY advance the task. Every commit leaves `make check` green.
 - Config command scalars are **single-quoted YAML**; descriptions are double-quoted (existing style).
 - Commit non-`.mtt` work before any `mtt submit`/`approve` — after Task 2 this is machine-enforced.
 - Note bodies: markdown but **no `#` headings** (future-proof vs t49 hashtag extraction) — paragraphs
@@ -95,10 +98,11 @@ rewire pointers, codify mtt-first rules.
 
 **Files:** Modify: `.mtt/config.yaml`, `CHANGELOG.md`
 
-- [ ] **Step 2.1: add the clean-tree gate** (exact scalar = `cmdCleanTree`) as the **last** command on
-  the 6 task submit edges and 2 chore submit edges, and as the **only** command on both
-  `impl_review→approved` approve edges. For the 4 spec/plan submits it follows the `ls` glob; the
-  4 impl submits become (order matters):
+- [ ] **Step 2.1: add the clean-tree gate** (exact scalar = `cmdCleanTree`): **last** on the 4
+  spec/plan submit edges (after the `ls` glob), **first of three** on the 4 impl submit edges, and the
+  **only** command on both `impl_review→approved` approve edges — those two edges are already block
+  form; just insert a `commands:` key with the single clean-tree scalar, keeping `description`/`post:`
+  byte-identical. The 4 impl submits become (order matters):
 
 ```yaml
         commands:
@@ -107,9 +111,6 @@ rewire pointers, codify mtt-first rules.
           - {run: 'make check', timeout: 10m}
 ```
 
-  The approve edges (both types) change from bare `- {from: impl_review, to: approved, name: approve, …`
-  map-form to block form carrying `commands:` with the single clean-tree scalar (keep `description`,
-  `post:` byte-identical).
 
 - [ ] **Step 2.2: extend both deliver descriptions** (task + chore, currently
   `"after the squash-merge: pull main, then deliver (moves your tree to main and writes done there)"`) to:
@@ -130,11 +131,13 @@ rewire pointers, codify mtt-first rules.
 
 - [ ] **Step 2.4: run — must PASS:** `go test ./internal/adapter/yaml/ -run TestRepoDogfoodConfig`
 - [ ] **Step 2.5:** `make check` → green.
-- [ ] **Step 2.6: live smoke of the gate wiring** (read-only; t31 is in `planning`, its submit edge now
-  has the plan glob + clean-tree): `touch scratch.tmp && ./bin/mtt submit t31; echo exit=$?` →
-  expect the `✗` on the clean-tree command, `exit=3`, task still `planning` (also proves scratch.tmp
-  itself blocks). Then `rm scratch.tmp`. (The real submit happens in Task 8 — this probe runs BEFORE
-  committing, so the dirty tree is guaranteed by the probe file plus the uncommitted edits themselves.)
+- [ ] **Step 2.6: live smoke of the gate wiring** (t31 is in `implementing`; its submit edge now
+  carries clean-tree → CHANGELOG → make check): `touch scratch.tmp && ./bin/mtt submit t31;
+  echo exit=$?` → expect `✗` on the clean-tree command (Commands[0]), `exit=3`, task still
+  `implementing`. Then `rm scratch.tmp`. This probe MUST run before Step 2.7's commit — the
+  uncommitted test/config/CHANGELOG edits guarantee the block. **Hazard: never re-run it on a
+  fully-committed tree without the scratch file — with the gates green it would really advance t31
+  to `impl_review` mid-implementation.**
 - [ ] **Step 2.7: commit:**
 
 ```bash
@@ -399,9 +402,11 @@ git add .mtt/knowledge && git commit -m "t31: KB seed — 12 curated notes (carr
 
 ```bash
 ./bin/mtt add "test-suite gap batch (2026-07-10 audit): invalid-config e2e, rm --dry-run --json, writeDepCycles cycle, stale-current sugar, full-stack exit-code asserts, concurrent mint + atomicWrite failure modes" --tag backlog,tests --priority low
-./bin/mtt add "roadmap ordering: replace per-pop sort with a heap (measured ~quadratic: 1s at N=5000)" --tag backlog,perf --priority low
 ./bin/mtt add "release artifact signing / gh attestation (SHA256SUMS is integrity, not authenticity)" --tag backlog,sec,release --priority low
 ```
+
+  The roadmap-heap fix is NOT added — it is already filed as **t13** ("performance: roadmap heap …");
+  record "heap → covered by t13" in the verification notes.
 
   (Skip any of the three whose content verifiably already lives in an open task; also skim
   `2026-07-09-s009-readiness-and-architecture-audit.md` + `2026-07-09-flow-granularity-for-dogfood.md`
@@ -513,6 +518,9 @@ apparatus (`sessions/`, `TASKS.md`, `NEXT_SESSION.md`) is retired (t31): narrati
 orientation lives in the KB (`mtt note show dogfood-history`).
 ```
 
+  - In the "The backlog is in mtt" bullet (AGENTS.md:150), rewrite `sessions/phases (how *we* work)
+    stay in \`sessions/*.md\` — they are not mtt tasks` → `sessions/phases (how *we* work) are
+    process — executed, never queued (see \`mtt note show process-model\`)`.
   - "Working under mtt": drop the `TASKS.md is frozen` clause from the intro sentence; replace the tag
     block's convention text (keep the first backlog/promote sentence) with
     `Tag semantics and the thematic vocabulary live in the KB: \`mtt note show tag-conventions\`.`;
@@ -557,11 +565,16 @@ don't appear, run once: `/plugin marketplace add obra/superpowers-marketplace` t
 - [ ] **Step 8.2:** `./bin/mtt prime` → the 5 high notes; `./bin/mtt note list` → 12;
   `./bin/mtt show t63` shows the extended description; `./bin/mtt roadmap` still renders.
 - [ ] **Step 8.3:** `make check` → green.
-- [ ] **Step 8.4: live negative probe of the new gates** (acceptance #4): `touch scratch.tmp &&
-  ./bin/mtt submit t31; echo exit=$?` → `✗ … working tree not clean`, `exit=3`, status unchanged;
-  `rm scratch.tmp`.
-- [ ] **Step 8.5:** `./bin/mtt submit t31` — the plan glob, clean-tree gate pass; task →
-  `plan_review`. (This is the planning→plan_review submit: it carries no CHANGELOG/make-check gate.)
+- [ ] **Step 8.4: live negative probe** (acceptance #4; t31 in `implementing`, tree otherwise fully
+  committed — this run isolates the scratch file as the blocker): `touch scratch.tmp &&
+  ./bin/mtt submit t31; echo exit=$?` → `✗ … working tree not clean` on Commands[0], `exit=3`,
+  status unchanged; `rm scratch.tmp`.
+- [ ] **Step 8.5: the real submit:** `./bin/mtt submit t31` — clean-tree passes, the CHANGELOG gate
+  passes (the Task 2 entry), `make check` (10m timeout) runs green; task → `impl_review`.
+- [ ] **Step 8.6: approve-edge probe** (the second half of acceptance #4), at `impl_review` BEFORE the
+  adversarial code review concludes: `touch scratch.tmp && ./bin/mtt approve t31; echo exit=$?` →
+  `✗` clean-tree, `exit=3`, status unchanged; `rm scratch.tmp`. The real `mtt approve` happens only
+  after the impl_review adversarial code review passes (per the flow).
 
 ### After the flow reaches `done` (outside the PR; on main)
 
