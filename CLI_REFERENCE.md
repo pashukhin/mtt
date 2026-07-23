@@ -314,7 +314,7 @@ set**, so `mtt rm <epic> <child>…` removes a whole subtree in one call **witho
   **Caveat (id reuse):** the YAML adapter mints ids as `max+1` per prefix, so deleting the *highest-numbered*
   task frees its id — a later `add` may **reuse** it, silently re-pointing any dangling reference at the new
   (unrelated) task. Prefer `cancel` over `rm --force` for a referenced task, or remove the dangling edges
-  first. A monotonic/never-reuse minting fix is tracked in TASKS.md → Later.
+  first. A monotonic/never-reuse minting fix is tracked in t10 (the multi-agent concurrency cluster).
 - A missing `<id>` exits `4` (not found). On success prints `removed <id>`; with `--json` the single form
   emits the **removed task object** (captured before deletion, mirroring `add --json`), while bulk `--json`
   stays the per-item outcome array. *(t45)*
@@ -766,8 +766,7 @@ These are things this reference surfaces that are worth keeping consistent with 
 - **Clean split: `edit` vs flow commands.** `edit` only touches non-flow fields (title/description); all
   status movement goes through `status`/`advance`/`start`/`done`/`cancel` so the flow is always enforced.
 - **`done` and `cancel` replace a generic `close`.** Closing a task = reaching a terminal: `done` (with
-  its gate) or `cancel`. There is no separate `close` command. *(TASKS.md still mentions `close` in
-  phase 1 — reconcile: fold it into `done`/`cancel`.)*
+  its gate) or `cancel`. There is no separate `close` command.
 - **Re-parenting changes only `parent`; re-typing is still not `edit`.** IDs are flat and per-prefix (not
   parent-chain-encoded), so **re-parenting** (a planned `mtt reparent`/`move`) only changes the `parent`
   field — the ID stays stable, no re-mint, no broken inbound refs. **Re-typing** is bigger (the prefix is

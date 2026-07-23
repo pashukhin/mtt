@@ -131,5 +131,5 @@ See [CLI_REFERENCE.md](CLI_REFERENCE.md) for the full command surface and exit c
 - [FLOW_GUIDE.md](FLOW_GUIDE.md) — author your own flow (gates/`post:`/git integration) on mtt's engine
 - [CLI_REFERENCE.md](CLI_REFERENCE.md) — the full CLI command surface (target design)
 - [AGENTS.md](AGENTS.md) — how to work in this repo (rules, gate, principles)
-- [TASKS.md](TASKS.md) — the phased plan
+- The backlog is dogfooded: this repo tracks its own tasks in mtt — run `mtt roadmap` in a checkout
 - [Coding-template demo](demo/README.md) — a runnable, tested `coding`-flow walkthrough
