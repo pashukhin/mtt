@@ -115,3 +115,15 @@ exec mtt tags --all
 stdout '1  backlog'
 exec mtt tags --status cancelled
 stdout '1  backlog'
+
+# c13: a #fragment inside a pasted URL is NOT minted as a tag; a real hashtag beside it still is
+exec mtt add --type epic 'doc https://ex.com/wiki/#section see #real'
+stdout 'created e4'
+exec mtt show e4
+stdout 'tags:     real'
+! stdout 'tags:.*section'
+# a URL fragment with no other hashtag mints no tag at all (no tags: line)
+exec mtt add --type epic 'ref https://ex.com/a/#frag'
+stdout 'created e5'
+exec mtt show e5
+! stdout 'tags:'

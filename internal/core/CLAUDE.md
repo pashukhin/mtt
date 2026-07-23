@@ -35,7 +35,9 @@ Usecase logic. Depends **only** on the `pkg/mtt` domain contract and its ports �
   lineage (pure reads — no usecase).
 - `Editor` (the `edit` usecase, a mutation): load via `TaskStore.Get`, apply only the provided
   title/description/**priority** (nil pointer = unchanged; a non-nil `Priority` to `""` clears it), enforce the
-  title-or-description invariant, bump `updated` from the **injected clock**, persist via `TaskStore.Update`.
+  title-or-description invariant **and the single-line-title rule** (c13, shared `validateTitle` — a newline in
+  a title is a usage error, also enforced on `add`; the description stays free-form), bump `updated` from the
+  **injected clock**, persist via `TaskStore.Update`.
   The "nothing to edit" guard is `Title==nil && Description==nil && Priority==nil`. id/type/status/parent are
   not editable here.
 - `Ready` (pure read): actionable tasks — status non-terminal AND every `depends_on` terminal, resolved by

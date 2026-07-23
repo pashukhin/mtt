@@ -345,6 +345,9 @@ history:
 - **`edit` touches only title/description.** Status moves through the flow (`status`/`advance`/…) so gates
   stay enforced; re-parenting (changing `parent`) and re-typing are **separate operations**, not `edit` —
   already called out above and in the backlog.
+- **A title is single-line** (c13). `add`/`edit` reject a title containing a newline (a usage error) — a title
+  renders as one row in `list`/`tree`, so an embedded newline would masquerade as separate tasks for
+  line-oriented consumers. Multi-line text belongs in the free-form `description`.
 
 ## Hierarchy: placement and rendering — session 004
 
@@ -963,7 +966,8 @@ after dogfood we move mtt's development onto mtt itself. See sessions/README.md 
   text+manual collision drops with the text); `tag rm` is **guarded** (refuses a tag whose `#hashtag` is still
   in the text — edit the text instead). `list`/`ready`/`tree` filter by `--tag` (OR-within include) and
   `--exclude-tag` (negative) — slice-valued `ListFilter` dimensions over `Match`. The tag vocabulary is a pure `pkg/mtt` pair (`NormalizeTag`/`ExtractTags`) over a
-  **Unicode** charset (`\pL\pN._-`, Unicode `ToLower`, no NFC folding); tags are a normalized+sorted **set**
+  **Unicode** charset (`\pL\pN._-`, Unicode `ToLower`, no NFC folding); a `#fragment` inside a `scheme://` URL
+  is skipped so a pasted link mints no tags (c13). Tags are a normalized+sorted **set**
   (open vocabulary → plain `[]string`, not a VO). Spec:
   `docs/superpowers/specs/2026-07-09-session-008.7-tags-design.md`.
 - **batch & pipeline — shipped s008.9** (mtt as a Unix-composable CLI): a reusable **task-set selector**
