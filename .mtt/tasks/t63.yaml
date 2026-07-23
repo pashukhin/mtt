@@ -1,0 +1,14 @@
+id: t63
+type: task
+title: 'DESIGN unload: move historical Shipped(tX) narrative blocks into KB notes; DESIGN slims to current architecture (EN+RU)'
+status: tbd
+priority: medium
+tags:
+    - backlog
+    - docs
+    - kb
+depends_on:
+    - t31
+created: "2026-07-23T06:50:32Z"
+updated: "2026-07-23T06:50:32Z"
+description: 'Follow-up to t31 (decided in the 2026-07-23 brainstorm, deliberately split out): DESIGN.md accumulated per-task Shipped narrative blocks that are history, not current architecture. Distill them into KB notes (the t31 note set establishes the pattern), keep DESIGN.md (and the RU mirror in sync) as the source of truth for the CURRENT architecture only. Guard: this is curation, not wholesale copy - avoid creating a second desyncing copy (the t53 parallel-occurrences trap). Overlaps t42 (user-docs audit) - coordinate so the two sweeps do not fight.'
