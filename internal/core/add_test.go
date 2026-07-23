@@ -169,6 +169,21 @@ func TestAddNeedsTitleOrDescription(t *testing.T) {
 	}
 }
 
+func TestAddRejectsNewlineInTitle(t *testing.T) {
+	_, err := NewAdder(&fakeStore{retID: "e1"}, cfg(), fixed).Add(AddParams{Title: "line1\nline2", TypeName: "epic"})
+	if err == nil || !strings.Contains(err.Error(), "single line") {
+		t.Fatalf("want single-line title error, got %v", err)
+	}
+	// a carriage return is rejected too
+	if _, err := NewAdder(&fakeStore{retID: "e1"}, cfg(), fixed).Add(AddParams{Title: "a\rb", TypeName: "epic"}); err == nil {
+		t.Fatalf("want CR in title rejected")
+	}
+	// a newline in the description stays free-form (allowed)
+	if _, err := NewAdder(&fakeStore{retID: "e1"}, cfg(), fixed).Add(AddParams{Title: "ok", Description: "multi\nline", TypeName: "epic"}); err != nil {
+		t.Fatalf("newline in description should be allowed: %v", err)
+	}
+}
+
 func TestAddWithDependsOn(t *testing.T) {
 	fs := &fakeStore{retID: "t2", byID: map[mtt.TaskID]mtt.Task{"t1": {ID: "t1", Type: "epic"}}}
 	got, err := NewAdder(fs, cfg(), fixed).Add(AddParams{

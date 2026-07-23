@@ -195,7 +195,8 @@ Generates a completion script for `bash`/`zsh`/`fish`/`powershell`.
 ### `mtt add [title] [flags]` — create a task  *(phase 1, `add`/`show` shipped in session 002)*
 Create a task. Provide a `title` (positional) and/or `--description`; at least one is required. The
 adapter mints the ID — a flat, per-prefix ID such as `e1` or `t17` — and prints `created <id>` (or, with
-`--json`, the created task object — session 008.97).
+`--json`, the created task object — session 008.97). The **title must be a single line** — a newline is a
+usage error (c13); put multi-line text in `--description`.
 
 - `--type <name>` — task type from config (default: the type marked `default`).
 - `--parent <id>` — place the task under an existing parent (session 004). Validated: the parent exists and
@@ -210,7 +211,8 @@ adapter mints the ID — a flat, per-prefix ID such as `e1` or `t17` — and pri
 - `--ref <kind>:<target>` — attach an informational reference at creation (repeatable; `note:auth-design`/
   `task:t2`/`url:https://…`). Warn-not-block: a dangling target is stored with a warning (exit 0). **t1.**
 - `--tag <tag>…` — add a tag (repeatable or comma-separated `--tag a,b`, session 008.7). `#hashtags` in the title/description are also
-  extracted and merged into the same set. Values are normalized (Unicode-lowercased over letters/digits plus
+  extracted and merged into the same set (a `#fragment` inside a `scheme://` URL is skipped — a pasted link
+  mints no tags, c13). Values are normalized (Unicode-lowercased over letters/digits plus
   `. _ -`, any script; an optional leading `#` is allowed); an out-of-charset value is a usage error.
   **Implemented (session 008.7)**.
 
@@ -270,7 +272,7 @@ Changes title, description, and/or priority. **Status is not editable here** —
 `advance` so the flow is enforced. Re-parenting/re-typing are not simple edits (they would re-mint the ID
 in the YAML adapter — see Notes).
 
-- `--title <text>` — new title.
+- `--title <text>` — new title (single line; a newline is a usage error — use `--description` for multi-line text, c13).
 - `--description <text>` — new description (`-` for stdin still later).
 - `--priority <high|medium|low>` — new priority (session 008.6). `--priority ""` **clears** it back to unset.
   An unknown value is a usage error. *(implemented)*
@@ -336,7 +338,7 @@ surfaced as a root, never dropped.
 
 ### `mtt tag add|rm <id> <tag>... | <tag>... (- | --filter)` — manage tags  *(session 008.7; bulk in 008.9)*
 Tags are cross-cutting labels. The **primary** way to tag is a `#hashtag` in the title/description (extracted
-on `add`/`edit`); `mtt tag add/rm` is the secondary, pointed path. Both take **one or more** tags (variadic),
+on `add`/`edit`; a `#fragment` inside a `scheme://` URL is skipped — c13); `mtt tag add/rm` is the secondary, pointed path. Both take **one or more** tags (variadic),
 so a whole set changes in one write. Tags are stored as a normalized, deduplicated, **sorted** set and ride
 `Task.Tags` (no new port — like `depends_on`).
 

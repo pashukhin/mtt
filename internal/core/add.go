@@ -5,10 +5,22 @@ package core
 import (
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/pashukhin/mtt/pkg/mtt"
 )
+
+// validateTitle enforces a single-line title: a title renders as one row in
+// list/tree, so an embedded newline would split one task into rows
+// indistinguishable from separate tasks for line-oriented consumers. Shared by
+// Add and Edit; the description stays free-form (multi-line allowed).
+func validateTitle(title string) error {
+	if strings.ContainsAny(title, "\n\r") {
+		return fmt.Errorf("title must be a single line (no newlines); use the description for multi-line text")
+	}
+	return nil
+}
 
 // Adder is the create-a-task usecase. It resolves the type, enforces placement,
 // picks the entry status, stamps timestamps, and persists via the TaskStore.
@@ -42,6 +54,9 @@ type AddParams struct {
 func (a *Adder) Add(p AddParams) (mtt.Task, error) {
 	if p.Title == "" && p.Description == "" {
 		return mtt.Task{}, fmt.Errorf("provide a title or a description")
+	}
+	if err := validateTitle(p.Title); err != nil {
+		return mtt.Task{}, err
 	}
 	var (
 		typ mtt.Type

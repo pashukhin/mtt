@@ -18,6 +18,11 @@ All notable changes to mtt are documented here. The format follows
   stored field was invisible outside `dep list`.
 
 ### Fixed
+- **Text & tag hygiene (c13).** A `#fragment` inside a pasted `scheme://` URL is no longer minted as a tag —
+  `mtt add 'see https://ex.com/page/#anchor'` used to create the tag `anchor` (and the `tag rm` guard then
+  refused to remove it while the link stayed in the text). And `add`/`edit` now reject a **newline in the
+  title** with a usage error: a title renders as one row in `list`/`tree`, so an embedded newline masqueraded
+  as separate tasks for line-oriented consumers. Multi-line text belongs in the free-form `description`.
 - **Storage durability (c18).** Every store write (tasks, notes, config, `config.local.yaml`) is now
   fsynced before the atomic rename and the parent directory is fsynced after it — a crash can no longer
   promote un-flushed bytes or lose the just-renamed entry; `.mtt/audit.log` appends fsync too ("no

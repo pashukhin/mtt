@@ -67,6 +67,14 @@ func TestExtractTags(t *testing.T) {
 		{"see host#frag", nil},
 		{"no hashtags here", nil},
 		{"", nil},
+		// A #fragment inside a URL (scheme://…) is not a tag — a pasted link must
+		// not mint anchors. The whole scheme://non-space run is skipped.
+		{"https://example.com/#Naming", nil},
+		{"docs https://ex.com/p/#skip and #keep", []string{"keep"}},
+		{"#keep https://ex.com/p/#skip", []string{"keep"}},
+		// Boundary: only scheme:// runs are treated as URLs. A schemeless "url-ish"
+		// string is still scanned for hashtags (documented, deliberate).
+		{"example.com/#x", []string{"x"}},
 		// A decomposed (NFD) accent/mark must NOT truncate the token (the combining
 		// mark stays part of it). No NFC folding — the NFD and NFC spellings are
 		// distinct byte sequences and won't cross-match, but neither truncates.

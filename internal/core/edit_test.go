@@ -62,6 +62,18 @@ func TestEditEmptyingBothRejected(t *testing.T) {
 	}
 }
 
+func TestEditRejectsNewlineInTitle(t *testing.T) {
+	orig := mtt.Task{ID: "t1", Type: "task", Title: "old", Status: "tbd", Created: fixed(), Updated: fixed()}
+	_, err := NewEditor(&editStore{get: orig}, later).Edit("t1", EditParams{Title: strptr("a\nb")})
+	if err == nil || !strings.Contains(err.Error(), "single line") {
+		t.Fatalf("want single-line title error, got %v", err)
+	}
+	// a newline in the description is allowed (free-form)
+	if _, err := NewEditor(&editStore{get: orig}, later).Edit("t1", EditParams{Description: strptr("multi\nline")}); err != nil {
+		t.Fatalf("newline in description should be allowed: %v", err)
+	}
+}
+
 func TestEditNotFoundPropagates(t *testing.T) {
 	fs := &editStore{getErr: mtt.ErrNotFound}
 	_, err := NewEditor(fs, later).Edit("ghost", EditParams{Title: strptr("x")})

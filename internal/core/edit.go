@@ -41,6 +41,9 @@ func (e *Editor) Edit(id mtt.TaskID, p EditParams) (mtt.Task, error) {
 	}
 	oldTitle, oldDesc := t.Title, t.Description
 	if p.Title != nil {
+		if err := validateTitle(*p.Title); err != nil {
+			return mtt.Task{}, err
+		}
 		t.Title = *p.Title
 	}
 	if p.Description != nil {
