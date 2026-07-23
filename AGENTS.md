@@ -99,7 +99,7 @@ agent: **test-before-code** (TDD: red → green → refactor), the **Principles 
 
 ## Tests
 
-- Unit, table-driven: `core` (usecase) / `adapter/yaml`.
+- Unit tests: `core` (usecase) / `adapter/yaml` — table-driven where the shape fits.
 - Golden tests for YAML serialization (`-update` flag to regenerate goldens).
 - CLI e2e via `testscript` (txtar scripts) in temp dirs.
 - No network in tests.
@@ -115,7 +115,7 @@ agent: **test-before-code** (TDD: red → green → refactor), the **Principles 
 
 ## Documentation language
 
-- **Agent-facing docs are English only:** `AGENTS.md`, the `CLAUDE.md` files, `TASKS.md`, `NEXT_SESSION.md`.
+- **Agent-facing docs are English only:** `AGENTS.md`, the `CLAUDE.md` files.
 - **Bilingual docs (English primary + Russian mirror):** `README.md` ↔ `README.ru.md`,
   `DESIGN.md` ↔ `DESIGN.ru.md`, `CLI_REFERENCE.md` ↔ `CLI_REFERENCE.ru.md`,
   `FLOW_GUIDE.md` ↔ `FLOW_GUIDE.ru.md`. English is the source of
@@ -132,31 +132,30 @@ agent: **test-before-code** (TDD: red → green → refactor), the **Principles 
   the acting model's own line, `Co-Authored-By: <acting model name> <noreply@anthropic.com>` — truthful
   attribution, never another model's name.
 
-## Sessions → tasks
+## Units of work
 
 The unit of work is an **mtt task** on a flow-created `task/<id>` branch; the method steps (brainstorm →
-spec → plan → TDD → reviews) are printed by the flow itself at each status. `sessions/*.md` is the
-narrative archive for process milestones (its long-term home is an open question), not a per-task requirement; the roadmap and
-current target live in mtt (`mtt roadmap`); sessions/README.md keeps the pre-s009 history and TASKS.md is
-frozen history since s009.
+spec → plan → TDD → reviews) are printed by the flow itself at each status. The pre-self-host session
+apparatus (`sessions/`, `TASKS.md`, `NEXT_SESSION.md`) is retired (t31): narrative history lives in git;
+orientation lives in the KB (`mtt note show dogfood-history`).
 
 ## Working under mtt (self-host)
 
-Since **s009** this repo tracks its own work in a committed `.mtt/` (config + tasks). `TASKS.md` is frozen;
-the live queue is mtt. Practical rules:
+Since **s009** this repo tracks its own work in a committed `.mtt/` (config + tasks); the live queue is
+mtt. Practical rules:
 
 - **The backlog is in mtt.** `mtt roadmap` is the "what next?" view; `mtt list --tag backlog` is the
   backlog-only view; promote by `mtt tag rm <id> backlog`. A task is the unit of **product** change;
-  sessions/phases (how *we* work) stay in `sessions/*.md` — they are not mtt tasks.
-- **Tag conventions (this repo).** `backlog` = not in the live queue — every deferred task carries it,
-  and dropping it is what "promoting" means (see above); the live queue is the OPEN tasks minus
-  `backlog` (`mtt list --kind initial --kind active`, then subtract the tag). `think` = design-open
-  items (usually "Think:"-titled) — brainstorm before implementing. Thematic tags are a deliberately
-  SMALL vocabulary — currently `core`, `flow`, `sec`, `tests`, `perf`, `dx`, `ux`, `kb`, `adapter`,
-  `demo`, `multiagent`, `release`, `docs` — pick from the existing set before inventing (discover the
-  live set with **`mtt tags`** — the open tag vocabulary with counts, `--all` for every task, `--json` for a
-  `{tag,count}` array). Caveat: `#hashtags` in titles/descriptions auto-become tags — never
-  put `#` in a title unless you mean it. (This tag-convention note is interim — it migrates into mtt later.)
+  sessions/phases (how *we* work) are process — executed, never queued (see `mtt note show process-model`).
+- **Tag conventions live in the KB:** `mtt note show tag-conventions` (backlog/think semantics, the
+  thematic vocabulary, the `#hashtag` caveat).
+- **Closure is a flow edge.** A task leaves the queue only via `deliver` (after the squash-merge) or
+  `cancel --why`. `mtt rm` is NOT closure — it erases the record (mistakes/duplicates only). "Done
+  directly" (landing work on main and rm-ing the task) is forbidden: work whose design is already
+  decided becomes a `chore` and rides the chore flow.
+- **Knowledge goes to the KB.** Durable lessons and decisions → `mtt note add` (session start reads
+  `mtt prime`); markdown files are neither a task-state nor a knowledge channel, and the only
+  "what's next" source is `mtt roadmap`. No parallel state docs.
 - **Two types — pick by the type description** (`mtt types`). Beyond that, the flow itself tells you what
   to do at every status (printed on entry and by `mtt show`): method steps, artifact paths, gates, git
   context — follow the printed guidance, don't memorize it. Mid-flight resumption is a plain
