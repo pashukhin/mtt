@@ -42,8 +42,9 @@ func exeSuffix() string {
 }
 
 func defaultRun(ctx context.Context, name string, args ...string) error {
-	// G204: self-update shells the fixed `go install <module>@<version>` toolchain
-	// command; the argv is ours, not network input (SEC2).
+	// G204: argv-based exec (no shell) of the fixed `go install <module>@<version>`
+	// on the fixed `go` binary — the version tag is inert data in argv, not a
+	// shell-injection vector (SEC2).
 	cmd := exec.CommandContext(ctx, name, args...) //nolint:gosec
 	return cmd.Run()
 }

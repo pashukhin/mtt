@@ -42,10 +42,10 @@ All notable changes to mtt are documented here. The format follows
   scanner) and `errorlint` (error-wrapping hygiene) under `golangci-lint` — apt for a tool that shell-executes
   gate/post commands and self-updates. Triaged to a clean gate: gosec's permission thresholds are pinned to the
   committed `.mtt` store's git-checkout perms (0755 dirs / 0644 files, per the c18 storage policy); the YAML
-  store adapter — whose paths are built from validated ids (the c15 charset) / note slugs, never network
-  input — is exempted from G304 (file-inclusion-via-variable); and the two deliberate subprocess sites (the
-  gate runner and self-update `go install`) plus the two user-named-file CLI reads carry signed
-  `//nolint:gosec`. No change to runtime behavior.
+  store adapter — which has no network surface and opens only paths under the `.mtt` root, from mint-generated
+  ids or re-validated note slugs — is exempted from G304 (file-inclusion-via-variable); and the two deliberate
+  subprocess sites (the gate runner and self-update `go install`) plus the two user-named-file CLI sites
+  (`--file` read, `--log-file` write) carry signed `//nolint:gosec`. No change to runtime behavior.
 - **RCE fix (c15): the YAML store rejects a poisoned task file at load.** A hand-written `.mtt/tasks/*.yaml`
   whose `id:` field carried shell metacharacters was expanded into `{{.ID}}` inside gate/post `sh -c`
   commands — arbitrary code execution on the next `mtt` move (task files are machine-written, so a poisoned

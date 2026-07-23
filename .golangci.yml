@@ -19,6 +19,7 @@ linters:
       config:
         G301: "0755" # dir perms (MkdirAll) — .mtt, .mtt/tasks
         G302: "0644" # file perms (OpenFile) — task/config/audit files
+        G306: "0644" # file perms (WriteFile) — same 0644 policy, kept in sync
   exclusions:
     generated: lax
     rules:
@@ -28,12 +29,13 @@ linters:
         linters:
           - errcheck
           - gosec
-      # G304 (file inclusion via variable) across the YAML store adapter: this
-      # adapter's whole job is file-per-task/note I/O, and every path it opens is
-      # composed from the discovered .mtt root plus a *validated* id (idPattern,
-      # the c15 shell-safety boundary) or NoteSlug — never runtime/network input.
-      # The taint is structural (a variable path), the values are not attacker
-      # controlled. Scoped to the one adapter that legitimately owns file I/O.
+      # G304 (file inclusion via variable) across the YAML store adapter: the
+      # adapter has no network surface — every path it opens is under the
+      # discovered .mtt root, from a fixed filename, a mint-generated task id, or
+      # a re-validated NoteSlug (notePath rechecks slug.Valid()); disk-loaded ids
+      # are additionally charset-guarded at load (the c15 shell-safety boundary).
+      # The taint is structural (a variable path); the values are local, never
+      # runtime/network input. Scoped to the one adapter that owns file I/O.
       - path: internal/adapter/yaml/
         linters:
           - gosec
