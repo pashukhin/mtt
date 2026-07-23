@@ -480,8 +480,7 @@ Commands come from config (trusted, like a Makefile/git hooks), not from the net
 > file is untouched — a `HistoryEntry` is a transition record, compensation is a side-effect event); **(5)**
 > rollbacks are expanded **eagerly** with the forward commands (a malformed rollback template is exit 1 before
 > any side effect). The failing command's own rollback is never run. The gate prints a live
-> `↩ compensating (N)` phase and the block error carries a `compensated N …` summary. See sessions/008 and
-> TASKS.md → e4_t10.
+> `↩ compensating (N)` phase and the block error carries a `compensated N …` summary.
 >
 > **Still parked:** compensation across **several** edges (an `--atomic` / multi-step `advance` abort after
 > side effects) — s008 is **intra-pipeline** only (one edge's pipeline); and second-level compensation
@@ -506,7 +505,7 @@ Commands come from config (trusted, like a Makefile/git hooks), not from the net
 > `tasks/*.yaml` whose `id:` carried shell metacharacters was otherwise RCE via the gate/post `sh -c`);
 > **(4)** `Runner.Run` takes `[]Command` (Run already expanded; `Check.Cmd`
 > records the expanded command for a truthful audit). An expansion error aborts the transition as a plain
-> error (exit 1), distinct from a gate block (`ErrBlocked`, exit 3). See sessions/007 and TASKS.md → e4_t9.
+> error (exit 1), distinct from a gate block (`ErrBlocked`, exit 3).
 
 > **Shipped (t16): placeholders in shown descriptions/guidance.** The same `{{.ID}}`/`{{.Type}}`/`{{.From}}`/
 > `{{.To}}` now expand in the **descriptions** printed as inline guidance (on-move `moveGuidance` and `mtt show`,
@@ -529,7 +528,7 @@ Commands come from config (trusted, like a Makefile/git hooks), not from the net
 > status-sugar — e.g. `mtt check` is reserved for ref-checking); a non-transition action's audit ties to the
 > edit-audit slice. **Open question: is it release-needed?** Lean *no* — for a release an agent commits WIP
 > via plain `git` while `in_progress`; this is the completeness polish, not the minimum. Revisit once
-> structured commands land (it is blocked on them regardless). See TASKS.md → Later.
+> structured commands land (it is blocked on them regardless). Tracked as t11 (node-level status actions).
 
 > **Working context: the current task (shipped s006.7).** git's current-branch, for tasks — kills
 > id-repetition. The **value** lives in `config.local.yaml` (`current: t17`, personal/gitignored); the
@@ -553,7 +552,7 @@ Commands come from config (trusted, like a Makefile/git hooks), not from the net
 > in-flow reminder for the agent); resolve current for **all** single-task ops incl. reads (`tree <id>`,
 > `dep list`); multi-assignee providers ("my current" when several are assigned); the `advance` reuse seam
 > (extract a shared core apply-edge-effects step when the parked multi-edge walk unparks). `CapCurrent` +
-> `Capabilities()` land with `mtt caps` (e4_t6). See TASKS.md → e4_t8a.
+> `Capabilities()` land with `mtt caps`; follow-ups tracked as t18.
 
 ### Advancing through the flow: `advance` / `start` / `done`
 
@@ -615,7 +614,7 @@ never hardcoded (like types/statuses).
 > **role-contextual** action — `current` is a lightweight single-value form of assignee, and "mine" is
 > per-actor/per-role. What shipped (one global `config.local` pointer) is a *degenerate single-role projection*;
 > when roles unpark, `current` likely becomes per-actor and `Transition.Current` may become role-conditioned.
-> Decide it **with** subagent-identity, not before. See TASKS.md → Later ("`current` vs roles").
+> Decide it **with** subagent-identity, not before — tracked as t18 (current-vs-roles).
 
 > **Direction (deferred): actor profiles.** The `roles` section is expected to grow into named **profiles**
 > that pair an identity with a role — `(by, role)`, e.g. `(coding-agent, implementer)` / `(Alice, reviewer)`
@@ -623,8 +622,8 @@ never hardcoded (like types/statuses).
 > Since mtt is used mostly by **coding agents** sharing the repo config with a human, the agent's profile is
 > the ergonomic default and the human overrides. `mtt profile add/list/rm` manages **only** the personal
 > `config.local.yaml` profiles (shared project profiles, if any, are read-only to the command). This
-> **subsumes the s006 `author` seam** (`author` = the default profile's `by`) and is forward-compatible. See
-> TASKS.md → Later.
+> **subsumes the s006 `author` seam** (`author` = the default profile's `by`) and is forward-compatible.
+> Tracked as t3 (actor profiles).
 >
 > **Hard precondition (the real question): subagent identity.** Roles/RBAC are pointless unless we can
 > distinguish subagents acting with **different** roles under multi-agent access — that is what RBAC hinges
@@ -743,7 +742,7 @@ tested end-to-end walkthrough of this template.
 > later `add` to **reuse** — which silently re-points any dangling reference (a `depends_on`/`parent` left by
 > `--force`) at the new, unrelated task. `rm` is what first makes this reachable. It is latent (needs `--force`
 > + deleting the max id + a subsequent create) and rooted in the mint scheme, not the delete; the proper fix
-> is monotonic / never-reuse minting (see TASKS.md → Later). Meanwhile prefer `cancel` for a referenced task,
+> is monotonic / never-reuse minting (tracked in t10 — the multi-agent concurrency cluster). Meanwhile prefer `cancel` for a referenced task,
 > or clear the dangling edges first.
 
 > **Deferred design question — `cancelled` blocker semantics.** A `terminal` blocker unblocks its dependent,
@@ -753,7 +752,8 @@ tested end-to-end walkthrough of this template.
 > the decision is to **keep** terminal-by-`kind` (cancelled unblocks) — a proper fix (a
 > succeeded-vs-abandoned distinction, a hard/soft edge) needs new domain modelling that a flow-gate session
 > should not smuggle in, and would risk the name-agnostic principle. s006 adds an e2e (`cancel_unblock`)
-> demonstrating the current semantics with a reachable state; the deeper fix stays deferred. See TASKS.md → Later.
+> demonstrating the current semantics with a reachable state; the deeper fix stays deferred — tracked as t36
+> (cancelled-blocker semantics revisit).
 
 ## Priorities and roadmap — session 008.6
 
@@ -914,18 +914,20 @@ Dogfooding: **pulled ahead** (s010, once flow orchestration — advance + struct
 before references/comments, since those enrich a full self-host but don't enable it. "The agent works in task
 terms, with shell orchestration living in flow transitions" hinges on **command placeholders** (s008): a
 transition can't create a per-task branch without them. Until then the plan is kept in this repo's docs;
-after dogfood we move mtt's development onto mtt itself. See sessions/README.md → "Roadmap regrouped".
+after dogfood we move mtt's development onto mtt itself (done — s009).
 
 > **Shipped (s009, revised by the flow-v2 spec): dogfooding / self-host.** This repo tracks its own
 > development in a committed `.mtt/` (config + tasks). **Model — one axis:** we track the **product** (a
-> task = a unit of product change), not the **process** (session/phase = how *we* work — that stays in
-> `sessions/*.md` + git); structure is **deps + tags + priority**, not hierarchy (**epics** are
+> task = a unit of product change), not the **process** (session/phase = how *we* work — that stayed in
+> session notes, since retired to git history in t31); structure is **deps + tags + priority**, not hierarchy (**epics** are
 > product-valid but deferred; the §4 self-ref gate returns with them). **TWO types.** `task` (design
 > OPEN): `tbd → speccing → spec_review → spec_human_review ⇄ spec_fix → planning → plan_review →
 > plan_human_review ⇄ plan_fix → implementing → impl_review ⇄ impl_fix → approved → done` (+`cancelled`);
 > `chore` (design ALREADY FIXED elsewhere — a review finding, a recorded decision, docs sync): the impl
 > stage + delivery tail only. Gates check **form, never content** (content = the review statuses):
-> id-keyed artifact presence (`ls docs/superpowers/specs/<id>-*.md`) on spec/plan submits, `make check`
+> id-keyed artifact presence (`ls docs/superpowers/specs/<id>-*.md`) on spec/plan submits, a
+> clean-working-tree gate (`.mtt` excluded) on every submit and on approve (t31), a CHANGELOG-entry check
+> on impl submits when code changed vs the merge base (t31), `make check`
 > (per-command 10m timeout) on impl submits, and a **verified delivery** — `deliver` moves the tree to
 > main and greps the squash subject (`<id>: …` — the PR title, propagated by the repo's
 > `squash_merge_commit_title=PR_TITLE` setting) from local `git log`, so **`done` truthfully means "in

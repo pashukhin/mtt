@@ -1,9 +1,9 @@
 # CLAUDE.md — mtt
 
 Thin entry point for agents. Full rules — in [AGENTS.md](AGENTS.md), architecture — in
-[DESIGN.md](DESIGN.md), the live queue — `mtt roadmap` ([TASKS.md](TASKS.md) is frozen history).
+[DESIGN.md](DESIGN.md), the live queue — `mtt roadmap`.
 
-**Read at the start of a session:** AGENTS.md → DESIGN.md → `mtt roadmap`.
+**Read at the start of a session:** AGENTS.md → DESIGN.md → `mtt roadmap` + `mtt prime`.
 
 ## What it is
 
@@ -27,7 +27,7 @@ external pairing (Jira+Confluence, etc.) can be plugged in via an adapter.
 
 ## Docs language
 
-Agent-facing docs (this file, AGENTS.md, TASKS.md, NEXT_SESSION.md) are English. Human-facing docs are
+Agent-facing docs (this file, AGENTS.md) are English. Human-facing docs are
 bilingual (English primary, keep in sync): `README.md` ↔ `README.ru.md`, `DESIGN.md` ↔ `DESIGN.ru.md`,
 `CLI_REFERENCE.md` ↔ `CLI_REFERENCE.ru.md`, `FLOW_GUIDE.md` ↔ `FLOW_GUIDE.ru.md`.
 
@@ -35,4 +35,7 @@ bilingual (English primary, keep in sync): `README.md` ↔ `README.ru.md`, `DESI
 
 The **superpowers** plugin (skills: TDD, brainstorming, debugging, planning) is a **personal**
 development-process preference, not a project one: enabled in `.claude/settings.local.json` (per-user,
-gitignored). Activation instructions — in [NEXT_SESSION.md](NEXT_SESSION.md).
+gitignored). Plugins load at session start; on first open confirm the marketplace trust prompt. If the
+skills don't appear, run once: `/plugin marketplace add obra/superpowers-marketplace` then
+`/plugin install superpowers@superpowers-marketplace` (alternative: `superpowers@claude-plugins-official`),
+and verify the TDD/brainstorming/debugging skills are active.

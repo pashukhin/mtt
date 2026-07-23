@@ -42,7 +42,9 @@ types:
         to: spec_review
         name: submit
         description: "spec written; run an adversarial subagent spec review"
-        commands: ['ls docs/superpowers/specs/{{.ID}}-*.md']
+        commands:
+          - 'ls docs/superpowers/specs/{{.ID}}-*.md'
+          - 'out=$(git status --porcelain -- ":(exclude).mtt") && test -z "$out" || { echo "working tree not clean - commit your code/docs first (.mtt is swept by the move itself)" >&2; false; }'
         post:
           - 'git add .mtt && git commit -m "{{.ID}}: {{.From}} → {{.To}}" -- .mtt'
       - {from: spec_review, to: spec_human_review, name: approve, description: "agent review passed; get human sign-off on the spec", post: ['git add .mtt && git commit -m "{{.ID}}: {{.From}} → {{.To}}" -- .mtt']}
@@ -53,7 +55,9 @@ types:
         to: spec_review
         name: submit
         description: "spec fixes done; re-review"
-        commands: ['ls docs/superpowers/specs/{{.ID}}-*.md']
+        commands:
+          - 'ls docs/superpowers/specs/{{.ID}}-*.md'
+          - 'out=$(git status --porcelain -- ":(exclude).mtt") && test -z "$out" || { echo "working tree not clean - commit your code/docs first (.mtt is swept by the move itself)" >&2; false; }'
         post:
           - 'git add .mtt && git commit -m "{{.ID}}: {{.From}} → {{.To}}" -- .mtt'
       # --- plan stage ---
@@ -61,7 +65,9 @@ types:
         to: plan_review
         name: submit
         description: "plan written; run an adversarial subagent plan review"
-        commands: ['ls docs/superpowers/plans/{{.ID}}-*.md']
+        commands:
+          - 'ls docs/superpowers/plans/{{.ID}}-*.md'
+          - 'out=$(git status --porcelain -- ":(exclude).mtt") && test -z "$out" || { echo "working tree not clean - commit your code/docs first (.mtt is swept by the move itself)" >&2; false; }'
         post:
           - 'git add .mtt && git commit -m "{{.ID}}: {{.From}} → {{.To}}" -- .mtt'
       - {from: plan_review, to: plan_human_review, name: approve, description: "agent review passed; get human sign-off on the plan", post: ['git add .mtt && git commit -m "{{.ID}}: {{.From}} → {{.To}}" -- .mtt']}
@@ -72,7 +78,9 @@ types:
         to: plan_review
         name: submit
         description: "plan fixes done; re-review"
-        commands: ['ls docs/superpowers/plans/{{.ID}}-*.md']
+        commands:
+          - 'ls docs/superpowers/plans/{{.ID}}-*.md'
+          - 'out=$(git status --porcelain -- ":(exclude).mtt") && test -z "$out" || { echo "working tree not clean - commit your code/docs first (.mtt is swept by the move itself)" >&2; false; }'
         post:
           - 'git add .mtt && git commit -m "{{.ID}}: {{.From}} → {{.To}}" -- .mtt'
       # --- implementation stage ---
@@ -80,13 +88,18 @@ types:
         to: impl_review
         name: submit
         description: "implementation done; run an adversarial code review"
-        commands: [{run: 'make check', timeout: 10m}]
+        commands:
+          - 'out=$(git status --porcelain -- ":(exclude).mtt") && test -z "$out" || { echo "working tree not clean - commit your code/docs first (.mtt is swept by the move itself)" >&2; false; }'
+          - 'git diff --quiet main...HEAD -- cmd internal pkg go.mod go.sum || git diff --name-only main...HEAD -- CHANGELOG.md | grep -q . || { echo "code changed but CHANGELOG.md has no entry - add one under [Unreleased] (pure refactor? bypass: mtt do submit --no-run --who ... --why ...)" >&2; false; }'
+          - {run: 'make check', timeout: 10m}
         post:
           - 'git add .mtt && git commit -m "{{.ID}}: {{.From}} → {{.To}}" -- .mtt'
       - from: impl_review
         to: approved
         name: approve
         description: "code review passed; the PR is opened/updated automatically — hand to the human to merge"
+        commands:
+          - 'out=$(git status --porcelain -- ":(exclude).mtt") && test -z "$out" || { echo "working tree not clean - commit your code/docs first (.mtt is swept by the move itself)" >&2; false; }'
         post:
           - 'git add .mtt && git commit -m "{{.ID}}: {{.From}} → {{.To}}" -- .mtt'
           - 'git push -u origin task/{{.ID}}'
@@ -96,7 +109,10 @@ types:
         to: impl_review
         name: submit
         description: "impl fixes done; re-review"
-        commands: [{run: 'make check', timeout: 10m}]
+        commands:
+          - 'out=$(git status --porcelain -- ":(exclude).mtt") && test -z "$out" || { echo "working tree not clean - commit your code/docs first (.mtt is swept by the move itself)" >&2; false; }'
+          - 'git diff --quiet main...HEAD -- cmd internal pkg go.mod go.sum || git diff --name-only main...HEAD -- CHANGELOG.md | grep -q . || { echo "code changed but CHANGELOG.md has no entry - add one under [Unreleased] (pure refactor? bypass: mtt do submit --no-run --who ... --why ...)" >&2; false; }'
+          - {run: 'make check', timeout: 10m}
         post:
           - 'git add .mtt && git commit -m "{{.ID}}: {{.From}} → {{.To}}" -- .mtt'
       # --- delivery tail ---
@@ -111,7 +127,7 @@ types:
         to: done
         name: deliver
         current: clear
-        description: "after the squash-merge: pull main, then deliver (moves your tree to main and writes done there)"
+        description: "after the squash-merge: pull main, then deliver (moves your tree to main and writes done there); before delivering, capture this task's durable lessons: mtt note add"
         commands:
           - 'git switch main'
           - 'git log -n 200 --format=%s | grep "^{{.ID}}: " || { echo "no squash commit \"{{.ID}}: …\" on local main: git pull first, and check the PR/merge title started with \"{{.ID}}: \"" >&2; false; }'
@@ -234,13 +250,18 @@ types:
         to: impl_review
         name: submit
         description: "implementation done; run an adversarial code review"
-        commands: [{run: 'make check', timeout: 10m}]
+        commands:
+          - 'out=$(git status --porcelain -- ":(exclude).mtt") && test -z "$out" || { echo "working tree not clean - commit your code/docs first (.mtt is swept by the move itself)" >&2; false; }'
+          - 'git diff --quiet main...HEAD -- cmd internal pkg go.mod go.sum || git diff --name-only main...HEAD -- CHANGELOG.md | grep -q . || { echo "code changed but CHANGELOG.md has no entry - add one under [Unreleased] (pure refactor? bypass: mtt do submit --no-run --who ... --why ...)" >&2; false; }'
+          - {run: 'make check', timeout: 10m}
         post:
           - 'git add .mtt && git commit -m "{{.ID}}: {{.From}} → {{.To}}" -- .mtt'
       - from: impl_review
         to: approved
         name: approve
         description: "code review passed; the PR is opened/updated automatically — hand to the human to merge"
+        commands:
+          - 'out=$(git status --porcelain -- ":(exclude).mtt") && test -z "$out" || { echo "working tree not clean - commit your code/docs first (.mtt is swept by the move itself)" >&2; false; }'
         post:
           - 'git add .mtt && git commit -m "{{.ID}}: {{.From}} → {{.To}}" -- .mtt'
           - 'git push -u origin task/{{.ID}}'
@@ -250,7 +271,10 @@ types:
         to: impl_review
         name: submit
         description: "impl fixes done; re-review"
-        commands: [{run: 'make check', timeout: 10m}]
+        commands:
+          - 'out=$(git status --porcelain -- ":(exclude).mtt") && test -z "$out" || { echo "working tree not clean - commit your code/docs first (.mtt is swept by the move itself)" >&2; false; }'
+          - 'git diff --quiet main...HEAD -- cmd internal pkg go.mod go.sum || git diff --name-only main...HEAD -- CHANGELOG.md | grep -q . || { echo "code changed but CHANGELOG.md has no entry - add one under [Unreleased] (pure refactor? bypass: mtt do submit --no-run --who ... --why ...)" >&2; false; }'
+          - {run: 'make check', timeout: 10m}
         post:
           - 'git add .mtt && git commit -m "{{.ID}}: {{.From}} → {{.To}}" -- .mtt'
       - from: approved
@@ -264,7 +288,7 @@ types:
         to: done
         name: deliver
         current: clear
-        description: "after the squash-merge: pull main, then deliver (moves your tree to main and writes done there)"
+        description: "after the squash-merge: pull main, then deliver (moves your tree to main and writes done there); before delivering, capture this task's durable lessons: mtt note add"
         commands:
           - 'git switch main'
           - 'git log -n 200 --format=%s | grep "^{{.ID}}: " || { echo "no squash commit \"{{.ID}}: …\" on local main: git pull first, and check the PR/merge title started with \"{{.ID}}: \"" >&2; false; }'

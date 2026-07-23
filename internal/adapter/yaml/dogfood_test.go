@@ -18,6 +18,8 @@ const (
 	cmdSpecGlob    = `ls docs/superpowers/specs/{{.ID}}-*.md`
 	cmdPlanGlob    = `ls docs/superpowers/plans/{{.ID}}-*.md`
 	cmdMakeCheck   = `make check`
+	cmdCleanTree   = `out=$(git status --porcelain -- ":(exclude).mtt") && test -z "$out" || { echo "working tree not clean - commit your code/docs first (.mtt is swept by the move itself)" >&2; false; }`
+	cmdChangelog   = `git diff --quiet main...HEAD -- cmd internal pkg go.mod go.sum || git diff --name-only main...HEAD -- CHANGELOG.md | grep -q . || { echo "code changed but CHANGELOG.md has no entry - add one under [Unreleased] (pure refactor? bypass: mtt do submit --no-run --who ... --why ...)" >&2; false; }`
 	cmdDeclineBack = `git switch task/{{.ID}}`
 	cmdSwitchMain  = `git switch main`
 	cmdDeliverLog  = `git log -n 200 --format=%s | grep "^{{.ID}}: " || { echo "no squash commit \"{{.ID}}: …\" on local main: git pull first, and check the PR/merge title started with \"{{.ID}}: \"" >&2; false; }`
@@ -166,32 +168,31 @@ func TestRepoDogfoodConfig(t *testing.T) {
 	for _, sp := range [][2]mtt.StatusName{
 		{"speccing", "spec_review"}, {"spec_fix", "spec_review"},
 	} {
-		assertRuns(t, task, namedEdge(t, task, sp[0], sp[1], "submit"), cmdSpecGlob)
+		assertRuns(t, task, namedEdge(t, task, sp[0], sp[1], "submit"), cmdSpecGlob, cmdCleanTree)
 	}
 	for _, sp := range [][2]mtt.StatusName{
 		{"planning", "plan_review"}, {"plan_fix", "plan_review"},
 	} {
-		assertRuns(t, task, namedEdge(t, task, sp[0], sp[1], "submit"), cmdPlanGlob)
+		assertRuns(t, task, namedEdge(t, task, sp[0], sp[1], "submit"), cmdPlanGlob, cmdCleanTree)
 	}
 
-	// impl submit edges: make check with the 10m per-command timeout (D8), both types.
+	// impl submit edges: clean tree, then the CHANGELOG check, then make check
+	// with the 10m per-command timeout (D8, t31), both types.
 	for _, tc := range []mtt.Type{task, chore} {
 		for _, from := range []mtt.StatusName{"implementing", "impl_fix"} {
 			e := namedEdge(t, tc, from, "impl_review", "submit")
-			if len(e.Commands) != 1 || e.Commands[0].Run != cmdMakeCheck {
-				t.Fatalf("%s %s->impl_review = %+v, want single %q", tc.Name, from, e.Commands, cmdMakeCheck)
-			}
-			if e.Commands[0].Timeout != 10*time.Minute {
-				t.Fatalf("%s %s->impl_review timeout = %v, want 10m", tc.Name, from, e.Commands[0].Timeout)
+			assertRuns(t, tc, e, cmdCleanTree, cmdChangelog, cmdMakeCheck)
+			if e.Commands[2].Timeout != 10*time.Minute {
+				t.Fatalf("%s %s->impl_review make-check timeout = %v, want 10m", tc.Name, from, e.Commands[2].Timeout)
 			}
 		}
 	}
 
 	// delivery tail (both types): approve, decline-back-to-branch, deliver.
 	for _, tc := range []mtt.Type{task, chore} {
-		if e := namedEdge(t, tc, "impl_review", "approved", "approve"); len(e.Commands) != 0 {
-			t.Fatalf("%s impl_review->approved must carry no commands", tc.Name)
-		}
+		// approve pushes the branch and opens the PR — the tree must be fully
+		// committed or the PR ships incomplete work (t31).
+		assertRuns(t, tc, namedEdge(t, tc, "impl_review", "approved", "approve"), cmdCleanTree)
 		assertRuns(t, tc, namedEdge(t, tc, "approved", "impl_fix", "decline"), cmdDeclineBack)
 		d := namedEdge(t, tc, "approved", "done", "deliver")
 		if d.Current != mtt.CurrentClear {
@@ -241,6 +242,9 @@ func TestRepoDogfoodConfig(t *testing.T) {
 	for _, tc := range []mtt.Type{task, chore} {
 		if s, _ := tc.StatusByName("approved"); !strings.Contains(s.Description, "gh pr create") {
 			t.Fatalf("%s approved description lost the PR command: %q", tc.Name, s.Description)
+		}
+		if d := namedEdge(t, tc, "approved", "done", "deliver"); !strings.Contains(d.Description, "mtt note add") {
+			t.Fatalf("%s deliver description lost the KB-capture reminder: %q", tc.Name, d.Description)
 		}
 	}
 }

@@ -1,0 +1,10 @@
+id: t64
+type: task
+title: 'test-suite gap batch (2026-07-10 audit): invalid-config e2e, rm --dry-run --json, writeDepCycles cycle, stale-current sugar, full-stack exit-code asserts, concurrent mint + atomicWrite failure modes'
+status: tbd
+priority: low
+tags:
+    - backlog
+    - tests
+created: "2026-07-23T08:00:07Z"
+updated: "2026-07-23T08:00:07Z"
