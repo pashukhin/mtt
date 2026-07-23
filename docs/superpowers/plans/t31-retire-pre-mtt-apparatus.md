@@ -408,7 +408,7 @@ git add .mtt/knowledge && git commit -m "t31: KB seed — 12 curated notes (carr
   The roadmap-heap fix is NOT added — it is already filed as **t13** ("performance: roadmap heap …");
   record "heap → covered by t13" in the verification notes.
 
-  (Skip any of the three whose content verifiably already lives in an open task; also skim
+  (Skip either of the two whose content verifiably already lives in an open task; also skim
   `2026-07-09-s009-readiness-and-architecture-audit.md` + `2026-07-09-flow-granularity-for-dogfood.md`
   + the two `.ru` notes for action items not shipped and not filed — same rule: file or confirm covered.)
 - [ ] **Step 4.2: extend t63's description** — full replacement text (current text + the four files):
