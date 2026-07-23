@@ -1,10 +1,20 @@
 id: c17
 type: chore
 title: add gosec + errorlint to golangci and triage findings — quality gate before public code
-status: tbd
+status: implementing
 tags:
     - sec
     - tests
 created: "2026-07-22T08:39:39Z"
-updated: "2026-07-22T08:39:39Z"
+updated: "2026-07-23T01:24:45Z"
 description: 'Arch review 2026-07-22: .golangci.yml runs standard + gocritic/revive/misspell/unconvert but NOT gosec or errorlint — notable for a tool that shell-execs gate commands and self-updates over the network. Add both (v2 config), run, and triage: expect hits around the sh -c seam (c15 territory), the unbounded io.ReadAll in github.Fetch, the missing-https-scheme check on asset URLs, and error-comparison sites that should use errors.Is/As. Suppress with justification where a finding is a deliberate accepted trade-off (documented in code), fix the rest. This is the ''raise the linter bar to match the fanatical-quality claim'' task.'
+history:
+    - at: "2026-07-23T01:24:45Z"
+      by: Grigorii Pashukhin
+      from: tbd
+      to: implementing
+      checks:
+        - cmd: git switch task/c17 || (git switch main && git switch -c task/c17)
+          exit: 0
+        - cmd: test -f .mtt/tasks/c17.yaml || { echo "task file absent on this branch — its add has not reached main (merge/commit the branch that created it first)" >&2; false; }
+          exit: 0
