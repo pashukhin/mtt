@@ -136,7 +136,7 @@ agent: **test-before-code** (TDD: red → green → refactor), the **Principles 
 
 The unit of work is an **mtt task** on a flow-created `task/<id>` branch; the method steps (brainstorm →
 spec → plan → TDD → reviews) are printed by the flow itself at each status. The pre-self-host session
-apparatus (`sessions/`, `TASKS.md`, `NEXT_SESSION.md`) is retired (t31): narrative history lives in git;
+apparatus (`sessions/`, `TASKS.md`, `NEXT_SESSION.md`) is retired: narrative history lives in git;
 orientation lives in the KB (`mtt note show dogfood-history`).
 
 ## Working under mtt (self-host)
