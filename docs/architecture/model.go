@@ -626,10 +626,11 @@ var NewDependencyEditor func(store TaskStore, now func() time.Time) DependencyEd
 // refused (edit the text). The primary authoring path is #hashtags in title/
 // description, merged on Add and reconciled on Edit by a text-delta (drop tags whose
 // #hashtag left the text, add new ones, keep manual tags — no provenance stored).
-// [shipped s008.7]
+// [shipped s008.7] Each returns the tags actually changed (nil on a no-op) so the
+// CLI reports the real effect, not the requested set. [c14]
 type TagEditor interface {
-	AddTags(id TaskID, tags []string) (Task, error)
-	RemoveTags(id TaskID, tags []string) (Task, error)
+	AddTags(id TaskID, tags []string) (Task, []string, error)
+	RemoveTags(id TaskID, tags []string) (Task, []string, error)
 }
 
 // NewTagEditor wires tag mutation — no store-beyond-TaskStore, an injected clock. [s008.7]
