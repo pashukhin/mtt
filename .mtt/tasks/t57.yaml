@@ -1,12 +1,12 @@
 id: t57
 type: task
 title: 'ship the flagship flow: init template and/or adaptation guide for the dogfood-grade config (branch, auto-commit, PR, deliver)'
-status: implementing
+status: impl_review
 tags:
     - dx
     - flow
 created: "2026-07-22T08:01:24Z"
-updated: "2026-07-23T05:36:34Z"
+updated: "2026-07-23T05:43:30Z"
 description: 'The audit (2026-07-22) dry-ran a pilot migration by hand-copying this repo 320-line config into a foreign repo: the whole pipeline works end-to-end (spec/plan/impl reviews, exit-5 PR tail, deliver push), but nothing ships it — init templates stop at coding (make lint/test, no git integration) and there is no how-to-adapt guide (Makefile gate, artifact paths, gh+jq, branch name, gitignore). Design open: a new init template vs a documented walkthrough vs both; interacts with t24 — default/global post actions would collapse the 7x duplicated cancel blocks before templating.'
 history:
     - at: "2026-07-23T02:52:45Z"
@@ -64,3 +64,10 @@ history:
       why: human sign-off on the implementation plan; inline execution chosen
       from: plan_human_review
       to: implementing
+    - at: "2026-07-23T05:43:30Z"
+      by: Grigorii Pashukhin
+      from: implementing
+      to: impl_review
+      checks:
+        - cmd: make check
+          exit: 0
