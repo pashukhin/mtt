@@ -1,9 +1,19 @@
 id: c13
 type: chore
 title: 'text and tag hygiene: hashtag extraction skips URL fragments; newlines in titles rejected'
-status: tbd
+status: implementing
 tags:
     - ux
 created: "2026-07-22T08:01:24Z"
-updated: "2026-07-22T08:01:24Z"
+updated: "2026-07-23T01:51:00Z"
 description: 'Verified (audit 2026-07-22): a pasted URL like example.com/page(hash)anchor mints the tag anchor, and the tag-rm guard then refuses removal because the hashtag is present in the text — no escape short of editing the URL out; a title with embedded newlines renders as multiple rows in list/tree, indistinguishable from separate tasks for line-oriented consumers (JSON escapes correctly). Fixed design: the extractor skips fragments inside URLs (anything with a scheme://); add/edit reject newlines in the title with a usage error (description stays free-form).'
+history:
+    - at: "2026-07-23T01:51:00Z"
+      by: Grigorii Pashukhin
+      from: tbd
+      to: implementing
+      checks:
+        - cmd: git switch task/c13 || (git switch main && git switch -c task/c13)
+          exit: 0
+        - cmd: test -f .mtt/tasks/c13.yaml || { echo "task file absent on this branch — its add has not reached main (merge/commit the branch that created it first)" >&2; false; }
+          exit: 0
