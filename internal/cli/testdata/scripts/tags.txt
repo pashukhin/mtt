@@ -127,3 +127,18 @@ exec mtt add --type epic 'ref https://ex.com/a/#frag'
 stdout 'created e5'
 exec mtt show e5
 ! stdout 'tags:'
+
+# c14: tag add/rm reports only what actually changed — a no-op reads honestly
+exec mtt tag add e4 manual
+stdout 'tagged e4: manual'
+# removing an absent tag is a no-op, not a false "untagged"
+exec mtt tag rm e4 ghost
+stdout 'no such tag'
+! stdout 'untagged e4: ghost'
+# adding an already-present tag is a no-op, not a false "tagged"
+exec mtt tag add e4 manual
+stdout 'already tagged'
+! stdout 'tagged e4: manual'
+# a real removal reports only the tag actually removed
+exec mtt tag rm e4 manual
+stdout 'untagged e4: manual'

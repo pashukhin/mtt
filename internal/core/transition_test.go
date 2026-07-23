@@ -554,6 +554,23 @@ func TestTransition_InvalidMoveOutOfTerminalReadsCleanly(t *testing.T) {
 	}
 }
 
+func TestTransition_NotInFlowStatusIsNotCalledTerminal(t *testing.T) {
+	// A hand-broken / config-drift status is NOT in the flow at all — it has no
+	// outgoing edges, but calling it "terminal" is a wrong diagnosis (c14).
+	store := newMemStore(func() mtt.Task { tk := baseTask(); tk.Status = "gone"; return tk }())
+	cfg := flowCfg(nil, nil)
+	_, err := NewTransitioner(store, cfg, &fakeRunner{}, testClock).Transition("t1", "in_progress", TransitionOptions{})
+	if !errors.Is(err, ErrInvalidTransition) {
+		t.Fatalf("want ErrInvalidTransition, got %v", err)
+	}
+	if strings.Contains(err.Error(), "terminal") {
+		t.Fatalf("a not-in-flow status must not be diagnosed as terminal: %q", err.Error())
+	}
+	if !strings.Contains(err.Error(), "gone") || !strings.Contains(err.Error(), "flow") {
+		t.Fatalf("message should name the status and the flow drift: %q", err.Error())
+	}
+}
+
 func TestTransition_NoRunSkipsPost(t *testing.T) {
 	store := newMemStore(baseTask())
 	cfg := flowCfg(nil, nil)

@@ -11,6 +11,11 @@ stdout 'created t2'
 exec mtt note add auth-design
 stdout 'created auth-design'
 
+# c14: a carrier with no refs and no backlinks prints (none) under each header,
+# not a bare empty header (mirrors dep list)
+exec mtt ref list t1
+stdout 'refs:\n  \(none\)\nbacklinks:\n  \(none\)'
+
 # add a task ref (target exists -> ok, no warning)
 exec mtt ref add t2 task:t1 --label blocks
 stdout 'added task:t1 to t2'

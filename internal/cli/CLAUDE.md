@@ -184,7 +184,9 @@ keeps `runRmSingle` (verbatim `removed <id>`, exit 4); multi/`-`/`--filter` → 
 (subgraph-aware), then `reportBulk`, clearing `current` per deleted id. **`tag add/rm` is marker-driven**
 (`tagArgs`): no marker → the single `applyTagSingle` path (`<id> <tag>…`, back-compat); a `-` or a filter flag
 → bulk (positionals are the tags, tasks from the selector, per-item `TagEditor` via `runBulk`). On `tag`, the
-`--tag` flag is the tag **filter** (distinct from the positional tags being added/removed).
+`--tag` flag is the tag **filter** (distinct from the positional tags being added/removed). **(c14)** `applyTagSingle`
+prints only the tags that **actually changed** (from the `TagEditor` mutation's returned set), so a no-op reads
+`<id>: no such tag … (no change)` / `already tagged …` instead of a false `untagged/tagged`.
 
 Flow guidance (session 008.95): `guidance.go` turns the flow's authored `description`s into inline agent
 instructions. `moveGuidance(cfg, type, from, to)` builds the block printed on **stdout** after a successful
@@ -216,7 +218,10 @@ edge out of the current status. **`mtt do [<id>] <edge>`** (`do.go`, `newDoCmd`)
 inherited); edge-name-**only** (no status fallback); a miss is `doMissError` (wraps `core.ErrInvalidTransition`
 → exit 6, lists `availableActions`). The **sugar `mtt <edge> [<id>]`** rides `classifyStatusMove`, which now
 tries `FindTransitionByName(task.Status, arg0)` **before** the target-status classification (disjoint namespaces
-make it safe). `edgeNameInAnyFlow` (`resolve.go`, beside `statusInAnyFlow`) lets the "no current / missing task"
+make it safe). **(c14)** a `classifyStatusMove` miss where arg0 is a known edge NAME in the task's type (via
+`edgeNameInType`) but not valid out of the current status routes to the same `doMissError` (exit 6, lists
+available actions) as `mtt do`, instead of a misleading "unknown command"; a truly bogus arg0 still declines.
+`edgeNameInAnyFlow` (`resolve.go`, beside `statusInAnyFlow`, now built on `edgeNameInType`) lets the "no current / missing task"
 branches treat a bare edge verb as plausible (claim with an actionable error vs "unknown command"). Discoverability:
 `writeTypeBlock` prints `[name] from -> to`, `formatNextMoves` prints `name → to`, and `nextMoveJSON.Name`
 (omitempty) carries the verb in `show --json`. `core.Transitioner` is untouched (route-by-`to`).
@@ -256,7 +261,8 @@ each target per kind (`NewTaskID`/`NewNoteSlug`/`url.Parse` scheme+host) → usa
 `verifyOne` resolves against both stores (warn-not-block, exit 0; carrier-not-found → exit 4). `--ref`
 (repeatable) on `add`/`note add` is creation-time (`parseRefFlags` → `core.AddParams/NoteParams.Refs`).
 `ref list`/`note ref list` render outgoing refs (verified) + computed **backlinks** via the shared
-`writeRefsAndBacklinks`; `show`/`note show` append `formatRefsBacklinks` (human) and set `showJSON.Refs/
+`writeRefsAndBacklinks` (**c14:** an empty `refs:`/`backlinks:` section prints `  (none)`, mirroring `dep list`,
+not a bare header); `show`/`note show` append `formatRefsBacklinks` (human) and set `showJSON.Refs/
 Backlinks` / `noteShowJSON` (JSON — the lean `taskJSON`/`noteJSON` used by list/edit stay untouched);
 `refJSON`/`backlinkJSON` + `verifiedRefsJSON`/`toBacklinkJSON` are the shared views. **`mtt check`**
 (`check.go`) sweeps via `core.CheckRefs`, prints findings, returns `core.ErrDanglingRefs` → **exit 7** on any

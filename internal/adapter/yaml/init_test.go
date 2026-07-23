@@ -6,6 +6,7 @@ import (
 	"flag"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -38,8 +39,15 @@ func TestRenderGolden(t *testing.T) {
 }
 
 func TestRenderUnknownTemplate(t *testing.T) {
-	if _, err := renderTemplate("nope", "demo"); err == nil {
+	_, err := renderTemplate("nope", "demo")
+	if err == nil {
 		t.Fatal("want error for unknown template")
+	}
+	// c14: the error lists the valid template names so the user can pick one.
+	for _, name := range []string{"coding", "default", "hierarchy"} {
+		if !strings.Contains(err.Error(), name) {
+			t.Fatalf("unknown-template error should list %q; got %q", name, err.Error())
+		}
 	}
 }
 

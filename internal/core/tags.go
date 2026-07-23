@@ -41,6 +41,22 @@ func tagSet(groups ...[]string) map[string]bool {
 	return m
 }
 
+// subtractTags returns the elements of a (a canonical set) not present in b,
+// preserving a's order — used to report the tags a mutation actually changed.
+func subtractTags(a, b []string) []string {
+	if len(a) == 0 {
+		return nil
+	}
+	bset := tagSet(b)
+	var out []string
+	for _, tag := range a {
+		if !bset[tag] {
+			out = append(out, tag)
+		}
+	}
+	return out
+}
+
 // reconcileTags recomputes a task's tags after a text edit: it drops tags whose
 // #hashtag left the text (present in the old text, absent from the new) and adds
 // tags whose #hashtag entered it, preserving manual tags (never in the old text).

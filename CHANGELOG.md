@@ -17,6 +17,20 @@ All notable changes to mtt are documented here. The format follows
   with its status — `✓` marks a terminal (satisfied) blocker, `(missing)` a dangling one. Previously the
   stored field was invisible outside `dep list`.
 
+### Changed
+- **Error-message polish, round 2 (c14).** Five messages now read honestly:
+  - `mtt init --template <bogus>` lists the valid names (`coding, default, hierarchy`) instead of just
+    rejecting the input.
+  - Moving a task whose status is **not in the flow** (a hand-edited / config-drift value) says so
+    (`status X is not in the "task" flow — config drift?`) instead of the wrong "it is terminal".
+  - The edge-verb sugar at the wrong status — e.g. `mtt decline t1` when `decline` is a real edge name but
+    not valid out of the current status — now routes to the actionable exit-6 error listing the available
+    actions (same as `mtt do`), instead of a misleading "unknown command" (exit 1).
+  - `mtt tag add/rm` reports only the tags that **actually changed**: removing an absent tag or adding a
+    present one reads as a no-op (`t1: no such tag ghost (no change)`) instead of a false `untagged/tagged`.
+  - `mtt ref list` / `mtt note ref list` print `(none)` under an empty `refs:`/`backlinks:` header (mirroring
+    `dep list`) instead of a bare header.
+
 ### Fixed
 - **Text & tag hygiene (c13).** A `#fragment` inside a pasted `scheme://` URL is no longer minted as a tag —
   `mtt add 'see https://ex.com/page/#anchor'` used to create the tag `anchor` (and the `tag rm` guard then

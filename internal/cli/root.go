@@ -174,6 +174,13 @@ func classifyStatusMove(cmd *cobra.Command, root string, cfg mtt.Config, setting
 		return false, nil
 	}
 	if _, ok := typ.StatusKind(to); !ok {
+		// Not a status either. If it IS a known edge NAME in this type's flow, the
+		// user meant an edge verb but is at the wrong status — route to the same
+		// actionable error as `mtt do` (exit 6), not a misleading "unknown command"
+		// (c14). A truly bogus arg0 still declines (→ unknown command).
+		if edgeNameInType(typ, statusArg) {
+			return true, doMissError(typ, statusArg, task.Status)
+		}
 		return false, nil
 	}
 	return true, runTransition(cmd, root, cfg, settings, task.ID, to, false)
