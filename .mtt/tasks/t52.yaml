@@ -15,7 +15,7 @@ refs:
       id: t51
       label: 'motivates: prime session-start hook'
 created: "2026-07-20T12:06:25Z"
-updated: "2026-07-22T08:01:24Z"
+updated: "2026-07-23T17:13:41Z"
 description: |-
     Sibling of t46 (which scaffolds agent DOCS: AGENTS.md/CLAUDE.md/GEMINI.md). This task scaffolds agent CONFIG/HOOKS: per-harness settings that wire mtt into the agent loop. Headline: a sessionStart hook running mtt prime (t51 left the hook as config-not-code; this makes init emit it), plus a read-only-mtt permissions allowlist.
 
@@ -26,3 +26,5 @@ description: |-
     - Security: a hook runs a command on session start -> opt-in, documented, reviewed (do not silently inject).
     - Surface: mtt init --with-hooks / --agent claude|codex|gemini, or a separate mtt setup command.
     Builds on t51 (mtt prime) and is a sibling of t46 (agent docs).
+
+    Extension (2026-07-24, user-decided): the scaffolded hook set is BOTH SessionStart AND PreCompact running mtt prime — inject the KB digest at session start and refresh it around compaction (SessionStart also re-fires with source=compact after a compact, so the digest survives context loss). Field-tested in this repo as a quick fix ahead of this task: .claude/settings.json now carries exactly these two hooks (command: mtt prime 2>/dev/null || true — guarded so a missing mtt binary never nags a contributor); use it as the reference shape for the Claude Code target.
