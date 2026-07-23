@@ -1,12 +1,12 @@
 id: t31
 type: task
 title: 'Retire the pre-mtt session apparatus: KB seed, submit gates, docs purge, mtt-first rules'
-status: spec_human_review
+status: planning
 priority: high
 tags:
     - docs
 created: "2026-07-11T12:58:07Z"
-updated: "2026-07-23T07:11:51Z"
+updated: "2026-07-23T07:17:49Z"
 description: 'Investigation 2026-07-23 confirmed the hypothesis: agents follow old-process traces around the flow. Evidence: NEXT_SESSION.md still claims to be a living handoff doc (stale Next-task pointer t1 and untagged-v0.9.0 claim while v0.10.0 is out; a post-freeze actualize commit 15ca7e5 duplicated mtt roadmap state into markdown); its ready-to-paste kickoff prompt teaches the retired lifecycle (feat/ branches, tick TASKS.md, sessions/ files, per-session version bumps); DESIGN/CLI_REFERENCE (EN+RU) still cite frozen TASKS.md - Later as if it were the live backlog; t43 was closed by direct commit + rm (968fdf5 - record erased, no flow move); the KB is empty despite t47/t51 shipping. Scope (brainstorm-decided 2026-07-23): (1) KB seed - distill carry-over lessons and docs/superpowers/notes into 10-12 curated high-priority notes, no DESIGN duplication; (2) flow gates - clean-tree gate on all submit edges (both types), CHANGELOG-vs-code-diff gate on impl submits (resolves t54), KB reminder in deliver description; TestRepoDogfoodConfig updated in the same change; (3) purge - delete NEXT_SESSION.md, TASKS.md, sessions/ dir, delivered-task artifacts under docs/superpowers (specs, plans, pr; notes after distillation); rewire TASKS.md pointers in DESIGN/CLI_REFERENCE (EN+RU) to live mtt ids or drop historical ones; superpowers activation moves into CLAUDE.md; (4) rules in AGENTS.md + root CLAUDE.md - queue and statuses via mtt commands only; closure only via flow edges (deliver / cancel --why); rm is not closure; no done-directly (already-decided work becomes a chore); knowledge via mtt note add; no parallel state docs; next-step source is mtt roadmap. Follow-ups: DESIGN unload is a separate dependent task; cancel t53/t54 with --why after delivery.'
 history:
     - at: "2026-07-23T06:50:57Z"
@@ -42,3 +42,8 @@ history:
       why: 'adversarial review round 2: APPROVE — all 9 findings verified fixed, 5 re-probed empirically; no new defects'
       from: spec_review
       to: spec_human_review
+    - at: "2026-07-23T07:17:49Z"
+      by: Grigorii Pashukhin
+      why: human sign-off on the spec
+      from: spec_human_review
+      to: planning
