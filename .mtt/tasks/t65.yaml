@@ -1,0 +1,11 @@
+id: t65
+type: task
+title: release artifact signing / gh attestation (SHA256SUMS is integrity, not authenticity)
+status: tbd
+priority: low
+tags:
+    - backlog
+    - release
+    - sec
+created: "2026-07-23T08:00:07Z"
+updated: "2026-07-23T08:00:07Z"
