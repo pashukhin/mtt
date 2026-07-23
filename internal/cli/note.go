@@ -71,7 +71,10 @@ func readNoteBody(cmd *cobra.Command, body, file string) (string, error) {
 			}
 			return string(data), nil
 		}
-		data, err := os.ReadFile(file)
+		// G304: file is the user's own --file argument to a local CLI; reading the
+		// path they named is the intended behavior (they already have the process's
+		// filesystem access), not a disclosure vector.
+		data, err := os.ReadFile(file) //nolint:gosec
 		if err != nil {
 			return "", fmt.Errorf("read %s: %w", file, err)
 		}

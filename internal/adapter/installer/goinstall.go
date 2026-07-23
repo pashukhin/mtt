@@ -42,7 +42,10 @@ func exeSuffix() string {
 }
 
 func defaultRun(ctx context.Context, name string, args ...string) error {
-	cmd := exec.CommandContext(ctx, name, args...)
+	// G204: argv-based exec (no shell) of the fixed `go install <module>@<version>`
+	// on the fixed `go` binary — the version tag is inert data in argv, not a
+	// shell-injection vector (SEC2).
+	cmd := exec.CommandContext(ctx, name, args...) //nolint:gosec
 	return cmd.Run()
 }
 
