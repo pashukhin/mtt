@@ -217,3 +217,29 @@ func TestValidatePostSurfacesRejectRollback(t *testing.T) {
 		})
 	}
 }
+
+func TestValidateEventPostSurfaces(t *testing.T) {
+	rb := &Command{Run: "undo"}
+	cases := []struct {
+		name   string
+		mutate func(*Config)
+		want   string
+	}{
+		{"event post rollback rejected", func(c *Config) {
+			c.Events.Task.Create.Post = []Command{{Run: "x", Rollback: rb}}
+		}, "post command must not carry a rollback"},
+		{"event post invalid command rejected", func(c *Config) {
+			c.Events.Note.Delete.Post = []Command{{Run: ""}}
+		}, "invalid post command"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			cfg := validConfig()
+			tc.mutate(&cfg)
+			err := cfg.Validate()
+			if err == nil || !strings.Contains(err.Error(), tc.want) {
+				t.Fatalf("Validate() = %v, want substring %q", err, tc.want)
+			}
+		})
+	}
+}

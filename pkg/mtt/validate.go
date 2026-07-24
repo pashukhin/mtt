@@ -27,6 +27,17 @@ func (c Config) Validate() error {
 	if defaults > 1 {
 		errs = append(errs, fmt.Errorf("config: %d types marked default, want at most one", defaults))
 	}
+	for _, ev := range []struct {
+		where string
+		hooks EventHooks
+	}{{"events.task", c.Events.Task}, {"events.note", c.Events.Note}} {
+		for _, h := range []struct {
+			kind string
+			hook EventHook
+		}{{"create", ev.hooks.Create}, {"update", ev.hooks.Update}, {"delete", ev.hooks.Delete}} {
+			errs = append(errs, validatePostCommands(h.hook.Post, fmt.Sprintf("%s.%s", ev.where, h.kind))...)
+		}
+	}
 	for _, t := range c.Types {
 		for _, p := range t.Parents {
 			switch {

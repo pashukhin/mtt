@@ -6,6 +6,7 @@ type Config struct {
 	Version int
 	Project Project
 	Types   []Type
+	Events  Events // lifecycle-event pipelines (t66); optional — zero value = no events
 }
 
 // Project holds project-level metadata.
