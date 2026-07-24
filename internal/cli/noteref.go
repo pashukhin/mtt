@@ -52,7 +52,7 @@ func newNoteRefAddCmd() *cobra.Command {
 				return err
 			}
 			ref.Label = label
-			note, err := core.NewNoteRefEditor(yaml.NewKnowledgeStore(root), time.Now).AddRef(slug, ref, cmd.Flags().Changed("label"))
+			note, err := core.NewNoteRefEditor(yaml.NewKnowledgeStore(root), time.Now, nil).AddRef(slug, ref, cmd.Flags().Changed("label"), core.EventOptions{})
 			if err != nil {
 				if isNotFound(err) {
 					return noteNotFound(slug)
@@ -90,7 +90,7 @@ func newNoteRefRmCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			if _, err := core.NewNoteRefEditor(yaml.NewKnowledgeStore(root), time.Now).RemoveRef(slug, ref.Kind, ref.ID); err != nil {
+			if _, err := core.NewNoteRefEditor(yaml.NewKnowledgeStore(root), time.Now, nil).RemoveRef(slug, ref.Kind, ref.ID, core.EventOptions{}); err != nil {
 				if isNotFound(err) {
 					return noteNotFound(slug)
 				}

@@ -52,7 +52,7 @@ func newDepAddCmd() *cobra.Command {
 				return err
 			}
 			id, dep := mtt.TaskID(args[0]), mtt.TaskID(args[1])
-			task, err := core.NewDependencyEditor(yaml.NewTaskStore(root), time.Now).AddDependency(id, dep)
+			task, err := core.NewDependencyEditor(yaml.NewTaskStore(root), time.Now, nil).AddDependency(id, dep, core.EventOptions{})
 			if err != nil {
 				return err
 			}
@@ -76,7 +76,7 @@ func newDepRmCmd() *cobra.Command {
 				return err
 			}
 			id, dep := mtt.TaskID(args[0]), mtt.TaskID(args[1])
-			task, err := core.NewDependencyEditor(yaml.NewTaskStore(root), time.Now).RemoveDependency(id, dep)
+			task, err := core.NewDependencyEditor(yaml.NewTaskStore(root), time.Now, nil).RemoveDependency(id, dep, core.EventOptions{})
 			if err != nil {
 				return err
 			}

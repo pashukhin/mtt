@@ -54,7 +54,7 @@ func laterClock() time.Time { return time.Date(2026, 7, 6, 12, 0, 0, 0, time.UTC
 
 func TestAddDependencyHappyPath(t *testing.T) {
 	m := newMemStore(withDeps("t1"), withDeps("t2"))
-	got, err := NewDependencyEditor(m, laterClock).AddDependency("t2", "t1")
+	got, err := NewDependencyEditor(m, laterClock, nil).AddDependency("t2", "t1", EventOptions{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -71,7 +71,7 @@ func TestAddDependencyHappyPath(t *testing.T) {
 
 func TestAddDependencySelfRejected(t *testing.T) {
 	m := newMemStore(withDeps("t1"))
-	_, err := NewDependencyEditor(m, laterClock).AddDependency("t1", "t1")
+	_, err := NewDependencyEditor(m, laterClock, nil).AddDependency("t1", "t1", EventOptions{})
 	if err == nil || !strings.Contains(err.Error(), "itself") {
 		t.Fatalf("err = %v; want a self-dependency error", err)
 	}
@@ -80,7 +80,7 @@ func TestAddDependencySelfRejected(t *testing.T) {
 func TestAddDependencyDuplicateNoop(t *testing.T) {
 	m := newMemStore(withDeps("t1"), withDeps("t2", "t1"))
 	before := m.byID["t2"].Updated
-	got, err := NewDependencyEditor(m, laterClock).AddDependency("t2", "t1")
+	got, err := NewDependencyEditor(m, laterClock, nil).AddDependency("t2", "t1", EventOptions{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -94,11 +94,11 @@ func TestAddDependencyDuplicateNoop(t *testing.T) {
 
 func TestAddDependencyNotFound(t *testing.T) {
 	m := newMemStore(withDeps("t1"))
-	if _, err := NewDependencyEditor(m, laterClock).AddDependency("t1", "ghost"); err == nil ||
+	if _, err := NewDependencyEditor(m, laterClock, nil).AddDependency("t1", "ghost", EventOptions{}); err == nil ||
 		!strings.Contains(err.Error(), "dependency") {
 		t.Fatalf("err = %v; want dependency-not-found", err)
 	}
-	if _, err := NewDependencyEditor(m, laterClock).AddDependency("ghost", "t1"); err == nil ||
+	if _, err := NewDependencyEditor(m, laterClock, nil).AddDependency("ghost", "t1", EventOptions{}); err == nil ||
 		!strings.Contains(err.Error(), "task") {
 		t.Fatalf("err = %v; want task-not-found", err)
 	}
@@ -107,7 +107,7 @@ func TestAddDependencyNotFound(t *testing.T) {
 func TestAddDependencyCycleRejected(t *testing.T) {
 	// t2 depends on t1; adding t1 -> t2 would close a cycle.
 	m := newMemStore(withDeps("t1"), withDeps("t2", "t1"))
-	_, err := NewDependencyEditor(m, laterClock).AddDependency("t1", "t2")
+	_, err := NewDependencyEditor(m, laterClock, nil).AddDependency("t1", "t2", EventOptions{})
 	if err == nil || !strings.Contains(err.Error(), "cycle") {
 		t.Fatalf("err = %v; want a cycle rejection", err)
 	}
@@ -115,7 +115,7 @@ func TestAddDependencyCycleRejected(t *testing.T) {
 
 func TestRemoveDependency(t *testing.T) {
 	m := newMemStore(withDeps("t1"), withDeps("t2", "t1"))
-	got, err := NewDependencyEditor(m, laterClock).RemoveDependency("t2", "t1")
+	got, err := NewDependencyEditor(m, laterClock, nil).RemoveDependency("t2", "t1", EventOptions{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -131,7 +131,7 @@ func TestRemoveDependencyIdempotent(t *testing.T) {
 	// t2 has no blockers; removing an absent edge is a no-op, not an error.
 	m := newMemStore(withDeps("t1"), withDeps("t2"))
 	before := m.byID["t2"].Updated
-	got, err := NewDependencyEditor(m, laterClock).RemoveDependency("t2", "t1")
+	got, err := NewDependencyEditor(m, laterClock, nil).RemoveDependency("t2", "t1", EventOptions{})
 	if err != nil {
 		t.Fatalf("idempotent rm errored: %v", err)
 	}
@@ -142,7 +142,7 @@ func TestRemoveDependencyIdempotent(t *testing.T) {
 		t.Fatalf("no-op rm bumped Updated: %v", got.Updated)
 	}
 	// a missing task still errors
-	if _, err := NewDependencyEditor(m, laterClock).RemoveDependency("ghost", "t1"); err == nil ||
+	if _, err := NewDependencyEditor(m, laterClock, nil).RemoveDependency("ghost", "t1", EventOptions{}); err == nil ||
 		!strings.Contains(err.Error(), "not found") {
 		t.Fatalf("err = %v; want task-not-found", err)
 	}

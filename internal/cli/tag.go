@@ -109,7 +109,7 @@ func runTagEdit(cmd *cobra.Command, args []string, add bool) error {
 	if err != nil {
 		return err
 	}
-	ed := core.NewTagEditor(yaml.NewTaskStore(root), time.Now)
+	ed := core.NewTagEditor(yaml.NewTaskStore(root), time.Now, nil)
 
 	if !hasDash(args) && !filterActive(cmd) {
 		// single (back-compat)
@@ -137,10 +137,10 @@ func runTagEdit(cmd *cobra.Command, args []string, add bool) error {
 		return err
 	}
 	verb := "tagged"
-	apply := func(id mtt.TaskID) error { _, _, e := ed.AddTags(id, tags); return e }
+	apply := func(id mtt.TaskID) error { _, _, e := ed.AddTags(id, tags, core.EventOptions{}); return e }
 	if !add {
 		verb = "untagged"
-		apply = func(id mtt.TaskID) error { _, _, e := ed.RemoveTags(id, tags); return e }
+		apply = func(id mtt.TaskID) error { _, _, e := ed.RemoveTags(id, tags, core.EventOptions{}); return e }
 	}
 	return runBulk(cmd, ids, verb, apply)
 }
@@ -154,9 +154,9 @@ func applyTagSingle(cmd *cobra.Command, ed *core.TagEditor, id mtt.TaskID, tags 
 	var err error
 	verb := "tagged"
 	if add {
-		task, changed, err = ed.AddTags(id, tags)
+		task, changed, err = ed.AddTags(id, tags, core.EventOptions{})
 	} else {
-		task, changed, err = ed.RemoveTags(id, tags)
+		task, changed, err = ed.RemoveTags(id, tags, core.EventOptions{})
 		verb = "untagged"
 	}
 	if err != nil {

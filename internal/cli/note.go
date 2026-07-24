@@ -118,7 +118,7 @@ func newNoteAddCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			note, err := core.NewNoteAdder(yaml.NewKnowledgeStore(root), time.Now).Add(core.NoteParams{Slug: slug, Title: title, Tags: normTags, Priority: prio, Body: b, Refs: refs})
+			note, err := core.NewNoteAdder(yaml.NewKnowledgeStore(root), time.Now, nil).Add(core.NoteParams{Slug: slug, Title: title, Tags: normTags, Priority: prio, Body: b, Refs: refs})
 			if err != nil {
 				return err
 			}
@@ -333,7 +333,7 @@ func newNoteEditCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			note, err := core.NewNoteEditor(yaml.NewKnowledgeStore(root), time.Now).Edit(slug, p)
+			note, err := core.NewNoteEditor(yaml.NewKnowledgeStore(root), time.Now, nil).Edit(slug, p)
 			if err != nil {
 				if errors.Is(err, mtt.ErrNotFound) {
 					return noteNotFound(slug)
@@ -398,7 +398,7 @@ func newNoteRmCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			if err := core.NewNoteRemover(kb, yaml.NewAuditStore(root), time.Now).Remove(slug, referents, force, by, why); err != nil {
+			if err := core.NewNoteRemover(kb, yaml.NewAuditStore(root), time.Now, nil).Remove(slug, referents, force, by, why, false); err != nil {
 				if errors.Is(err, mtt.ErrNotFound) {
 					return noteNotFound(slug)
 				}

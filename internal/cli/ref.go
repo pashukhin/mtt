@@ -211,7 +211,7 @@ func newRefAddCmd() *cobra.Command {
 				return err
 			}
 			ref.Label = label
-			task, err := core.NewRefEditor(yaml.NewTaskStore(root), time.Now).AddRef(id, ref, cmd.Flags().Changed("label"))
+			task, err := core.NewRefEditor(yaml.NewTaskStore(root), time.Now, nil).AddRef(id, ref, cmd.Flags().Changed("label"), core.EventOptions{})
 			if err != nil {
 				if isNotFound(err) {
 					return taskNotFound(id)
@@ -249,7 +249,7 @@ func newRefRmCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			if _, err := core.NewRefEditor(yaml.NewTaskStore(root), time.Now).RemoveRef(id, ref.Kind, ref.ID); err != nil {
+			if _, err := core.NewRefEditor(yaml.NewTaskStore(root), time.Now, nil).RemoveRef(id, ref.Kind, ref.ID, core.EventOptions{}); err != nil {
 				if isNotFound(err) {
 					return taskNotFound(id)
 				}

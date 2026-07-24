@@ -13,28 +13,39 @@ import (
 type RefEditor struct {
 	store mtt.TaskStore
 	now   func() time.Time
+	ev    *EventEmitter
 }
 
-// NewRefEditor wires the usecase.
-func NewRefEditor(store mtt.TaskStore, now func() time.Time) *RefEditor {
-	return &RefEditor{store: store, now: now}
+// NewRefEditor wires the usecase; ev fires the update event (nil = none).
+func NewRefEditor(store mtt.TaskStore, now func() time.Time, ev *EventEmitter) *RefEditor {
+	return &RefEditor{store: store, now: now, ev: ev}
 }
 
 // AddRef upserts r on task id by its natural key (setLabel = --label was given),
-// bumps Updated, persists.
-func (e *RefEditor) AddRef(id mtt.TaskID, r mtt.Ref, setLabel bool) (mtt.Task, error) {
+// bumps Updated, persists, fires the update event.
+func (e *RefEditor) AddRef(id mtt.TaskID, r mtt.Ref, setLabel bool, opts EventOptions) (mtt.Task, error) {
+	if err := opts.Preflight(); err != nil {
+		return mtt.Task{}, err
+	}
 	t, err := e.load(id)
 	if err != nil {
 		return mtt.Task{}, err
 	}
 	t.Refs = upsertRef(t.Refs, r, setLabel)
 	t.Updated = e.now().UTC().Truncate(time.Second)
-	return e.store.Update(t)
+	up, err := e.store.Update(t)
+	if err != nil {
+		return mtt.Task{}, err
+	}
+	return up, e.ev.TaskEvent(mtt.EventUpdate, up, "ref add", opts)
 }
 
 // RemoveRef drops the (kind,target) ref from task id; an absent key is an
-// idempotent no-op (no write).
-func (e *RefEditor) RemoveRef(id mtt.TaskID, kind mtt.RefKind, target string) (mtt.Task, error) {
+// idempotent no-op (no write, no event).
+func (e *RefEditor) RemoveRef(id mtt.TaskID, kind mtt.RefKind, target string, opts EventOptions) (mtt.Task, error) {
+	if err := opts.Preflight(); err != nil {
+		return mtt.Task{}, err
+	}
 	t, err := e.load(id)
 	if err != nil {
 		return mtt.Task{}, err
@@ -45,7 +56,11 @@ func (e *RefEditor) RemoveRef(id mtt.TaskID, kind mtt.RefKind, target string) (m
 	}
 	t.Refs = refs
 	t.Updated = e.now().UTC().Truncate(time.Second)
-	return e.store.Update(t)
+	up, err := e.store.Update(t)
+	if err != nil {
+		return mtt.Task{}, err
+	}
+	return up, e.ev.TaskEvent(mtt.EventUpdate, up, "ref rm", opts)
 }
 
 func (e *RefEditor) load(id mtt.TaskID) (mtt.Task, error) {
@@ -63,27 +78,38 @@ func (e *RefEditor) load(id mtt.TaskID) (mtt.Task, error) {
 type NoteRefEditor struct {
 	store mtt.KnowledgeStore
 	now   func() time.Time
+	ev    *EventEmitter
 }
 
-// NewNoteRefEditor wires the usecase.
-func NewNoteRefEditor(store mtt.KnowledgeStore, now func() time.Time) *NoteRefEditor {
-	return &NoteRefEditor{store: store, now: now}
+// NewNoteRefEditor wires the usecase; ev fires the note update event (nil = none).
+func NewNoteRefEditor(store mtt.KnowledgeStore, now func() time.Time, ev *EventEmitter) *NoteRefEditor {
+	return &NoteRefEditor{store: store, now: now, ev: ev}
 }
 
-// AddRef upserts r on note slug, bumps Updated, persists.
-func (e *NoteRefEditor) AddRef(slug mtt.NoteSlug, r mtt.Ref, setLabel bool) (mtt.Note, error) {
+// AddRef upserts r on note slug, bumps Updated, persists, fires the update event.
+func (e *NoteRefEditor) AddRef(slug mtt.NoteSlug, r mtt.Ref, setLabel bool, opts EventOptions) (mtt.Note, error) {
+	if err := opts.Preflight(); err != nil {
+		return mtt.Note{}, err
+	}
 	n, err := e.store.GetNote(slug)
 	if err != nil {
 		return mtt.Note{}, err // GetNote returns bare ErrNotFound; the CLI wraps to noteNotFound
 	}
 	n.Refs = upsertRef(n.Refs, r, setLabel)
 	n.Updated = e.now().UTC()
-	return e.store.UpdateNote(n)
+	up, err := e.store.UpdateNote(n)
+	if err != nil {
+		return mtt.Note{}, err
+	}
+	return up, e.ev.NoteEvent(mtt.EventUpdate, up, "note ref add", opts)
 }
 
 // RemoveRef drops the (kind,target) ref from note slug; an absent key is an
-// idempotent no-op.
-func (e *NoteRefEditor) RemoveRef(slug mtt.NoteSlug, kind mtt.RefKind, target string) (mtt.Note, error) {
+// idempotent no-op (no write, no event).
+func (e *NoteRefEditor) RemoveRef(slug mtt.NoteSlug, kind mtt.RefKind, target string, opts EventOptions) (mtt.Note, error) {
+	if err := opts.Preflight(); err != nil {
+		return mtt.Note{}, err
+	}
 	n, err := e.store.GetNote(slug)
 	if err != nil {
 		return mtt.Note{}, err
@@ -94,5 +120,9 @@ func (e *NoteRefEditor) RemoveRef(slug mtt.NoteSlug, kind mtt.RefKind, target st
 	}
 	n.Refs = refs
 	n.Updated = e.now().UTC()
-	return e.store.UpdateNote(n)
+	up, err := e.store.UpdateNote(n)
+	if err != nil {
+		return mtt.Note{}, err
+	}
+	return up, e.ev.NoteEvent(mtt.EventUpdate, up, "note ref rm", opts)
 }
