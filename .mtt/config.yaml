@@ -3,12 +3,46 @@ project:
   name: mtt
 require:
   who: true
+# t66 lifecycle events: every non-flow mutation commits (and, on main, pushes)
+# its OWN entity file — narrowed pathspec (SEC2/c3: a dirty config.yaml must
+# never ride an auto-commit), &&-chained add (a failed add fails loudly),
+# empty-commit guard, and "mtt: …" subjects that can never satisfy the deliver
+# squash-grep (^<id>: ). --no-run skips these and writes an audit skip-record.
+events:
+  task:
+    create:
+      post:
+        - 'a=.mtt/tasks/{{.ID}}.yaml; test -f .mtt/audit.log && a="$a .mtt/audit.log"; git add -- $a && { git diff --cached --quiet -- $a || git commit -m "mtt: {{.ID}} {{.Event}}" -- $a; }'
+        - '[ "$(git branch --show-current)" != main ] || git push origin main || { echo "push failed — git pull first, then git push origin main" >&2; false; }'
+    update:
+      post:
+        - 'a=.mtt/tasks/{{.ID}}.yaml; test -f .mtt/audit.log && a="$a .mtt/audit.log"; git add -- $a && { git diff --cached --quiet -- $a || git commit -m "mtt: {{.ID}} {{.Event}}" -- $a; }'
+        - '[ "$(git branch --show-current)" != main ] || git push origin main || { echo "push failed — git pull first, then git push origin main" >&2; false; }'
+    delete:
+      post:
+        - 'a=.mtt/tasks/{{.ID}}.yaml; test -f .mtt/audit.log && a="$a .mtt/audit.log"; git add -- $a && { git diff --cached --quiet -- $a || git commit -m "mtt: {{.ID}} {{.Event}}" -- $a; }'
+        - '[ "$(git branch --show-current)" != main ] || git push origin main || { echo "push failed — git pull first, then git push origin main" >&2; false; }'
+  note:
+    create:
+      post:
+        - 'a=.mtt/knowledge/{{.Slug}}.md; test -f .mtt/audit.log && a="$a .mtt/audit.log"; git add -- $a && { git diff --cached --quiet -- $a || git commit -m "mtt: note {{.Slug}} {{.Event}}" -- $a; }'
+        - '[ "$(git branch --show-current)" != main ] || git push origin main || { echo "push failed — git pull first, then git push origin main" >&2; false; }'
+    update:
+      post:
+        - 'a=.mtt/knowledge/{{.Slug}}.md; test -f .mtt/audit.log && a="$a .mtt/audit.log"; git add -- $a && { git diff --cached --quiet -- $a || git commit -m "mtt: note {{.Slug}} {{.Event}}" -- $a; }'
+        - '[ "$(git branch --show-current)" != main ] || git push origin main || { echo "push failed — git pull first, then git push origin main" >&2; false; }'
+    delete:
+      post:
+        - 'a=.mtt/knowledge/{{.Slug}}.md; test -f .mtt/audit.log && a="$a .mtt/audit.log"; git add -- $a && { git diff --cached --quiet -- $a || git commit -m "mtt: note {{.Slug}} {{.Event}}" -- $a; }'
+        - '[ "$(git branch --show-current)" != main ] || git push origin main || { echo "push failed — git pull first, then git push origin main" >&2; false; }'
 types:
   - name: task
     prefix: t
     parents: []
     default: true
     description: "A unit of product change whose design is OPEN — decisions to make and record (spec + plan artifacts, each reviewed). If the what+how are already decided and recorded elsewhere, use `chore`."
+    post_defaults:
+      - 'git add .mtt && git commit -m "{{.ID}}: {{.From}} → {{.To}}" -- .mtt'
     statuses:
       - {name: tbd, kind: initial, description: "queued; `mtt start` to take into work"}
       - {name: speccing, kind: active, description: "brainstorm first (superpowers:brainstorming), then write the design spec — a decision record — to docs/superpowers/specs/{{.ID}}-<slug>.md (commit early and often), then `mtt submit`"}
@@ -36,8 +70,6 @@ types:
           - 'git switch task/{{.ID}} || (git switch main && git switch -c task/{{.ID}})'
           - 'test -f .mtt/tasks/{{.ID}}.yaml || { echo "task file absent on this branch — its add has not reached main (merge/commit the branch that created it first)" >&2; false; }'
       # --- design stage ---
-        post:
-          - 'git add .mtt && git commit -m "{{.ID}}: {{.From}} → {{.To}}" -- .mtt'
       - from: speccing
         to: spec_review
         name: submit
@@ -45,12 +77,10 @@ types:
         commands:
           - 'ls docs/superpowers/specs/{{.ID}}-*.md'
           - 'out=$(git status --porcelain -- ":(exclude).mtt") && test -z "$out" || { echo "working tree not clean - commit your code/docs first (.mtt is swept by the move itself)" >&2; false; }'
-        post:
-          - 'git add .mtt && git commit -m "{{.ID}}: {{.From}} → {{.To}}" -- .mtt'
-      - {from: spec_review, to: spec_human_review, name: approve, description: "agent review passed; get human sign-off on the spec", post: ['git add .mtt && git commit -m "{{.ID}}: {{.From}} → {{.To}}" -- .mtt']}
-      - {from: spec_review, to: spec_fix, name: decline, description: "review found issues; address them, then `mtt submit`", post: ['git add .mtt && git commit -m "{{.ID}}: {{.From}} → {{.To}}" -- .mtt']}
-      - {from: spec_human_review, to: planning, name: approve, description: "spec approved; write the implementation plan", post: ['git add .mtt && git commit -m "{{.ID}}: {{.From}} → {{.To}}" -- .mtt']}
-      - {from: spec_human_review, to: spec_fix, name: decline, description: "human declined the spec; address feedback", post: ['git add .mtt && git commit -m "{{.ID}}: {{.From}} → {{.To}}" -- .mtt']}
+      - {from: spec_review, to: spec_human_review, name: approve, description: "agent review passed; get human sign-off on the spec"}
+      - {from: spec_review, to: spec_fix, name: decline, description: "review found issues; address them, then `mtt submit`"}
+      - {from: spec_human_review, to: planning, name: approve, description: "spec approved; write the implementation plan"}
+      - {from: spec_human_review, to: spec_fix, name: decline, description: "human declined the spec; address feedback"}
       - from: spec_fix
         to: spec_review
         name: submit
@@ -58,8 +88,6 @@ types:
         commands:
           - 'ls docs/superpowers/specs/{{.ID}}-*.md'
           - 'out=$(git status --porcelain -- ":(exclude).mtt") && test -z "$out" || { echo "working tree not clean - commit your code/docs first (.mtt is swept by the move itself)" >&2; false; }'
-        post:
-          - 'git add .mtt && git commit -m "{{.ID}}: {{.From}} → {{.To}}" -- .mtt'
       # --- plan stage ---
       - from: planning
         to: plan_review
@@ -68,12 +96,10 @@ types:
         commands:
           - 'ls docs/superpowers/plans/{{.ID}}-*.md'
           - 'out=$(git status --porcelain -- ":(exclude).mtt") && test -z "$out" || { echo "working tree not clean - commit your code/docs first (.mtt is swept by the move itself)" >&2; false; }'
-        post:
-          - 'git add .mtt && git commit -m "{{.ID}}: {{.From}} → {{.To}}" -- .mtt'
-      - {from: plan_review, to: plan_human_review, name: approve, description: "agent review passed; get human sign-off on the plan", post: ['git add .mtt && git commit -m "{{.ID}}: {{.From}} → {{.To}}" -- .mtt']}
-      - {from: plan_review, to: plan_fix, name: decline, description: "review found issues; address them, then `mtt submit`", post: ['git add .mtt && git commit -m "{{.ID}}: {{.From}} → {{.To}}" -- .mtt']}
-      - {from: plan_human_review, to: implementing, name: approve, description: "plan approved; implement test-first (TDD)", post: ['git add .mtt && git commit -m "{{.ID}}: {{.From}} → {{.To}}" -- .mtt']}
-      - {from: plan_human_review, to: plan_fix, name: decline, description: "human declined the plan; address feedback", post: ['git add .mtt && git commit -m "{{.ID}}: {{.From}} → {{.To}}" -- .mtt']}
+      - {from: plan_review, to: plan_human_review, name: approve, description: "agent review passed; get human sign-off on the plan"}
+      - {from: plan_review, to: plan_fix, name: decline, description: "review found issues; address them, then `mtt submit`"}
+      - {from: plan_human_review, to: implementing, name: approve, description: "plan approved; implement test-first (TDD)"}
+      - {from: plan_human_review, to: plan_fix, name: decline, description: "human declined the plan; address feedback"}
       - from: plan_fix
         to: plan_review
         name: submit
@@ -81,8 +107,6 @@ types:
         commands:
           - 'ls docs/superpowers/plans/{{.ID}}-*.md'
           - 'out=$(git status --porcelain -- ":(exclude).mtt") && test -z "$out" || { echo "working tree not clean - commit your code/docs first (.mtt is swept by the move itself)" >&2; false; }'
-        post:
-          - 'git add .mtt && git commit -m "{{.ID}}: {{.From}} → {{.To}}" -- .mtt'
       # --- implementation stage ---
       - from: implementing
         to: impl_review
@@ -92,8 +116,6 @@ types:
           - 'out=$(git status --porcelain -- ":(exclude).mtt") && test -z "$out" || { echo "working tree not clean - commit your code/docs first (.mtt is swept by the move itself)" >&2; false; }'
           - 'git diff --quiet main...HEAD -- cmd internal pkg go.mod go.sum || git diff --name-only main...HEAD -- CHANGELOG.md | grep -q . || { echo "code changed but CHANGELOG.md has no entry - add one under [Unreleased] (pure refactor? bypass: mtt do submit --no-run --who ... --why ...)" >&2; false; }'
           - {run: 'make check', timeout: 10m}
-        post:
-          - 'git add .mtt && git commit -m "{{.ID}}: {{.From}} → {{.To}}" -- .mtt'
       - from: impl_review
         to: approved
         name: approve
@@ -101,10 +123,9 @@ types:
         commands:
           - 'out=$(git status --porcelain -- ":(exclude).mtt") && test -z "$out" || { echo "working tree not clean - commit your code/docs first (.mtt is swept by the move itself)" >&2; false; }'
         post:
-          - 'git add .mtt && git commit -m "{{.ID}}: {{.From}} → {{.To}}" -- .mtt'
           - 'git push -u origin task/{{.ID}}'
           - '[ -n "$(gh pr list --head task/{{.ID}} --state open --json number --jq ".[].number")" ] || { t="{{.ID}}: $(mtt show {{.ID}} --json | jq -r ".title // empty")"; if test -f docs/superpowers/pr/{{.ID}}.md; then gh pr create --base main --head task/{{.ID}} --title "$t" --body-file docs/superpowers/pr/{{.ID}}.md; else gh pr create --base main --head task/{{.ID}} --title "$t" --body "Automated PR for {{.ID}} — see: mtt show {{.ID}}"; fi; }'
-      - {from: impl_review, to: impl_fix, name: decline, description: "review found issues; address them, then `mtt submit`", post: ['git add .mtt && git commit -m "{{.ID}}: {{.From}} → {{.To}}" -- .mtt']}
+      - {from: impl_review, to: impl_fix, name: decline, description: "review found issues; address them, then `mtt submit`"}
       - from: impl_fix
         to: impl_review
         name: submit
@@ -113,24 +134,21 @@ types:
           - 'out=$(git status --porcelain -- ":(exclude).mtt") && test -z "$out" || { echo "working tree not clean - commit your code/docs first (.mtt is swept by the move itself)" >&2; false; }'
           - 'git diff --quiet main...HEAD -- cmd internal pkg go.mod go.sum || git diff --name-only main...HEAD -- CHANGELOG.md | grep -q . || { echo "code changed but CHANGELOG.md has no entry - add one under [Unreleased] (pure refactor? bypass: mtt do submit --no-run --who ... --why ...)" >&2; false; }'
           - {run: 'make check', timeout: 10m}
-        post:
-          - 'git add .mtt && git commit -m "{{.ID}}: {{.From}} → {{.To}}" -- .mtt'
       # --- delivery tail ---
       - from: approved
         to: impl_fix
         name: decline
         description: "human requested changes on the PR (returns you to the task branch)"
         commands: ['git switch task/{{.ID}}']
-        post:
-          - 'git add .mtt && git commit -m "{{.ID}}: {{.From}} → {{.To}}" -- .mtt'
       - from: approved
         to: done
         name: deliver
         current: clear
+        inherit_post: false
         description: "after the squash-merge: pull main, then deliver (moves your tree to main and writes done there); before delivering, capture this task's durable lessons: mtt note add; caution: --no-run skips the git switch too — a bypassed deliver writes done on whatever branch you are on"
         commands:
           - 'git switch main'
-          - 'git log -n 200 --format=%s | grep "^{{.ID}}: " || { echo "no squash commit \"{{.ID}}: …\" on local main: git pull first, and check the PR/merge title started with \"{{.ID}}: \"" >&2; false; }'
+          - 'git log -n 1000 --format=%s | grep -v "^mtt: " | head -200 | grep "^{{.ID}}: " || { echo "no squash commit \"{{.ID}}: …\" on local main: git pull first, and check the PR/merge title started with \"{{.ID}}: \"" >&2; false; }'
       # --- cancel (every non-terminal except the _review pairs; moves your tree to main) ---
         post:
           - 'a=.mtt/tasks/{{.ID}}.yaml; test -f .mtt/audit.log && a="$a .mtt/audit.log"; git add -- $a && git commit -m "{{.ID}}: {{.From}} → {{.To}}" -- $a'
@@ -139,6 +157,7 @@ types:
         to: cancelled
         name: cancel
         current: clear
+        inherit_post: false
         description: "abandon the task (moves your tree to main); caution: --no-run skips the git switch too — a bypassed cancel writes cancelled on whatever branch you are on"
         commands:
           - 'git switch main'
@@ -150,6 +169,7 @@ types:
         to: cancelled
         name: cancel
         current: clear
+        inherit_post: false
         description: "abandon the task (moves your tree to main); caution: --no-run skips the git switch too — a bypassed cancel writes cancelled on whatever branch you are on"
         commands:
           - 'git switch main'
@@ -161,6 +181,7 @@ types:
         to: cancelled
         name: cancel
         current: clear
+        inherit_post: false
         description: "abandon the task (moves your tree to main); caution: --no-run skips the git switch too — a bypassed cancel writes cancelled on whatever branch you are on"
         commands:
           - 'git switch main'
@@ -172,6 +193,7 @@ types:
         to: cancelled
         name: cancel
         current: clear
+        inherit_post: false
         description: "abandon the task (moves your tree to main); caution: --no-run skips the git switch too — a bypassed cancel writes cancelled on whatever branch you are on"
         commands:
           - 'git switch main'
@@ -183,6 +205,7 @@ types:
         to: cancelled
         name: cancel
         current: clear
+        inherit_post: false
         description: "abandon the task (moves your tree to main); caution: --no-run skips the git switch too — a bypassed cancel writes cancelled on whatever branch you are on"
         commands:
           - 'git switch main'
@@ -194,6 +217,7 @@ types:
         to: cancelled
         name: cancel
         current: clear
+        inherit_post: false
         description: "abandon the task (moves your tree to main); caution: --no-run skips the git switch too — a bypassed cancel writes cancelled on whatever branch you are on"
         commands:
           - 'git switch main'
@@ -205,6 +229,7 @@ types:
         to: cancelled
         name: cancel
         current: clear
+        inherit_post: false
         description: "abandon the task (moves your tree to main); caution: --no-run skips the git switch too — a bypassed cancel writes cancelled on whatever branch you are on"
         commands:
           - 'git switch main'
@@ -216,6 +241,7 @@ types:
         to: cancelled
         name: cancel
         current: clear
+        inherit_post: false
         description: "abandon the task (moves your tree to main); caution: --no-run skips the git switch too — a bypassed cancel writes cancelled on whatever branch you are on"
         commands:
           - 'git switch main'
@@ -227,6 +253,8 @@ types:
     prefix: c
     parents: []
     description: "A unit of product change whose design is ALREADY FIXED elsewhere (a review finding with a fix sketch, a recorded backlog decision, docs sync, a dependency bump, a mechanical refactor). If you need to make design decisions, use `task`."
+    post_defaults:
+      - 'git add .mtt && git commit -m "{{.ID}}: {{.From}} → {{.To}}" -- .mtt'
     statuses:
       - {name: tbd, kind: initial, description: "queued; `mtt start` to take into work"}
       - {name: implementing, kind: active, description: "implement test-first (TDD), make check green between commits, then `mtt submit`"}
@@ -244,8 +272,6 @@ types:
         commands:
           - 'git switch task/{{.ID}} || (git switch main && git switch -c task/{{.ID}})'
           - 'test -f .mtt/tasks/{{.ID}}.yaml || { echo "task file absent on this branch — its add has not reached main (merge/commit the branch that created it first)" >&2; false; }'
-        post:
-          - 'git add .mtt && git commit -m "{{.ID}}: {{.From}} → {{.To}}" -- .mtt'
       - from: implementing
         to: impl_review
         name: submit
@@ -254,8 +280,6 @@ types:
           - 'out=$(git status --porcelain -- ":(exclude).mtt") && test -z "$out" || { echo "working tree not clean - commit your code/docs first (.mtt is swept by the move itself)" >&2; false; }'
           - 'git diff --quiet main...HEAD -- cmd internal pkg go.mod go.sum || git diff --name-only main...HEAD -- CHANGELOG.md | grep -q . || { echo "code changed but CHANGELOG.md has no entry - add one under [Unreleased] (pure refactor? bypass: mtt do submit --no-run --who ... --why ...)" >&2; false; }'
           - {run: 'make check', timeout: 10m}
-        post:
-          - 'git add .mtt && git commit -m "{{.ID}}: {{.From}} → {{.To}}" -- .mtt'
       - from: impl_review
         to: approved
         name: approve
@@ -263,10 +287,9 @@ types:
         commands:
           - 'out=$(git status --porcelain -- ":(exclude).mtt") && test -z "$out" || { echo "working tree not clean - commit your code/docs first (.mtt is swept by the move itself)" >&2; false; }'
         post:
-          - 'git add .mtt && git commit -m "{{.ID}}: {{.From}} → {{.To}}" -- .mtt'
           - 'git push -u origin task/{{.ID}}'
           - '[ -n "$(gh pr list --head task/{{.ID}} --state open --json number --jq ".[].number")" ] || { t="{{.ID}}: $(mtt show {{.ID}} --json | jq -r ".title // empty")"; if test -f docs/superpowers/pr/{{.ID}}.md; then gh pr create --base main --head task/{{.ID}} --title "$t" --body-file docs/superpowers/pr/{{.ID}}.md; else gh pr create --base main --head task/{{.ID}} --title "$t" --body "Automated PR for {{.ID}} — see: mtt show {{.ID}}"; fi; }'
-      - {from: impl_review, to: impl_fix, name: decline, description: "review found issues; address them, then `mtt submit`", post: ['git add .mtt && git commit -m "{{.ID}}: {{.From}} → {{.To}}" -- .mtt']}
+      - {from: impl_review, to: impl_fix, name: decline, description: "review found issues; address them, then `mtt submit`"}
       - from: impl_fix
         to: impl_review
         name: submit
@@ -275,23 +298,20 @@ types:
           - 'out=$(git status --porcelain -- ":(exclude).mtt") && test -z "$out" || { echo "working tree not clean - commit your code/docs first (.mtt is swept by the move itself)" >&2; false; }'
           - 'git diff --quiet main...HEAD -- cmd internal pkg go.mod go.sum || git diff --name-only main...HEAD -- CHANGELOG.md | grep -q . || { echo "code changed but CHANGELOG.md has no entry - add one under [Unreleased] (pure refactor? bypass: mtt do submit --no-run --who ... --why ...)" >&2; false; }'
           - {run: 'make check', timeout: 10m}
-        post:
-          - 'git add .mtt && git commit -m "{{.ID}}: {{.From}} → {{.To}}" -- .mtt'
       - from: approved
         to: impl_fix
         name: decline
         description: "human requested changes on the PR (returns you to the task branch)"
         commands: ['git switch task/{{.ID}}']
-        post:
-          - 'git add .mtt && git commit -m "{{.ID}}: {{.From}} → {{.To}}" -- .mtt'
       - from: approved
         to: done
         name: deliver
         current: clear
+        inherit_post: false
         description: "after the squash-merge: pull main, then deliver (moves your tree to main and writes done there); before delivering, capture this task's durable lessons: mtt note add; caution: --no-run skips the git switch too — a bypassed deliver writes done on whatever branch you are on"
         commands:
           - 'git switch main'
-          - 'git log -n 200 --format=%s | grep "^{{.ID}}: " || { echo "no squash commit \"{{.ID}}: …\" on local main: git pull first, and check the PR/merge title started with \"{{.ID}}: \"" >&2; false; }'
+          - 'git log -n 1000 --format=%s | grep -v "^mtt: " | head -200 | grep "^{{.ID}}: " || { echo "no squash commit \"{{.ID}}: …\" on local main: git pull first, and check the PR/merge title started with \"{{.ID}}: \"" >&2; false; }'
         post:
           - 'a=.mtt/tasks/{{.ID}}.yaml; test -f .mtt/audit.log && a="$a .mtt/audit.log"; git add -- $a && git commit -m "{{.ID}}: {{.From}} → {{.To}}" -- $a'
           - 'git push origin main'
@@ -299,6 +319,7 @@ types:
         to: cancelled
         name: cancel
         current: clear
+        inherit_post: false
         description: "abandon the task (moves your tree to main); caution: --no-run skips the git switch too — a bypassed cancel writes cancelled on whatever branch you are on"
         commands:
           - 'git switch main'
@@ -310,6 +331,7 @@ types:
         to: cancelled
         name: cancel
         current: clear
+        inherit_post: false
         description: "abandon the task (moves your tree to main); caution: --no-run skips the git switch too — a bypassed cancel writes cancelled on whatever branch you are on"
         commands:
           - 'git switch main'
@@ -321,6 +343,7 @@ types:
         to: cancelled
         name: cancel
         current: clear
+        inherit_post: false
         description: "abandon the task (moves your tree to main); caution: --no-run skips the git switch too — a bypassed cancel writes cancelled on whatever branch you are on"
         commands:
           - 'git switch main'
@@ -332,6 +355,7 @@ types:
         to: cancelled
         name: cancel
         current: clear
+        inherit_post: false
         description: "abandon the task (moves your tree to main); caution: --no-run skips the git switch too — a bypassed cancel writes cancelled on whatever branch you are on"
         commands:
           - 'git switch main'

@@ -22,7 +22,11 @@ const (
 	cmdChangelog   = `git diff --quiet main...HEAD -- cmd internal pkg go.mod go.sum || git diff --name-only main...HEAD -- CHANGELOG.md | grep -q . || { echo "code changed but CHANGELOG.md has no entry - add one under [Unreleased] (pure refactor? bypass: mtt do submit --no-run --who ... --why ...)" >&2; false; }`
 	cmdDeclineBack = `git switch task/{{.ID}}`
 	cmdSwitchMain  = `git switch main`
-	cmdDeliverLog  = `git log -n 200 --format=%s | grep "^{{.ID}}: " || { echo "no squash commit \"{{.ID}}: …\" on local main: git pull first, and check the PR/merge title started with \"{{.ID}}: \"" >&2; false; }`
+	// the squash-proof filters event subjects BEFORE the window cut (t66): per-
+	// entity grooming mints many "mtt: …" commits on main; filtering after -n 200
+	// would be dead decoration (same window, event lines already inside it). The
+	// effective window stays 200 SUBSTANTIVE subjects.
+	cmdDeliverLog  = `git log -n 1000 --format=%s | grep -v "^mtt: " | head -200 | grep "^{{.ID}}: " || { echo "no squash commit \"{{.ID}}: …\" on local main: git pull first, and check the PR/merge title started with \"{{.ID}}: \"" >&2; false; }`
 	cmdCancelGuard = `test -f .mtt/tasks/{{.ID}}.yaml || { echo "task file absent on main — its add has not reached main (merge/commit the branch that created it first)" >&2; false; }`
 	cmdPostCommit  = `git add .mtt && git commit -m "{{.ID}}: {{.From}} → {{.To}}" -- .mtt`
 	// deliver/cancel commit ON main (their pre-gate switches there), so their
@@ -35,6 +39,15 @@ const (
 	// approve also opens/updates the PR (idempotent, config-only) — c1 pushed the
 	// branch, t27 opens the PR. Byte-matches the .mtt/config.yaml approve post[2].
 	cmdPrCreate = `[ -n "$(gh pr list --head task/{{.ID}} --state open --json number --jq ".[].number")" ] || { t="{{.ID}}: $(mtt show {{.ID}} --json | jq -r ".title // empty")"; if test -f docs/superpowers/pr/{{.ID}}.md; then gh pr create --base main --head task/{{.ID}} --title "$t" --body-file docs/superpowers/pr/{{.ID}}.md; else gh pr create --base main --head task/{{.ID}} --title "$t" --body "Automated PR for {{.ID}} — see: mtt show {{.ID}}"; fi; }`
+	// lifecycle-event pipelines (t66). Load-bearing shapes: NARROWED pathspec
+	// (a broad `git add .mtt` would sweep a dirty config.yaml into a pushed main
+	// commit — the c3 hole), the audit.log conditional on BOTH stores, the
+	// &&-chained add (a failed add must fail loudly, not read as "nothing to
+	// do"), the empty-commit guard, and NAMESPACED subjects ("mtt: …") that can
+	// never match the deliver grep's `^<id>: `.
+	cmdEventCommitTask = `a=.mtt/tasks/{{.ID}}.yaml; test -f .mtt/audit.log && a="$a .mtt/audit.log"; git add -- $a && { git diff --cached --quiet -- $a || git commit -m "mtt: {{.ID}} {{.Event}}" -- $a; }`
+	cmdEventCommitNote = `a=.mtt/knowledge/{{.Slug}}.md; test -f .mtt/audit.log && a="$a .mtt/audit.log"; git add -- $a && { git diff --cached --quiet -- $a || git commit -m "mtt: note {{.Slug}} {{.Event}}" -- $a; }`
+	cmdEventPush       = `[ "$(git branch --show-current)" != main ] || git push origin main || { echo "push failed — git pull first, then git push origin main" >&2; false; }`
 )
 
 // TestRepoDogfoodConfig is the SOLE guard of this repo's committed
@@ -117,39 +130,58 @@ func TestRepoDogfoodConfig(t *testing.T) {
 		t.Fatalf("chore transitions = %d, want 11", got)
 	}
 
-	// every edge auto-commits .mtt via a post: command (t21); approve (→approved)
-	// also pushes the task branch and deliver (approved→done) pushes main (c1) — a
-	// dropped or drifted block reddens on the exact literal.
+	// t66/t24: the auto-commit line lives ONCE per type in post_defaults; edges
+	// keep only their specifics. The EFFECTIVE pipeline (defaults ++ own, or own
+	// under the explicit opt-out) must be byte-identical to the pre-t66 shape —
+	// asserted below via EffectivePost so a precedence regression reddens here.
 	for _, ty := range []mtt.Type{task, chore} {
+		if len(ty.PostDefaults) != 1 || ty.PostDefaults[0].Run != cmdPostCommit {
+			t.Fatalf("%s post_defaults = %+v, want [%q]", ty.Name, ty.PostDefaults, cmdPostCommit)
+		}
 		for _, tr := range ty.Transitions {
-			// deliver (approved→done) and every cancel (→cancelled) commit on main
-			// and must use the narrowed pathspec; all other edges keep the broad one.
-			wantPost := cmdPostCommit
-			if tr.To == "cancelled" || (tr.From == "approved" && tr.To == "done") {
-				wantPost = cmdPostCommitMain
+			eff := ty.EffectivePost(tr)
+			runs := make([]string, len(eff))
+			for i, c := range eff {
+				runs[i] = c.Run
 			}
-			if len(tr.Post) < 1 || tr.Post[0].Run != wantPost {
-				t.Fatalf("%s %s->%s post[0] = %+v, want %q first", ty.Name, tr.From, tr.To, tr.Post, wantPost)
+			mainLanding := tr.To == "cancelled" || (tr.From == "approved" && tr.To == "done")
+			if mainLanding != tr.SkipPostDefaults {
+				t.Fatalf("%s %s->%s inherit_post opt-out = %v, want %v (only main-landing edges opt out)", ty.Name, tr.From, tr.To, tr.SkipPostDefaults, mainLanding)
 			}
+			var want []string
 			switch {
-			case tr.To == "approved": // approve: push the branch for the PR, then open the PR (t27)
-				if len(tr.Post) != 3 || tr.Post[1].Run != cmdPushBranch || tr.Post[2].Run != cmdPrCreate {
-					t.Fatalf("%s %s->approved post = %+v, want [commit, %q, %q]", ty.Name, tr.From, tr.Post, cmdPushBranch, cmdPrCreate)
+			case tr.To == "approved": // approve: default commit, then push branch + open PR (t27)
+				want = []string{cmdPostCommit, cmdPushBranch, cmdPrCreate}
+			case mainLanding: // deliver/cancel: narrowed commit + push main, NO broad default (SEC2, c3)
+				want = []string{cmdPostCommitMain, cmdPushMain}
+			default: // every other edge: the default commit only (own post: gone)
+				if len(tr.Post) != 0 {
+					t.Fatalf("%s %s->%s carries its own post %+v, want none (defaults only)", ty.Name, tr.From, tr.To, tr.Post)
 				}
-			case tr.From == "approved" && tr.To == "done": // deliver: push main
-				if len(tr.Post) != 2 || tr.Post[1].Run != cmdPushMain {
-					t.Fatalf("%s deliver post = %+v, want [commit, %q]", ty.Name, tr.Post, cmdPushMain)
-				}
-			case tr.To == "cancelled": // cancel: push main too (symmetry with deliver, c5)
-				if len(tr.Post) != 2 || tr.Post[1].Run != cmdPushMain {
-					t.Fatalf("%s cancel %s->cancelled post = %+v, want [commit, %q]", ty.Name, tr.From, tr.Post, cmdPushMain)
-				}
-			default:
-				if len(tr.Post) != 1 {
-					t.Fatalf("%s %s->%s post = %+v, want single commit only", ty.Name, tr.From, tr.To, tr.Post)
+				want = []string{cmdPostCommit}
+			}
+			if len(runs) != len(want) {
+				t.Fatalf("%s %s->%s effective post = %v, want %v", ty.Name, tr.From, tr.To, runs, want)
+			}
+			for i := range want {
+				if runs[i] != want[i] {
+					t.Fatalf("%s %s->%s effective post[%d] = %q, want %q", ty.Name, tr.From, tr.To, i, runs[i], want[i])
 				}
 			}
 		}
+	}
+
+	// t66: lifecycle events — both stores, all three kinds, the exact safe
+	// pipeline (narrowed pathspec + guarded commit, then the main-aware push).
+	for kind, hook := range map[string]mtt.EventHook{
+		"task.create": cfg.Events.Task.Create, "task.update": cfg.Events.Task.Update, "task.delete": cfg.Events.Task.Delete,
+	} {
+		assertEventHook(t, kind, hook, cmdEventCommitTask, cmdEventPush)
+	}
+	for kind, hook := range map[string]mtt.EventHook{
+		"note.create": cfg.Events.Note.Create, "note.update": cfg.Events.Note.Update, "note.delete": cfg.Events.Note.Delete,
+	} {
+		assertEventHook(t, kind, hook, cmdEventCommitNote, cmdEventPush)
 	}
 
 	// entry edges: name/current + exact two-command pipeline (both types).
@@ -250,6 +282,18 @@ func TestRepoDogfoodConfig(t *testing.T) {
 		// a bypassed terminal write lands on whatever branch you are on.
 		if d := namedEdge(t, tc, "approved", "done", "deliver"); !strings.Contains(d.Description, "--no-run") {
 			t.Fatalf("%s deliver description lost the --no-run caveat: %q", tc.Name, d.Description)
+		}
+	}
+}
+
+func assertEventHook(t *testing.T, kind string, hook mtt.EventHook, want ...string) {
+	t.Helper()
+	if len(hook.Post) != len(want) {
+		t.Fatalf("events.%s post = %d commands, want %d", kind, len(hook.Post), len(want))
+	}
+	for i, w := range want {
+		if hook.Post[i].Run != w {
+			t.Fatalf("events.%s post[%d] = %q, want %q", kind, i, hook.Post[i].Run, w)
 		}
 	}
 }
