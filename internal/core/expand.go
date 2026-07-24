@@ -20,19 +20,37 @@ type cmdContext struct {
 	To   string
 }
 
+// taskEventContext is the placeholder whitelist for task lifecycle events:
+// {{.ID}}, {{.Type}}, {{.Event}}. No From/To — an event is not an edge; a
+// stray {{.From}} is a template error (the struct shape self-enforces it).
+// Type carries the CONFIG's type name (membership-checked by the emitter),
+// never the raw on-disk value (the c15-class guard, spec §4).
+type taskEventContext struct {
+	ID    string
+	Type  string
+	Event string
+}
+
+// noteEventContext is the placeholder whitelist for note lifecycle events:
+// {{.Slug}} (structurally validated kebab ASCII) and {{.Event}}.
+type noteEventContext struct {
+	Slug  string
+	Event string
+}
+
 // expandCommands renders each command's Run (and, recursively, its Rollback.Run)
 // against ctx, returning new commands with expanded strings and unchanged
 // timeouts. Expansion is eager and up-front (before the gate), so a malformed
 // template in a command OR its rollback aborts the transition before any side
 // effect runs. A malformed template (Parse) or a reference to an unexposed field
 // (Execute) is an error.
-func expandCommands(cmds []mtt.Command, ctx cmdContext) ([]mtt.Command, error) {
+func expandCommands(cmds []mtt.Command, data any) ([]mtt.Command, error) {
 	if len(cmds) == 0 {
 		return nil, nil
 	}
 	out := make([]mtt.Command, 0, len(cmds))
 	for _, c := range cmds {
-		ec, err := expandOne(c, ctx)
+		ec, err := expandOne(c, data)
 		if err != nil {
 			return nil, err
 		}
@@ -44,14 +62,14 @@ func expandCommands(cmds []mtt.Command, ctx cmdContext) ([]mtt.Command, error) {
 // expandOne expands a command's Run and (recursively) its Rollback against ctx.
 // A compensator is a leaf (Config.Validate guarantees rollback.Rollback == nil),
 // so the recursion is at most one level deep.
-func expandOne(c mtt.Command, ctx cmdContext) (mtt.Command, error) {
-	run, err := expandTemplate(c.Run, ctx)
+func expandOne(c mtt.Command, data any) (mtt.Command, error) {
+	run, err := expandTemplate(c.Run, data)
 	if err != nil {
 		return mtt.Command{}, err
 	}
 	out := mtt.Command{Run: run, Timeout: c.Timeout}
 	if c.Rollback != nil {
-		rb, err := expandOne(*c.Rollback, ctx)
+		rb, err := expandOne(*c.Rollback, data)
 		if err != nil {
 			return mtt.Command{}, err
 		}
@@ -74,14 +92,15 @@ func ExpandText(raw, id, typ, from, to string) string {
 	return out
 }
 
-// expandTemplate renders one raw template string against ctx.
-func expandTemplate(raw string, ctx cmdContext) (string, error) {
+// expandTemplate renders one raw template string against data (one of the
+// whitelist context structs — never free text).
+func expandTemplate(raw string, data any) (string, error) {
 	tmpl, err := template.New("cmd").Parse(raw)
 	if err != nil {
 		return "", fmt.Errorf("parse command %q: %w", raw, err)
 	}
 	var b strings.Builder
-	if err := tmpl.Execute(&b, ctx); err != nil {
+	if err := tmpl.Execute(&b, data); err != nil {
 		return "", fmt.Errorf("expand command %q: %w", raw, err)
 	}
 	return b.String(), nil
