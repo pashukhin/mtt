@@ -1,7 +1,7 @@
 id: c19
 type: chore
 title: 'docs: the --no-run caveat sweep - bypass skips ALL edge commands, state-movers included; your commands are your responsibility, bypassed or executed'
-status: impl_review
+status: approved
 priority: medium
 tags:
     - docs
@@ -45,4 +45,12 @@ history:
         - cmd: 'git diff --quiet main...HEAD -- cmd internal pkg go.mod go.sum || git diff --name-only main...HEAD -- CHANGELOG.md | grep -q . || { echo "code changed but CHANGELOG.md has no entry - add one under [Unreleased] (pure refactor? bypass: mtt do submit --no-run --who ... --why ...)" >&2; false; }'
           exit: 0
         - cmd: make check
+          exit: 0
+    - at: "2026-07-24T02:16:19Z"
+      by: Grigorii Pashukhin
+      why: 'adversarial review: APPROVE after the dangling-pointer fix; docs/code claims verified against transitioner semantics'
+      from: impl_review
+      to: approved
+      checks:
+        - cmd: out=$(git status --porcelain -- ":(exclude).mtt") && test -z "$out" || { echo "working tree not clean - commit your code/docs first (.mtt is swept by the move itself)" >&2; false; }
           exit: 0
