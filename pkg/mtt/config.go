@@ -17,10 +17,11 @@ type Project struct {
 // default marker, and its flow. Mandatory: Name and a Flow whose statuses have a
 // name+kind and whose transitions have from/to.
 type Type struct {
-	Name        TypeName
-	Description string
-	Parents     []TypeName
-	Default     bool
+	Name         TypeName
+	Description  string
+	Parents      []TypeName
+	Default      bool
+	PostDefaults []Command // prepended to every edge's Post unless the edge opts out (t66/t24)
 	Flow
 }
 
@@ -53,6 +54,11 @@ type Transition struct {
 	Current     CurrentAction // set|clear the personal current pointer when traversed (empty = no effect)
 	Require     Require       // per-edge required attribution (zero = none); unioned with global + --no-run
 	Post        []Command     // commands run AFTER persist (finalization, e.g. git commit); non-transactional (t21)
+
+	// SkipPostDefaults opts this edge out of the type's PostDefaults (YAML:
+	// inherit_post: false). Zero value = inherit — the t24 precedence rule:
+	// defaults first, specifics appended, opt-out only explicit.
+	SkipPostDefaults bool
 }
 
 // Require is a required-attribution policy: who/why must be supplied. Used as the
@@ -125,6 +131,19 @@ func (t Type) FindTransition(from, to StatusName) (Transition, bool) {
 		}
 	}
 	return Transition{}, false
+}
+
+// EffectivePost returns the post pipeline that actually runs for edge tr: the
+// type's PostDefaults followed by the edge's own Post — unless the edge opts
+// out (SkipPostDefaults), then only its own Post. The t24 precedence rule:
+// defaults first, specifics appended, opt-out only explicit.
+func (t Type) EffectivePost(tr Transition) []Command {
+	if tr.SkipPostDefaults || len(t.PostDefaults) == 0 {
+		return tr.Post
+	}
+	out := make([]Command, 0, len(t.PostDefaults)+len(tr.Post))
+	out = append(out, t.PostDefaults...)
+	return append(out, tr.Post...)
 }
 
 // TypeByName returns the type with the given name, or false when absent.
