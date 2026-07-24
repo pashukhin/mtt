@@ -622,7 +622,7 @@ func (e *EventEmitter) NoteEvent(kind mtt.EventKind, n mtt.Note, action string, 
 1. `TestTaskEventRunsExpandedPipeline` — cfg with `Events.Task.Update.Post: [{Run: "echo {{.ID}} {{.Type}} {{.Event}}"}]`; `TaskEvent(EventUpdate, task{ID:"t1",Type:"task"}, "edit", EventOptions{})` → runner received `echo t1 task update`; nil error.
 2. `TestTaskEventNoHookNoRun` — empty config → runner not called, nil error.
 3. `TestNilEmitterIsInert` — `var e *EventEmitter; e.TaskEvent(...)` → nil, no panic.
-4. `TestTaskEventTypeDriftIsFinalizationFailure` — task with `Type: "ghost"` not in cfg → `*PostActionError` with `Remaining == runs of the raw hook`, `Cause` containing `task type "ghost" not in config`; runner NOT called.
+4. `TestTaskEventTypeDriftIsFinalizationFailure` — the c15-class payload, not a benign name: task with `Type: mtt.TypeName(`+"`"+`x"; touch pwned; "`+"`"+`)` (shell metacharacters) and a hook using `{{.Type}}` → `*PostActionError` with `Remaining == runs of the raw hook`, `Cause` containing `not in config`; runner NOT called (assert zero `Run` invocations — the security property is "never reaches the shell", not just the error shape).
 5. `TestTaskEventFromToIsTemplateError` — hook `{{.From}}` → `*PostActionError` (expansion is post-persist: finalization failure, not a plain error), runner NOT called.
 6. `TestTaskEventCommandFailure` — hook `[ok, fail, never]`, fakeRunner exits 1 on "fail" → `*PostActionError{Remaining: ["fail","never"]}`.
 7. `TestNoRunSkipsPipelineAndWritesAuditRecord` — opts `{NoRun: true, By: "me", Why: "because"}` → runner NOT called; fakeAudit got one entry `{Who: "me", Why: "because", Action: "edit --no-run", TaskID: "t1"}`. Also with an EMPTY config (no hooks) → record still written (pin i).
@@ -863,12 +863,16 @@ git add internal/core/ internal/cli/ && git commit -m "t66: core — Adder/Edito
 **Interfaces:**
 - Consumes: Task 6.
 - Produces:
+  - **Universal rule (applies to EVERY mutating method in Tasks 8–9, no exceptions):** the method calls `opts.Preflight()` **before any load or persist** — a `--no-run` bypass without who+why is exit 2 and nothing is written. This is the §6 uniform-forcing contract; each editor gets its own preflight test (see Step 1).
+  - **No-op × bypass rule (pin i clarified):** an idempotent no-op under `--no-run` writes **no** skip record — "the moment the skipped pipeline would have fired" never comes when nothing persisted. Pinned by `TestTagAddNoOpNoRunWritesNoRecord`.
   - `NewTagEditor(store, now, ev)`, `AddTags/RemoveTags(id, tags, opts EventOptions)` — fire `EventUpdate` (action `"tag add"`/`"tag rm"`) **only when the returned changed-set is non-empty** (idempotent no-op ⇒ no persist ⇒ no fire).
   - `NewDependencyEditor(store, now, ev)`, `AddDependency/RemoveDependency(id, dep, opts EventOptions)` — fire `EventUpdate` (action `"dep add"`/`"dep rm"`) only on a real change.
   - `NewRefEditor(store, now, ev)` — fire `EventUpdate` (action `"ref add"`/`"ref rm"`) only when it persisted.
   - `NewRemover(store, audit, now, ev)`; `Remove/RemoveMany(ids, force, by, why, bl, noRun bool)` — per id, INSIDE the loop, after a successful `store.Delete`: fire `EventDelete` (action `"rm"`) with `EventOptions{NoRun: noRun, By: by, Why: why}`; the event error rides that id's `RemoveResult.Err`. **Pin iii:** under `force && noRun` the pre-delete audit record's action becomes `"rm --force --no-run"`, NO second (skip) record is written, and the `TaskEvent` call is skipped entirely for that id (the one record already signed the bypass; no pipeline runs). Under `noRun && !force`: `Preflight` at the top of `RemoveMany` (before any deletion), then per id `TaskEvent(EventDelete, task, "rm", opts)` — which writes the skip record. Under `!noRun`: normal fire.
 
 - [ ] **Step 1: Write the failing tests** (per usecase, in its `_test.go`; the load-bearing ones):
+  - `TestEditorsNoRunPreflight` (table test, one per file or one shared shape): for EACH of `AddTags`, `RemoveTags`, `AddDependency`, `RemoveDependency`, and the `RefEditor` upsert/remove — `opts{NoRun: true}` without By/Why → `ErrMissingAttribution`, store untouched (assert no `Update` call on the fake).
+  - `TestTagAddNoOpNoRunWritesNoRecord`: already-present tag + `opts{NoRun: true, By: "a", Why: "b"}` → no error, fakeAudit EMPTY (no persist ⇒ no skip record — the no-op × bypass rule).
   - `TestTagAddNoOpFiresNoEvent`: add an already-present tag → runner not called.
   - `TestTagAddFiresUpdateEvent`: real add → one pipeline run.
   - `TestRemoveManyFiresDeletePerEntityInsideLoop`: 2 ids, hook records `{{.ID}}`; assert runner saw TWO runs, in id order, and (key assertion) the FIRST run happened before the SECOND delete — with the fakes, assert order via a shared recording slice: store.Delete and runner.Run append markers `delete:tN` / `run:tN`; expect `[delete:t1 run:t1 delete:t2 run:t2]`.
@@ -935,7 +939,7 @@ git add internal/core/ internal/cli/ && git commit -m "t66: core — tag/dep/ref
 - Consumes: Task 6.
 - Produces: constructors gain `ev *EventEmitter`; params/methods gain `EventOptions` (same pattern as Tasks 7–8); actions: `"note add"`, `"note edit"`, `"note ref add"`, `"note ref rm"`, `"note rm"`. `NoteRemover` mirrors `Remover` exactly: its existing forced-delete audit action becomes `"note rm --force --no-run"` under bypass (one record); the delete event fires after `DeleteNote`.
 
-- [ ] **Step 1: Write the failing tests** — mirror Task 7/8's shapes over notes: `TestNoteAddFiresCreateEvent` (slug expanded via `{{.Slug}}`), `TestNoteEditNoRunPreflight`, `TestNoteRemoveForceNoRunOneRecord`, `TestNoteEventFailureKeepsNote`.
+- [ ] **Step 1: Write the failing tests** — mirror Task 7/8's shapes over notes: `TestNoteAddFiresCreateEvent` (slug expanded via `{{.Slug}}`), `TestNoteEditNoRunPreflight`, **`TestNoteRefEditorNoRunPreflight`** (both upsert and remove — the Task 8 universal preflight rule applies here too), `TestNoteRemoveForceNoRunOneRecord`, `TestNoteEventFailureKeepsNote`.
 
 - [ ] **Step 2: Run** → FAIL. **Step 3: Implement** (same pattern; `NoteEvent` instead of `TaskEvent`). **Step 4:** `make test` → PASS.
 
@@ -999,10 +1003,11 @@ git add internal/cli/ && git commit -m "t66: cli — event emitter wiring, --no-
 ### Task 11: e2e testscripts
 
 **Files:**
-- Create: `internal/cli/testdata/scripts/events.txt`, `events_norun.txt`, `events_bulk.txt`
+- Create: `internal/cli/testdata/scripts/events.txt`, `events_norun.txt`, `events_bulk.txt`, `events_type_injection.txt`
+- Modify: `internal/cli/root_test.go` (extend `TestExitCode`)
 - Modify (only if a pinned output changed): existing scripts — expect NONE to change (events are opt-in config; `mtt init` templates ship none).
 
-**Interfaces:** consumes the full stack. Mirror the structure of `post_actions.txt` (t21's e2e) — same env bootstrap, same exit-code assert idiom.
+**Interfaces:** consumes the full stack. Mirror the structure of `post_actions.txt` (t21's e2e) — same env bootstrap. **Exit-code reality:** the harness is stock testscript — `! exec` asserts only non-zero; there is NO numeric exit-code assert idiom. So: numeric taxonomy is pinned in the `TestExitCode` unit test (extend it with the bulk aggregate — a plain `fmt.Errorf` → 1 — and a `*core.PostActionError` value → 5), while the txtar scripts assert semantics via stdout/stderr content only.
 
 - [ ] **Step 1: Write `events.txt`** — a config (files section of the txtar) with marker-file pipelines, no git needed:
 
@@ -1043,7 +1048,7 @@ types:
       - {from: doing, to: done}
 ```
 
-(The `update` hook is engineered to succeed for `t1` and fail for `t2` — one config exercises both paths. Adjust the exact assert lines to the harness idioms found in `post_actions.txt`, including the exit-code check used there for exit 5.)
+(The `update` hook is engineered to succeed for `t1` and fail for `t2` — one config exercises both paths. Adjust the exact assert lines to the harness idioms found in `post_actions.txt`; exit-5 semantics are asserted via the stderr saved-marker text, the numeric code via `TestExitCode`.)
 
 - [ ] **Step 2: Write `events_norun.txt`** — `--no-run` forcing + audit sink:
 
@@ -1059,9 +1064,23 @@ grep '"action":"add --no-run"' .mtt/audit.log
 
 (plus the same config files section with a create hook, proving the pipeline was skipped).
 
-- [ ] **Step 3: Write `events_bulk.txt`** — the mixed matrix (s008.9): `mtt rm t1 ghost -` style bulk with a not-found id + a failing delete hook → aggregate exit **1** (assert via the harness's exit-code idiom), per-item stderr lines include the remaining-commands block; `--json` rows carry `remaining`.
+- [ ] **Step 3: Write `events_bulk.txt`** — the mixed matrix (s008.9): a bulk `mtt rm t1 ghost` with a not-found id + a failing delete hook → `! exec` (non-zero), stderr carries BOTH the not-found line and the event-failure line with the remaining-commands block, stdout the partial-success summary; `--json` rows carry `remaining`. (The "1, never 5" numeric pin lives in `TestExitCode` — Step 0 of this task.)
 
-- [ ] **Step 4: Run** `go test ./internal/cli/ -run TestScript -v` (the testscript harness) → PASS; then `make check` → green.
+- [ ] **Step 3b: Write `events_type_injection.txt`** — the c15-class e2e through the REAL load path (mirror `id_injection.txt`): the txtar files section ships a hand-poisoned `.mtt/tasks/t1.yaml` whose `type:` is `x"; touch pwned; "` (loads fine — type is only checked non-empty) plus a config whose `events.task.update` hook uses `{{.Type}}`; then:
+
+```
+! exec mtt tag add t1 marker
+stderr 'not in config'
+exec mtt show t1
+stdout marker
+! exists pwned
+```
+
+(mutation kept, pipeline refused, nothing reached the shell).
+
+- [ ] **Step 0: Extend `TestExitCode`** (`internal/cli/root_test.go`) first (failing where behavior is new): a plain `fmt.Errorf("2 of 3 task(s) failed")` → 1; a `&core.PostActionError{...}` → 5 (may already pass via `ErrPostAction` — keep it as the pin either way).
+
+- [ ] **Step 4: Run** `go test ./internal/cli/ -run 'TestScript|TestExitCode' -v` (the testscript harness) → PASS; then `make check` → green.
 
 - [ ] **Step 5: Commit**
 
@@ -1114,15 +1133,21 @@ events:
 - DELETE the per-edge `post:` block from every edge whose post is exactly that line (start, submit ×N, approve→spec_human_review, decline ×N, plan edges, impl submit edges — ~20 edges over both types);
 - `approve` (impl_review→approved, both types): keep only the push + PR lines in `post:` (the commit now comes from `post_defaults`);
 - `deliver` and every `cancel` edge (both types): add `inherit_post: false` above their existing `post:` (which stays byte-identical — narrowed pathspec + push main);
-- `deliver` gate (both types): change the squash-grep line to:
+- `deliver` gate (both types): change the squash-grep line to filter event subjects BEFORE the
+  window cut — filtering after `-n 200` would be dead decoration (the namespaced subject already
+  prevents collisions; the filter exists to stop per-entity grooming commits from pushing an
+  older squash out of the lookback window):
 
 ```yaml
-          - 'git log -n 200 --format=%s | grep -v "^mtt: " | grep "^{{.ID}}: " || { echo "no squash commit \"{{.ID}}: …\" on local main: git pull first, and check the PR/merge title started with \"{{.ID}}: \"" >&2; false; }'
+          - 'git log -n 1000 --format=%s | grep -v "^mtt: " | head -200 | grep "^{{.ID}}: " || { echo "no squash commit \"{{.ID}}: …\" on local main: git pull first, and check the PR/merge title started with \"{{.ID}}: \"" >&2; false; }'
 ```
+
+  (1000 raw subjects → drop event commits → the SAME effective 200-substantive-subject window as
+  today; update spec-pin (h) in Step 1 to this shape.)
 
 - [ ] **Step 3: Run** `go test ./internal/adapter/yaml/ -run TestRepoDogfoodConfig -v` → PASS; `make check` → green.
 
-- [ ] **Step 4: Sanity-run the live flow with the new binary**: `make build`, then `./bin/mtt show t66` (loads the rewritten config; no validation errors).
+- [ ] **Step 4: Sanity-run the live flow with the new binary**: `make build`, then `./bin/mtt show t66` (loads the rewritten config; no validation errors). Then **live-fire the real §8 pipeline once on the branch** — the shell line must be executed, not only string-pinned: `./bin/mtt tag add t66 livefire` → verify `git log -1 --format=%s` is `mtt: t66 update` and the commit touches ONLY `.mtt/tasks/t66.yaml`; repeat the same command (idempotent no-op) → no new commit, exit 0; then `./bin/mtt tag rm t66 livefire` (cleans up, fires one more update event).
 
 - [ ] **Step 5: Commit**
 
@@ -1136,10 +1161,10 @@ git add .mtt/config.yaml internal/adapter/yaml/dogfood_test.go && git commit -m 
 - Modify: `DESIGN.md` + `DESIGN.ru.md`, `CLI_REFERENCE.md` + `CLI_REFERENCE.ru.md`, `FLOW_GUIDE.md` + `FLOW_GUIDE.ru.md`, `pkg/mtt/CLAUDE.md`, `internal/core/CLAUDE.md`, `internal/cli/CLAUDE.md`, `internal/adapter/yaml/CLAUDE.md`, `CHANGELOG.md`
 
 - [ ] **Step 1: DESIGN.md** — add a **“Lifecycle events (t66)”** subsection after the t21 post-actions block covering: the two-layer decision + rejected alternatives (approach 2/3, pseudo-edges — condensed from the spec §Decisions); firing model (usecase layer, per-entity, real-persist-only, never Transitioner); contexts + the `{{.Type}}` membership guard; failure semantics (single-entity 5, bulk stays s008.9 exit 1); `--no-run` audit sink incl. the three pins; the event-subject/deliver-grep collision rule. Add `post_defaults`/`inherit_post` + the precedence rule to the flow section, and a Decisions-table row. **Sweep parallel occurrences**: `grep -n "post:" DESIGN.md` and update the t21 narrative ("per-edge only for now — t24" is now resolved), the dogfood section's move-commit description, and the "Why not a global default post?" caveat. Mirror every change in `DESIGN.ru.md`.
-- [ ] **Step 2: CLI_REFERENCE (+ru)** — `events:` config reference (shape, placeholders per store, post-only), `post_defaults:`/`inherit_post:`, `--no-run` + forced `--who/--why` + audit record on the 14 mutating verbs, exit-5-on-mutations semantics + empty-Remaining rendering, bulk `--json` `remaining` field.
-- [ ] **Step 3: FLOW_GUIDE (+ru)** — an “events” authoring section with the SAFE sample block (narrowed pathspec, `&&`-chain, namespaced subjects) and the no-silent-traps bar; forward-link t62.
+- [ ] **Step 2: CLI_REFERENCE (+ru)** — `events:` config reference (shape, placeholders per store, post-only, the SAFE sample block — same as FLOW_GUIDE's), `post_defaults:`/`inherit_post:`, `--no-run` + forced `--who/--why` + audit record on the 14 mutating verbs (and the no-op × bypass rule: nothing persisted ⇒ no record), exit-5-on-mutations semantics + empty-Remaining rendering, bulk `--json` `remaining` field. **Plus the spec §8 documented corners, verbatim as c19-style caveats:** (a) a `rm --force` whose audit append succeeded but delete failed leaves a dirty `audit.log` swept by the next event under its subject; (b) `add --no-run` then plain `rm` → the delete event's `git add` fails loudly (exit 5, mutation kept) — correct behavior, commit by hand or bypass again.
+- [ ] **Step 3: FLOW_GUIDE (+ru)** — an “events” authoring section with the SAFE sample block (narrowed pathspec, `&&`-chain — with the explicit “do NOT soften `&&` back to `;`” warning, namespaced subjects out of any delivery-proof grep's namespace) and the no-silent-traps bar; forward-link t62.
 - [ ] **Step 4: CLAUDE.md ×4** — `pkg/mtt` (EventKind/Events/EffectivePost/validate rules), `internal/core` (EventEmitter + EventOptions + firing rules), `internal/cli` (events.go helpers, --no-run, rendering), `internal/adapter/yaml` (events/post_defaults DTOs).
-- [ ] **Step 5: CHANGELOG** — one `[Unreleased]` entry: events + post_defaults + dogfood auto-commit + `--no-run` on mutations.
+- [ ] **Step 5: CHANGELOG** — one `[Unreleased]` entry: events + post_defaults + dogfood auto-commit + `--no-run` on mutations, **including the upgrade note: “update your installed binary after this lands — a pre-t66 binary silently ignores `events:`/`post_defaults:` (non-strict decode), so moves and mutations stop auto-committing with no signal.”** (Echo the same line in CLI_REFERENCE's events section.)
 - [ ] **Step 6:** `make check` → green.
 - [ ] **Step 7: Commit**
 
