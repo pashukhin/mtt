@@ -75,6 +75,9 @@ func TestExitCode(t *testing.T) {
 		{core.ErrDanglingRefs, 7},
 		{core.ErrPostAction, 5},
 		{&core.PostActionError{Cause: "x"}, 5}, // typed form still maps to 5 via Is()
+		// the bulk aggregate is a PLAIN error (s008.9): generic 1, never a
+		// per-item sentinel — a bulk with an event failure must not exit 5.
+		{errors.New("2 of 3 task(s) failed"), 1},
 	}
 	for _, c := range cases {
 		if got := exitCode(c.err); got != c.want {
