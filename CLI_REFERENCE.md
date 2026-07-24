@@ -54,7 +54,7 @@ Run `mtt help [command]` or `mtt <command> -h` for built-in help.
 
 | Flag | Meaning |
 |---|---|
-| `--no-run` | Do not execute the transition's `commands` (bypass gates/actions — state-moving commands included; see "Flow semantics"). Emergency/debug. **Forces `--who`+`--why` (t5)** — you may skip the gate, but you must sign for it (missing → exit 2). |
+| `--no-run` | Do not execute the transition's `commands` (bypass gates/actions — state-moving commands included). Emergency/debug. **Forces `--who`+`--why` (t5)** — you may skip the gate, but you must sign for it (missing → exit 2). |
 | `--stop` | **(default, advance-family)** Advance until the first failed gate or ambiguous fork; report where and why it stopped. |
 | `--atomic` | All-or-nothing **by status**: if any gate fails, don't change status and don't write transitions. Note: side effects of already-run commands are not rolled back (a rollback/compensation seam is planned — see DESIGN). |
 | `--force` | Advance/transition unconditionally, ignoring gates (generalizes `--no-run` and also overrides a single-edge gate on `status`). |
