@@ -44,7 +44,7 @@ survive. There is no --tag here; use 'mtt tag add/rm' for tags not in the text.`
 			if err != nil {
 				return err
 			}
-			editor := core.NewEditor(yaml.NewTaskStore(root), time.Now)
+			editor := core.NewEditor(yaml.NewTaskStore(root), time.Now, nil)
 			id, err := resolveTaskID(root, argOrEmpty(args))
 			if err != nil {
 				return err

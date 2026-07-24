@@ -71,7 +71,7 @@ explicit ones.`,
 			if err != nil {
 				return err
 			}
-			adder := core.NewAdder(yaml.NewTaskStore(root), cfg, time.Now)
+			adder := core.NewAdder(yaml.NewTaskStore(root), cfg, time.Now, nil)
 			task, err := adder.Add(core.AddParams{Title: title, TypeName: mtt.TypeName(typeName), Parent: mtt.TaskID(parent), NoParent: noParent, Description: desc, Priority: prio, DependsOn: depIDs, Tags: tagVals, Refs: refs})
 			if err != nil {
 				return err
