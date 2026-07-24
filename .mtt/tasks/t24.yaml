@@ -1,12 +1,23 @@
 id: t24
 type: task
 title: Global/default post-persist actions vs per-edge (precedence model)
-status: tbd
+status: cancelled
 priority: low
 tags:
     - backlog
     - flow
     - think
 created: "2026-07-11T10:08:15Z"
-updated: "2026-07-12T01:21:41Z"
+updated: "2026-07-24T16:51:46Z"
 description: 'Deferred from t21 design. t21 ships post-persist actions PER-EDGE (post: on each transition, symmetric to commands:), which duplicates the auto-commit line across ~8 edges. A global/default post block (one place, applied to all moves) would DRY it — but opens precedence questions we deliberately deferred: does a global default MERGE with per-edge post or OVERRIDE it? ordering (global-then-edge or edge-then-global)? can an edge OPT OUT of the global default? Same question shape as global require vs per-edge require (t5). Revisit only if the per-edge duplication becomes painful — a think-item, not committed work. From the s009 t21 design.'
+history:
+    - at: "2026-07-24T16:51:46Z"
+      by: grisha
+      why: 'resolved by t66: post_defaults + inherit_post: false + defaults-first precedence rule shipped; the global-vs-per-edge question is answered'
+      from: tbd
+      to: cancelled
+      checks:
+        - cmd: git switch main
+          exit: 0
+        - cmd: test -f .mtt/tasks/t24.yaml || { echo "task file absent on main — its add has not reached main (merge/commit the branch that created it first)" >&2; false; }
+          exit: 0
