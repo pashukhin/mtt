@@ -1,7 +1,7 @@
 id: t32
 type: task
 title: 'Think: --no-run on context-switching edges (deliver/cancel) also skips git switch main — the terminal write strands on the current branch (signed footgun); warn in descriptions or forbid per-edge'
-status: tbd
+status: cancelled
 priority: low
 tags:
     - backlog
@@ -9,4 +9,15 @@ tags:
     - sec
     - think
 created: "2026-07-11T14:06:23Z"
-updated: "2026-07-12T01:21:41Z"
+updated: "2026-07-24T02:00:40Z"
+history:
+    - at: "2026-07-24T02:00:40Z"
+      by: Grigorii Pashukhin
+      why: 'decided 2026-07-24: keep --no-run as the signed bypass - removing it only kills the audited path (a local config edit is the unsigned backdoor); no engine command-classes (classification rests on the client word, guarantees nothing); remaining work is documentation - reclassified as a chore'
+      from: tbd
+      to: cancelled
+      checks:
+        - cmd: git switch main
+          exit: 0
+        - cmd: test -f .mtt/tasks/t32.yaml || { echo "task file absent on main — its add has not reached main (merge/commit the branch that created it first)" >&2; false; }
+          exit: 0
