@@ -22,6 +22,9 @@ All notable changes to mtt are documented here. The format follows
   stored field was invisible outside `dep list`.
 
 ### Changed
+- **`--no-run` caveat sweep (c19).** CLI_REFERENCE/FLOW_GUIDE (EN+RU) and the dogfood `deliver`/`cancel`
+  descriptions now state that a bypass skips ALL edge commands — state-moving ones included — and DESIGN
+  records why the signed bypass stays (the unsigned alternative, a local config edit, is invisible).
 - **Error-message polish, round 2 (c14).** Five messages now read honestly:
   - `mtt init --template <bogus>` lists the valid names (`coding, default, hierarchy`) instead of just
     rejecting the input.

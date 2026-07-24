@@ -944,7 +944,9 @@ after dogfood we move mtt's development onto mtt itself (done — s009).
 > push-before-merge conventions are gone.)
 > **Attribution:** project-global `require: {who}` (per-edge/role `require` needs a core change — parked
 > roles work; the migrated `dangerous-ops` task is its first trigger). **Trust (SEC2):** gates invoke
-> **read-only** `mtt` only — never an mtt transition (recursion). **Known limits (recorded):** the
+> **read-only** `mtt` only — never an mtt transition (recursion). `--no-run` stays as the **signed** bypass
+> (who+why land in history) — the unsigned alternative, a local config edit, is invisible, so removing the
+> flag would remove the audit, not the bypass (c19 decision). **Known limits (recorded):** the
 > human's impl-stage act leaves no mtt history entry — the audit is git's merge trace (spec/plan human
 > sign-offs keep theirs); a mid-flight blocked task has no parking status (it rests where it is);
 > cross-branch stale reads are the documented lost-update class (multi-agent cluster). **Backlog** =

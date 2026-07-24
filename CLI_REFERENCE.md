@@ -54,7 +54,7 @@ Run `mtt help [command]` or `mtt <command> -h` for built-in help.
 
 | Flag | Meaning |
 |---|---|
-| `--no-run` | Do not execute the transition's `commands` (bypass gates/actions). Emergency/debug. **Forces `--who`+`--why` (t5)** — you may skip the gate, but you must sign for it (missing → exit 2). |
+| `--no-run` | Do not execute the transition's `commands` (bypass gates/actions — state-moving commands included; see "Flow semantics"). Emergency/debug. **Forces `--who`+`--why` (t5)** — you may skip the gate, but you must sign for it (missing → exit 2). |
 | `--stop` | **(default, advance-family)** Advance until the first failed gate or ambiguous fork; report where and why it stopped. |
 | `--atomic` | All-or-nothing **by status**: if any gate fails, don't change status and don't write transitions. Note: side effects of already-run commands are not rolled back (a rollback/compensation seam is planned — see DESIGN). |
 | `--force` | Advance/transition unconditionally, ignoring gates (generalizes `--no-run` and also overrides a single-edge gate on `status`). |
@@ -142,7 +142,10 @@ create`, idempotent — needs `gh`+`jq`; body from `docs/superpowers/pr/{{.ID}}.
 t27); `deliver`/`cancel` run `git push origin main` (a delivered or cancelled terminal state must not live only
 locally — c5). Failure semantics
 differ from the gate: a `post:` failure **keeps** the move (status already written) and exits **5** (`commands:`
-gate a failure → exit 3, status unchanged). `--no-run` skips **both** `commands:` and `post:`. Shown in
+gate a failure → exit 3, status unchanged). `--no-run` skips **both** `commands:` and `post:` — including
+any **state-moving** commands the flow author placed there (a `git switch`, a deploy step): a bypassed
+context-switching edge writes its state wherever the tree currently is. The danger is never the flag — it
+is the commands on the edge, and their author owns them equally under execution and under bypass. Shown in
 `mtt types` as a `⇢` line under the edge.
 
 ---
