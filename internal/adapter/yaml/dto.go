@@ -44,13 +44,14 @@ type ymlProject struct {
 }
 
 type ymlType struct {
-	Name        string          `yaml:"name"`
-	Description string          `yaml:"description"`
-	Prefix      string          `yaml:"prefix"`
-	Parents     []string        `yaml:"parents"`
-	Default     bool            `yaml:"default"`
-	Statuses    []ymlStatus     `yaml:"statuses"`
-	Transitions []ymlTransition `yaml:"transitions"`
+	Name         string          `yaml:"name"`
+	Description  string          `yaml:"description"`
+	Prefix       string          `yaml:"prefix"`
+	Parents      []string        `yaml:"parents"`
+	Default      bool            `yaml:"default"`
+	PostDefaults []ymlCommand    `yaml:"post_defaults,omitempty"`
+	Statuses     []ymlStatus     `yaml:"statuses"`
+	Transitions  []ymlTransition `yaml:"transitions"`
 }
 
 type ymlStatus struct {
@@ -69,6 +70,7 @@ type ymlTransition struct {
 	Current     string       `yaml:"current,omitempty"`
 	Require     ymlRequire   `yaml:"require,omitempty"`
 	Post        []ymlCommand `yaml:"post,omitempty"`
+	InheritPost *bool        `yaml:"inherit_post,omitempty"` // pointer: absent ≠ false; only an explicit false opts out
 }
 
 // ymlCommand is one gate command on disk. It accepts either a bare scalar (a
@@ -130,6 +132,9 @@ func (yc ymlConfig) toDomain() (mtt.Config, map[string]string) {
 	prefixes := make(map[string]string, len(yc.Types))
 	for _, yt := range yc.Types {
 		t := mtt.Type{Name: mtt.TypeName(yt.Name), Description: yt.Description, Parents: toTypeNames(yt.Parents), Default: yt.Default}
+		for _, c := range yt.PostDefaults {
+			t.PostDefaults = append(t.PostDefaults, c.toDomain())
+		}
 		for _, ys := range yt.Statuses {
 			t.Statuses = append(t.Statuses, mtt.Status{Name: mtt.StatusName(ys.Name), Kind: mtt.StatusKind(ys.Kind), Description: ys.Description, Default: ys.Default})
 		}
@@ -142,7 +147,7 @@ func (yc ymlConfig) toDomain() (mtt.Config, map[string]string) {
 			for _, c := range yr.Post {
 				post = append(post, c.toDomain())
 			}
-			t.Transitions = append(t.Transitions, mtt.Transition{From: mtt.StatusName(yr.From), To: mtt.StatusName(yr.To), Name: yr.Name, Description: yr.Description, Commands: cmds, Current: mtt.CurrentAction(yr.Current), Require: mtt.Require{Who: yr.Require.Who, Why: yr.Require.Why}, Post: post})
+			t.Transitions = append(t.Transitions, mtt.Transition{From: mtt.StatusName(yr.From), To: mtt.StatusName(yr.To), Name: yr.Name, Description: yr.Description, Commands: cmds, Current: mtt.CurrentAction(yr.Current), Require: mtt.Require{Who: yr.Require.Who, Why: yr.Require.Why}, Post: post, SkipPostDefaults: yr.InheritPost != nil && !*yr.InheritPost})
 		}
 		cfg.Types = append(cfg.Types, t)
 		prefixes[yt.Name] = yt.Prefix
