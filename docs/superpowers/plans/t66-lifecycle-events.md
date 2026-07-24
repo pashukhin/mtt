@@ -939,7 +939,7 @@ git add internal/core/ internal/cli/ && git commit -m "t66: core — tag/dep/ref
 - Consumes: Task 6.
 - Produces: constructors gain `ev *EventEmitter`; params/methods gain `EventOptions` (same pattern as Tasks 7–8); actions: `"note add"`, `"note edit"`, `"note ref add"`, `"note ref rm"`, `"note rm"`. `NoteRemover` mirrors `Remover` exactly: its existing forced-delete audit action becomes `"note rm --force --no-run"` under bypass (one record); the delete event fires after `DeleteNote`.
 
-- [ ] **Step 1: Write the failing tests** — mirror Task 7/8's shapes over notes: `TestNoteAddFiresCreateEvent` (slug expanded via `{{.Slug}}`), `TestNoteEditNoRunPreflight`, **`TestNoteRefEditorNoRunPreflight`** (both upsert and remove — the Task 8 universal preflight rule applies here too), `TestNoteRemoveForceNoRunOneRecord`, `TestNoteEventFailureKeepsNote`.
+- [ ] **Step 1: Write the failing tests** — mirror Task 7/8's shapes over notes: `TestNoteAddFiresCreateEvent` (slug expanded via `{{.Slug}}`), **`TestNoteAddNoRunPreflight`**, `TestNoteEditNoRunPreflight`, **`TestNoteRefEditorNoRunPreflight`** (both upsert and remove), **`TestNoteRemoveNoRunPreflight`** (the plain non-force bypass — distinct from the force path), `TestNoteRemoveForceNoRunOneRecord`, `TestNoteEventFailureKeepsNote` — the Task 8 universal preflight rule covers ALL note mutations, each with its own failing-first row.
 
 - [ ] **Step 2: Run** → FAIL. **Step 3: Implement** (same pattern; `NoteEvent` instead of `TaskEvent`). **Step 4:** `make test` → PASS.
 
@@ -1004,7 +1004,7 @@ git add internal/cli/ && git commit -m "t66: cli — event emitter wiring, --no-
 
 **Files:**
 - Create: `internal/cli/testdata/scripts/events.txt`, `events_norun.txt`, `events_bulk.txt`, `events_type_injection.txt`
-- Modify: `internal/cli/root_test.go` (extend `TestExitCode`)
+- Modify: `internal/cli/status_test.go` (extend `TestExitCode` — it lives there at line ~64, NOT in `root_test.go`, which holds only `TestExitCodeNotFound`)
 - Modify (only if a pinned output changed): existing scripts — expect NONE to change (events are opt-in config; `mtt init` templates ship none).
 
 **Interfaces:** consumes the full stack. Mirror the structure of `post_actions.txt` (t21's e2e) — same env bootstrap. **Exit-code reality:** the harness is stock testscript — `! exec` asserts only non-zero; there is NO numeric exit-code assert idiom. So: numeric taxonomy is pinned in the `TestExitCode` unit test (extend it with the bulk aggregate — a plain `fmt.Errorf` → 1 — and a `*core.PostActionError` value → 5), while the txtar scripts assert semantics via stdout/stderr content only.
@@ -1099,7 +1099,7 @@ git add internal/cli/testdata/ && git commit -m "t66: e2e — event pipelines, -
 
 **⚠ From this commit on, run flow moves with `make build && ./bin/mtt …` (see Global Constraints).**
 
-- [ ] **Step 1: Extend `TestRepoDogfoodConfig` (failing first)** with pins for: (a) `events.task`/`events.note` hooks exist for all three kinds; (b) every event post uses the narrowed pathspec (assert the command strings contain `.mtt/tasks/{{.ID}}.yaml` / `.mtt/knowledge/{{.Slug}}.md` and the `audit.log` conditional, and do NOT contain `git add .mtt `-broad); (c) `git add` is `&&`-chained (assert substring `git add -- $a && {`); (d) event commit subjects are namespaced (`-m "mtt: ` substring; no `-m "{{.ID}}: ` in any event post); (e) both types carry `post_defaults` with the `{{.From}} → {{.To}}` commit line; (f) `deliver`/`cancel` edges have `SkipPostDefaults=true` and their own narrowed commit + `git push origin main`; (g) every OTHER edge has an empty `Post` except `approve` (push + PR only) and (h) the deliver gate contains `grep -v "^mtt: "`.
+- [ ] **Step 1: Extend `TestRepoDogfoodConfig` (failing first)** with pins for: (a) `events.task`/`events.note` hooks exist for all three kinds; (b) every event post uses the narrowed pathspec (assert the command strings contain `.mtt/tasks/{{.ID}}.yaml` / `.mtt/knowledge/{{.Slug}}.md` and the `audit.log` conditional, and do NOT contain `git add .mtt `-broad); (c) `git add` is `&&`-chained (assert substring `git add -- $a && {`); (d) event commit subjects are namespaced (`-m "mtt: ` substring; no `-m "{{.ID}}: ` in any event post); (e) both types carry `post_defaults` with the `{{.From}} → {{.To}}` commit line; (f) `deliver`/`cancel` edges have `SkipPostDefaults=true` and their own narrowed commit + `git push origin main`; (g) every OTHER edge has an empty `Post` except `approve` (push + PR only) and (h) the deliver gate filters BEFORE the window cut — assert the ordered substring `grep -v "^mtt: " | head -200 | grep "^{{.ID}}: "` AND the `-n 1000` lookback (a pin on `grep -v` alone would stay green on the ineffective filter-after-cut form).
 
 - [ ] **Step 2: Rewrite `.mtt/config.yaml`.** Add at top level (after `require:`):
 
