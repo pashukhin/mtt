@@ -12,7 +12,7 @@ refs:
     - kind: task
       id: t33
 created: "2026-07-23T03:58:11Z"
-updated: "2026-07-24T02:01:14Z"
+updated: "2026-07-24T02:42:23Z"
 description: |-
     Split out of t57 (2026-07-23 brainstorm). t57 ships the flow-authoring GUIDE (docs-only); this ships the runnable, discoverable SAMPLES.
 
@@ -23,3 +23,5 @@ description: |-
     The FLOW_GUIDE (t57) forward-links here. Keep templates minimal and clearly labelled as adaptable samples, per the t57 framing (the engine is the product; a flow is per-project data; our flow is a sample, not a mandate).
 
     Release bar (decided 2026-07-24, client-responsibility discussion): NO SILENT TRAPS. Every external assumption of a shipped template (pushable main, squash_merge_commit_title=PR_TITLE, gh+jq presence) is either checked by a gate or stated in the description of the edge that relies on it; state-moving edges carry the --no-run caveat in their own descriptions (bypass skips ALL commands including context moves - the client owns their commands under bypass exactly as under execution); templates ship runnable and tested like demo/. Client-facing halves of t32 (bypass caveat) and t33 (protected-main assumption) are absorbed here as template-content duties - the engine stays a dumb mechanism.
+
+    Design input (2026-07-24, user - weigh in the brainstorm, NOT pre-decided): maybe the sample SET is premature. Alternative shape: ship ONE minimal built-in template - new -> {in_progress, cancelled}, in_progress -> {done, cancelled} (note: the current flat default from t23 is already close to this) - and let the user supply their own template at init time: mtt init --template <path-or-url> (a local file path or a URL). Implications to weigh: external templates shift authoring to the client (fits the engine-not-mandate framing and shrinks our template-maintenance surface); a URL fetch adds a network touchpoint to an otherwise zero-network binary (t44 self-update is the only precedent - decide deliberately, offline-first); a fetched template is config-as-code from an UNTRUSTED source, so the SEC2 review-before-run discipline must be loud in the UX; the embedded default/coding/hierarchy set and the FLOW_GUIDE forward-link get rescoped accordingly.
