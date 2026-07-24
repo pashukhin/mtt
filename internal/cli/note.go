@@ -88,6 +88,7 @@ func newNoteAddCmd() *cobra.Command {
 		title, body, file, priority string
 		tags                        []string
 		refVals                     []string
+		noRun                       bool
 	)
 	cmd := &cobra.Command{
 		Use:   "add <slug>",
@@ -118,18 +119,34 @@ func newNoteAddCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			note, err := core.NewNoteAdder(yaml.NewKnowledgeStore(root), time.Now, nil).Add(core.NoteParams{Slug: slug, Title: title, Tags: normTags, Priority: prio, Body: b, Refs: refs})
+			cfg, settings, err := yaml.Load(root)
 			if err != nil {
 				return err
 			}
+			opts, err := eventOptions(cmd, noRun, settings.Author)
+			if err != nil {
+				return err
+			}
+			ev, closeOut, err := newEventEmitter(cmd, root, cfg, settings)
+			if err != nil {
+				return err
+			}
+			defer closeOut()
+			note, err := core.NewNoteAdder(yaml.NewKnowledgeStore(root), time.Now, ev).Add(core.NoteParams{Slug: slug, Title: title, Tags: normTags, Priority: prio, Body: b, Refs: refs, Events: opts})
+			if err != nil && !errors.As(err, new(*core.PostActionError)) {
+				return err
+			}
+			evErr := err
 			for _, r := range refs {
 				warnIfNotOK(cmd, r, verifyOne(root, r))
 			}
-			if jsonFlag(cmd) {
-				return writeJSON(cmd.OutOrStdout(), toNoteJSON(note))
-			}
-			_, err = fmt.Fprintf(cmd.OutOrStdout(), "created %s\n", note.Slug)
-			return err
+			return finishMutation(cmd, evErr, func() error {
+				if jsonFlag(cmd) {
+					return writeJSON(cmd.OutOrStdout(), toNoteJSON(note))
+				}
+				_, werr := fmt.Fprintf(cmd.OutOrStdout(), "created %s\n", note.Slug)
+				return werr
+			})
 		},
 	}
 	cmd.Flags().StringVar(&title, "title", "", "note title")
@@ -138,6 +155,7 @@ func newNoteAddCmd() *cobra.Command {
 	cmd.Flags().StringVar(&body, "body", "", "note body (markdown)")
 	cmd.Flags().StringVar(&file, "file", "", "read the body from a file ('-' for stdin)")
 	cmd.Flags().StringArrayVar(&refVals, "ref", nil, "add a reference <kind>:<target> (repeatable)")
+	addNoRunFlag(cmd, &noRun)
 	return cmd
 }
 
@@ -294,6 +312,7 @@ func newNoteEditCmd() *cobra.Command {
 	var (
 		title, body, file, priority string
 		tags                        []string
+		noRun                       bool
 	)
 	cmd := &cobra.Command{
 		Use:   "edit <slug>",
@@ -333,18 +352,32 @@ func newNoteEditCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			note, err := core.NewNoteEditor(yaml.NewKnowledgeStore(root), time.Now, nil).Edit(slug, p)
+			cfg, settings, err := yaml.Load(root)
 			if err != nil {
+				return err
+			}
+			if p.Events, err = eventOptions(cmd, noRun, settings.Author); err != nil {
+				return err
+			}
+			ev, closeOut, err := newEventEmitter(cmd, root, cfg, settings)
+			if err != nil {
+				return err
+			}
+			defer closeOut()
+			note, err := core.NewNoteEditor(yaml.NewKnowledgeStore(root), time.Now, ev).Edit(slug, p)
+			if err != nil && !errors.As(err, new(*core.PostActionError)) {
 				if errors.Is(err, mtt.ErrNotFound) {
 					return noteNotFound(slug)
 				}
 				return err
 			}
-			if jsonFlag(cmd) {
-				return writeJSON(cmd.OutOrStdout(), toNoteJSON(note))
-			}
-			_, err = fmt.Fprintf(cmd.OutOrStdout(), "updated %s\n", note.Slug)
-			return err
+			return finishMutation(cmd, err, func() error {
+				if jsonFlag(cmd) {
+					return writeJSON(cmd.OutOrStdout(), toNoteJSON(note))
+				}
+				_, werr := fmt.Fprintf(cmd.OutOrStdout(), "updated %s\n", note.Slug)
+				return werr
+			})
 		},
 	}
 	cmd.Flags().StringVar(&title, "title", "", "new title")
@@ -356,7 +389,7 @@ func newNoteEditCmd() *cobra.Command {
 }
 
 func newNoteRmCmd() *cobra.Command {
-	var force bool
+	var force, noRun bool
 	cmd := &cobra.Command{
 		Use:   "rm <slug>",
 		Short: "Delete a knowledge note (refuses if referenced; --force overrides)",
@@ -390,7 +423,7 @@ func newNoteRmCmd() *cobra.Command {
 				return err
 			}
 			referents := referentIDs(core.NewBacklinks(tasks, notes).To(mtt.RefNote, string(slug)), slug)
-			_, settings, err := yaml.Load(root)
+			cfg, settings, err := yaml.Load(root)
 			if err != nil {
 				return err
 			}
@@ -398,20 +431,29 @@ func newNoteRmCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			if err := core.NewNoteRemover(kb, yaml.NewAuditStore(root), time.Now, nil).Remove(slug, referents, force, by, why, false); err != nil {
-				if errors.Is(err, mtt.ErrNotFound) {
+			ev, closeOut, err := newEventEmitter(cmd, root, cfg, settings)
+			if err != nil {
+				return err
+			}
+			defer closeOut()
+			rmErr := core.NewNoteRemover(kb, yaml.NewAuditStore(root), time.Now, ev).Remove(slug, referents, force, by, why, noRun)
+			if rmErr != nil && !errors.As(rmErr, new(*core.PostActionError)) {
+				if errors.Is(rmErr, mtt.ErrNotFound) {
 					return noteNotFound(slug)
 				}
-				return err // ErrMissingAttribution -> exit 2; referenced-refusal -> exit 1
+				return rmErr // ErrMissingAttribution -> exit 2; referenced-refusal -> exit 1
 			}
-			if jsonFlag(cmd) {
-				return writeJSON(cmd.OutOrStdout(), toNoteJSON(note))
-			}
-			_, err = fmt.Fprintf(cmd.OutOrStdout(), "removed %s\n", slug)
-			return err
+			return finishMutation(cmd, rmErr, func() error {
+				if jsonFlag(cmd) {
+					return writeJSON(cmd.OutOrStdout(), toNoteJSON(note))
+				}
+				_, werr := fmt.Fprintf(cmd.OutOrStdout(), "removed %s\n", slug)
+				return werr
+			})
 		},
 	}
 	cmd.Flags().BoolVar(&force, "force", false, "delete even if referenced (leaves dangling refs)")
+	addNoRunFlag(cmd, &noRun)
 	return cmd
 }
 

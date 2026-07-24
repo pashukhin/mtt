@@ -9,7 +9,6 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/pashukhin/mtt/internal/adapter/exec"
 	"github.com/pashukhin/mtt/internal/adapter/yaml"
 	"github.com/pashukhin/mtt/internal/core"
 	"github.com/pashukhin/mtt/pkg/mtt"
@@ -76,21 +75,12 @@ func runTransition(cmd *cobra.Command, root string, cfg mtt.Config, settings yam
 	}
 	verbose, _ := cmd.Flags().GetBool("verbose")
 	logFile, _ := cmd.Flags().GetString("log-file")
-	cmdOut, closeOut, err := gateOutputWriter(cmd, verbose, logFile)
+	hidden := !verbose && logFile == ""
+	runner, closeOut, err := newGateRunner(cmd, root, settings)
 	if err != nil {
 		return err
 	}
 	defer closeOut()
-	// When the commands' own output is otherwise hidden, ask the runner to echo a
-	// failing command's output tail (so a blocked gate shows why), and append a
-	// hint to the block error; with -v/--log-file the output is already visible,
-	// so neither fires (no duplication).
-	hidden := !verbose && logFile == ""
-	tail := 0
-	if hidden {
-		tail = gateTailLines
-	}
-	runner := exec.NewRunner(root, settings.CommandTimeout, cmd.ErrOrStderr(), cmdOut, tail)
 
 	tr := core.NewTransitioner(yaml.NewTaskStore(root), cfg, runner, time.Now)
 	task, txErr := tr.Transition(id, to, core.TransitionOptions{
@@ -134,15 +124,7 @@ func runTransition(cmd *cobra.Command, root string, cfg mtt.Config, settings yam
 	// `error:` line, not the inverted "move applied" before the move line. The cause is
 	// left to Execute; here we add the idempotence warning + the exact remaining commands.
 	if postFailed {
-		var pe *core.PostActionError
-		if errors.As(txErr, &pe) {
-			w := cmd.ErrOrStderr()
-			_, _ = fmt.Fprintln(w, "move applied — the status change IS saved; do NOT re-run the move.")
-			_, _ = fmt.Fprintln(w, "finish the finalization by hand:")
-			for _, c := range pe.Remaining {
-				_, _ = fmt.Fprintf(w, "  %s\n", c)
-			}
-		}
+		renderPostRecovery(cmd, txErr, "move applied — the status change IS saved; do NOT re-run the move.")
 	}
 	return txErr // nil on success, ErrPostAction → exit 5 in both modes
 }

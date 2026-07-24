@@ -16,7 +16,7 @@ import (
 // A single explicit id keeps today's surface (removed <id>, exit 4 on not-found);
 // multiple ids / "-" / --filter select a set for a best-effort bulk delete.
 func newRmCmd() *cobra.Command {
-	var force, dryRun bool
+	var force, dryRun, noRun bool
 	cmd := &cobra.Command{
 		Use:   "rm [<id>...] [-]",
 		Short: "Delete tasks (hard delete; use cancel for a terminal status)",
@@ -27,7 +27,7 @@ func newRmCmd() *cobra.Command {
 				return err
 			}
 			if len(args) == 1 && args[0] != "-" && !filterActive(cmd) {
-				return runRmSingle(cmd, root, args[0], force, dryRun)
+				return runRmSingle(cmd, root, args[0], force, dryRun, noRun)
 			}
 			ids, err := selectTaskIDs(cmd, args, true)
 			if err != nil {
@@ -36,7 +36,7 @@ func newRmCmd() *cobra.Command {
 			if dryRun {
 				return previewBulk(cmd, ids)
 			}
-			_, settings, err := yaml.Load(root)
+			cfg, settings, err := yaml.Load(root)
 			if err != nil {
 				return err
 			}
@@ -48,8 +48,13 @@ func newRmCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			remover := core.NewRemover(yaml.NewTaskStore(root), yaml.NewAuditStore(root), time.Now, nil)
-			results, err := remover.RemoveMany(ids, force, by, why, bl, false)
+			ev, closeOut, err := newEventEmitter(cmd, root, cfg, settings)
+			if err != nil {
+				return err
+			}
+			defer closeOut()
+			remover := core.NewRemover(yaml.NewTaskStore(root), yaml.NewAuditStore(root), time.Now, ev)
+			results, err := remover.RemoveMany(ids, force, by, why, bl, noRun)
 			if err != nil {
 				return err // pre-flight ErrMissingAttribution → exit 2 (raw, not via reportBulk)
 			}
@@ -65,13 +70,14 @@ func newRmCmd() *cobra.Command {
 	}
 	cmd.Flags().BoolVar(&force, "force", false, "delete even if referenced (leaves dangling refs)")
 	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "preview the affected tasks without deleting")
+	addNoRunFlag(cmd, &noRun)
 	addSelectorFilterFlags(cmd)
 	return cmd
 }
 
 // runRmSingle is the back-compat single-id path: exact `removed <id>` output and
 // exit 4 on not-found (via core.Remover.Remove's ErrNotFound wrap).
-func runRmSingle(cmd *cobra.Command, root, idArg string, force, dryRun bool) error {
+func runRmSingle(cmd *cobra.Command, root, idArg string, force, dryRun, noRun bool) error {
 	id, err := mtt.NewTaskID(idArg)
 	if err != nil {
 		return err
@@ -80,7 +86,7 @@ func runRmSingle(cmd *cobra.Command, root, idArg string, force, dryRun bool) err
 		return previewBulk(cmd, []mtt.TaskID{id})
 	}
 	store := yaml.NewTaskStore(root)
-	_, settings, err := yaml.Load(root)
+	cfg, settings, err := yaml.Load(root)
 	if err != nil {
 		return err
 	}
@@ -103,18 +109,26 @@ func runRmSingle(cmd *cobra.Command, root, idArg string, force, dryRun bool) err
 	if err != nil {
 		return err
 	}
-	remover := core.NewRemover(store, yaml.NewAuditStore(root), time.Now, nil)
-	if err := remover.Remove(id, force, by, why, bl, false); err != nil {
+	ev, closeOut, err := newEventEmitter(cmd, root, cfg, settings)
+	if err != nil {
 		return err
+	}
+	defer closeOut()
+	remover := core.NewRemover(store, yaml.NewAuditStore(root), time.Now, ev)
+	rmErr := remover.Remove(id, force, by, why, bl, noRun)
+	if rmErr != nil && !errors.As(rmErr, new(*core.PostActionError)) {
+		return rmErr
 	}
 	if err := clearCurrentIfMatches(root, id); err != nil {
 		return err
 	}
-	if jsonFlag(cmd) {
-		return writeJSON(cmd.OutOrStdout(), toTaskJSON(removed))
-	}
-	_, err = fmt.Fprintf(cmd.OutOrStdout(), "removed %s\n", id)
-	return err
+	return finishMutation(cmd, rmErr, func() error {
+		if jsonFlag(cmd) {
+			return writeJSON(cmd.OutOrStdout(), toTaskJSON(removed))
+		}
+		_, werr := fmt.Fprintf(cmd.OutOrStdout(), "removed %s\n", id)
+		return werr
+	})
 }
 
 // loadBacklinks builds the cross-store backlink index (tasks + notes) so the delete

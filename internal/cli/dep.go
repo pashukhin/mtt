@@ -42,7 +42,8 @@ func oneID(usage string) cobra.PositionalArgs {
 }
 
 func newDepAddCmd() *cobra.Command {
-	return &cobra.Command{
+	var noRun bool
+	cmd := &cobra.Command{
 		Use:   "add <id> <depends-on-id>",
 		Short: "Add a blocking dependency",
 		Args:  twoIDs("provide two task ids (example: mtt dep add t2 t1)"),
@@ -51,22 +52,37 @@ func newDepAddCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			id, dep := mtt.TaskID(args[0]), mtt.TaskID(args[1])
-			task, err := core.NewDependencyEditor(yaml.NewTaskStore(root), time.Now, nil).AddDependency(id, dep, core.EventOptions{})
+			cfg, settings, err := yaml.Load(root)
 			if err != nil {
 				return err
 			}
-			if jsonFlag(cmd) {
-				return writeJSON(cmd.OutOrStdout(), toTaskJSON(task))
+			opts, err := eventOptions(cmd, noRun, settings.Author)
+			if err != nil {
+				return err
 			}
-			_, err = fmt.Fprintf(cmd.OutOrStdout(), "now %s depends on %s\n", id, dep)
-			return err
+			ev, closeOut, err := newEventEmitter(cmd, root, cfg, settings)
+			if err != nil {
+				return err
+			}
+			defer closeOut()
+			id, dep := mtt.TaskID(args[0]), mtt.TaskID(args[1])
+			task, err := core.NewDependencyEditor(yaml.NewTaskStore(root), time.Now, ev).AddDependency(id, dep, opts)
+			return finishMutation(cmd, err, func() error {
+				if jsonFlag(cmd) {
+					return writeJSON(cmd.OutOrStdout(), toTaskJSON(task))
+				}
+				_, werr := fmt.Fprintf(cmd.OutOrStdout(), "now %s depends on %s\n", id, dep)
+				return werr
+			})
 		},
 	}
+	addNoRunFlag(cmd, &noRun)
+	return cmd
 }
 
 func newDepRmCmd() *cobra.Command {
-	return &cobra.Command{
+	var noRun bool
+	cmd := &cobra.Command{
 		Use:   "rm <id> <depends-on-id>",
 		Short: "Remove a blocking dependency",
 		Args:  twoIDs("provide two task ids (example: mtt dep rm t2 t1)"),
@@ -75,18 +91,32 @@ func newDepRmCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			id, dep := mtt.TaskID(args[0]), mtt.TaskID(args[1])
-			task, err := core.NewDependencyEditor(yaml.NewTaskStore(root), time.Now, nil).RemoveDependency(id, dep, core.EventOptions{})
+			cfg, settings, err := yaml.Load(root)
 			if err != nil {
 				return err
 			}
-			if jsonFlag(cmd) {
-				return writeJSON(cmd.OutOrStdout(), toTaskJSON(task))
+			opts, err := eventOptions(cmd, noRun, settings.Author)
+			if err != nil {
+				return err
 			}
-			_, err = fmt.Fprintf(cmd.OutOrStdout(), "%s no longer depends on %s\n", id, dep)
-			return err
+			ev, closeOut, err := newEventEmitter(cmd, root, cfg, settings)
+			if err != nil {
+				return err
+			}
+			defer closeOut()
+			id, dep := mtt.TaskID(args[0]), mtt.TaskID(args[1])
+			task, err := core.NewDependencyEditor(yaml.NewTaskStore(root), time.Now, ev).RemoveDependency(id, dep, opts)
+			return finishMutation(cmd, err, func() error {
+				if jsonFlag(cmd) {
+					return writeJSON(cmd.OutOrStdout(), toTaskJSON(task))
+				}
+				_, werr := fmt.Fprintf(cmd.OutOrStdout(), "%s no longer depends on %s\n", id, dep)
+				return werr
+			})
 		},
 	}
+	addNoRunFlag(cmd, &noRun)
+	return cmd
 }
 
 func newDepListCmd() *cobra.Command {
