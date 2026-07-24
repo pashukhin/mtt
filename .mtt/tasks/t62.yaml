@@ -2,16 +2,24 @@ id: t62
 type: task
 title: 'ship runnable init templates: universal domain-neutral flow samples (content/approval/generic script-gate) + the git-integration flagship after t24'
 status: tbd
+priority: medium
 tags:
     - dx
     - flow
+refs:
+    - kind: task
+      id: t32
+    - kind: task
+      id: t33
 created: "2026-07-23T03:58:11Z"
-updated: "2026-07-23T03:58:11Z"
+updated: "2026-07-24T02:01:14Z"
 description: |-
     Split out of t57 (2026-07-23 brainstorm). t57 ships the flow-authoring GUIDE (docs-only); this ships the runnable, discoverable SAMPLES.
 
     Two parts:
-    1. Universal, domain-neutral `mtt init --template <name>` samples — simple but extensible — that demonstrate mtt's generality: a flow binds transitions of your config-defined entities to external actions/artifacts (a script run, a file write, a git op, an HTTP call), and running a test suite is just ONE instance. Candidate set (decide in this task's own design): a content-review flow, an approval/sign-off flow, and a generic script-gated flow (a placeholder external action). Each: template YAML + templates.go registration + golden test + testscript e2e + a CLI_REFERENCE line. NOT blocked by t24.
-    2. The git-integration FLAGSHIP template (our dogfood flow: branch/auto-commit/PR/deliver) — deferred until t24 (global/default post: actions) collapses the ~7x duplicated post blocks, so the shipped template is clean.
+    1. Universal, domain-neutral mtt init --template <name> samples - simple but extensible - that demonstrate mtt generality: a flow binds transitions of your config-defined entities to external actions/artifacts (a script run, a file write, a git op, an HTTP call), and running a test suite is just ONE instance. Candidate set (decide in this task own design): a content-review flow, an approval/sign-off flow, and a generic script-gated flow (a placeholder external action). Each: template YAML + templates.go registration + golden test + testscript e2e + a CLI_REFERENCE line. NOT blocked by t24.
+    2. The git-integration FLAGSHIP template (our dogfood flow: branch/auto-commit/PR/deliver) - deferred until t24 (global/default post: actions) collapses the ~7x duplicated post blocks, so the shipped template is clean.
 
     The FLOW_GUIDE (t57) forward-links here. Keep templates minimal and clearly labelled as adaptable samples, per the t57 framing (the engine is the product; a flow is per-project data; our flow is a sample, not a mandate).
+
+    Release bar (decided 2026-07-24, client-responsibility discussion): NO SILENT TRAPS. Every external assumption of a shipped template (pushable main, squash_merge_commit_title=PR_TITLE, gh+jq presence) is either checked by a gate or stated in the description of the edge that relies on it; state-moving edges carry the --no-run caveat in their own descriptions (bypass skips ALL commands including context moves - the client owns their commands under bypass exactly as under execution); templates ship runnable and tested like demo/. Client-facing halves of t32 (bypass caveat) and t33 (protected-main assumption) are absorbed here as template-content duties - the engine stays a dumb mechanism.
