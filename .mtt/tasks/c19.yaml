@@ -1,11 +1,56 @@
 id: c19
 type: chore
 title: 'docs: the --no-run caveat sweep - bypass skips ALL edge commands, state-movers included; your commands are your responsibility, bypassed or executed'
-status: tbd
+status: approved
 priority: medium
 tags:
     - docs
     - flow
 created: "2026-07-24T02:01:05Z"
-updated: "2026-07-24T02:01:05Z"
+updated: "2026-07-24T02:16:19Z"
 description: 'Decision record (2026-07-24 discussion, closes the t32 think - see its cancel why): mtt stays a dumb mechanism and keeps --no-run as the SIGNED bypass of client-authored procedure. Removing it would not remove bypasses (a local config edit is the unsigned backdoor) - it would only kill the audited path (--no-run demands --who and --why and records them in history). No engine-level command classes: a gate-vs-context label would rest on the client word and guarantee nothing. What ships instead is documentation symmetry: the danger is not the flag, it is the commands the author put on the edge - equally under execution and under bypass. Deliverables: (1) CLI_REFERENCE EN+RU, --no-run section: bypass skips ALL commands on the edge including state-moving ones (e.g. a git switch) - a bypassed context-switching edge writes its state wherever the tree currently is; (2) FLOW_GUIDE EN+RU authoring caveat: if your edges move state, author them knowing --no-run skips those commands too; (3) dogfood config: add the warning to the deliver and cancel edge descriptions (self-instructing runbook) + update the guard-test description assertions; (4) one rationale line in DESIGN EN+RU trust-model text: --no-run is kept as the signed bypass because the unsigned alternative (local config edit) is invisible.'
+history:
+    - at: "2026-07-24T02:08:28Z"
+      by: Grigorii Pashukhin
+      from: tbd
+      to: implementing
+      checks:
+        - cmd: git switch task/c19 || (git switch main && git switch -c task/c19)
+          exit: 0
+        - cmd: test -f .mtt/tasks/c19.yaml || { echo "task file absent on this branch — its add has not reached main (merge/commit the branch that created it first)" >&2; false; }
+          exit: 0
+    - at: "2026-07-24T02:11:20Z"
+      by: Grigorii Pashukhin
+      from: implementing
+      to: impl_review
+      checks:
+        - cmd: out=$(git status --porcelain -- ":(exclude).mtt") && test -z "$out" || { echo "working tree not clean - commit your code/docs first (.mtt is swept by the move itself)" >&2; false; }
+          exit: 0
+        - cmd: 'git diff --quiet main...HEAD -- cmd internal pkg go.mod go.sum || git diff --name-only main...HEAD -- CHANGELOG.md | grep -q . || { echo "code changed but CHANGELOG.md has no entry - add one under [Unreleased] (pure refactor? bypass: mtt do submit --no-run --who ... --why ...)" >&2; false; }'
+          exit: 0
+        - cmd: make check
+          exit: 0
+    - at: "2026-07-24T02:16:01Z"
+      by: Grigorii Pashukhin
+      why: 'review: dangling cross-reference - the :57 flag-table rows point at a Flow semantics section that does not exist (EN+RU); drop the pointer, the row already states the substance'
+      from: impl_review
+      to: impl_fix
+    - at: "2026-07-24T02:16:19Z"
+      by: Grigorii Pashukhin
+      from: impl_fix
+      to: impl_review
+      checks:
+        - cmd: out=$(git status --porcelain -- ":(exclude).mtt") && test -z "$out" || { echo "working tree not clean - commit your code/docs first (.mtt is swept by the move itself)" >&2; false; }
+          exit: 0
+        - cmd: 'git diff --quiet main...HEAD -- cmd internal pkg go.mod go.sum || git diff --name-only main...HEAD -- CHANGELOG.md | grep -q . || { echo "code changed but CHANGELOG.md has no entry - add one under [Unreleased] (pure refactor? bypass: mtt do submit --no-run --who ... --why ...)" >&2; false; }'
+          exit: 0
+        - cmd: make check
+          exit: 0
+    - at: "2026-07-24T02:16:19Z"
+      by: Grigorii Pashukhin
+      why: 'adversarial review: APPROVE after the dangling-pointer fix; docs/code claims verified against transitioner semantics'
+      from: impl_review
+      to: approved
+      checks:
+        - cmd: out=$(git status --porcelain -- ":(exclude).mtt") && test -z "$out" || { echo "working tree not clean - commit your code/docs first (.mtt is swept by the move itself)" >&2; false; }
+          exit: 0

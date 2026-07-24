@@ -127,7 +127,7 @@ types:
         to: done
         name: deliver
         current: clear
-        description: "after the squash-merge: pull main, then deliver (moves your tree to main and writes done there); before delivering, capture this task's durable lessons: mtt note add"
+        description: "after the squash-merge: pull main, then deliver (moves your tree to main and writes done there); before delivering, capture this task's durable lessons: mtt note add; caution: --no-run skips the git switch too — a bypassed deliver writes done on whatever branch you are on"
         commands:
           - 'git switch main'
           - 'git log -n 200 --format=%s | grep "^{{.ID}}: " || { echo "no squash commit \"{{.ID}}: …\" on local main: git pull first, and check the PR/merge title started with \"{{.ID}}: \"" >&2; false; }'
@@ -139,7 +139,7 @@ types:
         to: cancelled
         name: cancel
         current: clear
-        description: "abandon the task (moves your tree to main)"
+        description: "abandon the task (moves your tree to main); caution: --no-run skips the git switch too — a bypassed cancel writes cancelled on whatever branch you are on"
         commands:
           - 'git switch main'
           - 'test -f .mtt/tasks/{{.ID}}.yaml || { echo "task file absent on main — its add has not reached main (merge/commit the branch that created it first)" >&2; false; }'
@@ -150,7 +150,7 @@ types:
         to: cancelled
         name: cancel
         current: clear
-        description: "abandon the task (moves your tree to main)"
+        description: "abandon the task (moves your tree to main); caution: --no-run skips the git switch too — a bypassed cancel writes cancelled on whatever branch you are on"
         commands:
           - 'git switch main'
           - 'test -f .mtt/tasks/{{.ID}}.yaml || { echo "task file absent on main — its add has not reached main (merge/commit the branch that created it first)" >&2; false; }'
@@ -161,7 +161,7 @@ types:
         to: cancelled
         name: cancel
         current: clear
-        description: "abandon the task (moves your tree to main)"
+        description: "abandon the task (moves your tree to main); caution: --no-run skips the git switch too — a bypassed cancel writes cancelled on whatever branch you are on"
         commands:
           - 'git switch main'
           - 'test -f .mtt/tasks/{{.ID}}.yaml || { echo "task file absent on main — its add has not reached main (merge/commit the branch that created it first)" >&2; false; }'
@@ -172,7 +172,7 @@ types:
         to: cancelled
         name: cancel
         current: clear
-        description: "abandon the task (moves your tree to main)"
+        description: "abandon the task (moves your tree to main); caution: --no-run skips the git switch too — a bypassed cancel writes cancelled on whatever branch you are on"
         commands:
           - 'git switch main'
           - 'test -f .mtt/tasks/{{.ID}}.yaml || { echo "task file absent on main — its add has not reached main (merge/commit the branch that created it first)" >&2; false; }'
@@ -183,7 +183,7 @@ types:
         to: cancelled
         name: cancel
         current: clear
-        description: "abandon the task (moves your tree to main)"
+        description: "abandon the task (moves your tree to main); caution: --no-run skips the git switch too — a bypassed cancel writes cancelled on whatever branch you are on"
         commands:
           - 'git switch main'
           - 'test -f .mtt/tasks/{{.ID}}.yaml || { echo "task file absent on main — its add has not reached main (merge/commit the branch that created it first)" >&2; false; }'
@@ -194,7 +194,7 @@ types:
         to: cancelled
         name: cancel
         current: clear
-        description: "abandon the task (moves your tree to main)"
+        description: "abandon the task (moves your tree to main); caution: --no-run skips the git switch too — a bypassed cancel writes cancelled on whatever branch you are on"
         commands:
           - 'git switch main'
           - 'test -f .mtt/tasks/{{.ID}}.yaml || { echo "task file absent on main — its add has not reached main (merge/commit the branch that created it first)" >&2; false; }'
@@ -205,7 +205,7 @@ types:
         to: cancelled
         name: cancel
         current: clear
-        description: "abandon the task (moves your tree to main)"
+        description: "abandon the task (moves your tree to main); caution: --no-run skips the git switch too — a bypassed cancel writes cancelled on whatever branch you are on"
         commands:
           - 'git switch main'
           - 'test -f .mtt/tasks/{{.ID}}.yaml || { echo "task file absent on main — its add has not reached main (merge/commit the branch that created it first)" >&2; false; }'
@@ -216,7 +216,7 @@ types:
         to: cancelled
         name: cancel
         current: clear
-        description: "abandon the task (moves your tree to main)"
+        description: "abandon the task (moves your tree to main); caution: --no-run skips the git switch too — a bypassed cancel writes cancelled on whatever branch you are on"
         commands:
           - 'git switch main'
           - 'test -f .mtt/tasks/{{.ID}}.yaml || { echo "task file absent on main — its add has not reached main (merge/commit the branch that created it first)" >&2; false; }'
@@ -288,7 +288,7 @@ types:
         to: done
         name: deliver
         current: clear
-        description: "after the squash-merge: pull main, then deliver (moves your tree to main and writes done there); before delivering, capture this task's durable lessons: mtt note add"
+        description: "after the squash-merge: pull main, then deliver (moves your tree to main and writes done there); before delivering, capture this task's durable lessons: mtt note add; caution: --no-run skips the git switch too — a bypassed deliver writes done on whatever branch you are on"
         commands:
           - 'git switch main'
           - 'git log -n 200 --format=%s | grep "^{{.ID}}: " || { echo "no squash commit \"{{.ID}}: …\" on local main: git pull first, and check the PR/merge title started with \"{{.ID}}: \"" >&2; false; }'
@@ -299,7 +299,7 @@ types:
         to: cancelled
         name: cancel
         current: clear
-        description: "abandon the task (moves your tree to main)"
+        description: "abandon the task (moves your tree to main); caution: --no-run skips the git switch too — a bypassed cancel writes cancelled on whatever branch you are on"
         commands:
           - 'git switch main'
           - 'test -f .mtt/tasks/{{.ID}}.yaml || { echo "task file absent on main — its add has not reached main (merge/commit the branch that created it first)" >&2; false; }'
@@ -310,7 +310,7 @@ types:
         to: cancelled
         name: cancel
         current: clear
-        description: "abandon the task (moves your tree to main)"
+        description: "abandon the task (moves your tree to main); caution: --no-run skips the git switch too — a bypassed cancel writes cancelled on whatever branch you are on"
         commands:
           - 'git switch main'
           - 'test -f .mtt/tasks/{{.ID}}.yaml || { echo "task file absent on main — its add has not reached main (merge/commit the branch that created it first)" >&2; false; }'
@@ -321,7 +321,7 @@ types:
         to: cancelled
         name: cancel
         current: clear
-        description: "abandon the task (moves your tree to main)"
+        description: "abandon the task (moves your tree to main); caution: --no-run skips the git switch too — a bypassed cancel writes cancelled on whatever branch you are on"
         commands:
           - 'git switch main'
           - 'test -f .mtt/tasks/{{.ID}}.yaml || { echo "task file absent on main — its add has not reached main (merge/commit the branch that created it first)" >&2; false; }'
@@ -332,7 +332,7 @@ types:
         to: cancelled
         name: cancel
         current: clear
-        description: "abandon the task (moves your tree to main)"
+        description: "abandon the task (moves your tree to main); caution: --no-run skips the git switch too — a bypassed cancel writes cancelled on whatever branch you are on"
         commands:
           - 'git switch main'
           - 'test -f .mtt/tasks/{{.ID}}.yaml || { echo "task file absent on main — its add has not reached main (merge/commit the branch that created it first)" >&2; false; }'

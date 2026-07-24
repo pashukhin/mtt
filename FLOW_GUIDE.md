@@ -226,6 +226,12 @@ mtt status i1 done --no-run --who me --why "skip"   # bypass the gate: --no-run 
 A blocked gate leaves the entity unchanged and echoes the failing command's output tail; re-run with `-v` or
 `--log-file` to see everything.
 
+**Authoring caveat — `--no-run` skips *every* command on the edge**, state-moving ones included (a
+`git switch`, a deploy step): a bypassed move still writes the new status, but performs none of your edge's
+actions — so a context-switching edge writes state wherever the tree currently is. mtt does not classify
+your commands; they are yours, under execution and under bypass alike. Write edges knowing both paths exist
+(the bypass is at least signed: `--no-run` forces `--who`+`--why` into history).
+
 ## 11. Validate your flow (structure)
 
 `mtt add` and `mtt types` run `Config.Validate`, which rejects a structurally broken flow **before** runtime:

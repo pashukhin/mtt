@@ -246,6 +246,11 @@ func TestRepoDogfoodConfig(t *testing.T) {
 		if d := namedEdge(t, tc, "approved", "done", "deliver"); !strings.Contains(d.Description, "mtt note add") {
 			t.Fatalf("%s deliver description lost the KB-capture reminder: %q", tc.Name, d.Description)
 		}
+		// context-switching edges warn that --no-run skips the switch too (c19) —
+		// a bypassed terminal write lands on whatever branch you are on.
+		if d := namedEdge(t, tc, "approved", "done", "deliver"); !strings.Contains(d.Description, "--no-run") {
+			t.Fatalf("%s deliver description lost the --no-run caveat: %q", tc.Name, d.Description)
+		}
 	}
 }
 
@@ -303,5 +308,8 @@ func assertCancels(t *testing.T, typ mtt.Type, froms []mtt.StatusName) {
 			t.Fatalf("%s cancel from %s: current = %q, want clear", typ.Name, from, e.Current)
 		}
 		assertRuns(t, typ, e, cmdSwitchMain, cmdCancelGuard)
+		if !strings.Contains(e.Description, "--no-run") {
+			t.Fatalf("%s cancel from %s: description lost the --no-run caveat: %q", typ.Name, from, e.Description)
+		}
 	}
 }
