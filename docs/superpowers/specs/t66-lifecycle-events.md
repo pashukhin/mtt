@@ -1,6 +1,7 @@
 # t66 — Commands on task lifecycle events (spec)
 
-Status: revision 2 — addresses the 2026-07-24 adversarial review (2 blockers, 2 majors, 7 minors).
+Status: revision 3 — addresses adversarial review rounds 1 (2 blockers, 2 majors, 7 minors) and
+2 (1 blocker, 2 majors, 3 minors — all on the §8 config shape and §6/§7 pins).
 Decided in the 2026-07-24 brainstorm (4 scoping decisions with the user). This spec settles
 **t66 + t26 + t24 together** (the queue mandate: one precedence model, decided once).
 
@@ -237,7 +238,19 @@ right after the persist — for `add` the id does not exist earlier; the record 
 skipped for <id>"). `rm --force` keeps its stricter pre-delete ordering — that record signs a
 *destruction*; this one signs a *skip*, whose only effect (an uncommitted file) is plainly
 visible in `git status` if a crash loses the record. The affected usecases gain the same
-optional `AuditStore` injection `Remover` already has. The c19 caveat carries over verbatim:
+optional `AuditStore` injection `Remover` already has. Three pinned sub-decisions:
+
+- **The record is written whenever the flag is passed**, hooks configured or not (one rule —
+  same reasoning as the uniform who/why forcing; a record that "bypassed nothing" is harmless
+  noise, a conditional record is a surprise).
+- **A failed append is a finalization failure**: mutation kept, exit 5, message states "the
+  change is already saved; the audit record was NOT written" (the taxonomy: 5 ≡ mutation kept,
+  finalization incomplete).
+- **`rm --force --no-run` writes ONE record**, `action: "rm --force --no-run"`, at `rm --force`'s
+  stricter pre-delete moment (the destruction ordering wins; the action string carries the full
+  invocation shape).
+
+The c19 caveat carries over verbatim:
 bypass skips ALL event commands — your commands are your responsibility, bypassed or executed.
 
 ### 7. CLI rendering contract
@@ -250,7 +263,9 @@ Event pipelines render exactly like edge `post:` pipelines — scripts will depe
   on stderr, exit 5 (e.g. `add --json` prints the created task, then reports the failed event);
 - in bulk reports, the per-item line for an event failure renders the `Remaining` recovery
   commands explicitly (the CLI reads `PostActionError.Remaining`; it is not embedded in
-  `Error()`), plus the "the change is already saved" marker.
+  `Error()`), plus the "the change is already saved" marker;
+- the bulk `--json` row gains an optional `remaining: [...]` field on an event failure (the
+  machine consumer must not lose the recovery commands that the human report renders).
 
 ### 8. Dogfood config rewrite (this repo)
 
@@ -258,21 +273,42 @@ Event pipelines render exactly like edge `post:` pipelines — scripts will depe
   pathspec** (the deliver/cancel SEC2 pattern — a broad `git add .mtt` here would sweep a dirty
   `config.yaml` into a pushed main commit, reintroducing the c3 hole, and would mis-attribute
   any uncommitted `.mtt` residue under the wrong entity's message):
-  - task events: `a=.mtt/tasks/{{.ID}}.yaml; test -f .mtt/audit.log && a="$a .mtt/audit.log";
-    git add -- $a; git diff --cached --quiet -- $a || git commit -m "{{.ID}}: {{.Event}}" -- $a`
-    (the `git diff --cached --quiet ||` guard skips the commit when nothing changed — e.g. a
-    same-second identical `edit` re-run persists a byte-identical file; delete stages the
-    removal via the same pathspec);
-  - note events: same shape over `.mtt/knowledge/{{.Slug}}.md`;
+  - task events (one line; wrapped here for width):
+    `a=.mtt/tasks/{{.ID}}.yaml; test -f .mtt/audit.log && a="$a .mtt/audit.log"; git add -- $a
+    && { git diff --cached --quiet -- $a || git commit -m "mtt: {{.ID}} {{.Event}}" -- $a; }`
+    — two load-bearing shapes in that line:
+    - **`git add` is `&&`-chained** (not `;`): a failed add (index.lock, the untracked-corner)
+      must fail the pipeline loudly (exit 5), not fall through to a guard that reads "nothing
+      staged" as "nothing to do" — that would be a silent c7-class window;
+    - the `git diff --cached --quiet ||` guard skips the commit when nothing changed (e.g. a
+      same-second identical `edit` re-run persists a byte-identical file; delete stages the
+      removal via the same pathspec);
+  - **commit subjects must not match `^<id>: `.** The deliver gate proves the squash landed by
+    `git log -n 200 --format=%s | grep "^{{.ID}}: "`; an event commit `"t70: create"` on main
+    (grooming lives on main) would false-positive that grep weeks later and let `deliver` write
+    a pushed `done` with the PR unmerged — silently defeating verified delivery. Hence the
+    namespaced subject `mtt: {{.ID}} {{.Event}}` (and `mtt: note {{.Slug}} {{.Event}}`), which
+    cannot match; `TestRepoDogfoodConfig` pins the non-colliding shape. (Today's edge subjects
+    are safe by construction: `<id>: <from> → <to>` lands on main only via `deliver`/`cancel`
+    post — after the gate, into a terminal — so no later deliver of the same id exists.)
+  - note events: same shape over `.mtt/knowledge/{{.Slug}}.md`, **including the same
+    `test -f .mtt/audit.log && a="$a .mtt/audit.log"` conditional** — `note rm --force` appends
+    its audit record before `DeleteNote` on the routine path, and the §6 skip-records ride
+    note-command bypasses too; without the conditional every forced note delete strands a dirty
+    `audit.log`;
   - then the main-aware push with a usable failure hint (no silent traps, F8):
     `[ "$(git branch --show-current)" != main ] || git push origin main ||
     { echo "push failed — git pull first, then git push origin main" >&2; false; }`
     (closes the c7 divergence trap on main; stays silent-but-committed for mid-flight backlog
     adds on a task branch — the deliver-reconcile note covers those, the branch's `.mtt` commit
     rides the task PR).
-  - Documented corner (c19-style caveat, not mechanized): a `rm --force` whose audit append
-    succeeded but whose delete failed leaves a dirty `audit.log` with no event — the next
-    event's pathspec sweeps it.
+  - Documented corners (c19-style caveats, not mechanized):
+    - a `rm --force` whose audit append succeeded but whose delete failed leaves a dirty
+      `audit.log` with no event — the next event's pathspec sweeps it;
+    - `mtt add --no-run` (task file persisted but never committed) followed by a plain
+      `mtt rm` makes the delete event's `git add` fail on the never-tracked path ⇒ a **loud**
+      exit 5 with the mutation kept. That is correct behavior (noisy, recoverable — commit the
+      file by hand or bypass again); do NOT "fix" it by softening the `&&` chain back to `;`.
 - Both types get `post_defaults:` with the auto-commit line; `deliver`/`cancel` edges set
   `inherit_post: false` and keep their narrowed-pathspec commit + `git push origin main` (SEC2:
   a dirty `config.yaml` must never ride a main-landing commit); `approve` keeps only its extra
@@ -299,7 +335,9 @@ Event pipelines render exactly like edge `post:` pipelines — scripts will depe
   testscript (add→auto-commit, bulk rm→per-entity commits, `edit --no-run` forces who/why +
   writes the audit record, exit 5 on a failing event post, the **mixed bulk matrix**
   (not-found + event failure ⇒ exit 1, s008.9), deliver keeps the narrowed pathspec);
-  `TestRepoDogfoodConfig`.
+  `TestRepoDogfoodConfig` — extended to pin, among the rest: the narrowed event pathspecs with
+  the audit.log conditionals on both stores, the `&&`-chained `git add`, and the event commit
+  subjects' non-collision with the deliver grep (no `^<id>: ` prefix).
 
 ## Consequences for the queue
 
