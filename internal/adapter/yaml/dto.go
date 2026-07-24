@@ -29,7 +29,41 @@ type ymlConfig struct {
 	CommandTimeout string     `yaml:"command_timeout,omitempty"`
 	Author         string     `yaml:"author,omitempty"`
 	Require        ymlRequire `yaml:"require,omitempty"`
+	Events         ymlEvents  `yaml:"events,omitempty"`
 	Types          []ymlType  `yaml:"types"`
+}
+
+// ymlEvents / ymlEventHooks / ymlEventHook mirror the domain Events section on
+// disk (decode-only — config is never marshaled). Command lists reuse
+// ymlCommand (scalar or {run, timeout} map).
+type ymlEvents struct {
+	Task ymlEventHooks `yaml:"task,omitempty"`
+	Note ymlEventHooks `yaml:"note,omitempty"`
+}
+
+type ymlEventHooks struct {
+	Create ymlEventHook `yaml:"create,omitempty"`
+	Update ymlEventHook `yaml:"update,omitempty"`
+	Delete ymlEventHook `yaml:"delete,omitempty"`
+}
+
+type ymlEventHook struct {
+	Post []ymlCommand `yaml:"post,omitempty"`
+}
+
+func (h ymlEventHook) toDomain() mtt.EventHook {
+	out := mtt.EventHook{}
+	for _, c := range h.Post {
+		out.Post = append(out.Post, c.toDomain())
+	}
+	return out
+}
+
+func (e ymlEvents) toDomain() mtt.Events {
+	return mtt.Events{
+		Task: mtt.EventHooks{Create: e.Task.Create.toDomain(), Update: e.Task.Update.toDomain(), Delete: e.Task.Delete.toDomain()},
+		Note: mtt.EventHooks{Create: e.Note.Create.toDomain(), Update: e.Note.Update.toDomain(), Delete: e.Note.Delete.toDomain()},
+	}
 }
 
 // ymlRequire is the on-disk required-attribution policy (who/why must be given
@@ -128,7 +162,7 @@ func (c ymlCommand) toDomain() mtt.Command {
 // toDomain maps the DTO to the pure domain Config and the adapter-owned
 // type-name -> prefix map.
 func (yc ymlConfig) toDomain() (mtt.Config, map[string]string) {
-	cfg := mtt.Config{Version: yc.Version, Project: mtt.Project{Name: yc.Project.Name}}
+	cfg := mtt.Config{Version: yc.Version, Project: mtt.Project{Name: yc.Project.Name}, Events: yc.Events.toDomain()}
 	prefixes := make(map[string]string, len(yc.Types))
 	for _, yt := range yc.Types {
 		t := mtt.Type{Name: mtt.TypeName(yt.Name), Description: yt.Description, Parents: toTypeNames(yt.Parents), Default: yt.Default}
