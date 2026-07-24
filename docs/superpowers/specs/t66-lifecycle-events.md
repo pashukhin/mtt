@@ -72,17 +72,19 @@ duplication.
 
 ```yaml
 # top-level, sibling of `types:` — optional; zero value = no events
+# (illustrative shape; the production-safe pipeline — narrowed pathspec, &&-chained add,
+#  non-colliding subject — is specified in §8 and is what the t62 templates must ship)
 events:
   task:                 # applies to ALL task types
     create:
       post:
-        - 'git add .mtt && git commit -m "{{.ID}}: {{.Event}}" -- .mtt'
+        - 'git add -- .mtt/tasks/{{.ID}}.yaml && git commit -m "mtt: {{.ID}} {{.Event}}" -- .mtt/tasks/{{.ID}}.yaml'
     update: { post: [...] }
     delete: { post: [...] }
   note:
     create:
       post:
-        - 'git add .mtt && git commit -m "note {{.Slug}}: {{.Event}}" -- .mtt'
+        - 'git add -- .mtt/knowledge/{{.Slug}}.md && git commit -m "mtt: note {{.Slug}} {{.Event}}" -- .mtt/knowledge/{{.Slug}}.md'
     update: { post: [...] }
     delete: { post: [...] }
 ```
@@ -265,7 +267,10 @@ Event pipelines render exactly like edge `post:` pipelines — scripts will depe
   commands explicitly (the CLI reads `PostActionError.Remaining`; it is not embedded in
   `Error()`), plus the "the change is already saved" marker;
 - the bulk `--json` row gains an optional `remaining: [...]` field on an event failure (the
-  machine consumer must not lose the recovery commands that the human report renders).
+  machine consumer must not lose the recovery commands that the human report renders);
+- the exit-5 renderer tolerates an **empty** `Remaining` (e.g. the §6 failed audit append has no
+  user-runnable recovery command) — it prints the stated message only, never an empty
+  “run these to finish:” block.
 
 ### 8. Dogfood config rewrite (this repo)
 
@@ -313,6 +318,11 @@ Event pipelines render exactly like edge `post:` pipelines — scripts will depe
   `inherit_post: false` and keep their narrowed-pathspec commit + `git push origin main` (SEC2:
   a dirty `config.yaml` must never ride a main-landing commit); `approve` keeps only its extra
   push + PR lines; every other edge drops its `post:` block entirely (~28 lines → 2).
+- The **deliver gate's squash-grep filters event subjects** before matching:
+  `git log -n 200 --format=%s | grep -v "^mtt: " | grep "^{{.ID}}: "` — per-entity grooming
+  mints many `mtt: …` commits on main, and without the filter a heavy grooming pass can push an
+  older squash out of the 200-subject window (fails closed, but the "git pull first" hint would
+  then mislead).
 - `TestRepoDogfoodConfig` extended to pin all of the above (guard test, SEC2).
 
 ### 9. Docs & tests
