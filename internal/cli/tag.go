@@ -79,6 +79,7 @@ Tip: for tags that describe the work, put a #hashtag in the title/description.`,
 	}
 	addSelectorFilterFlags(c)
 	c.Flags().Bool("dry-run", false, "preview the affected tasks without changing them")
+	c.Flags().Bool("no-run", false, "skip the configured lifecycle-event pipeline (forces --who and --why)")
 	return c
 }
 
@@ -98,6 +99,7 @@ a no-op.`,
 	}
 	addSelectorFilterFlags(c)
 	c.Flags().Bool("dry-run", false, "preview the affected tasks without changing them")
+	c.Flags().Bool("no-run", false, "skip the configured lifecycle-event pipeline (forces --who and --why)")
 	return c
 }
 
@@ -109,7 +111,21 @@ func runTagEdit(cmd *cobra.Command, args []string, add bool) error {
 	if err != nil {
 		return err
 	}
-	ed := core.NewTagEditor(yaml.NewTaskStore(root), time.Now)
+	cfg, settings, err := yaml.Load(root)
+	if err != nil {
+		return err
+	}
+	noRun, _ := cmd.Flags().GetBool("no-run")
+	opts, err := eventOptions(cmd, noRun, settings.Author)
+	if err != nil {
+		return err
+	}
+	ev, closeOut, err := newEventEmitter(cmd, root, cfg, settings)
+	if err != nil {
+		return err
+	}
+	defer closeOut()
+	ed := core.NewTagEditor(yaml.NewTaskStore(root), time.Now, ev)
 
 	if !hasDash(args) && !filterActive(cmd) {
 		// single (back-compat)
@@ -121,7 +137,7 @@ func runTagEdit(cmd *cobra.Command, args []string, add bool) error {
 		if dry, _ := cmd.Flags().GetBool("dry-run"); dry {
 			return previewBulk(cmd, []mtt.TaskID{id})
 		}
-		return applyTagSingle(cmd, ed, id, tags, add)
+		return applyTagSingle(cmd, ed, id, tags, add, opts)
 	}
 
 	// bulk
@@ -137,10 +153,10 @@ func runTagEdit(cmd *cobra.Command, args []string, add bool) error {
 		return err
 	}
 	verb := "tagged"
-	apply := func(id mtt.TaskID) error { _, _, e := ed.AddTags(id, tags); return e }
+	apply := func(id mtt.TaskID) error { _, _, e := ed.AddTags(id, tags, opts); return e }
 	if !add {
 		verb = "untagged"
-		apply = func(id mtt.TaskID) error { _, _, e := ed.RemoveTags(id, tags); return e }
+		apply = func(id mtt.TaskID) error { _, _, e := ed.RemoveTags(id, tags, opts); return e }
 	}
 	return runBulk(cmd, ids, verb, apply)
 }
@@ -148,31 +164,30 @@ func runTagEdit(cmd *cobra.Command, args []string, add bool) error {
 // applyTagSingle is the single-task add/rm. It reports only the tags that
 // actually changed, so a no-op (adding a present tag / removing an absent one)
 // reads honestly instead of a false "tagged/untagged" (c14).
-func applyTagSingle(cmd *cobra.Command, ed *core.TagEditor, id mtt.TaskID, tags []string, add bool) error {
+func applyTagSingle(cmd *cobra.Command, ed *core.TagEditor, id mtt.TaskID, tags []string, add bool, opts core.EventOptions) error {
 	var task mtt.Task
 	var changed []string
 	var err error
 	verb := "tagged"
 	if add {
-		task, changed, err = ed.AddTags(id, tags)
+		task, changed, err = ed.AddTags(id, tags, opts)
 	} else {
-		task, changed, err = ed.RemoveTags(id, tags)
+		task, changed, err = ed.RemoveTags(id, tags, opts)
 		verb = "untagged"
 	}
-	if err != nil {
-		return err
-	}
-	if jsonFlag(cmd) {
-		return writeJSON(cmd.OutOrStdout(), toTaskJSON(task))
-	}
-	if len(changed) == 0 {
-		noop := "no such tag"
-		if add {
-			noop = "already tagged"
+	return finishMutation(cmd, err, func() error {
+		if jsonFlag(cmd) {
+			return writeJSON(cmd.OutOrStdout(), toTaskJSON(task))
 		}
-		_, err = fmt.Fprintf(cmd.OutOrStdout(), "%s: %s %s (no change)\n", id, noop, strings.Join(tags, ", "))
-		return err
-	}
-	_, err = fmt.Fprintf(cmd.OutOrStdout(), "%s %s: %s\n", verb, id, strings.Join(changed, ", "))
-	return err
+		if len(changed) == 0 {
+			noop := "no such tag"
+			if add {
+				noop = "already tagged"
+			}
+			_, werr := fmt.Fprintf(cmd.OutOrStdout(), "%s: %s %s (no change)\n", id, noop, strings.Join(tags, ", "))
+			return werr
+		}
+		_, werr := fmt.Fprintf(cmd.OutOrStdout(), "%s %s: %s\n", verb, id, strings.Join(changed, ", "))
+		return werr
+	})
 }

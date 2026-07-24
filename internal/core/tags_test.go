@@ -21,7 +21,7 @@ func TestCanonicalTags(t *testing.T) {
 
 func TestAddUnionsExplicitAndHashtags(t *testing.T) {
 	fs := &fakeStore{retID: "e1"}
-	got, err := NewAdder(fs, cfg(), fixed).Add(AddParams{
+	got, err := NewAdder(fs, cfg(), fixed, nil).Add(AddParams{
 		Title: "fix #auth", Description: "see #backend", TypeName: "epic", Tags: []string{"urgent", "auth"},
 	})
 	if err != nil {
@@ -41,7 +41,7 @@ func TestAddUnionsExplicitAndHashtags(t *testing.T) {
 func TestEditReconcileDropsRemovedHashtag(t *testing.T) {
 	orig := mtt.Task{ID: "e1", Type: "epic", Title: "fix #auth", Status: "tbd",
 		Tags: []string{"auth", "urgent"}, Created: fixed(), Updated: fixed()}
-	got, err := NewEditor(&editStore{get: orig}, later).Edit("e1", EditParams{Title: strptr("fix login")})
+	got, err := NewEditor(&editStore{get: orig}, later, nil).Edit("e1", EditParams{Title: strptr("fix login")})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -54,7 +54,7 @@ func TestEditReconcileDropsRemovedHashtag(t *testing.T) {
 func TestEditReconcileAddsNewHashtag(t *testing.T) {
 	orig := mtt.Task{ID: "e1", Type: "epic", Title: "plain", Status: "tbd",
 		Tags: []string{"urgent"}, Created: fixed(), Updated: fixed()}
-	got, err := NewEditor(&editStore{get: orig}, later).Edit("e1", EditParams{Title: strptr("plain #api")})
+	got, err := NewEditor(&editStore{get: orig}, later, nil).Edit("e1", EditParams{Title: strptr("plain #api")})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -66,7 +66,7 @@ func TestEditReconcileAddsNewHashtag(t *testing.T) {
 func TestEditReconcileDescriptionScanned(t *testing.T) {
 	orig := mtt.Task{ID: "e1", Type: "epic", Title: "plain", Description: "old #db", Status: "tbd",
 		Tags: []string{"db", "urgent"}, Created: fixed(), Updated: fixed()}
-	got, err := NewEditor(&editStore{get: orig}, later).Edit("e1", EditParams{Description: strptr("new #cache")})
+	got, err := NewEditor(&editStore{get: orig}, later, nil).Edit("e1", EditParams{Description: strptr("new #cache")})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -79,7 +79,7 @@ func TestEditReconcileDescriptionScanned(t *testing.T) {
 func TestEditReconcileManualTagSurvivesPriorityEdit(t *testing.T) {
 	orig := mtt.Task{ID: "e1", Type: "epic", Title: "plain", Status: "tbd",
 		Tags: []string{"urgent"}, Created: fixed(), Updated: fixed()}
-	got, err := NewEditor(&editStore{get: orig}, later).Edit("e1", EditParams{Priority: prioptr(mtt.PriorityHigh)})
+	got, err := NewEditor(&editStore{get: orig}, later, nil).Edit("e1", EditParams{Priority: prioptr(mtt.PriorityHigh)})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -94,7 +94,7 @@ func TestEditReconcileTextAndManualCollisionCorner(t *testing.T) {
 	// text drops it (no provenance) — the documented corner.
 	orig := mtt.Task{ID: "e1", Type: "epic", Title: "do #x", Status: "tbd",
 		Tags: []string{"x"}, Created: fixed(), Updated: fixed()}
-	got, err := NewEditor(&editStore{get: orig}, later).Edit("e1", EditParams{Title: strptr("do it")})
+	got, err := NewEditor(&editStore{get: orig}, later, nil).Edit("e1", EditParams{Title: strptr("do it")})
 	if err != nil {
 		t.Fatal(err)
 	}

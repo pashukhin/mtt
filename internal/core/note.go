@@ -14,11 +14,12 @@ import (
 type NoteAdder struct {
 	store mtt.KnowledgeStore
 	now   func() time.Time
+	ev    *EventEmitter
 }
 
-// NewNoteAdder builds a NoteAdder.
-func NewNoteAdder(store mtt.KnowledgeStore, now func() time.Time) *NoteAdder {
-	return &NoteAdder{store: store, now: now}
+// NewNoteAdder builds a NoteAdder; ev fires the note create event (nil = none).
+func NewNoteAdder(store mtt.KnowledgeStore, now func() time.Time, ev *EventEmitter) *NoteAdder {
+	return &NoteAdder{store: store, now: now, ev: ev}
 }
 
 // NoteParams carries the note-create inputs (already parsed at the CLI boundary).
@@ -28,11 +29,16 @@ type NoteParams struct {
 	Tags     []string
 	Priority mtt.Priority // importance axis (t51; unset = medium in ordering)
 	Body     string
-	Refs     []mtt.Ref // informational references set at creation (canonicalized; not verified here)
+	Refs     []mtt.Ref    // informational references set at creation (canonicalized; not verified here)
+	Events   EventOptions // lifecycle-event bypass + attribution (t66)
 }
 
-// Add validates and creates the note.
+// Add validates and creates the note. A *PostActionError return carries the
+// PERSISTED note (the create happened; only the event finalization failed).
 func (a *NoteAdder) Add(p NoteParams) (mtt.Note, error) {
+	if err := p.Events.Preflight(); err != nil {
+		return mtt.Note{}, err
+	}
 	if !p.Slug.Valid() {
 		return mtt.Note{}, fmt.Errorf("invalid note slug %q", string(p.Slug))
 	}
@@ -41,7 +47,7 @@ func (a *NoteAdder) Add(p NoteParams) (mtt.Note, error) {
 	if len(p.Refs) > 0 {
 		refs = canonicalRefs(p.Refs)
 	}
-	return a.store.CreateNote(mtt.Note{
+	created, err := a.store.CreateNote(mtt.Note{
 		Slug:     p.Slug,
 		Title:    p.Title,
 		Tags:     canonicalTags(p.Tags),
@@ -51,6 +57,10 @@ func (a *NoteAdder) Add(p NoteParams) (mtt.Note, error) {
 		Created:  ts,
 		Updated:  ts,
 	})
+	if err != nil {
+		return mtt.Note{}, err
+	}
+	return created, a.ev.NoteEvent(mtt.EventCreate, created, "note add", p.Events)
 }
 
 // NoteEditor is the note-edit usecase: load, apply only the provided fields, bump
@@ -58,11 +68,12 @@ func (a *NoteAdder) Add(p NoteParams) (mtt.Note, error) {
 type NoteEditor struct {
 	store mtt.KnowledgeStore
 	now   func() time.Time
+	ev    *EventEmitter
 }
 
-// NewNoteEditor builds a NoteEditor.
-func NewNoteEditor(store mtt.KnowledgeStore, now func() time.Time) *NoteEditor {
-	return &NoteEditor{store: store, now: now}
+// NewNoteEditor builds a NoteEditor; ev fires the note update event (nil = none).
+func NewNoteEditor(store mtt.KnowledgeStore, now func() time.Time, ev *EventEmitter) *NoteEditor {
+	return &NoteEditor{store: store, now: now, ev: ev}
 }
 
 // NoteEditParams carries the note-edit inputs; a nil pointer means "unchanged".
@@ -72,10 +83,15 @@ type NoteEditParams struct {
 	Tags     *[]string
 	Body     *string
 	Priority *mtt.Priority
+	Events   EventOptions // lifecycle-event bypass + attribution (t66)
 }
 
-// Edit applies the provided fields and persists the note.
+// Edit applies the provided fields and persists the note. A *PostActionError
+// return carries the PERSISTED note.
 func (e *NoteEditor) Edit(slug mtt.NoteSlug, p NoteEditParams) (mtt.Note, error) {
+	if err := p.Events.Preflight(); err != nil {
+		return mtt.Note{}, err
+	}
 	if !slug.Valid() {
 		return mtt.Note{}, fmt.Errorf("invalid note slug %q", string(slug))
 	}
@@ -99,7 +115,11 @@ func (e *NoteEditor) Edit(slug mtt.NoteSlug, p NoteEditParams) (mtt.Note, error)
 		n.Priority = *p.Priority
 	}
 	n.Updated = e.now().UTC()
-	return e.store.UpdateNote(n)
+	up, err := e.store.UpdateNote(n)
+	if err != nil {
+		return mtt.Note{}, err
+	}
+	return up, e.ev.NoteEvent(mtt.EventUpdate, up, "note edit", p.Events)
 }
 
 // NoteFilter filters and orders a note list. Tags is OR-within (a note matches if it

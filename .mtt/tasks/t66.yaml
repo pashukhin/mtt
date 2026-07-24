@@ -1,7 +1,7 @@
 id: t66
 type: task
 title: commands on task lifecycle events (on_create / on_delete) — event pipelines beyond flow edges
-status: tbd
+status: approved
 priority: medium
 tags:
     - backlog
@@ -13,5 +13,128 @@ refs:
     - kind: task
       id: t26
 created: "2026-07-23T16:44:33Z"
-updated: "2026-07-23T17:19:56Z"
+updated: "2026-07-24T11:47:29Z"
 description: 'Today command pipelines exist only on flow edges (commands: gates + post: actions, t21); add and rm are not transitions, so nothing can run on task creation or deletion — which is why non-flow mutations still need manual git commits (the t26 pain, live incident c7, and every queue-grooming session since). Design direction (brainstorm-open): model create/delete as lifecycle EVENTS carrying the same pipeline shape — per-type on_create:/on_delete: blocks, or pseudo-edges (nothing -> initial status, any -> nothing) reusing the existing Transition machinery. Then t26''s auto-commit becomes just a post: on the create event (config, not code), and the precedence questions (global-vs-per-type-vs-per-event, merge/override/opt-out) are decided ONCE together with t24 - do not solve them twice. Open questions: are gates (blocking commands:) meaningful on create (probably post-only), given rm already has its own safety (referenced-check, --force who/why audit)? placeholder context on events ({{.ID}}/{{.Type}} yes; From/To empty or absent?); does delete fire before or after the file removal (audit-first discipline, c18)? SEC2 applies: event pipelines are config-as-code, guard-tested like the edge gates.'
+history:
+    - at: "2026-07-24T03:01:47Z"
+      by: Grigorii Pashukhin
+      from: tbd
+      to: speccing
+      checks:
+        - cmd: git switch task/t66 || (git switch main && git switch -c task/t66)
+          exit: 0
+        - cmd: test -f .mtt/tasks/t66.yaml || { echo "task file absent on this branch — its add has not reached main (merge/commit the branch that created it first)" >&2; false; }
+          exit: 0
+    - at: "2026-07-24T06:13:00Z"
+      by: Grigorii Pashukhin
+      from: speccing
+      to: spec_review
+      checks:
+        - cmd: ls docs/superpowers/specs/t66-*.md
+          exit: 0
+        - cmd: out=$(git status --porcelain -- ":(exclude).mtt") && test -z "$out" || { echo "working tree not clean - commit your code/docs first (.mtt is swept by the move itself)" >&2; false; }
+          exit: 0
+    - at: "2026-07-24T06:25:48Z"
+      by: Grigorii Pashukhin
+      why: 'adversarial spec review: 2 blockers (SEC2 broad-pathspec event sweep; {{.Type}} RCE via poisoned task file), 2 majors (--no-run attribution has no sink; bulk exit-code conflicts s008.9), 7 minors'
+      from: spec_review
+      to: spec_fix
+    - at: "2026-07-24T06:28:36Z"
+      by: Grigorii Pashukhin
+      from: spec_fix
+      to: spec_review
+      checks:
+        - cmd: ls docs/superpowers/specs/t66-*.md
+          exit: 0
+        - cmd: out=$(git status --porcelain -- ":(exclude).mtt") && test -z "$out" || { echo "working tree not clean - commit your code/docs first (.mtt is swept by the move itself)" >&2; false; }
+          exit: 0
+    - at: "2026-07-24T06:34:12Z"
+      by: Grigorii Pashukhin
+      why: 're-review r2: event commit subjects false-positive the deliver squash-grep (BLOCKER); '';'' swallows a failed git add (MAJOR); note events omit audit.log pathspec (MAJOR); +3 minors to pin'
+      from: spec_review
+      to: spec_fix
+    - at: "2026-07-24T06:35:31Z"
+      by: Grigorii Pashukhin
+      from: spec_fix
+      to: spec_review
+      checks:
+        - cmd: ls docs/superpowers/specs/t66-*.md
+          exit: 0
+        - cmd: out=$(git status --porcelain -- ":(exclude).mtt") && test -z "$out" || { echo "working tree not clean - commit your code/docs first (.mtt is swept by the move itself)" >&2; false; }
+          exit: 0
+    - at: "2026-07-24T06:38:15Z"
+      by: Grigorii Pashukhin
+      from: spec_review
+      to: spec_human_review
+    - at: "2026-07-24T06:41:27Z"
+      by: Grigorii Pashukhin
+      why: 'human sign-off: spec accepted after 3-round adversarial review'
+      from: spec_human_review
+      to: planning
+    - at: "2026-07-24T06:50:36Z"
+      by: Grigorii Pashukhin
+      from: planning
+      to: plan_review
+      checks:
+        - cmd: ls docs/superpowers/plans/t66-*.md
+          exit: 0
+        - cmd: out=$(git status --porcelain -- ":(exclude).mtt") && test -z "$out" || { echo "working tree not clean - commit your code/docs first (.mtt is swept by the move itself)" >&2; false; }
+          exit: 0
+    - at: "2026-07-24T06:57:01Z"
+      by: Grigorii Pashukhin
+      why: 'plan review: Preflight unwired/untested for tag/dep/ref editors (MAJOR); poisoned-type security test not faithfully realized (MAJOR); +6 minors (phantom exit-code idiom, dead grep filter, unexecuted git pipeline, no-op+no-run pin, docs corners, stale-binary note)'
+      from: plan_review
+      to: plan_fix
+    - at: "2026-07-24T06:58:59Z"
+      by: Grigorii Pashukhin
+      from: plan_fix
+      to: plan_review
+      checks:
+        - cmd: ls docs/superpowers/plans/t66-*.md
+          exit: 0
+        - cmd: out=$(git status --porcelain -- ":(exclude).mtt") && test -z "$out" || { echo "working tree not clean - commit your code/docs first (.mtt is swept by the move itself)" >&2; false; }
+          exit: 0
+    - at: "2026-07-24T07:02:06Z"
+      by: Grigorii Pashukhin
+      from: plan_review
+      to: plan_human_review
+    - at: "2026-07-24T07:23:52Z"
+      by: Grigorii Pashukhin
+      why: 'human sign-off: plan accepted after 2-round adversarial review'
+      from: plan_human_review
+      to: implementing
+    - at: "2026-07-24T08:08:54Z"
+      by: Grigorii Pashukhin
+      from: implementing
+      to: impl_review
+      checks:
+        - cmd: out=$(git status --porcelain -- ":(exclude).mtt") && test -z "$out" || { echo "working tree not clean - commit your code/docs first (.mtt is swept by the move itself)" >&2; false; }
+          exit: 0
+        - cmd: 'git diff --quiet main...HEAD -- cmd internal pkg go.mod go.sum || git diff --name-only main...HEAD -- CHANGELOG.md | grep -q . || { echo "code changed but CHANGELOG.md has no entry - add one under [Unreleased] (pure refactor? bypass: mtt do submit --no-run --who ... --why ...)" >&2; false; }'
+          exit: 0
+        - cmd: make check
+          exit: 0
+    - at: "2026-07-24T08:17:28Z"
+      by: Grigorii Pashukhin
+      why: 'code review: bulk rm skips clearCurrentIfMatches when the delete succeeded but its event failed (dangling current, MAJOR); FLOW_GUIDE §8 stale pre-t66 framing EN+RU; CLI wiring DRY polish'
+      from: impl_review
+      to: impl_fix
+    - at: "2026-07-24T08:19:50Z"
+      by: Grigorii Pashukhin
+      from: impl_fix
+      to: impl_review
+      checks:
+        - cmd: out=$(git status --porcelain -- ":(exclude).mtt") && test -z "$out" || { echo "working tree not clean - commit your code/docs first (.mtt is swept by the move itself)" >&2; false; }
+          exit: 0
+        - cmd: 'git diff --quiet main...HEAD -- cmd internal pkg go.mod go.sum || git diff --name-only main...HEAD -- CHANGELOG.md | grep -q . || { echo "code changed but CHANGELOG.md has no entry - add one under [Unreleased] (pure refactor? bypass: mtt do submit --no-run --who ... --why ...)" >&2; false; }'
+          exit: 0
+        - cmd: make check
+          exit: 0
+    - at: "2026-07-24T11:47:29Z"
+      by: Grigorii Pashukhin
+      why: 'adversarial code review passed (1 major + 2 minors fixed & verified: bulk-rm dangling-current regression pinned by e2e, FLOW_GUIDE §8 EN+RU, edit.go DRY); re-review confirmation blocked on API session limit, self-verified: go test -race green, layer invariants clean'
+      from: impl_review
+      to: approved
+      checks:
+        - cmd: out=$(git status --porcelain -- ":(exclude).mtt") && test -z "$out" || { echo "working tree not clean - commit your code/docs first (.mtt is swept by the move itself)" >&2; false; }
+          exit: 0

@@ -45,6 +45,14 @@ stay byte-identical.
   omit it; `core` unions it with the global policy. **Per-edge `post`** (t21): `ymlTransition.Post []ymlCommand`
   (`yaml:"post,omitempty"`, reusing `ymlCommand` scalar-or-map) maps to `mtt.Transition.Post` beside `Commands`
   — the finalization commands `core` runs after persist; decode-only, absent on edges that omit it.
+- **Events + post_defaults (t66):** `ymlConfig.Events` (`events:` — `ymlEvents`/`ymlEventHooks`/
+  `ymlEventHook`, decode-only, command lists reuse `ymlCommand` scalar-or-map), `ymlType.PostDefaults`
+  (`post_defaults:`), and `ymlTransition.InheritPost *bool` (`inherit_post:`; pointer — absent ≠ false;
+  only an explicit `false` maps to domain `SkipPostDefaults: true`). `TestRepoDogfoodConfig` pins the t66
+  dogfood shape: per-type `post_defaults` + per-edge effective pipelines via `Type.EffectivePost`
+  (byte-identical to the pre-t66 per-edge posts), the narrowed event pathspecs with audit.log conditionals
+  on both stores, the `&&`-chained `git add`, the namespaced `mtt: <id> <event>` subjects, and the deliver
+  grep that filters event subjects BEFORE its window cut.
 - No flow/ready/traversal logic here (that is `core`, later). Templates are the **only** home of default type/status names.
 - A project's `.mtt/config.yaml` is normally produced by `Init` templates; this repo's own committed config
   is hand-authored, reviewed like code, and guarded by `TestRepoDogfoodConfig` (`dogfood_test.go` — a

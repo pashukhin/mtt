@@ -1,11 +1,13 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
 	"github.com/spf13/cobra"
 
+	"github.com/pashukhin/mtt/internal/core"
 	"github.com/pashukhin/mtt/pkg/mtt"
 )
 
@@ -15,11 +17,14 @@ type bulkItem struct {
 	err error
 }
 
-// bulkJSON is the per-item machine view of a bulk mutation.
+// bulkJSON is the per-item machine view of a bulk mutation. Remaining carries a
+// failed lifecycle event's unfinished post commands (t66) — the machine consumer
+// must not lose the recovery the human report renders.
 type bulkJSON struct {
-	ID     string `json:"id"`
-	Status string `json:"status"`
-	Error  string `json:"error,omitempty"`
+	ID        string   `json:"id"`
+	Status    string   `json:"status"`
+	Error     string   `json:"error,omitempty"`
+	Remaining []string `json:"remaining,omitempty"`
 }
 
 // idJSON is the dry-run machine view (just the affected ids — nothing happened, so
@@ -58,6 +63,10 @@ func reportBulk(cmd *cobra.Command, items []bulkItem, verbPast string) error {
 			row := bulkJSON{ID: string(it.id), Status: verbPast}
 			if it.err != nil {
 				row.Status, row.Error = "error", it.err.Error()
+				var pe *core.PostActionError
+				if errors.As(it.err, &pe) {
+					row.Remaining = pe.Remaining
+				}
 			}
 			rows = append(rows, row)
 		}
@@ -69,8 +78,17 @@ func reportBulk(cmd *cobra.Command, items []bulkItem, verbPast string) error {
 		for _, it := range items {
 			if it.err == nil {
 				ok = append(ok, string(it.id))
-			} else {
-				_, _ = fmt.Fprintf(cmd.ErrOrStderr(), "%s: %v\n", it.id, it.err)
+				continue
+			}
+			_, _ = fmt.Fprintf(cmd.ErrOrStderr(), "%s: %v\n", it.id, it.err)
+			// A lifecycle-event failure means the mutation itself IS saved (t66):
+			// say so and render the unfinished commands, like the single path.
+			var pe *core.PostActionError
+			if errors.As(it.err, &pe) {
+				_, _ = fmt.Fprintf(cmd.ErrOrStderr(), "  (%s)\n", mutationSavedLine)
+				for _, c := range pe.Remaining {
+					_, _ = fmt.Fprintf(cmd.ErrOrStderr(), "  %s\n", c)
+				}
 			}
 		}
 		if len(ok) > 0 {

@@ -28,12 +28,13 @@ type Adder struct {
 	store mtt.TaskStore
 	cfg   mtt.Config
 	now   func() time.Time
+	ev    *EventEmitter
 }
 
 // NewAdder wires the usecase. now is injected so timestamps are deterministic in
-// tests (pass time.Now in production).
-func NewAdder(store mtt.TaskStore, cfg mtt.Config, now func() time.Time) *Adder {
-	return &Adder{store: store, cfg: cfg, now: now}
+// tests (pass time.Now in production); ev fires the create event (nil = none).
+func NewAdder(store mtt.TaskStore, cfg mtt.Config, now func() time.Time, ev *EventEmitter) *Adder {
+	return &Adder{store: store, cfg: cfg, now: now, ev: ev}
 }
 
 // AddParams are the inputs to Add. TypeName empty selects the default type.
@@ -48,10 +49,16 @@ type AddParams struct {
 	DependsOn   []mtt.TaskID // blocking edges set at creation (targets validated)
 	Tags        []string     // explicit tags; unioned with #hashtags from title/description
 	Refs        []mtt.Ref    // informational references set at creation (canonicalized; not verified here)
+	Events      EventOptions // lifecycle-event bypass + attribution (t66)
 }
 
-// Add creates one task and returns it with the adapter-minted ID.
+// Add creates one task and returns it with the adapter-minted ID. A
+// *PostActionError return carries the PERSISTED task (the create happened;
+// only the lifecycle event's finalization failed — exit 5, like Transitioner).
 func (a *Adder) Add(p AddParams) (mtt.Task, error) {
+	if err := p.Events.Preflight(); err != nil {
+		return mtt.Task{}, err
+	}
 	if p.Title == "" && p.Description == "" {
 		return mtt.Task{}, fmt.Errorf("provide a title or a description")
 	}
@@ -100,7 +107,7 @@ func (a *Adder) Add(p AddParams) (mtt.Task, error) {
 	if len(p.Refs) > 0 {
 		refs = canonicalRefs(p.Refs)
 	}
-	return a.store.Create(mtt.Task{
+	created, err := a.store.Create(mtt.Task{
 		Type:        typ.Name,
 		Title:       p.Title,
 		Status:      initial.Name,
@@ -113,6 +120,13 @@ func (a *Adder) Add(p AddParams) (mtt.Task, error) {
 		Created:     now,
 		Updated:     now,
 	})
+	if err != nil {
+		return mtt.Task{}, err
+	}
+	if err := a.ev.TaskEvent(mtt.EventCreate, created, "add", p.Events); err != nil {
+		return created, err // finalization failure: the task IS persisted (exit 5)
+	}
+	return created, nil
 }
 
 // resolveDeps validates that each depends-on target exists (via TaskStore.Get)

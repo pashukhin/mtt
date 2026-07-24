@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 	"time"
 
@@ -22,6 +23,7 @@ func newAddCmd() *cobra.Command {
 		dependsOn []string
 		tags      []string
 		refVals   []string
+		noRun     bool
 	)
 	cmd := &cobra.Command{
 		Use:   "add [title]",
@@ -44,7 +46,7 @@ explicit ones.`,
 			if err != nil {
 				return err
 			}
-			cfg, _, err := yaml.Load(root)
+			cfg, settings, err := yaml.Load(root)
 			if err != nil {
 				return err
 			}
@@ -71,19 +73,33 @@ explicit ones.`,
 			if err != nil {
 				return err
 			}
-			adder := core.NewAdder(yaml.NewTaskStore(root), cfg, time.Now)
-			task, err := adder.Add(core.AddParams{Title: title, TypeName: mtt.TypeName(typeName), Parent: mtt.TaskID(parent), NoParent: noParent, Description: desc, Priority: prio, DependsOn: depIDs, Tags: tagVals, Refs: refs})
+			evOpts, err := eventOptions(cmd, noRun, settings.Author)
 			if err != nil {
 				return err
 			}
+			ev, closeOut, err := newEventEmitter(cmd, root, cfg, settings)
+			if err != nil {
+				return err
+			}
+			defer closeOut()
+			adder := core.NewAdder(yaml.NewTaskStore(root), cfg, time.Now, ev)
+			task, err := adder.Add(core.AddParams{Title: title, TypeName: mtt.TypeName(typeName), Parent: mtt.TaskID(parent), NoParent: noParent, Description: desc, Priority: prio, DependsOn: depIDs, Tags: tagVals, Refs: refs, Events: evOpts})
+			if err != nil && !errors.As(err, new(*core.PostActionError)) {
+				return err
+			}
+			evErr := err // nil, or the finalization failure — render the task either way (it IS saved)
 			for _, r := range refs {
 				warnIfNotOK(cmd, r, verifyOne(root, r))
 			}
 			if jsonFlag(cmd) {
-				return writeJSON(cmd.OutOrStdout(), toTaskJSON(task))
+				if werr := writeJSON(cmd.OutOrStdout(), toTaskJSON(task)); werr != nil {
+					return werr
+				}
+			} else if _, werr := fmt.Fprintf(cmd.OutOrStdout(), "created %s\n", task.ID); werr != nil {
+				return werr
 			}
-			_, err = fmt.Fprintf(cmd.OutOrStdout(), "created %s\n", task.ID)
-			return err
+			renderPostRecovery(cmd, evErr, mutationSavedLine)
+			return evErr
 		},
 	}
 	cmd.Flags().StringVar(&typeName, "type", "", "task type (default: the config's default type)")
@@ -94,6 +110,7 @@ explicit ones.`,
 	cmd.Flags().StringSliceVar(&dependsOn, "depends-on", nil, "ids this task depends on (repeatable, comma-separated)")
 	cmd.Flags().StringSliceVar(&tags, "tag", nil, "add a tag (repeatable, comma-separated; #hashtags in the title/description are also picked up)")
 	cmd.Flags().StringArrayVar(&refVals, "ref", nil, "add a reference <kind>:<target> (repeatable)")
+	addNoRunFlag(cmd, &noRun)
 	cmd.MarkFlagsMutuallyExclusive("parent", "no-parent")
 	return cmd
 }

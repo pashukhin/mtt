@@ -15,18 +15,23 @@ import (
 type DependencyEditor struct {
 	store mtt.TaskStore
 	now   func() time.Time
+	ev    *EventEmitter
 }
 
-// NewDependencyEditor wires the usecase. now is injected for deterministic tests.
-func NewDependencyEditor(store mtt.TaskStore, now func() time.Time) *DependencyEditor {
-	return &DependencyEditor{store: store, now: now}
+// NewDependencyEditor wires the usecase. now is injected for deterministic
+// tests; ev fires the update event (nil = none).
+func NewDependencyEditor(store mtt.TaskStore, now func() time.Time, ev *EventEmitter) *DependencyEditor {
+	return &DependencyEditor{store: store, now: now, ev: ev}
 }
 
 // AddDependency makes id depend on dependsOn. Both tasks must exist; a self-edge
 // and any edge that would create a cycle are rejected; an already-present edge is
 // an idempotent no-op (no write, no timestamp bump). On a real change it bumps
 // Updated and persists.
-func (d *DependencyEditor) AddDependency(id, dependsOn mtt.TaskID) (mtt.Task, error) {
+func (d *DependencyEditor) AddDependency(id, dependsOn mtt.TaskID, opts EventOptions) (mtt.Task, error) {
+	if err := opts.Preflight(); err != nil {
+		return mtt.Task{}, err
+	}
 	if id == dependsOn {
 		return mtt.Task{}, fmt.Errorf("a task cannot depend on itself")
 	}
@@ -51,14 +56,17 @@ func (d *DependencyEditor) AddDependency(id, dependsOn mtt.TaskID) (mtt.Task, er
 	}
 	t.DependsOn = append(t.DependsOn, dependsOn)
 	t.Updated = d.now().UTC().Truncate(time.Second)
-	return d.store.Update(t)
+	return d.persistAndFire(t, "dep add", opts)
 }
 
 // RemoveDependency drops the dependsOn edge from id. The task must exist;
 // removing an edge that is already absent is an idempotent no-op (no write, no
 // timestamp bump), symmetric with AddDependency's duplicate no-op. On a real
 // removal it bumps Updated and persists.
-func (d *DependencyEditor) RemoveDependency(id, dependsOn mtt.TaskID) (mtt.Task, error) {
+func (d *DependencyEditor) RemoveDependency(id, dependsOn mtt.TaskID, opts EventOptions) (mtt.Task, error) {
+	if err := opts.Preflight(); err != nil {
+		return mtt.Task{}, err
+	}
 	t, err := d.load(id, "task")
 	if err != nil {
 		return mtt.Task{}, err
@@ -75,7 +83,17 @@ func (d *DependencyEditor) RemoveDependency(id, dependsOn mtt.TaskID) (mtt.Task,
 	}
 	t.DependsOn = append(t.DependsOn[:idx], t.DependsOn[idx+1:]...)
 	t.Updated = d.now().UTC().Truncate(time.Second)
-	return d.store.Update(t)
+	return d.persistAndFire(t, "dep rm", opts)
+}
+
+// persistAndFire updates the task and fires its update event; a fired event's
+// finalization failure returns the PERSISTED task with the error (exit 5).
+func (d *DependencyEditor) persistAndFire(t mtt.Task, action string, opts EventOptions) (mtt.Task, error) {
+	up, err := d.store.Update(t)
+	if err != nil {
+		return mtt.Task{}, err
+	}
+	return up, d.ev.TaskEvent(mtt.EventUpdate, up, action, opts)
 }
 
 // load fetches a task, mapping ErrNotFound to a caller-labelled message (role is

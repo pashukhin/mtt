@@ -30,6 +30,7 @@ agent layer over the existing stack).
 | ID/slug | Minted by the **adapter** (YAML: stable flat per-prefix `e1`/`t17`/`s3`); the domain knows only the logical task |
 | Flow | Executable transitions: `description` + `commands` (all → 0, else the transition is blocked) |
 | Advance | `advance --to` (meta: walk to a target); modes `--stop`(default)/`--atomic`/`--force`; no config DSL |
+| Events | Lifecycle events (t66): post-only pipelines on task/note create/update/delete, fired per entity by the usecases (never flow moves); per-type `post_defaults` + per-edge `inherit_post: false` — defaults first, specifics appended, opt-out explicit |
 | Roles | `start`/`done` semantics depend on the role — seam laid (`role` in history, `--role`, config `roles`); implementation deferred |
 | Statuses | Category `kind` (initial/active/terminal) by flow **topology**; ≥1 of each per flow; multiple initials allowed; identity is per-flow `(type,name)`; names are config's, never code literals |
 | Domain model | Pure `pkg/mtt` (no serialization tags, no `prefix`); adapters map via DTOs; DDD value objects (`StatusKind`); references by identity, back-refs computed |
@@ -459,13 +460,57 @@ Commands come from config (trusted, like a Makefile/git hooks), not from the net
 > typed `core.PostActionError`, carrying the **unfinished post commands** (the failed one + those never reached)
 > so the CLI prints exact recovery steps + "the move is already saved" — actionable, not just a code. `--no-run`
 > skips **both** phases.
-> Why not a global default `post`? Precedence/merge/opt-out questions we deferred (t24) — per-edge only for now.
+> The global-default-`post` question deferred here (t24) is **resolved by t66's `post_defaults`** — see the
+> lifecycle-events block below.
 > The `git switch` in `deliver`/`start`/`cancel` is exactly why a naive "persist → run everything → roll back"
 > single phase can't work: context switches must precede persist, commits must follow it. **(c1) auto-push**
 > extends this: `approve` post also `git push -u origin task/<id>` (the PR branch), `deliver` **and `cancel`**
 > post also `git push origin main` (c5 — a terminal state must not live only locally). `approve` also
 > opens/updates the PR (`gh pr create`, idempotent; body from `docs/superpowers/pr/<id>.md` or a fallback —
 > t27), so the remaining manual steps are **merging** and pulling main before `deliver`.
+
+> **Shipped (t66): lifecycle events + `post_defaults` (events beyond flow edges).** Two symmetric layers,
+> one precedence rule (*defaults first, specifics appended, opt-out only explicit*):
+>
+> - **Lifecycle events** — an optional top-level `events:` config section (`events.task`/`events.note` ×
+>   `create`/`update`/`delete`), each hook carrying a **post-only** pipeline (the same `Command` VO as edge
+>   `post:`; blocking `commands:` on events were consciously excluded — an event *finalizes* a persisted
+>   mutation, it never blocks one). Events fire **per entity** from the mutating **usecases** (Adder, Editor,
+>   TagEditor, DependencyEditor, RefEditor, Remover — per id, inside the bulk loop — and the four note
+>   usecases) **only on a real persist** (idempotent no-ops fire nothing). They hang on the usecase layer,
+>   NOT the store and NOT `Transitioner` — so a flow move never double-fires (its pipeline home is the edge).
+>   Placeholders are per-store whitelists: task events `{{.ID}}/{{.Type}}/{{.Event}}`, note events
+>   `{{.Slug}}/{{.Event}}`; `{{.From}}`/`{{.To}}` do not exist on events. **`{{.Type}}` guard (c15-class):**
+>   the emitter resolves the task's type against the **config vocabulary** (`TypeByName`) *before* expansion
+>   and renders the config's name — a poisoned on-disk `type:` (validated only as non-empty) never reaches
+>   `sh -c`; a miss is a finalization failure. Failure semantics extend t21/t28 verbatim: the mutation is
+>   **kept**, the typed `PostActionError` carries the remaining commands, single-entity exit **5** ("the
+>   change IS saved"); **bulk keeps the s008.9 generic exit 1** (the aggregate never wraps a per-item
+>   sentinel; per-item `remaining` rides the bulk report and its `--json` rows). Event post expands **after**
+>   persist (a create's id is unminted earlier) — uniformly, so a template error is a finalization failure,
+>   never a lost mutation. **`--no-run` on the 14 mutating verbs** skips the pipeline and (t5: no bypass
+>   without a trail) forces `--who`+`--why` — validated **pre-persist** (`EventOptions.Preflight`, exit 2) —
+>   and writes an audit **skip-record** (`action: "<command> --no-run"`) at the moment the pipeline would
+>   have fired; `rm --force --no-run` writes ONE record (`"rm --force --no-run"`, the pre-delete destruction
+>   ordering wins); a no-op under bypass writes nothing (nothing persisted — the moment never comes).
+> - **`post_defaults`** — a per-type command list **prepended** to every edge's `post:`; a main-landing edge
+>   opts out explicitly (`inherit_post: false`) to keep its narrowed-pathspec commit (SEC2/c3). The pure
+>   `Type.EffectivePost` computes the effective pipeline; `core.Transitioner` consumes it. This collapsed the
+>   ~30 duplicated auto-commit lines to one per type and unblocks the t62 flagship template. A uniform
+>   validation rule landed with it: **`rollback:` is rejected in ALL post surfaces** (edge `post:`,
+>   `post_defaults`, event post) — post pipelines have no compensation phase.
+> - **Dogfood:** the repo's `events:` auto-commit every task/note mutation with the **narrowed pathspec**
+>   (`.mtt/tasks/<id>.yaml` / `.mtt/knowledge/<slug>.md` + `audit.log` when present), an `&&`-chained
+>   `git add` (a failed add fails loudly), an empty-commit guard, **namespaced subjects** `mtt: <id> <event>`
+>   (they must never match the deliver squash-grep `^<id>: ` — an event commit that matched would fake a
+>   delivery), and a main-aware push with a pull hint. The deliver gate now filters event subjects **before**
+>   its window cut (`git log -n 1000 … | grep -v "^mtt: " | head -200 | grep …`). This closes t26 (manual
+>   `.mtt` commits after non-flow mutations) as **config, not code**; `TestRepoDogfoodConfig` pins every
+>   load-bearing shape. Rejected shapes (decision record in the t66 spec): store-level events subsuming edge
+>   posts (inter-layer precedence + conditional contexts), a hardcoded `autocommit:` flag (git in the binary),
+>   pseudo-edges (notes have no flow; update is not a transition; fake edges break the kind↔topology
+>   invariants). **Upgrade note:** a pre-t66 binary silently ignores `events:`/`post_defaults:` (non-strict
+>   decode) — update the installed binary or moves/mutations stop auto-committing with no signal.
 
 > **Shipped (s008): rollback / compensation (intra-pipeline).** A gate command may declare a `rollback:`
 > compensator (a scalar or `{run, timeout}`, itself placeholder-expanded); when a **later** command in the

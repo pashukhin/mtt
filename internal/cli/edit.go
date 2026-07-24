@@ -15,6 +15,7 @@ import (
 // newEditCmd builds `mtt edit <id>`: edit a task's non-flow fields.
 func newEditCmd() *cobra.Command {
 	var title, desc, priority string
+	var noRun bool
 	cmd := &cobra.Command{
 		Use:   "edit [<id>]",
 		Short: "Edit a task's title, description, and/or priority (the current task when the id is omitted)",
@@ -44,27 +45,42 @@ survive. There is no --tag here; use 'mtt tag add/rm' for tags not in the text.`
 			if err != nil {
 				return err
 			}
-			editor := core.NewEditor(yaml.NewTaskStore(root), time.Now)
+			cfg, settings, err := yaml.Load(root)
+			if err != nil {
+				return err
+			}
+			if p.Events, err = eventOptions(cmd, noRun, settings.Author); err != nil {
+				return err
+			}
+			ev, closeOut, err := newEventEmitter(cmd, root, cfg, settings)
+			if err != nil {
+				return err
+			}
+			defer closeOut()
+			editor := core.NewEditor(yaml.NewTaskStore(root), time.Now, ev)
 			id, err := resolveTaskID(root, argOrEmpty(args))
 			if err != nil {
 				return err
 			}
 			task, err := editor.Edit(id, p)
-			if err != nil {
+			if err != nil && !errors.As(err, new(*core.PostActionError)) {
 				if errors.Is(err, mtt.ErrNotFound) {
 					return taskNotFound(id)
 				}
 				return err
 			}
-			if jsonFlag(cmd) {
-				return writeJSON(cmd.OutOrStdout(), toTaskJSON(task))
-			}
-			_, err = fmt.Fprintf(cmd.OutOrStdout(), "updated %s\n", task.ID)
-			return err
+			return finishMutation(cmd, err, func() error {
+				if jsonFlag(cmd) {
+					return writeJSON(cmd.OutOrStdout(), toTaskJSON(task))
+				}
+				_, werr := fmt.Fprintf(cmd.OutOrStdout(), "updated %s\n", task.ID)
+				return werr
+			})
 		},
 	}
 	cmd.Flags().StringVar(&title, "title", "", "new title")
 	cmd.Flags().StringVar(&desc, "description", "", "new description")
 	cmd.Flags().StringVar(&priority, "priority", "", "new priority: high|medium|low (empty string clears it)")
+	addNoRunFlag(cmd, &noRun)
 	return cmd
 }

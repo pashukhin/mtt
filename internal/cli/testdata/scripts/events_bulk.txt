@@ -1,0 +1,49 @@
+# t66 — bulk keeps the s008.9 aggregate (generic failure; never a per-item
+# sentinel): a not-found id + a failing delete event in one call. Per-item
+# stderr carries the saved-marker + remaining; --json rows carry `remaining`.
+exec mtt init
+cp events.yaml .mtt/config.yaml
+
+exec mtt add 'a'
+exec mtt add 'b'
+exec mtt use t1
+
+! exec mtt rm t1 ghost
+stderr 'ghost.*not found'
+stderr 't1: .*exited 1'
+stderr 'the change IS saved; do NOT re-run the mutation'
+stderr '^  false$'
+
+# the deletion itself happened (mutation kept despite the failed event) and the
+# current pointer was cleared — a deleted task must not leave a dangling current
+# even when its event finalization failed (t66 review F1)
+exec mtt list --ids
+stdout 't2'
+! stdout 't1'
+exec mtt use
+stdout 'no current task'
+
+# --json rows carry the remaining recovery commands
+exec mtt add 'c'
+! exec mtt rm t3 t99 --json
+stdout '"remaining"'
+stdout '"error"'
+
+-- events.yaml --
+version: 1
+project: {name: evtest}
+events:
+  task:
+    delete:
+      post: ['false']
+types:
+  - name: task
+    prefix: t
+    default: true
+    statuses:
+      - {name: tbd, kind: initial}
+      - {name: doing, kind: active}
+      - {name: done, kind: terminal}
+    transitions:
+      - {from: tbd, to: doing}
+      - {from: doing, to: done}

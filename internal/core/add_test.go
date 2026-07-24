@@ -62,7 +62,7 @@ func fixed() time.Time { return time.Date(2026, 7, 4, 9, 20, 30, 500, time.UTC) 
 
 func TestAddStampsPriority(t *testing.T) {
 	fs := &fakeStore{retID: "e1"}
-	got, err := NewAdder(fs, cfg(), fixed).Add(AddParams{Title: "x", TypeName: "epic", Priority: mtt.PriorityHigh})
+	got, err := NewAdder(fs, cfg(), fixed, nil).Add(AddParams{Title: "x", TypeName: "epic", Priority: mtt.PriorityHigh})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -70,7 +70,7 @@ func TestAddStampsPriority(t *testing.T) {
 		t.Fatalf("Priority = %q, want high", got.Priority)
 	}
 	// Default: unset (not medium).
-	plain, err := NewAdder(&fakeStore{retID: "e2"}, cfg(), fixed).Add(AddParams{Title: "y", TypeName: "epic"})
+	plain, err := NewAdder(&fakeStore{retID: "e2"}, cfg(), fixed, nil).Add(AddParams{Title: "y", TypeName: "epic"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -81,7 +81,7 @@ func TestAddStampsPriority(t *testing.T) {
 
 func TestAddRootExplicitType(t *testing.T) {
 	fs := &fakeStore{retID: "e1"}
-	got, err := NewAdder(fs, cfg(), fixed).Add(AddParams{Title: "build auth", TypeName: "epic"})
+	got, err := NewAdder(fs, cfg(), fixed, nil).Add(AddParams{Title: "build auth", TypeName: "epic"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -100,7 +100,7 @@ func TestAddRootExplicitType(t *testing.T) {
 }
 
 func TestAddDefaultTypeNeedsParent(t *testing.T) {
-	_, err := NewAdder(&fakeStore{retID: "t1"}, cfg(), fixed).Add(AddParams{Title: "x"})
+	_, err := NewAdder(&fakeStore{retID: "t1"}, cfg(), fixed, nil).Add(AddParams{Title: "x"})
 	if err == nil || !strings.Contains(err.Error(), "requires a parent") {
 		t.Fatalf("want 'requires a parent', got %v", err)
 	}
@@ -108,14 +108,14 @@ func TestAddDefaultTypeNeedsParent(t *testing.T) {
 
 func TestAddNoParentException(t *testing.T) {
 	fs := &fakeStore{retID: "t1"}
-	got, err := NewAdder(fs, cfg(), fixed).Add(AddParams{Title: "orphan", NoParent: true})
+	got, err := NewAdder(fs, cfg(), fixed, nil).Add(AddParams{Title: "orphan", NoParent: true})
 	if err != nil || got.ID != "t1" || fs.got.Type != "task" {
 		t.Fatalf("no-parent create failed: id=%q type=%q err=%v", got.ID, fs.got.Type, err)
 	}
 }
 
 func TestAddUnknownType(t *testing.T) {
-	_, err := NewAdder(&fakeStore{}, cfg(), fixed).Add(AddParams{Title: "x", TypeName: "ghost"})
+	_, err := NewAdder(&fakeStore{}, cfg(), fixed, nil).Add(AddParams{Title: "x", TypeName: "ghost"})
 	if err == nil || !strings.Contains(err.Error(), "unknown type") {
 		t.Fatalf("want 'unknown type', got %v", err)
 	}
@@ -123,7 +123,7 @@ func TestAddUnknownType(t *testing.T) {
 
 func TestAddUnderParentOK(t *testing.T) {
 	fs := &fakeStore{retID: "t1", byID: map[mtt.TaskID]mtt.Task{"e1": {ID: "e1", Type: "epic"}}}
-	got, err := NewAdder(fs, cfg(), fixed).Add(AddParams{Title: "child", TypeName: "task", Parent: "e1"})
+	got, err := NewAdder(fs, cfg(), fixed, nil).Add(AddParams{Title: "child", TypeName: "task", Parent: "e1"})
 	if err != nil {
 		t.Fatalf("valid parent should succeed: %v", err)
 	}
@@ -134,7 +134,7 @@ func TestAddUnderParentOK(t *testing.T) {
 
 func TestAddParentMissing(t *testing.T) {
 	fs := &fakeStore{retID: "t1", byID: map[mtt.TaskID]mtt.Task{}}
-	_, err := NewAdder(fs, cfg(), fixed).Add(AddParams{Title: "x", TypeName: "task", Parent: "e9"})
+	_, err := NewAdder(fs, cfg(), fixed, nil).Add(AddParams{Title: "x", TypeName: "task", Parent: "e9"})
 	if err == nil || !errors.Is(err, mtt.ErrNotFound) || !strings.Contains(err.Error(), `parent "e9"`) {
 		t.Fatalf("want parent-not-found wrapping ErrNotFound, got %v", err)
 	}
@@ -143,7 +143,7 @@ func TestAddParentMissing(t *testing.T) {
 func TestAddParentWrongType(t *testing.T) {
 	// subtask.parents = [task]; placing it under an epic must fail.
 	fs := &fakeStore{retID: "s1", byID: map[mtt.TaskID]mtt.Task{"e1": {ID: "e1", Type: "epic"}}}
-	_, err := NewAdder(fs, cfg(), fixed).Add(AddParams{Title: "x", TypeName: "subtask", Parent: "e1"})
+	_, err := NewAdder(fs, cfg(), fixed, nil).Add(AddParams{Title: "x", TypeName: "subtask", Parent: "e1"})
 	if err == nil || !strings.Contains(err.Error(), "cannot be placed under") {
 		t.Fatalf("want placement error, got %v", err)
 	}
@@ -152,41 +152,41 @@ func TestAddParentWrongType(t *testing.T) {
 func TestAddRootTypeRejectsParent(t *testing.T) {
 	// epic is a root type; giving it a parent must fail.
 	fs := &fakeStore{retID: "e2", byID: map[mtt.TaskID]mtt.Task{"e1": {ID: "e1", Type: "epic"}}}
-	_, err := NewAdder(fs, cfg(), fixed).Add(AddParams{Title: "x", TypeName: "epic", Parent: "e1"})
+	_, err := NewAdder(fs, cfg(), fixed, nil).Add(AddParams{Title: "x", TypeName: "epic", Parent: "e1"})
 	if err == nil || !strings.Contains(err.Error(), "cannot be placed under") {
 		t.Fatalf("want placement error for root+parent, got %v", err)
 	}
 }
 
 func TestAddNeedsTitleOrDescription(t *testing.T) {
-	_, err := NewAdder(&fakeStore{}, cfg(), fixed).Add(AddParams{TypeName: "epic"})
+	_, err := NewAdder(&fakeStore{}, cfg(), fixed, nil).Add(AddParams{TypeName: "epic"})
 	if err == nil || !strings.Contains(err.Error(), "title or a description") {
 		t.Fatalf("want title-or-description error, got %v", err)
 	}
 	// description-only is allowed
-	if _, err := NewAdder(&fakeStore{retID: "e1"}, cfg(), fixed).Add(AddParams{TypeName: "epic", Description: "figure it out"}); err != nil {
+	if _, err := NewAdder(&fakeStore{retID: "e1"}, cfg(), fixed, nil).Add(AddParams{TypeName: "epic", Description: "figure it out"}); err != nil {
 		t.Fatalf("description-only should be allowed: %v", err)
 	}
 }
 
 func TestAddRejectsNewlineInTitle(t *testing.T) {
-	_, err := NewAdder(&fakeStore{retID: "e1"}, cfg(), fixed).Add(AddParams{Title: "line1\nline2", TypeName: "epic"})
+	_, err := NewAdder(&fakeStore{retID: "e1"}, cfg(), fixed, nil).Add(AddParams{Title: "line1\nline2", TypeName: "epic"})
 	if err == nil || !strings.Contains(err.Error(), "single line") {
 		t.Fatalf("want single-line title error, got %v", err)
 	}
 	// a carriage return is rejected too
-	if _, err := NewAdder(&fakeStore{retID: "e1"}, cfg(), fixed).Add(AddParams{Title: "a\rb", TypeName: "epic"}); err == nil {
+	if _, err := NewAdder(&fakeStore{retID: "e1"}, cfg(), fixed, nil).Add(AddParams{Title: "a\rb", TypeName: "epic"}); err == nil {
 		t.Fatalf("want CR in title rejected")
 	}
 	// a newline in the description stays free-form (allowed)
-	if _, err := NewAdder(&fakeStore{retID: "e1"}, cfg(), fixed).Add(AddParams{Title: "ok", Description: "multi\nline", TypeName: "epic"}); err != nil {
+	if _, err := NewAdder(&fakeStore{retID: "e1"}, cfg(), fixed, nil).Add(AddParams{Title: "ok", Description: "multi\nline", TypeName: "epic"}); err != nil {
 		t.Fatalf("newline in description should be allowed: %v", err)
 	}
 }
 
 func TestAddWithDependsOn(t *testing.T) {
 	fs := &fakeStore{retID: "t2", byID: map[mtt.TaskID]mtt.Task{"t1": {ID: "t1", Type: "epic"}}}
-	got, err := NewAdder(fs, cfg(), fixed).Add(AddParams{
+	got, err := NewAdder(fs, cfg(), fixed, nil).Add(AddParams{
 		Title: "B", TypeName: "epic", DependsOn: []mtt.TaskID{"t1"},
 	})
 	if err != nil {
@@ -202,7 +202,7 @@ func TestAddWithDependsOn(t *testing.T) {
 
 func TestAddDependsOnMissingTarget(t *testing.T) {
 	fs := &fakeStore{retID: "t2", byID: map[mtt.TaskID]mtt.Task{}}
-	_, err := NewAdder(fs, cfg(), fixed).Add(AddParams{
+	_, err := NewAdder(fs, cfg(), fixed, nil).Add(AddParams{
 		Title: "B", TypeName: "epic", DependsOn: []mtt.TaskID{"t99"},
 	})
 	if err == nil || !errors.Is(err, mtt.ErrNotFound) {
@@ -215,7 +215,7 @@ func TestAddDependsOnMissingTarget(t *testing.T) {
 
 func TestAddDependsOnDedup(t *testing.T) {
 	fs := &fakeStore{retID: "t2", byID: map[mtt.TaskID]mtt.Task{"t1": {ID: "t1", Type: "epic"}}}
-	got, err := NewAdder(fs, cfg(), fixed).Add(AddParams{
+	got, err := NewAdder(fs, cfg(), fixed, nil).Add(AddParams{
 		Title: "B", TypeName: "epic", DependsOn: []mtt.TaskID{"t1", "t1"},
 	})
 	if err != nil {
@@ -228,7 +228,7 @@ func TestAddDependsOnDedup(t *testing.T) {
 
 func TestAdderCanonicalizesRefs(t *testing.T) {
 	fs := &fakeStore{retID: "e1"}
-	got, err := NewAdder(fs, cfg(), fixed).Add(AddParams{Title: "x", TypeName: "epic", Refs: []mtt.Ref{
+	got, err := NewAdder(fs, cfg(), fixed, nil).Add(AddParams{Title: "x", TypeName: "epic", Refs: []mtt.Ref{
 		{Kind: mtt.RefTask, ID: "t2"}, {Kind: mtt.RefNote, ID: "a"}, {Kind: mtt.RefTask, ID: "t2"},
 	}})
 	if err != nil {
@@ -239,5 +239,64 @@ func TestAdderCanonicalizesRefs(t *testing.T) {
 	}
 	if got.Refs[0].Kind != mtt.RefNote { // sorted (note < task)
 		t.Fatalf("sort: %+v", got.Refs)
+	}
+}
+
+// mintStore mints a fixed ID on Create, so event tests can assert the pipeline
+// sees the ADAPTER-minted id (memStore.Create keeps the empty one).
+type mintStore struct {
+	*memStore
+	mint mtt.TaskID
+}
+
+func (m *mintStore) Create(t mtt.Task) (mtt.Task, error) {
+	t.ID = m.mint
+	return m.memStore.Create(t)
+}
+
+func TestAddFiresCreateEvent(t *testing.T) {
+	cfg := eventCfg(taskHook(mtt.EventCreate, "echo {{.ID}} {{.Event}}"))
+	store := &mintStore{memStore: newMemStore(), mint: "t9"}
+	runner := &fakeRunner{}
+	adder := NewAdder(store, cfg, testClock, NewEventEmitter(cfg, runner, &fakeAudit{}, testClock))
+	task, err := adder.Add(AddParams{Title: "x"})
+	if err != nil {
+		t.Fatalf("unexpected: %v", err)
+	}
+	if task.ID != "t9" {
+		t.Fatalf("id = %q", task.ID)
+	}
+	if len(runner.gotCmds) != 1 || runner.gotCmds[0].Run != "echo t9 create" {
+		t.Fatalf("pipeline = %+v, want [echo t9 create] (minted id expanded)", runner.gotCmds)
+	}
+}
+
+func TestAddEventFailureKeepsTask(t *testing.T) {
+	cfg := eventCfg(taskHook(mtt.EventCreate, "boom"))
+	store := &mintStore{memStore: newMemStore(), mint: "t9"}
+	adder := NewAdder(store, cfg, testClock, NewEventEmitter(cfg, &fakeRunner{failSubstr: "boom"}, &fakeAudit{}, testClock))
+	task, err := adder.Add(AddParams{Title: "x"})
+	var pe *PostActionError
+	if !errors.As(err, &pe) {
+		t.Fatalf("want *PostActionError, got %v", err)
+	}
+	if task.ID != "t9" {
+		t.Fatalf("the persisted task must ride back with the error; got %+v", task)
+	}
+	if _, gerr := store.Get("t9"); gerr != nil {
+		t.Fatalf("task not persisted: %v", gerr)
+	}
+}
+
+func TestAddNoRunPreflight(t *testing.T) {
+	cfg := eventCfg(mtt.Events{})
+	store := newMemStore()
+	adder := NewAdder(store, cfg, testClock, NewEventEmitter(cfg, &fakeRunner{}, &fakeAudit{}, testClock))
+	_, err := adder.Add(AddParams{Title: "x", Events: EventOptions{NoRun: true}})
+	if !errors.Is(err, ErrMissingAttribution) {
+		t.Fatalf("want ErrMissingAttribution, got %v", err)
+	}
+	if tasks, _ := store.List(); len(tasks) != 0 {
+		t.Fatalf("preflight must run BEFORE persist; store = %+v", tasks)
 	}
 }

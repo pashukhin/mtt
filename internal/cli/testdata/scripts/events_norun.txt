@@ -1,0 +1,44 @@
+# t66 — --no-run on a mutation: forces --who/--why (exit 2) and, when signed,
+# skips the pipeline and writes an audit skip-record instead.
+exec mtt init
+cp events.yaml .mtt/config.yaml
+
+# bare bypass → aggregated missing who/why, nothing persisted
+! exec mtt add 'x' --no-run
+stderr 'who, why'
+exec mtt list --ids
+! stdout 't1'
+
+# signed bypass → task created, pipeline skipped, audit record written
+exec mtt add 'x' --no-run --who me --why testing
+stdout 'created t1'
+! exists created-t1-create
+exists .mtt/audit.log
+grep '"action":"add --no-run"' .mtt/audit.log
+grep '"who":"me"' .mtt/audit.log
+
+# rm --force --no-run → ONE record with the full invocation shape (pin iii)
+exec mtt rm t1 --force --no-run --who me --why cleanup
+grep '"action":"rm --force --no-run"' .mtt/audit.log
+! exists deleted-t1-delete
+
+-- events.yaml --
+version: 1
+project: {name: evtest}
+events:
+  task:
+    create:
+      post: ['touch created-{{.ID}}-{{.Event}}']
+    delete:
+      post: ['touch deleted-{{.ID}}-{{.Event}}']
+types:
+  - name: task
+    prefix: t
+    default: true
+    statuses:
+      - {name: tbd, kind: initial}
+      - {name: doing, kind: active}
+      - {name: done, kind: terminal}
+    transitions:
+      - {from: tbd, to: doing}
+      - {from: doing, to: done}

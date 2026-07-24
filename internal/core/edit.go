@@ -13,11 +13,13 @@ import (
 type Editor struct {
 	store mtt.TaskStore
 	now   func() time.Time
+	ev    *EventEmitter
 }
 
-// NewEditor wires the usecase. now is injected for deterministic timestamps.
-func NewEditor(store mtt.TaskStore, now func() time.Time) *Editor {
-	return &Editor{store: store, now: now}
+// NewEditor wires the usecase. now is injected for deterministic timestamps;
+// ev fires the update event (nil = none).
+func NewEditor(store mtt.TaskStore, now func() time.Time, ev *EventEmitter) *Editor {
+	return &Editor{store: store, now: now, ev: ev}
 }
 
 // EditParams are the requested edits. A nil pointer means "leave unchanged"; a
@@ -28,10 +30,16 @@ type EditParams struct {
 	Title       *string
 	Description *string
 	Priority    *mtt.Priority
+	Events      EventOptions // lifecycle-event bypass + attribution (t66)
 }
 
-// Edit applies p to task id, bumps Updated, persists, and returns the task.
+// Edit applies p to task id, bumps Updated, persists, and returns the task. A
+// *PostActionError return carries the PERSISTED task (the edit happened; only
+// the lifecycle event's finalization failed — exit 5).
 func (e *Editor) Edit(id mtt.TaskID, p EditParams) (mtt.Task, error) {
+	if err := p.Events.Preflight(); err != nil {
+		return mtt.Task{}, err
+	}
 	if p.Title == nil && p.Description == nil && p.Priority == nil {
 		return mtt.Task{}, fmt.Errorf("nothing to edit: provide --title, --description, and/or --priority")
 	}
@@ -59,5 +67,12 @@ func (e *Editor) Edit(id mtt.TaskID, p EditParams) (mtt.Task, error) {
 		t.Tags = reconcileTags(t.Tags, oldTitle, oldDesc, t.Title, t.Description)
 	}
 	t.Updated = e.now().UTC().Truncate(time.Second)
-	return e.store.Update(t)
+	updated, err := e.store.Update(t)
+	if err != nil {
+		return mtt.Task{}, err
+	}
+	if err := e.ev.TaskEvent(mtt.EventUpdate, updated, "edit", p.Events); err != nil {
+		return updated, err // finalization failure: the edit IS persisted (exit 5)
+	}
+	return updated, nil
 }

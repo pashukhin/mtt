@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 	"net/url"
 	"strings"
@@ -193,6 +194,7 @@ func newRefCmd() *cobra.Command {
 
 func newRefAddCmd() *cobra.Command {
 	var label string
+	var noRun bool
 	cmd := &cobra.Command{
 		Use:   "add <id> <kind>:<target>",
 		Short: "Add a reference to a task",
@@ -211,28 +213,46 @@ func newRefAddCmd() *cobra.Command {
 				return err
 			}
 			ref.Label = label
-			task, err := core.NewRefEditor(yaml.NewTaskStore(root), time.Now).AddRef(id, ref, cmd.Flags().Changed("label"))
+			cfg, settings, err := yaml.Load(root)
 			if err != nil {
+				return err
+			}
+			opts, err := eventOptions(cmd, noRun, settings.Author)
+			if err != nil {
+				return err
+			}
+			ev, closeOut, err := newEventEmitter(cmd, root, cfg, settings)
+			if err != nil {
+				return err
+			}
+			defer closeOut()
+			task, err := core.NewRefEditor(yaml.NewTaskStore(root), time.Now, ev).AddRef(id, ref, cmd.Flags().Changed("label"), opts)
+			if err != nil && !errors.As(err, new(*core.PostActionError)) {
 				if isNotFound(err) {
 					return taskNotFound(id)
 				}
 				return err
 			}
+			evErr := err
 			st := verifyOne(root, ref)
 			warnIfNotOK(cmd, ref, st)
-			if jsonFlag(cmd) {
-				return writeJSON(cmd.OutOrStdout(), toRefJSON(ref, st))
-			}
-			_, err = fmt.Fprintf(cmd.OutOrStdout(), "added %s:%s to %s\n", ref.Kind, ref.ID, task.ID)
-			return err
+			return finishMutation(cmd, evErr, func() error {
+				if jsonFlag(cmd) {
+					return writeJSON(cmd.OutOrStdout(), toRefJSON(ref, st))
+				}
+				_, werr := fmt.Fprintf(cmd.OutOrStdout(), "added %s:%s to %s\n", ref.Kind, ref.ID, task.ID)
+				return werr
+			})
 		},
 	}
 	cmd.Flags().StringVar(&label, "label", "", "annotate the reference")
+	addNoRunFlag(cmd, &noRun)
 	return cmd
 }
 
 func newRefRmCmd() *cobra.Command {
-	return &cobra.Command{
+	var noRun bool
+	cmd := &cobra.Command{
 		Use:   "rm <id> <kind>:<target>",
 		Short: "Remove a reference from a task (idempotent)",
 		Args:  twoIDs("provide a task id and <kind>:<target> (example: mtt ref rm t2 task:t1)"),
@@ -249,16 +269,37 @@ func newRefRmCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			if _, err := core.NewRefEditor(yaml.NewTaskStore(root), time.Now).RemoveRef(id, ref.Kind, ref.ID); err != nil {
-				if isNotFound(err) {
-					return taskNotFound(id)
-				}
+			cfg, settings, err := yaml.Load(root)
+			if err != nil {
 				return err
 			}
-			_, err = fmt.Fprintf(cmd.OutOrStdout(), "removed %s:%s from %s\n", ref.Kind, ref.ID, id)
-			return err
+			opts, err := eventOptions(cmd, noRun, settings.Author)
+			if err != nil {
+				return err
+			}
+			ev, closeOut, err := newEventEmitter(cmd, root, cfg, settings)
+			if err != nil {
+				return err
+			}
+			defer closeOut()
+			rmErr := func() error {
+				_, e := core.NewRefEditor(yaml.NewTaskStore(root), time.Now, ev).RemoveRef(id, ref.Kind, ref.ID, opts)
+				return e
+			}()
+			if rmErr != nil && !errors.As(rmErr, new(*core.PostActionError)) {
+				if isNotFound(rmErr) {
+					return taskNotFound(id)
+				}
+				return rmErr
+			}
+			return finishMutation(cmd, rmErr, func() error {
+				_, werr := fmt.Fprintf(cmd.OutOrStdout(), "removed %s:%s from %s\n", ref.Kind, ref.ID, id)
+				return werr
+			})
 		},
 	}
+	addNoRunFlag(cmd, &noRun)
+	return cmd
 }
 
 func newRefListCmd() *cobra.Command {

@@ -29,7 +29,7 @@ func TestEditTitleOnly(t *testing.T) {
 	orig := mtt.Task{ID: "e1", Type: "epic", Title: "old", Status: "tbd", Description: "d",
 		Created: fixed(), Updated: fixed()}
 	fs := &editStore{get: orig}
-	got, err := NewEditor(fs, later).Edit("e1", EditParams{Title: strptr("new")})
+	got, err := NewEditor(fs, later, nil).Edit("e1", EditParams{Title: strptr("new")})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -48,7 +48,7 @@ func TestEditTitleOnly(t *testing.T) {
 }
 
 func TestEditNothing(t *testing.T) {
-	_, err := NewEditor(&editStore{}, later).Edit("e1", EditParams{})
+	_, err := NewEditor(&editStore{}, later, nil).Edit("e1", EditParams{})
 	if err == nil || !strings.Contains(err.Error(), "nothing to edit") {
 		t.Fatalf("want 'nothing to edit', got %v", err)
 	}
@@ -56,7 +56,7 @@ func TestEditNothing(t *testing.T) {
 
 func TestEditEmptyingBothRejected(t *testing.T) {
 	orig := mtt.Task{ID: "e1", Type: "epic", Title: "old", Status: "tbd", Created: fixed(), Updated: fixed()}
-	_, err := NewEditor(&editStore{get: orig}, later).Edit("e1", EditParams{Title: strptr("")})
+	_, err := NewEditor(&editStore{get: orig}, later, nil).Edit("e1", EditParams{Title: strptr("")})
 	if err == nil || !strings.Contains(err.Error(), "title or a description") {
 		t.Fatalf("want content invariant error, got %v", err)
 	}
@@ -64,19 +64,19 @@ func TestEditEmptyingBothRejected(t *testing.T) {
 
 func TestEditRejectsNewlineInTitle(t *testing.T) {
 	orig := mtt.Task{ID: "t1", Type: "task", Title: "old", Status: "tbd", Created: fixed(), Updated: fixed()}
-	_, err := NewEditor(&editStore{get: orig}, later).Edit("t1", EditParams{Title: strptr("a\nb")})
+	_, err := NewEditor(&editStore{get: orig}, later, nil).Edit("t1", EditParams{Title: strptr("a\nb")})
 	if err == nil || !strings.Contains(err.Error(), "single line") {
 		t.Fatalf("want single-line title error, got %v", err)
 	}
 	// a newline in the description is allowed (free-form)
-	if _, err := NewEditor(&editStore{get: orig}, later).Edit("t1", EditParams{Description: strptr("multi\nline")}); err != nil {
+	if _, err := NewEditor(&editStore{get: orig}, later, nil).Edit("t1", EditParams{Description: strptr("multi\nline")}); err != nil {
 		t.Fatalf("newline in description should be allowed: %v", err)
 	}
 }
 
 func TestEditNotFoundPropagates(t *testing.T) {
 	fs := &editStore{getErr: mtt.ErrNotFound}
-	_, err := NewEditor(fs, later).Edit("ghost", EditParams{Title: strptr("x")})
+	_, err := NewEditor(fs, later, nil).Edit("ghost", EditParams{Title: strptr("x")})
 	if !errors.Is(err, mtt.ErrNotFound) {
 		t.Fatalf("want ErrNotFound, got %v", err)
 	}
@@ -88,7 +88,7 @@ func TestEditPriorityOnly(t *testing.T) {
 	// A priority-only edit is allowed (the guard permits it) and does not need
 	// --title/--description.
 	orig := mtt.Task{ID: "t1", Type: "task", Title: "a", Status: "tbd", Created: fixed(), Updated: fixed()}
-	got, err := NewEditor(&editStore{get: orig}, later).Edit("t1", EditParams{Priority: prioptr(mtt.PriorityHigh)})
+	got, err := NewEditor(&editStore{get: orig}, later, nil).Edit("t1", EditParams{Priority: prioptr(mtt.PriorityHigh)})
 	if err != nil {
 		t.Fatalf("priority-only edit: %v", err)
 	}
@@ -99,7 +99,7 @@ func TestEditPriorityOnly(t *testing.T) {
 
 func TestEditPriorityNilUnchanged(t *testing.T) {
 	orig := mtt.Task{ID: "t1", Type: "task", Title: "a", Status: "tbd", Priority: mtt.PriorityLow, Created: fixed(), Updated: fixed()}
-	got, err := NewEditor(&editStore{get: orig}, later).Edit("t1", EditParams{Title: strptr("b")})
+	got, err := NewEditor(&editStore{get: orig}, later, nil).Edit("t1", EditParams{Title: strptr("b")})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -112,7 +112,7 @@ func TestEditPriorityClear(t *testing.T) {
 	// edit --priority "" clears the priority back to unset (empty is Valid; the
 	// pointer is non-nil so it applies).
 	orig := mtt.Task{ID: "t1", Type: "task", Title: "a", Status: "tbd", Priority: mtt.PriorityHigh, Created: fixed(), Updated: fixed()}
-	got, err := NewEditor(&editStore{get: orig}, later).Edit("t1", EditParams{Priority: prioptr("")})
+	got, err := NewEditor(&editStore{get: orig}, later, nil).Edit("t1", EditParams{Priority: prioptr("")})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -123,7 +123,34 @@ func TestEditPriorityClear(t *testing.T) {
 
 func TestEditNothingIncludesPriorityGuard(t *testing.T) {
 	orig := mtt.Task{ID: "t1", Type: "task", Title: "a", Status: "tbd", Created: fixed(), Updated: fixed()}
-	if _, err := NewEditor(&editStore{get: orig}, later).Edit("t1", EditParams{}); err == nil {
+	if _, err := NewEditor(&editStore{get: orig}, later, nil).Edit("t1", EditParams{}); err == nil {
 		t.Fatal("empty EditParams should error (nothing to edit)")
+	}
+}
+
+func TestEditFiresUpdateEvent(t *testing.T) {
+	cfg := eventCfg(taskHook(mtt.EventUpdate, "echo {{.ID}} {{.Event}}"))
+	store := newMemStore(tbdTask("t1"))
+	runner := &fakeRunner{}
+	ed := NewEditor(store, testClock, NewEventEmitter(cfg, runner, &fakeAudit{}, testClock))
+	title := "renamed"
+	if _, err := ed.Edit("t1", EditParams{Title: &title}); err != nil {
+		t.Fatalf("unexpected: %v", err)
+	}
+	if len(runner.gotCmds) != 1 || runner.gotCmds[0].Run != "echo t1 update" {
+		t.Fatalf("pipeline = %+v, want [echo t1 update]", runner.gotCmds)
+	}
+}
+
+func TestEditNoRunPreflight(t *testing.T) {
+	store := newMemStore(tbdTask("t1"))
+	ed := NewEditor(store, testClock, NewEventEmitter(eventCfg(mtt.Events{}), &fakeRunner{}, &fakeAudit{}, testClock))
+	title := "renamed"
+	_, err := ed.Edit("t1", EditParams{Title: &title, Events: EventOptions{NoRun: true}})
+	if !errors.Is(err, ErrMissingAttribution) {
+		t.Fatalf("want ErrMissingAttribution, got %v", err)
+	}
+	if got, _ := store.Get("t1"); got.Title == "renamed" {
+		t.Fatal("preflight must run BEFORE persist")
 	}
 }

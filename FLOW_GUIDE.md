@@ -114,6 +114,41 @@ This is an illustration — **our own dogfood config does not use rollback** (it
           - {run: 'git checkout -b task/{{.ID}}', rollback: 'git branch -D task/{{.ID}}'}
 ```
 
+**DRY the shared tail: `post_defaults` (t66).** When every edge repeats the same finalization line (an
+auto-commit, a notification), hoist it to the type: `post_defaults:` is prepended to every edge's `post:`;
+an edge whose finalization must differ opts out explicitly with `inherit_post: false`. Defaults first,
+specifics appended, opt-out only explicit — no merging magic. `rollback:` is rejected in every post surface
+(post pipelines have no compensation phase).
+
+## 5b. Lifecycle events: pipelines beyond flow edges (t66)
+
+Not every mutation is a move: creating, editing, tagging, or deleting an entity never traverses an edge. The
+top-level **`events:`** section hangs **post-only** pipelines on those moments — per store
+(`task`/`note`) × kind (`create`/`update`/`delete`), fired **per entity**, **only when something really
+persisted** (idempotent no-ops fire nothing), and never by a flow move (an edge has its own `post:`).
+
+The SAFE sample (this repo's own shape — adapt, don't copy blindly):
+
+```yaml
+events:
+  task:
+    update:
+      post:
+        # narrowed pathspec: commit the ENTITY's file, never a broad `git add .mtt`
+        # (a broad add sweeps unrelated dirty files — e.g. a reviewed-config edit — into the commit);
+        # && after git add: a failed add must FAIL the pipeline (do NOT soften to `;` —
+        # "nothing staged" would read as "nothing to do", silently losing the commit);
+        # the guard skips the commit when nothing changed;
+        # the subject is NAMESPACED ("mtt: …") so it can never satisfy a delivery-proof
+        # grep like `^<id>: ` — an event commit must not fake a squash-merge.
+        - 'a=.mtt/tasks/{{.ID}}.yaml; git add -- $a && { git diff --cached --quiet -- $a || git commit -m "mtt: {{.ID}} {{.Event}}" -- $a; }'
+```
+
+Task events expand `{{.ID}}`/`{{.Type}}`/`{{.Event}}`, note events `{{.Slug}}`/`{{.Event}}`. A failing event
+pipeline **keeps the mutation** (exit 5 + the exact remaining commands); `--no-run` on the mutating command
+skips the pipeline, forces `--who`/`--why`, and writes an audit skip-record. Runnable, discoverable
+`mtt init` templates that ship an `events:` block are t62's scope — this guide stays the authoring reference.
+
 ## 6. Attribution & guards
 
 - **Who did it.** Every move records a `by`. It resolves in order: `--who`/`--by` (mutually exclusive) >
@@ -184,8 +219,9 @@ agent works in task terms while the flow hides the git mechanics. The moving par
 - **`start` (tbd → …) creates the branch, idempotently:**
   `git switch task/{{.ID}} || (git switch main && git switch -c task/{{.ID}})`. It is re-entrant by
   construction, so it needs **no `rollback`** (unlike the §5 illustration).
-- **Every move auto-commits `.mtt`** via a `post:` (`git add .mtt && git commit … -- .mtt`), so a move records
-  its own state change.
+- **Every move auto-commits `.mtt`** via the type's `post_defaults:` (one `git add .mtt && git commit … --
+  .mtt` line per type — see §5), so a move records its own state change; **every non-flow mutation**
+  (add/edit/tag/dep/ref/rm and notes) auto-commits its entity file via the `events:` section (§5b).
 - **`approve`** `post:` pushes the task branch and opens/updates the PR (`git push -u …`, then a `gh pr create`
   that is idempotent — skipped if an open PR exists).
 - **`deliver`/`cancel`** run `git switch main` as their **first gate command** (so the terminal state lands on
@@ -195,9 +231,9 @@ agent works in task terms while the flow hides the git mechanics. The moving par
 **Honest caveats — this is opinionated.** It assumes GitHub + `gh` + `jq` + the `task/<id>` branch model + a
 direct push to `main`. To adapt: swap `gh pr create` for a GitLab MR command (or drop it for a no-PR / trunk
 flow); change the branch name; change or remove the main push if you protect `main` (branch protection breaks
-the direct `deliver` push). The config also repeats its `post:` blocks heavily (the auto-commit block appears
-24×, the main-push block 14×, across 12 `cancel` edges) — a global/default `post:` will let it be declared once
-(that cleanup, and a one-command `mtt init` template for this flow, are tracked separately; see Neighbours).
+the direct `deliver` push). The shared auto-commit line is declared **once per type** (`post_defaults:`, with
+the main-landing edges opting out via `inherit_post: false` to keep their narrowed commit); a one-command
+`mtt init` template for this flow is tracked separately (see Neighbours).
 
 ## 9. Adaptation checklist
 

@@ -17,21 +17,31 @@ type NoteRemover struct {
 	store mtt.KnowledgeStore
 	audit mtt.AuditStore
 	now   func() time.Time
+	ev    *EventEmitter
 }
 
-// NewNoteRemover wires the usecase.
-func NewNoteRemover(store mtt.KnowledgeStore, audit mtt.AuditStore, now func() time.Time) *NoteRemover {
-	return &NoteRemover{store: store, audit: audit, now: now}
+// NewNoteRemover wires the usecase; ev fires the note delete event (nil = none).
+func NewNoteRemover(store mtt.KnowledgeStore, audit mtt.AuditStore, now func() time.Time, ev *EventEmitter) *NoteRemover {
+	return &NoteRemover{store: store, audit: audit, now: now, ev: ev}
 }
 
 // Remove deletes slug. referents are the incoming backlink ids (from Backlinks).
-func (r *NoteRemover) Remove(slug mtt.NoteSlug, referents []string, force bool, by, why string) error {
+// Mirrors Remover exactly: under force+noRun ONE audit record signs both
+// (action "note rm --force --no-run", pre-delete ordering — pin iii) and no
+// pipeline runs; under a plain bypass the emitter writes the skip record.
+func (r *NoteRemover) Remove(slug mtt.NoteSlug, referents []string, force bool, by, why string, noRun bool) error {
 	if force {
 		if missing := missingAttributionFields(true, true, by, why); len(missing) > 0 {
 			return fmt.Errorf("%w: %s", ErrMissingAttribution, strings.Join(missing, ", "))
 		}
 	}
-	if _, err := r.store.GetNote(slug); err != nil {
+	if noRun && !force { // the force branch above already demanded who+why
+		if err := (EventOptions{NoRun: true, By: by, Why: why}).Preflight(); err != nil {
+			return err
+		}
+	}
+	note, err := r.store.GetNote(slug)
+	if err != nil {
 		if errors.Is(err, mtt.ErrNotFound) {
 			return fmt.Errorf("note %q: %w", slug, mtt.ErrNotFound)
 		}
@@ -42,11 +52,24 @@ func (r *NoteRemover) Remove(slug mtt.NoteSlug, referents []string, force bool, 
 			return fmt.Errorf("note %q is referenced by %s; use --force to delete anyway",
 				slug, strings.Join(referents, ", "))
 		}
-		return r.store.DeleteNote(slug)
+		if err := r.store.DeleteNote(slug); err != nil {
+			return err
+		}
+		return r.ev.NoteEvent(mtt.EventDelete, note, "note rm", EventOptions{NoRun: noRun, By: by, Why: why})
 	}
-	entry := mtt.AuditEntry{At: r.now().UTC().Truncate(time.Second), Who: by, Why: why, Action: "note rm --force", TaskID: mtt.TaskID(slug)}
+	action := "note rm --force"
+	if noRun {
+		action = "note rm --force --no-run"
+	}
+	entry := mtt.AuditEntry{At: r.now().UTC().Truncate(time.Second), Who: by, Why: why, Action: action, TaskID: mtt.TaskID(slug)}
 	if err := r.audit.Append(entry); err != nil {
 		return fmt.Errorf("audit append for %q: %w", slug, err)
 	}
-	return r.store.DeleteNote(slug)
+	if err := r.store.DeleteNote(slug); err != nil {
+		return err
+	}
+	if noRun {
+		return nil // the force record above already signed the bypass (pin iii)
+	}
+	return r.ev.NoteEvent(mtt.EventDelete, note, "note rm", EventOptions{})
 }

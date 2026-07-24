@@ -290,3 +290,18 @@ updated,via,asset,path,reason,error}`). A **hermetic short-circuit** refuses an 
 `selfupdate.txt` dev-refusal needs no network). `renderSelfUpdate` prints the go-install "different location"
 note only when the installed path ≠ the running binary. All failures/refusals map to exit 1 (no new taxonomy
 code). Registered in `root.go`.
+
+Lifecycle events (t66): `events.go` holds the shared wiring — `newGateRunner` (extracted verbatim from
+`runTransition`: progress writer + `gateOutputWriter` + failing-tail; gate/post edges and events render
+identically), `newEventEmitter` (gate runner + `yaml.NewAuditStore` + `time.Now` → `core.EventEmitter`),
+`eventOptions` (resolveAttribution → `core.EventOptions{NoRun,By,Why}`), `renderPostRecovery` (the ONE
+exit-5 recovery renderer, shared by moves (t28 wording) and mutations (`mutationSavedLine`); an EMPTY
+`Remaining` prints the saved-marker only — never an empty "finish by hand:" list), `addNoRunFlag`, and
+`finishMutation` (the shared single-entity tail: hard error → propagate; success or `*PostActionError` →
+render primary output first, then the recovery block, return err → exit 5). Every mutating command
+(`add`/`edit`/`tag`/`dep`/`ref`/`rm`/`note add|edit|rm`/`note ref`) wires the emitter into its usecase,
+threads `EventOptions` through, and takes `--no-run` (local flag). Bulk: `bulkJSON` gains
+`remaining` (omitempty) and `reportBulk` renders the saved-marker + remaining lines per event-failed item;
+the aggregate stays the plain exit-1 error (s008.9). e2e: `events.txt`, `events_norun.txt`,
+`events_bulk.txt`, `events_type_injection.txt` (the c15-class poisoned-`type:` guard through the real load
+path).

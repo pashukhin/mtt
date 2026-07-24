@@ -27,6 +27,17 @@ func (c Config) Validate() error {
 	if defaults > 1 {
 		errs = append(errs, fmt.Errorf("config: %d types marked default, want at most one", defaults))
 	}
+	for _, ev := range []struct {
+		where string
+		hooks EventHooks
+	}{{"events.task", c.Events.Task}, {"events.note", c.Events.Note}} {
+		for _, h := range []struct {
+			kind string
+			hook EventHook
+		}{{"create", ev.hooks.Create}, {"update", ev.hooks.Update}, {"delete", ev.hooks.Delete}} {
+			errs = append(errs, validatePostCommands(h.hook.Post, fmt.Sprintf("%s.%s", ev.where, h.kind))...)
+		}
+	}
 	for _, t := range c.Types {
 		for _, p := range t.Parents {
 			switch {
@@ -38,6 +49,22 @@ func (c Config) Validate() error {
 		}
 	}
 	return errors.Join(errs...)
+}
+
+// validatePostCommands checks a post-phase pipeline: each command well-formed
+// AND rollback-free — post pipelines have no compensation phase (uniform rule
+// across edge post, post_defaults, and event post; t66).
+func validatePostCommands(cmds []Command, where string) []error {
+	var errs []error
+	for _, cmd := range cmds {
+		if !cmd.Valid() {
+			errs = append(errs, fmt.Errorf("%s: invalid post command (empty run or negative timeout)", where))
+		}
+		if cmd.Rollback != nil {
+			errs = append(errs, fmt.Errorf("%s: post command must not carry a rollback (post has no compensation phase)", where))
+		}
+	}
+	return errs
 }
 
 // validateFlow checks one type's flow: status-name uniqueness, kind validity,
@@ -73,11 +100,7 @@ func (t Type) validateFlow() []error {
 				errs = append(errs, fmt.Errorf("type %q transition %q->%q: invalid command (empty/negative timeout or bad rollback)", t.Name, tr.From, tr.To))
 			}
 		}
-		for _, cmd := range tr.Post {
-			if !cmd.Valid() {
-				errs = append(errs, fmt.Errorf("type %q transition %q->%q: invalid post command (empty/negative timeout or bad rollback)", t.Name, tr.From, tr.To))
-			}
-		}
+		errs = append(errs, validatePostCommands(tr.Post, fmt.Sprintf("type %q transition %q->%q", t.Name, tr.From, tr.To))...)
 		key := string(tr.From) + "->" + string(tr.To)
 		if pairs[key] {
 			errs = append(errs, fmt.Errorf("type %q: duplicate transition %q->%q", t.Name, tr.From, tr.To))
@@ -98,6 +121,7 @@ func (t Type) validateFlow() []error {
 		out[tr.From]++
 		in[tr.To]++
 	}
+	errs = append(errs, validatePostCommands(t.PostDefaults, fmt.Sprintf("type %q post_defaults", t.Name))...)
 	var haveInitial, haveActive, haveTerminal bool
 	for _, s := range t.Statuses {
 		switch s.Kind {

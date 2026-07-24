@@ -114,15 +114,16 @@ func (tr *Transitioner) Transition(id mtt.TaskID, to mtt.StatusName, opts Transi
 	// POST phase (t21): after persist, gated by !NoRun. A post failure returns the
 	// PERSISTED task with ErrPostAction — the move is kept (finalization only). This
 	// is the single case where Transition returns a valid task with a non-nil error.
-	if opts.NoRun || len(edge.Post) == 0 {
+	post := typ.EffectivePost(edge)
+	if opts.NoRun || len(post) == 0 {
 		return updated, nil
 	}
-	expanded, eerr := expandCommands(edge.Post, cmdContext{
+	expanded, eerr := expandCommands(post, cmdContext{
 		ID: string(t.ID), Type: string(t.Type), From: string(from), To: string(to),
 	})
 	if eerr != nil {
 		return updated, &PostActionError{
-			Remaining: runsOf(edge.Post), // raw templates — expansion is what failed
+			Remaining: runsOf(post), // raw templates — expansion is what failed
 			Cause:     fmt.Sprintf("expand post for %s (%s->%s): %v", id, from, to, eerr),
 		}
 	}

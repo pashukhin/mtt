@@ -20,11 +20,13 @@ type Remover struct {
 	store mtt.TaskStore
 	audit mtt.AuditStore
 	now   func() time.Time
+	ev    *EventEmitter
 }
 
-// NewRemover wires the usecase with the audit port and an injected clock.
-func NewRemover(store mtt.TaskStore, audit mtt.AuditStore, now func() time.Time) *Remover {
-	return &Remover{store: store, audit: audit, now: now}
+// NewRemover wires the usecase with the audit port and an injected clock; ev
+// fires the delete event per id (nil = none).
+func NewRemover(store mtt.TaskStore, audit mtt.AuditStore, now func() time.Time, ev *EventEmitter) *Remover {
+	return &Remover{store: store, audit: audit, now: now, ev: ev}
 }
 
 // RemoveResult is one task's outcome in a bulk delete.
@@ -36,8 +38,8 @@ type RemoveResult struct {
 // Remove deletes a single id. Thin wrapper over RemoveMany([id]); it forwards the
 // pre-flight error and, absent that, the per-id result error. The empty-slice check
 // guards the [0] index on the pre-flight path.
-func (r *Remover) Remove(id mtt.TaskID, force bool, by, why string, bl Backlinks) error {
-	res, err := r.RemoveMany([]mtt.TaskID{id}, force, by, why, bl)
+func (r *Remover) Remove(id mtt.TaskID, force bool, by, why string, bl Backlinks, noRun bool) error {
+	res, err := r.RemoveMany([]mtt.TaskID{id}, force, by, why, bl, noRun)
 	if err != nil {
 		return err
 	}
@@ -51,10 +53,15 @@ func (r *Remover) Remove(id mtt.TaskID, force bool, by, why string, bl Backlinks
 // DepGraph are built ONCE from a single List snapshot for the referenced-check
 // (counting only referents OUTSIDE the id set, so deleting a subtree needs no
 // --force). Under --force each id is audited BEFORE it is deleted.
-func (r *Remover) RemoveMany(ids []mtt.TaskID, force bool, by, why string, bl Backlinks) ([]RemoveResult, error) {
+func (r *Remover) RemoveMany(ids []mtt.TaskID, force bool, by, why string, bl Backlinks, noRun bool) ([]RemoveResult, error) {
 	if force {
 		if missing := missingAttributionFields(true, true, by, why); len(missing) > 0 {
 			return nil, fmt.Errorf("%w: %s", ErrMissingAttribution, strings.Join(missing, ", "))
+		}
+	}
+	if noRun && !force { // the force branch above already demanded who+why
+		if err := (EventOptions{NoRun: true, By: by, Why: why}).Preflight(); err != nil {
+			return nil, err
 		}
 	}
 
@@ -79,7 +86,7 @@ func (r *Remover) RemoveMany(ids []mtt.TaskID, force bool, by, why string, bl Ba
 
 	results := make([]RemoveResult, 0, len(ordered))
 	for _, id := range ordered {
-		results = append(results, RemoveResult{ID: id, Err: r.removeOne(id, force, by, why, set, idx, g, bl, snapErr)})
+		results = append(results, RemoveResult{ID: id, Err: r.removeOne(id, force, by, why, noRun, set, idx, g, bl, snapErr)})
 	}
 	return results, nil
 }
@@ -88,8 +95,9 @@ func (r *Remover) RemoveMany(ids []mtt.TaskID, force bool, by, why string, bl Ba
 // a successful append does it delete (a failed append leaves the task — and the
 // current pointer — intact). Without --force the subgraph referenced-check runs and
 // no audit is written.
-func (r *Remover) removeOne(id mtt.TaskID, force bool, by, why string, set map[mtt.TaskID]bool, idx Index, g DepGraph, bl Backlinks, snapErr error) error {
-	if _, err := r.store.Get(id); err != nil {
+func (r *Remover) removeOne(id mtt.TaskID, force bool, by, why string, noRun bool, set map[mtt.TaskID]bool, idx Index, g DepGraph, bl Backlinks, snapErr error) error {
+	task, err := r.store.Get(id)
+	if err != nil {
 		if errors.Is(err, mtt.ErrNotFound) {
 			return fmt.Errorf("task %q: %w", id, mtt.ErrNotFound)
 		}
@@ -103,13 +111,29 @@ func (r *Remover) removeOne(id mtt.TaskID, force bool, by, why string, set map[m
 			return fmt.Errorf("task %q is referenced by %s; use --force to delete anyway",
 				id, strings.Join(refs, ", "))
 		}
-		return r.store.Delete(id)
+		if err := r.store.Delete(id); err != nil {
+			return err
+		}
+		// Per-entity delete event, fired INSIDE the loop (mutation→pipeline
+		// adjacency — a batch-then-fire would make later pipelines see an
+		// already-swept tree). Under --no-run this writes the skip record.
+		return r.ev.TaskEvent(mtt.EventDelete, task, "rm", EventOptions{NoRun: noRun, By: by, Why: why})
 	}
-	entry := mtt.AuditEntry{At: r.now().UTC().Truncate(time.Second), Who: by, Why: why, Action: "rm --force", TaskID: id}
+	action := "rm --force"
+	if noRun {
+		action = "rm --force --no-run"
+	}
+	entry := mtt.AuditEntry{At: r.now().UTC().Truncate(time.Second), Who: by, Why: why, Action: action, TaskID: id}
 	if err := r.audit.Append(entry); err != nil {
 		return fmt.Errorf("audit append for %q: %w", id, err)
 	}
-	return r.store.Delete(id)
+	if err := r.store.Delete(id); err != nil {
+		return err
+	}
+	if noRun {
+		return nil // the force record above already signed the bypass (pin iii) — no second record, no pipeline
+	}
+	return r.ev.TaskEvent(mtt.EventDelete, task, "rm", EventOptions{})
 }
 
 // externalReferencingIDs returns the ids referencing id — its children (via Index),

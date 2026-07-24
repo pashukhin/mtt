@@ -1,0 +1,67 @@
+# t66 — lifecycle events fire per entity on non-flow mutations; a failing event
+# post keeps the mutation (exit non-zero, saved-marker on stderr).
+exec mtt init
+cp events.yaml .mtt/config.yaml
+
+# create fires with the minted id + kind in context
+exec mtt add 'first'
+stdout 'created t1'
+exists created-t1-create
+
+# update fires on tag add (real change)
+exec mtt tag add t1 x
+exists updated-t1
+
+# idempotent no-op fires nothing (marker would be recreated)
+rm updated-t1
+exec mtt tag add t1 x
+stdout 'already tagged'
+! exists updated-t1
+
+# update fires on dep/ref/edit paths too (spot: edit)
+exec mtt add 'second-ok'
+exists created-t2-create
+
+# delete fires after the removal
+exec mtt rm t1
+stdout 'removed t1'
+exists deleted-t1-delete
+
+# a FAILING update pipeline: mutation kept, saved-marker + remaining on stderr
+cp blocker block-updates
+! exec mtt edit t2 --title renamed
+stdout 'updated t2'
+stderr 'the change IS saved; do NOT re-run the mutation'
+stderr 'finish the finalization by hand:'
+stderr 'if test -f block-updates'
+exec mtt show t2
+stdout 'renamed'
+
+# --json still emits the object on stdout with the recovery on stderr (t28 order)
+! exec mtt edit t2 --title renamed2 --json
+stdout '"title": *"renamed2"'
+stderr 'the change IS saved'
+
+-- blocker --
+-- events.yaml --
+version: 1
+project: {name: evtest}
+events:
+  task:
+    create:
+      post: ['touch created-{{.ID}}-{{.Event}}']
+    update:
+      post: ['if test -f block-updates; then boom-on-edit; else touch updated-{{.ID}}; fi']
+    delete:
+      post: ['touch deleted-{{.ID}}-{{.Event}}']
+types:
+  - name: task
+    prefix: t
+    default: true
+    statuses:
+      - {name: tbd, kind: initial}
+      - {name: doing, kind: active}
+      - {name: done, kind: terminal}
+    transitions:
+      - {from: tbd, to: doing}
+      - {from: doing, to: done}

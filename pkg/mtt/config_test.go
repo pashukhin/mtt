@@ -1,6 +1,9 @@
 package mtt
 
-import "testing"
+import (
+	"reflect"
+	"testing"
+)
 
 func TestDefaultType(t *testing.T) {
 	c := Config{Types: []Type{{Name: "epic"}, {Name: "task", Default: true}}}
@@ -95,5 +98,40 @@ func TestFindTransition(t *testing.T) {
 	}
 	if _, ok := ty.FindTransition("tbd", "done"); ok {
 		t.Fatal("FindTransition(tbd,done) = ok, want false (no such edge)")
+	}
+}
+
+func TestEffectivePost(t *testing.T) {
+	d1 := Command{Run: "default-1"}
+	d2 := Command{Run: "default-2"}
+	own := Command{Run: "own"}
+	typ := Type{Name: "task", PostDefaults: []Command{d1, d2}}
+	cases := []struct {
+		name string
+		tr   Transition
+		want []string
+	}{
+		{"defaults prepend to edge post", Transition{Post: []Command{own}}, []string{"default-1", "default-2", "own"}},
+		{"defaults alone when edge has no post", Transition{}, []string{"default-1", "default-2"}},
+		{"opt-out yields edge post only", Transition{Post: []Command{own}, SkipPostDefaults: true}, []string{"own"}},
+		{"opt-out with empty post yields none", Transition{SkipPostDefaults: true}, nil},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := typ.EffectivePost(tc.tr)
+			var runs []string
+			for _, c := range got {
+				runs = append(runs, c.Run)
+			}
+			if !reflect.DeepEqual(runs, tc.want) {
+				t.Fatalf("EffectivePost runs = %v, want %v", runs, tc.want)
+			}
+		})
+	}
+	// no defaults: the edge's own slice must come back unchanged (the common
+	// case must not allocate a copy).
+	bare := Type{Name: "bare"}
+	if got := bare.EffectivePost(Transition{Post: []Command{own}}); len(got) != 1 || got[0].Run != "own" {
+		t.Fatalf("bare EffectivePost = %v", got)
 	}
 }

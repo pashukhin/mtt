@@ -56,7 +56,7 @@ func fixedClock(t time.Time) func() time.Time { return func() time.Time { return
 func TestNoteAdder(t *testing.T) {
 	kb := newFakeKB()
 	ts := time.Date(2026, 1, 2, 3, 4, 5, 0, time.UTC)
-	got, err := NewNoteAdder(kb, fixedClock(ts)).Add(NoteParams{Slug: "auth-design", Title: "Auth", Tags: []string{"Design", "design", "auth"}, Body: "b"})
+	got, err := NewNoteAdder(kb, fixedClock(ts), nil).Add(NoteParams{Slug: "auth-design", Title: "Auth", Tags: []string{"Design", "design", "auth"}, Body: "b"})
 	if err != nil {
 		t.Fatalf("add: %v", err)
 	}
@@ -68,7 +68,7 @@ func TestNoteAdder(t *testing.T) {
 		t.Errorf("tags not canonical: %v", got.Tags)
 	}
 	// Invalid slug rejected.
-	if _, err := NewNoteAdder(kb, fixedClock(ts)).Add(NoteParams{Slug: "../x"}); err == nil {
+	if _, err := NewNoteAdder(kb, fixedClock(ts), nil).Add(NoteParams{Slug: "../x"}); err == nil {
 		t.Error("add invalid slug: want error")
 	}
 }
@@ -80,7 +80,7 @@ func TestNoteEditor(t *testing.T) {
 	later := created.Add(time.Hour)
 
 	title := "New"
-	got, err := NewNoteEditor(kb, fixedClock(later)).Edit("auth-design", NoteEditParams{Title: &title})
+	got, err := NewNoteEditor(kb, fixedClock(later), nil).Edit("auth-design", NoteEditParams{Title: &title})
 	if err != nil {
 		t.Fatalf("edit: %v", err)
 	}
@@ -92,16 +92,16 @@ func TestNoteEditor(t *testing.T) {
 	}
 	// Tags provided -> whole set replaced.
 	tags := []string{"x", "y"}
-	got, _ = NewNoteEditor(kb, fixedClock(later)).Edit("auth-design", NoteEditParams{Tags: &tags})
+	got, _ = NewNoteEditor(kb, fixedClock(later), nil).Edit("auth-design", NoteEditParams{Tags: &tags})
 	if len(got.Tags) != 2 || got.Tags[0] != "x" {
 		t.Errorf("tags not replaced: %v", got.Tags)
 	}
 	// Nothing to edit -> error.
-	if _, err := NewNoteEditor(kb, fixedClock(later)).Edit("auth-design", NoteEditParams{}); err == nil {
+	if _, err := NewNoteEditor(kb, fixedClock(later), nil).Edit("auth-design", NoteEditParams{}); err == nil {
 		t.Error("empty edit: want error")
 	}
 	// Missing note -> ErrNotFound.
-	if _, err := NewNoteEditor(kb, fixedClock(later)).Edit("missing", NoteEditParams{Title: &title}); !errors.Is(err, mtt.ErrNotFound) {
+	if _, err := NewNoteEditor(kb, fixedClock(later), nil).Edit("missing", NoteEditParams{Title: &title}); !errors.Is(err, mtt.ErrNotFound) {
 		t.Errorf("edit missing: want ErrNotFound, got %v", err)
 	}
 }
@@ -136,7 +136,7 @@ func slugs(ns []mtt.Note) []string {
 
 func TestNoteAdderRefs(t *testing.T) {
 	kb := newFakeKB()
-	got, err := NewNoteAdder(kb, testClock).Add(NoteParams{Slug: "a", Refs: []mtt.Ref{
+	got, err := NewNoteAdder(kb, testClock, nil).Add(NoteParams{Slug: "a", Refs: []mtt.Ref{
 		{Kind: mtt.RefTask, ID: "t2"}, {Kind: mtt.RefTask, ID: "t2"},
 	}})
 	if err != nil {
@@ -149,16 +149,16 @@ func TestNoteAdderRefs(t *testing.T) {
 
 func TestNoteAdderEditorPriority(t *testing.T) {
 	kb := newFakeKB()
-	got, err := NewNoteAdder(kb, testClock).Add(NoteParams{Slug: "a", Priority: mtt.PriorityHigh})
+	got, err := NewNoteAdder(kb, testClock, nil).Add(NoteParams{Slug: "a", Priority: mtt.PriorityHigh})
 	if err != nil || got.Priority != mtt.PriorityHigh {
 		t.Fatalf("add priority: %+v err=%v", got, err)
 	}
 	cleared := mtt.Priority("")
-	got, err = NewNoteEditor(kb, testClock).Edit("a", NoteEditParams{Priority: &cleared})
+	got, err = NewNoteEditor(kb, testClock, nil).Edit("a", NoteEditParams{Priority: &cleared})
 	if err != nil || got.Priority != "" {
 		t.Fatalf("clear priority: %+v err=%v", got, err)
 	}
-	if _, err := NewNoteEditor(kb, testClock).Edit("a", NoteEditParams{}); err == nil {
+	if _, err := NewNoteEditor(kb, testClock, nil).Edit("a", NoteEditParams{}); err == nil {
 		t.Fatal("empty edit must error")
 	}
 }
@@ -189,5 +189,63 @@ func TestSelectNotesSortUpdated(t *testing.T) {
 	}
 	if u := SelectNotes(notes, NoteFilter{Sort: SortUpdated}); u[0].Slug != "a" {
 		t.Fatalf("sort updated: want a first, got %v", []mtt.NoteSlug{u[0].Slug, u[1].Slug})
+	}
+}
+
+func TestNoteAddFiresCreateEvent(t *testing.T) {
+	var ev mtt.Events
+	ev.Note.Create = mtt.EventHook{Post: strCmds([]string{"echo {{.Slug}} {{.Event}}"})}
+	runner := &fakeRunner{}
+	na := NewNoteAdder(newFakeKB(), testClock, NewEventEmitter(eventCfg(ev), runner, &fakeAudit{}, testClock))
+	if _, err := na.Add(NoteParams{Slug: "my-note", Title: "x"}); err != nil {
+		t.Fatalf("unexpected: %v", err)
+	}
+	if len(runner.gotCmds) != 1 || runner.gotCmds[0].Run != "echo my-note create" {
+		t.Fatalf("pipeline = %+v", runner.gotCmds)
+	}
+}
+
+func TestNoteAddNoRunPreflight(t *testing.T) {
+	kb := newFakeKB()
+	na := NewNoteAdder(kb, testClock, nil)
+	_, err := na.Add(NoteParams{Slug: "my-note", Title: "x", Events: EventOptions{NoRun: true}})
+	if !errors.Is(err, ErrMissingAttribution) {
+		t.Fatalf("want ErrMissingAttribution, got %v", err)
+	}
+	if _, gerr := kb.GetNote("my-note"); !errors.Is(gerr, mtt.ErrNotFound) {
+		t.Fatal("preflight must run BEFORE persist")
+	}
+}
+
+func TestNoteEditNoRunPreflight(t *testing.T) {
+	kb := newFakeKB()
+	if _, err := NewNoteAdder(kb, testClock, nil).Add(NoteParams{Slug: "a", Title: "x"}); err != nil {
+		t.Fatal(err)
+	}
+	title := "renamed"
+	_, err := NewNoteEditor(kb, testClock, nil).Edit("a", NoteEditParams{Title: &title, Events: EventOptions{NoRun: true}})
+	if !errors.Is(err, ErrMissingAttribution) {
+		t.Fatalf("want ErrMissingAttribution, got %v", err)
+	}
+	if n, _ := kb.GetNote("a"); n.Title == "renamed" {
+		t.Fatal("preflight must run BEFORE persist")
+	}
+}
+
+func TestNoteEventFailureKeepsNote(t *testing.T) {
+	var ev mtt.Events
+	ev.Note.Create = mtt.EventHook{Post: strCmds([]string{"boom"})}
+	kb := newFakeKB()
+	na := NewNoteAdder(kb, testClock, NewEventEmitter(eventCfg(ev), &fakeRunner{failSubstr: "boom"}, &fakeAudit{}, testClock))
+	note, err := na.Add(NoteParams{Slug: "kept", Title: "x"})
+	var pe *PostActionError
+	if !errors.As(err, &pe) {
+		t.Fatalf("want *PostActionError, got %v", err)
+	}
+	if note.Slug != "kept" {
+		t.Fatalf("persisted note must ride back with the error; got %+v", note)
+	}
+	if _, gerr := kb.GetNote("kept"); gerr != nil {
+		t.Fatalf("note not persisted: %v", gerr)
 	}
 }
