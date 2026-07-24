@@ -603,3 +603,32 @@ func TestTransition_NoPostUnchanged(t *testing.T) {
 		t.Fatalf("no post → post runner not invoked; got %+v", runner.gotCmds)
 	}
 }
+
+func TestTransitionRunsEffectivePost(t *testing.T) {
+	// type post_defaults [D]; edge0 (tbd→in_progress) inherits and owns [E];
+	// a second move (in_progress→done) opts out with own [F].
+	store := newMemStore(baseTask())
+	cfg := flowCfg(nil, nil)
+	cfg.Types[0].PostDefaults = strCmds([]string{"echo D"})
+	cfg.Types[0].Transitions[0].Post = strCmds([]string{"echo E"})
+	for i, e := range cfg.Types[0].Transitions {
+		if e.From == "in_progress" && e.To == "done" {
+			cfg.Types[0].Transitions[i].Post = strCmds([]string{"echo F"})
+			cfg.Types[0].Transitions[i].SkipPostDefaults = true
+		}
+	}
+	runner := &fakeRunner{}
+	tr := NewTransitioner(store, cfg, runner, testClock)
+	if _, err := tr.Transition("t1", "in_progress", TransitionOptions{}); err != nil {
+		t.Fatalf("move1: %v", err)
+	}
+	if len(runner.gotCmds) != 2 || runner.gotCmds[0].Run != "echo D" || runner.gotCmds[1].Run != "echo E" {
+		t.Fatalf("inheriting edge post = %+v, want [echo D, echo E]", runner.gotCmds)
+	}
+	if _, err := tr.Transition("t1", "done", TransitionOptions{}); err != nil {
+		t.Fatalf("move2: %v", err)
+	}
+	if len(runner.gotCmds) != 1 || runner.gotCmds[0].Run != "echo F" {
+		t.Fatalf("opted-out edge post = %+v, want [echo F]", runner.gotCmds)
+	}
+}
