@@ -6,6 +6,7 @@ priority: medium
 tags:
     - backlog
     - flow
+    - livefire
     - think
 refs:
     - kind: task
@@ -13,7 +14,7 @@ refs:
     - kind: task
       id: t26
 created: "2026-07-23T16:44:33Z"
-updated: "2026-07-24T07:23:52Z"
+updated: "2026-07-24T07:59:47Z"
 description: 'Today command pipelines exist only on flow edges (commands: gates + post: actions, t21); add and rm are not transitions, so nothing can run on task creation or deletion — which is why non-flow mutations still need manual git commits (the t26 pain, live incident c7, and every queue-grooming session since). Design direction (brainstorm-open): model create/delete as lifecycle EVENTS carrying the same pipeline shape — per-type on_create:/on_delete: blocks, or pseudo-edges (nothing -> initial status, any -> nothing) reusing the existing Transition machinery. Then t26''s auto-commit becomes just a post: on the create event (config, not code), and the precedence questions (global-vs-per-type-vs-per-event, merge/override/opt-out) are decided ONCE together with t24 - do not solve them twice. Open questions: are gates (blocking commands:) meaningful on create (probably post-only), given rm already has its own safety (referenced-check, --force who/why audit)? placeholder context on events ({{.ID}}/{{.Type}} yes; From/To empty or absent?); does delete fire before or after the file removal (audit-first discipline, c18)? SEC2 applies: event pipelines are config-as-code, guard-tested like the edge gates.'
 history:
     - at: "2026-07-24T03:01:47Z"
