@@ -114,6 +114,55 @@ transitions:
 - `mtt types` prints a command as `$ <run>` (`(timeout <d>)` when set) and, on the next line, `↩ <rollback>`
   when the command declares a compensator.
 
+**Post defaults (t66).** A type may carry `post_defaults:` — a command list **prepended** to every edge's
+`post:` (defaults first, the edge's own commands appended). An edge opts out explicitly with
+`inherit_post: false` (then only its own `post:` runs). No key-wise merge, no reordering. `rollback:` is
+rejected in **every** post surface (edge `post:`, `post_defaults:`, event `post:`) — post pipelines have no
+compensation phase.
+
+**Lifecycle events (t66).** An optional top-level `events:` section hangs **post-only** pipelines on
+create/update/delete of tasks and notes — they run **after** a non-flow mutation persists (flow moves never
+fire them; an edge has its own `post:`):
+
+```yaml
+events:
+  task:
+    create:
+      post: ['a=.mtt/tasks/{{.ID}}.yaml; git add -- $a && { git diff --cached --quiet -- $a || git commit -m "mtt: {{.ID}} {{.Event}}" -- $a; }']
+    update: { post: [...] }   # fires on edit/tag/dep/ref changes that really persist
+    delete: { post: [...] }   # fires after rm removed the file (audit-first: the --force record precedes)
+  note:
+    update: { post: ['echo note {{.Slug}} changed'] }
+```
+
+- **Placeholders:** task events expand `{{.ID}}`, `{{.Type}}` (the config's name — membership-checked, a
+  drifted/poisoned on-disk type refuses the pipeline), `{{.Event}}` (`create`/`update`/`delete`); note events
+  expand `{{.Slug}}`, `{{.Event}}`. `{{.From}}`/`{{.To}}` do not exist on events.
+- **Per entity, real persists only:** a bulk `rm` fires one delete event per id, inside the loop; an
+  idempotent no-op (adding a present tag, removing an absent dep) fires nothing.
+- **Failure = finalization, exit `5`:** the mutation is **kept**; the CLI renders it first (`--json` still
+  emits the object on stdout), then a stderr recovery block — `the change IS saved; do NOT re-run the
+  mutation.` plus the remaining commands (omitted entirely when there is no user-runnable recovery). In bulk
+  reports the per-item line carries the same block and the `--json` rows gain `remaining: [...]`; the bulk
+  **aggregate stays the generic exit `1`** (never a per-item sentinel).
+- **`--no-run`** (available on `add`, `edit`, `tag add/rm`, `dep add/rm`, `ref add/rm`, `rm`,
+  `note add/edit/rm`, `note ref add/rm`) skips the event pipeline, **forces `--who` and `--why`** (exit `2`
+  otherwise, checked before anything persists), and writes an audit skip-record
+  (`action: "<command> --no-run"`) to `.mtt/audit.log`; `rm --force --no-run` writes ONE record
+  (`"rm --force --no-run"`) at the pre-delete moment. A no-op under `--no-run` writes no record (nothing
+  persisted). The c19 caveat applies verbatim: bypass skips ALL event commands — your commands are your
+  responsibility, bypassed or executed.
+- **Authoring caveats (no silent traps):** narrow the pathspec when your config lives in `.mtt` (a broad
+  `git add .mtt` sweeps unrelated dirty files into the commit); chain `git add` with `&&` (a `;` would read
+  a failed add as "nothing to do" — do NOT soften it); keep event commit subjects out of any
+  delivery-proof grep's namespace (this repo uses `mtt: <id> <event>`). Known corners: a `rm --force` whose
+  audit append succeeded but whose delete failed leaves a dirty `audit.log` swept by the next event under
+  its subject; `add --no-run` followed by a plain `rm` makes the delete event's `git add` fail loudly
+  (exit 5, mutation kept — correct: commit by hand or bypass again).
+- **Upgrade note:** a pre-t66 binary silently ignores `events:`/`post_defaults:` (non-strict decode) —
+  update your installed binary after configs adopt them, or mutations/moves stop auto-committing with no
+  signal.
+
 **`author`** (top-level, typically in the gitignored `config.local.yaml`) is the durable default for the
 history `by` field — "who is acting" — used when neither `--by` nor `MTT_BY` is set (precedence
 `--by` > `MTT_BY` > `author`). Personal, so it belongs in the local overlay, not the committed config.

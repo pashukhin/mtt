@@ -169,11 +169,13 @@ mtt. Practical rules:
   writes an audit record to `.mtt/audit.log` (JSONL, committed, `merge=union`) **before** deleting — no
   destruction without a trail. A transition can also be marked critical in the config with a per-edge
   `require: {who, why}` (unioned with the global policy — tighten-only).
-- **Moves auto-commit `.mtt` and auto-push.** Every edge carries a `post:` action that runs **after**
-  the status is persisted, so a move commits its own `.mtt/tasks/*.yaml` change — no manual `git add .mtt &&
-  git commit` after `start`/`submit`/`approve`/`decline` (which commit `git add .mtt … -- .mtt` on the task
-  branch), and none after `deliver`/`cancel` (their pre-gate `git switch main` runs first, so the post commit
-  lands on main). **`deliver`/`cancel` narrow the add-pathspec to the task file plus `.mtt/audit.log` when it
+- **Every mutation auto-commits `.mtt` and auto-pushes.** Flow moves run their edge's effective `post:`
+  (the type's `post_defaults` — one auto-commit line per type — plus the edge's own additions; a main-landing
+  edge opts out via `inherit_post: false`), and **non-flow mutations** (`add`/`edit`/`tag`/`dep`/`ref`/`rm`
+  and every `mtt note` mutation) fire **lifecycle events** (`events:` in the config) that commit the entity's
+  own file with a narrowed pathspec under a `mtt: <id> <event>` subject — so neither moves nor grooming need
+  a manual `git add .mtt && git commit` anymore. `--no-run` on a mutation skips its event pipeline, forces
+  `--who`+`--why`, and writes an audit skip-record (no bypass without a trail). **`deliver`/`cancel` narrow the add-pathspec to the task file plus `.mtt/audit.log` when it
   exists** (`git add -- .mtt/tasks/<id>.yaml [.mtt/audit.log]` then a pathspec-scoped commit) — a dirty
   `.mtt/config.yaml` (or any other `.mtt` edit) must never ride the main-landing commit/push past review (the
   SEC2 bullet). **`approve` also pushes the task branch** (`git push -u origin task/<id>` — for the PR) and

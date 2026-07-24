@@ -7,6 +7,22 @@ All notable changes to mtt are documented here. The format follows
 ## [Unreleased]
 
 ### Added
+- **Lifecycle events (t66).** A new top-level `events:` config section hangs post-only command pipelines on
+  create/update/delete of tasks and notes: they fire per entity, from the mutating usecases, only when
+  something really persisted — never from a flow move. Task events expand `{{.ID}}`/`{{.Type}}`/`{{.Event}}`
+  (the type is membership-checked against the config before expansion — a poisoned on-disk `type:` never
+  reaches the shell), note events `{{.Slug}}`/`{{.Event}}`. A failing event keeps the mutation (exit 5 with
+  the exact remaining commands; bulk aggregates stay the generic exit 1). Every mutating verb gains
+  `--no-run` (skips the pipeline, forces `--who`/`--why`, writes an audit skip-record;
+  `rm --force --no-run` writes one combined record). The dogfood config now auto-commits every task/note
+  mutation (closing the manual-`.mtt`-commit gap), with narrowed pathspecs and `mtt: <id> <event>` subjects
+  that can never satisfy the deliver squash-grep.
+- **Per-type `post_defaults` (t66/t24).** A type-level command list prepended to every edge's `post:`;
+  an edge opts out with `inherit_post: false`. Precedence: defaults first, edge specifics appended, opt-out
+  only explicit. The repo's ~30 duplicated auto-commit post lines collapsed to one per type. `rollback:` is
+  now rejected in every post surface (edge `post:`, `post_defaults:`, event `post:`).
+- **Upgrade note:** a pre-t66 binary silently ignores `events:`/`post_defaults:` (non-strict decode) —
+  update your installed binary after this lands, or moves and mutations stop auto-committing with no signal.
 - **Dogfood flow gates (t31).** Every `submit` and both `impl_review → approved` edges now require a clean
   working tree (`.mtt` excluded — the move's own post-commit sweeps it); impl submits additionally require
   a CHANGELOG entry when code changed vs the merge base (audited bypass:

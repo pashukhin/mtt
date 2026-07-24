@@ -114,6 +114,41 @@ This is an illustration — **our own dogfood config does not use rollback** (it
           - {run: 'git checkout -b task/{{.ID}}', rollback: 'git branch -D task/{{.ID}}'}
 ```
 
+**DRY the shared tail: `post_defaults` (t66).** When every edge repeats the same finalization line (an
+auto-commit, a notification), hoist it to the type: `post_defaults:` is prepended to every edge's `post:`;
+an edge whose finalization must differ opts out explicitly with `inherit_post: false`. Defaults first,
+specifics appended, opt-out only explicit — no merging magic. `rollback:` is rejected in every post surface
+(post pipelines have no compensation phase).
+
+## 5b. Lifecycle events: pipelines beyond flow edges (t66)
+
+Not every mutation is a move: creating, editing, tagging, or deleting an entity never traverses an edge. The
+top-level **`events:`** section hangs **post-only** pipelines on those moments — per store
+(`task`/`note`) × kind (`create`/`update`/`delete`), fired **per entity**, **only when something really
+persisted** (idempotent no-ops fire nothing), and never by a flow move (an edge has its own `post:`).
+
+The SAFE sample (this repo's own shape — adapt, don't copy blindly):
+
+```yaml
+events:
+  task:
+    update:
+      post:
+        # narrowed pathspec: commit the ENTITY's file, never a broad `git add .mtt`
+        # (a broad add sweeps unrelated dirty files — e.g. a reviewed-config edit — into the commit);
+        # && after git add: a failed add must FAIL the pipeline (do NOT soften to `;` —
+        # "nothing staged" would read as "nothing to do", silently losing the commit);
+        # the guard skips the commit when nothing changed;
+        # the subject is NAMESPACED ("mtt: …") so it can never satisfy a delivery-proof
+        # grep like `^<id>: ` — an event commit must not fake a squash-merge.
+        - 'a=.mtt/tasks/{{.ID}}.yaml; git add -- $a && { git diff --cached --quiet -- $a || git commit -m "mtt: {{.ID}} {{.Event}}" -- $a; }'
+```
+
+Task events expand `{{.ID}}`/`{{.Type}}`/`{{.Event}}`, note events `{{.Slug}}`/`{{.Event}}`. A failing event
+pipeline **keeps the mutation** (exit 5 + the exact remaining commands); `--no-run` on the mutating command
+skips the pipeline, forces `--who`/`--why`, and writes an audit skip-record. Runnable, discoverable
+`mtt init` templates that ship an `events:` block are t62's scope — this guide stays the authoring reference.
+
 ## 6. Attribution & guards
 
 - **Who did it.** Every move records a `by`. It resolves in order: `--who`/`--by` (mutually exclusive) >
