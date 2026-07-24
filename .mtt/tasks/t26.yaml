@@ -1,12 +1,23 @@
 id: t26
 type: task
 title: 'Think: auto-commit non-flow mutations (add/edit/tag/dep/rm) — batching tradeoff'
-status: tbd
+status: cancelled
 priority: low
 tags:
     - backlog
     - flow
     - think
 created: "2026-07-11T12:14:56Z"
-updated: "2026-07-12T01:43:22Z"
+updated: "2026-07-24T16:51:34Z"
 description: 'Non-flow mutations (add/edit/tag/dep/rm) leave uncommitted .mtt changes; decide auto-commit AND auto-push vs batching. Live incident (c7): an add-commit on main left unpushed diverges at squash-merge time — the branch carries the add, so the local commit is superseded; reset --hard origin/main was the recovery.'
+history:
+    - at: "2026-07-24T16:51:34Z"
+      by: grisha
+      why: 'subsumed by t66: auto-commit of non-flow mutations shipped as dogfood lifecycle events (config, not code)'
+      from: tbd
+      to: cancelled
+      checks:
+        - cmd: git switch main
+          exit: 0
+        - cmd: test -f .mtt/tasks/t26.yaml || { echo "task file absent on main — its add has not reached main (merge/commit the branch that created it first)" >&2; false; }
+          exit: 0
