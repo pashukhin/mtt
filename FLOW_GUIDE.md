@@ -219,8 +219,9 @@ agent works in task terms while the flow hides the git mechanics. The moving par
 - **`start` (tbd → …) creates the branch, idempotently:**
   `git switch task/{{.ID}} || (git switch main && git switch -c task/{{.ID}})`. It is re-entrant by
   construction, so it needs **no `rollback`** (unlike the §5 illustration).
-- **Every move auto-commits `.mtt`** via a `post:` (`git add .mtt && git commit … -- .mtt`), so a move records
-  its own state change.
+- **Every move auto-commits `.mtt`** via the type's `post_defaults:` (one `git add .mtt && git commit … --
+  .mtt` line per type — see §5), so a move records its own state change; **every non-flow mutation**
+  (add/edit/tag/dep/ref/rm and notes) auto-commits its entity file via the `events:` section (§5b).
 - **`approve`** `post:` pushes the task branch and opens/updates the PR (`git push -u …`, then a `gh pr create`
   that is idempotent — skipped if an open PR exists).
 - **`deliver`/`cancel`** run `git switch main` as their **first gate command** (so the terminal state lands on
@@ -230,9 +231,9 @@ agent works in task terms while the flow hides the git mechanics. The moving par
 **Honest caveats — this is opinionated.** It assumes GitHub + `gh` + `jq` + the `task/<id>` branch model + a
 direct push to `main`. To adapt: swap `gh pr create` for a GitLab MR command (or drop it for a no-PR / trunk
 flow); change the branch name; change or remove the main push if you protect `main` (branch protection breaks
-the direct `deliver` push). The config also repeats its `post:` blocks heavily (the auto-commit block appears
-24×, the main-push block 14×, across 12 `cancel` edges) — a global/default `post:` will let it be declared once
-(that cleanup, and a one-command `mtt init` template for this flow, are tracked separately; see Neighbours).
+the direct `deliver` push). The shared auto-commit line is declared **once per type** (`post_defaults:`, with
+the main-landing edges opting out via `inherit_post: false` to keep their narrowed commit); a one-command
+`mtt init` template for this flow is tracked separately (see Neighbours).
 
 ## 9. Adaptation checklist
 

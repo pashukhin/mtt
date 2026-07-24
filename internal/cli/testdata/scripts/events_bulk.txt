@@ -6,6 +6,7 @@ cp events.yaml .mtt/config.yaml
 
 exec mtt add 'a'
 exec mtt add 'b'
+exec mtt use t1
 
 ! exec mtt rm t1 ghost
 stderr 'ghost.*not found'
@@ -13,10 +14,14 @@ stderr 't1: .*exited 1'
 stderr 'the change IS saved; do NOT re-run the mutation'
 stderr '^  false$'
 
-# the deletion itself happened (mutation kept despite the failed event)
+# the deletion itself happened (mutation kept despite the failed event) and the
+# current pointer was cleared — a deleted task must not leave a dangling current
+# even when its event finalization failed (t66 review F1)
 exec mtt list --ids
 stdout 't2'
 ! stdout 't1'
+exec mtt use
+stdout 'no current task'
 
 # --json rows carry the remaining recovery commands
 exec mtt add 'c'

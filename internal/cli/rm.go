@@ -61,7 +61,9 @@ func newRmCmd() *cobra.Command {
 			items := make([]bulkItem, 0, len(results))
 			for _, r := range results {
 				items = append(items, bulkItem{id: r.ID, err: r.Err})
-				if r.Err == nil {
+				// A *PostActionError means the task IS deleted (only its event
+				// finalization failed) — the pointer must not dangle (t66).
+				if r.Err == nil || errors.As(r.Err, new(*core.PostActionError)) {
 					_ = clearCurrentIfMatches(root, r.ID) // best-effort in bulk: the task is already reported removed
 				}
 			}
@@ -119,8 +121,9 @@ func runRmSingle(cmd *cobra.Command, root, idArg string, force, dryRun, noRun bo
 	if rmErr != nil && !errors.As(rmErr, new(*core.PostActionError)) {
 		return rmErr
 	}
-	if err := clearCurrentIfMatches(root, id); err != nil {
-		return err
+	// A clear failure must not mask a pending finalization error (exit 5 > 1).
+	if cerr := clearCurrentIfMatches(root, id); cerr != nil && rmErr == nil {
+		return cerr
 	}
 	return finishMutation(cmd, rmErr, func() error {
 		if jsonFlag(cmd) {

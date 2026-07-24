@@ -69,16 +69,13 @@ survive. There is no --tag here; use 'mtt tag add/rm' for tags not in the text.`
 				}
 				return err
 			}
-			evErr := err // nil, or the finalization failure — render the edit either way (it IS saved)
-			if jsonFlag(cmd) {
-				if werr := writeJSON(cmd.OutOrStdout(), toTaskJSON(task)); werr != nil {
-					return werr
+			return finishMutation(cmd, err, func() error {
+				if jsonFlag(cmd) {
+					return writeJSON(cmd.OutOrStdout(), toTaskJSON(task))
 				}
-			} else if _, werr := fmt.Fprintf(cmd.OutOrStdout(), "updated %s\n", task.ID); werr != nil {
+				_, werr := fmt.Fprintf(cmd.OutOrStdout(), "updated %s\n", task.ID)
 				return werr
-			}
-			renderPostRecovery(cmd, evErr, mutationSavedLine)
-			return evErr
+			})
 		},
 	}
 	cmd.Flags().StringVar(&title, "title", "", "new title")
