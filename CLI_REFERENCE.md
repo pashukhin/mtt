@@ -225,8 +225,13 @@ Projects initialized before this shipped should add it by hand: `echo config.loc
     before your first move** (init itself runs nothing). More adaptable samples ship in the repo's
     `templates/` dir (`coding`, `hierarchy`, and the `git-flow` flagship) — install by path or URL.
 - `--yes` — skip the confirmation prompt for a remote (`https://`) `--template`. *(t62)*
-- `--json` — emit the created-config summary `{path, template, source?, name, created}` (absolute `path`;
-  `source` is `builtin:<name>` / `file:<path>` / `url:<url>`) instead of the human line. *(t45, source t62)*
+- `--no-agent-hooks` *(t52)* — skip scaffolding agent settings + hooks. By default `mtt init` also runs
+  [`mtt agent hooks`](#mtt-agent-hooks--scaffold-agent-settings--hooks--shipped-t52) (writing/merging
+  `.claude/settings.json`); this flag opts out. If the scaffold fails (a malformed existing settings file),
+  the config is still written and reported, and `init` exits 1 (the config is kept — no rollback).
+- `--json` — emit the created-config summary `{path, template, source?, name, created, scaffold}` (absolute
+  `path`; `source` is `builtin:<name>` / `file:<path>` / `url:<url>`; `scaffold` is the non-null
+  `[{harness, path, action}]` array, `[]` under `--no-agent-hooks`) instead of the human line. *(t45, source t62, scaffold t52)*
 
 Running any other command outside a project (no `.mtt/` found by discovery, or a `--dir` without one) errors
 with a `run 'mtt init' to create one` hint (session 008.97/U4).
@@ -734,11 +739,31 @@ by priority band, then **backlink-count** (more-referenced first), then recency;
 actionable line (exit 0). `--json` emits a non-null array of `{slug, title, tags, priority, backlinks}`.
 `mtt prime` prints **no tasks** — compose with `mtt roadmap` at the hook if you want both.
 
-**Wire it into session start** (Claude Code `settings.json` — mtt ships only the command; the hook is config):
+**Wire it into session start.** Since **t52** this hook is **scaffolded for you** — `mtt agent hooks` (and
+`mtt init` by default) write it into `.claude/settings.json` (see [`mtt agent hooks`](#mtt-agent-hooks--scaffold-agent-settings--hooks--shipped-t52)).
+The equivalent manual snippet (the fallback for an unsupported harness) is:
 
 ```json
 { "hooks": { "SessionStart": [ { "hooks": [ { "type": "command", "command": "mtt prime" } ] } ] } }
 ```
+
+### `mtt agent hooks` — scaffold agent settings + hooks  *(shipped t52)*
+Scaffolds a coding agent's configuration into the project for every supported harness (currently **Claude
+Code**). It writes/merges `.claude/settings.json` with:
+
+- `SessionStart` **and** `PreCompact` hooks running `mtt prime 2>/dev/null || true` (inject the KB digest at
+  session start and refresh it around compaction);
+- a **read-only `permissions.allow`** allowlist (`roadmap`/`list`/`show`/`tree`/`ready`/`types`/`prime`/
+  `check`/`tags`/`version`/`dep list`/`note show`/`note list`/`ref list`/`note ref list`) to cut permission
+  prompts — mutating commands are deliberately excluded.
+
+The merge is **additive, idempotent, and no-clobber**: a re-run is a no-op (`unchanged`), your other settings
+are preserved, and a malformed/type-incompatible existing file is refused (never overwritten). It requires an
+initialized project (`.mtt/`). Prints one line per harness (`claude: created|merged|unchanged <path>`);
+`--json` emits `[{harness, path, action}]`. codex/gemini are deferred behind an extensible seam (no guessed
+config is written).
+
+`mtt init` runs this by default — pass **`--no-agent-hooks`** to skip it.
 
 ---
 

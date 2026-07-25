@@ -291,7 +291,8 @@ clear on empty, the task-`edit` idiom) and `note list --priority`/`--sort` (`toP
 `core.NewBacklinks` → `core.Prime` → `writePrime` (markdown pointer digest, `N of M` footer, empty→actionable
 line) or `primeJSON`/`toPrimeJSON` (`tags` non-null). `--min-priority` (default `high`) is validated **inline**
 via `mtt.Priority.Valid()` (not `parsePriority`, which treats `""` as valid); `--limit` default 20. The
-`sessionStart` hook is config (documented in CLI_REFERENCE), not code.
+`sessionStart` hook was config-only at t51; **t52** makes `mtt agent hooks` / `mtt init` scaffold it into
+`.claude/settings.json` (see the Agent-scaffolding note below).
 
 Self-update (t44): **`mtt self-update`** (`selfupdate.go`, `newSelfUpdateCmd`) wires the current version
 (`resolveVersion()`), target (`EvalSymlinks(os.Executable())`), `runtime.GOOS/GOARCH`, `goAvailable`

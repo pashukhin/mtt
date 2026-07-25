@@ -226,8 +226,13 @@ pr create`, идемпотентно — нужны `gh`+`jq`; тело из `do
     хода** (сам init ничего не исполняет). Прочие адаптируемые образцы лежат в каталоге репо `templates/`
     (`coding`, `hierarchy` и флагман `git-flow`) — ставь по пути или URL.
 - `--yes` — пропустить подтверждение для удалённого (`https://`) `--template`. *(t62)*
-- `--json` — эмитит сводку созданного конфига `{path, template, source?, name, created}` (абсолютный `path`;
-  `source` — `builtin:<name>` / `file:<path>` / `url:<url>`) вместо человекочитаемой строки. *(t45, source t62)*
+- `--no-agent-hooks` *(t52)* — пропустить скаффолдинг агентских настроек + хуков. По умолчанию `mtt init`
+  также запускает [`mtt agent hooks`](#mtt-agent-hooks--скаффолдинг-агентских-настроек--хуков--реализовано-t52)
+  (пишет/мёржит `.claude/settings.json`); этот флаг отключает. Если скаффолд падает (битый существующий файл
+  настроек), конфиг всё равно записан и отрепорчен, а `init` завершается с кодом 1 (конфиг сохранён — без отката).
+- `--json` — эмитит сводку созданного конфига `{path, template, source?, name, created, scaffold}` (абсолютный
+  `path`; `source` — `builtin:<name>` / `file:<path>` / `url:<url>`; `scaffold` — non-null массив
+  `[{harness, path, action}]`, `[]` при `--no-agent-hooks`) вместо человекочитаемой строки. *(t45, source t62, scaffold t52)*
 
 Любая другая команда вне проекта (`.mtt/` не найден при discovery или `--dir` без него) падает с подсказкой
 `run 'mtt init' to create one` (сессия 008.97/U4).
@@ -728,11 +733,31 @@ eligible до cap. Пусто ⇒ одна actionable-строка (выход 0
 `{slug, title, tags, priority, backlinks}`. `mtt prime` **не печатает задачи** — при желании компонуй с
 `mtt roadmap` на уровне хука.
 
-**Проводка в старт сессии** (Claude Code `settings.json` — mtt даёт только команду, хук — конфиг):
+**Проводка в старт сессии.** С **t52** этот хук **скаффолдится за вас** — `mtt agent hooks` (и `mtt init` по
+умолчанию) пишут его в `.claude/settings.json` (см. [`mtt agent hooks`](#mtt-agent-hooks--скаффолдинг-агентских-настроек--хуков--реализовано-t52)).
+Эквивалентный ручной сниппет (fallback для неподдержанного харнеса):
 
 ```json
 { "hooks": { "SessionStart": [ { "hooks": [ { "type": "command", "command": "mtt prime" } ] } ] } }
 ```
+
+### `mtt agent hooks` — скаффолдинг агентских настроек + хуков  *(реализовано t52)*
+Скаффолдит конфигурацию кодинг-агента в проект для каждого поддержанного харнеса (сейчас — **Claude Code**).
+Пишет/мёржит `.claude/settings.json` с:
+
+- хуками `SessionStart` **и** `PreCompact`, зовущими `mtt prime 2>/dev/null || true` (инъекция KB-дайджеста на
+  старте сессии и обновление вокруг компакции);
+- **read-only `permissions.allow`** allowlist (`roadmap`/`list`/`show`/`tree`/`ready`/`types`/`prime`/`check`/
+  `tags`/`version`/`dep list`/`note show`/`note list`/`ref list`/`note ref list`), чтобы срезать
+  permission-промпты — мутирующие команды намеренно исключены.
+
+Мёрж **аддитивный, идемпотентный, no-clobber**: повтор — no-op (`unchanged`), прочие ваши настройки
+сохраняются, а битый/типо-несовместимый существующий файл — отказ (никогда не перезапись). Требует
+инициализированный проект (`.mtt/`). Печатает по строке на харнес (`claude: created|merged|unchanged <path>`);
+`--json` даёт `[{harness, path, action}]`. codex/gemini отложены за расширяемым seam-ом (угаданный конфиг не
+пишется).
+
+`mtt init` запускает это по умолчанию — передайте **`--no-agent-hooks`**, чтобы пропустить.
 
 ---
 
