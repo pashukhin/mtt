@@ -190,7 +190,7 @@ prints the normal `initialized …` line only. `--json` gains a `source` field (
 - **Coverage split (honest):** the real binary in `testscript` runs as a non-TTY subprocess, so e2e covers
   **built-in `default`**, **file-path install** (+ the verbatim/`{{.ID}}` survival, validate-fail-closed), and
   the **non-TTY URL refuse** (errors before any fetch — no server needed). The **URL happy path + fetch error
-  branches** and the **interactive confirm** are **unit-tested** (fake `httpDoer` / scripted `confirmRemote`),
+  branches** and the **interactive confirm** are **unit-tested** (fake transport / scripted `confirmRemote`),
   since a testscript subprocess can neither present a TTY nor be handed a fake doer. This split is deliberate
   and stated (not an overclaim).
 - The **CLI stays thin**: classify → (confirmRemote on url) → fetch (adapter) → `ValidateTemplateBytes`
@@ -298,7 +298,7 @@ Sweep all parallel occurrences (EN+RU) per the design-docs-parallel-occurrences 
 
 - **`--template <url>` for private/authed sources** — anonymous https only here; tokens/auth are a later ask.
 - **Template index / discovery** — no registry; a direct file fetch only.
-- **URL happy-path in `testscript`** — covered by unit tests with a fake `httpDoer` (no socket, §5); a
+- **URL happy-path in `testscript`** — covered by unit tests with a fake transport (no socket, §5); a
   harness-served loopback URL for e2e is possible (start a server in `TestMain`, pass via env) but deferred
   unless the unit coverage proves thin (and it would reintroduce a real socket, against no-network-in-tests).
 - **A checksum/pin for a fetched template** — out of scope (also a Non-goal); the loud notice +
