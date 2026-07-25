@@ -134,10 +134,15 @@ cycle: t3 -> t4 -> t3
 3 dangling, 1 unverified, 1 cycle across N entities
 ```
 
-`N entities` is defined as the count of **distinct carriers/subjects** across all findings: a ref
-carrier (its `CarrierID`, as `countCarriers` does today), a dep finding's `Task`, and each id
-appearing in any `cycle` chain — deduplicated into one set. (Stated so the golden e2e is
-reproducible.)
+**Summary buckets** (review r2 F1 — the summary must not zero-out a dangling-dep-only failure): the
+`dangling` count folds **both** hard dangling-link kinds (`dangling-ref` + `dangling-dep`), so a
+repo whose only fault is `t7 depends_on:t99` reads `1 dangling, 0 unverified, 0 cycle` (exit 7,
+not a zeroed line). Full form: `<dangling> dangling, <unverified> unverified, <cycle> cycle across
+<N> entities`. The golden e2e asserts this exact string for the dangling-dep-only case.
+
+`N entities` is the count of **distinct carriers/subjects** across all findings: a ref carrier
+(its `CarrierID`, as `countCarriers` does today), a dep finding's `Task`, and each id appearing in
+any `cycle` chain — deduplicated into one set. (Stated so the golden e2e is reproducible.)
 
 **`--json` is now a heterogeneous, `kind`-tagged union** — a consumer must **switch on `kind`**, not
 assume every element has `carrier`. The `dangling-ref`/`unverified-ref` arms keep the existing
