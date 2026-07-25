@@ -15,6 +15,9 @@ set -eu
 
 MTT="${MTT_BIN:-mtt}"
 unset MTT_DIR MTT_ROLE   # shell the real binary hermetically (nothing scrubs these for us)
+# t62: `coding` is no longer a built-in name — install the hosted example by path.
+# Self-locate the repo root (works standalone, via `make demo`, and via the Go test).
+REPO_ROOT="${REPO_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
@@ -74,7 +77,8 @@ func TestMax(t *testing.T) {
 }
 EOF
 gofmt -w .
-"$MTT" init --template coding >/dev/null
+cp "$REPO_ROOT/templates/coding.yaml" ./coding.yaml
+"$MTT" init --template ./coding.yaml >/dev/null 2>&1
 git add -A && git commit -qm "scaffold (green suite; latent Max bug)"
 
 # =============================== FEATURE ======================================

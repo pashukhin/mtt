@@ -2,43 +2,31 @@ package yaml
 
 import (
 	"bytes"
-	"embed"
 	"fmt"
-	"sort"
 	"strings"
 	"text/template"
+
+	roottemplates "github.com/pashukhin/mtt/templates"
 )
 
-//go:embed templates/default.yaml templates/coding.yaml templates/hierarchy.yaml
-var templatesFS embed.FS
-
-// templateFiles maps init template names to their embedded paths.
-var templateFiles = map[string]string{
-	"default":   "templates/default.yaml",
-	"coding":    "templates/coding.yaml",
-	"hierarchy": "templates/hierarchy.yaml",
-}
-
-// templateNames returns the valid init template names, sorted (map order is
-// non-deterministic) — for the unknown-template error and discoverability.
-func templateNames() []string {
-	names := make([]string, 0, len(templateFiles))
-	for k := range templateFiles {
-		names = append(names, k)
+// builtin returns the embedded bytes for a built-in template name, or false.
+func builtin(name string) ([]byte, bool) {
+	if name == "default" {
+		return roottemplates.Default(), true
 	}
-	sort.Strings(names)
-	return names
+	return nil, false
 }
 
-// renderTemplate renders the named init template, substituting the project name.
+// templateNames returns the valid built-in template names, for the
+// unknown-template error and discoverability.
+func templateNames() []string { return roottemplates.BuiltinNames() }
+
+// renderTemplate renders the named BUILT-IN template, substituting the project
+// name. External templates never reach here (they are written verbatim).
 func renderTemplate(name, projectName string) ([]byte, error) {
-	path, ok := templateFiles[name]
+	raw, ok := builtin(name)
 	if !ok {
 		return nil, fmt.Errorf("unknown template %q (valid: %s)", name, strings.Join(templateNames(), ", "))
-	}
-	raw, err := templatesFS.ReadFile(path)
-	if err != nil {
-		return nil, fmt.Errorf("read template %q: %w", name, err)
 	}
 	tmpl, err := template.New(name).Option("missingkey=error").Parse(string(raw))
 	if err != nil {

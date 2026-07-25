@@ -1,6 +1,6 @@
 version: 1
 project:
-  name: demo
+  name: my-project
 command_timeout: 5m
 types:
   - name: feature

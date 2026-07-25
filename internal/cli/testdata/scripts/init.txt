@@ -30,7 +30,7 @@ stdout 'prefix t'
 stderr 'already initialized'
 
 # --force overwrites; coding template shows gated per-type DoD
-exec mtt init --force --template coding
+exec mtt init --force --template $WORK/coding.yaml
 exec mtt types
 stdout 'feature'
 stdout 'bugfix'
@@ -38,7 +38,7 @@ stdout 'refactor'
 stdout 'make test'
 
 # --force + hierarchy template restores the epic > task > subtask model
-exec mtt init --force --template hierarchy
+exec mtt init --force --template $WORK/hierarchy.yaml
 exec mtt types
 stdout 'epic'
 stdout 'task'
@@ -91,6 +91,12 @@ cd urlproj
 ! exec mtt init --template https://example.com/x.yaml
 stderr 'refusing to fetch a remote template without confirmation'
 ! exists .mtt/config.yaml
+# coding is no longer a built-in NAME (t62) — a bare token → unknown-template error
+cd $WORK
+mkdir codingproj
+cd codingproj
+! exec mtt init --template coding
+stderr 'unknown template "coding"'
 
 -- empty/.keep --
 -- ext.yaml --

@@ -13,7 +13,7 @@ import (
 var update = flag.Bool("update", false, "update golden files")
 
 func TestRenderGolden(t *testing.T) {
-	for _, name := range []string{"default", "coding", "hierarchy"} {
+	for _, name := range []string{"default"} { // coding/hierarchy are no longer built-in (t62)
 		got, err := renderTemplate(name, "demo")
 		if err != nil {
 			t.Fatalf("render %s: %v", name, err)
@@ -44,9 +44,13 @@ func TestRenderUnknownTemplate(t *testing.T) {
 		t.Fatal("want error for unknown template")
 	}
 	// c14: the error lists the valid template names so the user can pick one.
-	for _, name := range []string{"coding", "default", "hierarchy"} {
-		if !strings.Contains(err.Error(), name) {
-			t.Fatalf("unknown-template error should list %q; got %q", name, err.Error())
+	// t62: coding/hierarchy are de-embedded, so `default` is the sole valid name.
+	if !strings.Contains(err.Error(), "default") {
+		t.Fatalf("unknown-template error should list %q; got %q", "default", err.Error())
+	}
+	for _, gone := range []string{"coding", "hierarchy"} {
+		if strings.Contains(err.Error(), gone) {
+			t.Fatalf("de-embedded template %q must not be listed as valid; got %q", gone, err.Error())
 		}
 	}
 }
@@ -96,7 +100,7 @@ func TestInitKeepsExistingGitignore(t *testing.T) {
 	if err := Init(root, "default", "demo", false); err != nil {
 		t.Fatalf("init: %v", err)
 	}
-	if err := Init(root, "coding", "demo", true); err != nil {
+	if err := Init(root, "default", "demo", true); err != nil {
 		t.Fatalf("force re-init: %v", err)
 	}
 	data, err := os.ReadFile(gi)
@@ -124,7 +128,7 @@ func TestInit(t *testing.T) {
 	if err := Init(root, "default", "demo", false); !errors.Is(err, ErrAlreadyInitialized) {
 		t.Fatalf("re-init err = %v, want ErrAlreadyInitialized", err)
 	}
-	if err := Init(root, "coding", "demo", true); err != nil {
+	if err := Init(root, "default", "demo", true); err != nil {
 		t.Fatalf("force re-init: %v", err)
 	}
 }

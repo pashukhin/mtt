@@ -1,7 +1,7 @@
 # init, then create and view tasks
 mkdir proj
 cd proj
-exec mtt init --template hierarchy
+exec mtt init --template $WORK/hierarchy.yaml
 stdout 'initialized'
 
 # explicit root type -> e1, then e2
