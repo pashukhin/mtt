@@ -1,11 +1,11 @@
 id: t58
 type: task
 title: 'integrity upgrades: check covers dangling depends_on and duplicate ids; roadmap marks missing blockers; dep --cycles exits non-zero'
-status: impl_fix
+status: impl_review
 tags:
     - core
 created: "2026-07-22T08:01:24Z"
-updated: "2026-07-25T03:43:50Z"
+updated: "2026-07-25T03:44:46Z"
 description: 'Audit findings (2026-07-22): mtt check inspects refs only — a dangling depends_on (the one edge type that blocks work) passes silently; roadmap prints blocked by: tX for a nonexistent id with no (missing) marker while dep list marks it; a duplicated id across task files (hand-copied yaml keeping the inner id) is a silent split-brain — list shows duplicate rows, show by filename-id returns the other task object, edits desync the copies, check stays silent; dep list --cycles finds a hand-edited cycle but exits 0, so unlike check (exit 7) it cannot gate CI. Design open: new finding classes under exit 7 vs a new code; --cycles exit semantics aligned with check.'
 history:
     - at: "2026-07-25T01:53:15Z"
@@ -113,3 +113,14 @@ history:
       why: 'impl review MINOR: checkintegrity_test comment says deps ordered by "recency" but spec-finalized decision + code use task-slice order (stale word from plan draft); also no test exercises multi-dangling-dep slice-order invariant. Fix comment + add ordering test.'
       from: impl_review
       to: impl_fix
+    - at: "2026-07-25T03:44:46Z"
+      by: Grigorii Pashukhin
+      from: impl_fix
+      to: impl_review
+      checks:
+        - cmd: out=$(git status --porcelain -- ":(exclude).mtt") && test -z "$out" || { echo "working tree not clean - commit your code/docs first (.mtt is swept by the move itself)" >&2; false; }
+          exit: 0
+        - cmd: 'git diff --quiet main...HEAD -- cmd internal pkg go.mod go.sum || git diff --name-only main...HEAD -- CHANGELOG.md | grep -q . || { echo "code changed but CHANGELOG.md has no entry - add one under [Unreleased] (pure refactor? bypass: mtt do submit --no-run --who ... --why ...)" >&2; false; }'
+          exit: 0
+        - cmd: make check
+          exit: 0
