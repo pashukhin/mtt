@@ -1,7 +1,8 @@
 # t62 — Runnable init templates (spec)
 
-Status: revision 3 — rev2 addressed the 2026-07-25 adversarial spec review (1 blocker, 4 majors, 5 minors);
-rev3 fixes the 3 issues that review introduced (the `Load`/overlay boundary MAJOR + 2 minors). Decided in the
+Status: revision 4 — rev2 addressed the 2026-07-25 adversarial spec review (1 blocker, 4 majors, 5 minors);
+rev3 fixed the 3 issues that review introduced; rev4 fixes the last minor (keep `Config.Validate` out of the
+shared `checkDecoded` so `Load` stays byte-identical; it lives in the external path only). Decided in the
 2026-07-25 brainstorm (three user decisions: template strategy, built-in scope, external-source safety UX;
 + one user refinement: a top-level `templates/` directory).
 
@@ -130,19 +131,22 @@ confirm precedes the fetch so a declined URL touches the network zero times.
   **Size cap:** read with `io.LimitReader(body, cap+1)` and error when the result exceeds `cap` (~1 MiB) —
   `LimitReader` truncates **silently**, so the `+1` sentinel is required to detect (not silently truncate) an
   over-cap body.
-- **Validate before write (fail-closed).** Factor the adapter's **post-decode** checks into a shared helper
-  `checkDecoded(yc ymlConfig) error` — `toDomain` + **`checkPrefixes`** (exactly-one-default, prefix present +
+- **Validate before write (fail-closed).** Factor the adapter's **post-decode provider** checks into a shared
+  helper `checkDecoded(yc ymlConfig)` — `toDomain` + **`checkPrefixes`** (exactly-one-default, prefix present +
   unique + **letters-only**, the documented **shell-safety boundary**: a minted `<prefix><N>` is expanded into
   `{{.ID}}` inside `sh -c`, so a prefix with shell metacharacters must be refused at init, not deferred to the
-  first move) + **`parseCommandTimeout`** + `Config.Validate` (topology/flow/parents/events). The external path
-  is a thin `ValidateTemplateBytes(data)` = decode a **single** YAML doc → `checkDecoded`. **`Load` is NOT
-  rewritten as a one-slice decode** — it keeps its **two-file overlay** (`config.yaml` + the gitignored
+  first move) + **`parseCommandTimeout`**. This is **exactly** what `Load` runs post-overlay today
+  (`load.go:55-62`) — **`Config.Validate` is deliberately NOT in it** (`Load`'s contract, `load.go:45` +
+  `internal/adapter/yaml/CLAUDE.md`, is "domain invariants are the *caller's*"; only `add`/`types` validate).
+  So `Load` stays **byte-identical** — it keeps its **two-file overlay** (`config.yaml` + the gitignored
   `config.local.yaml`, later-wins), its **pre-overlay `committedRequire` capture** and **tighten-only
-  `require`** (committed || local), and `Author` from the overlay; it merely routes its checks through the same
-  `checkDecoded`. So the file config and an external template get the **same check logic** — *not* the same
-  inputs: the file path legitimately has the extra overlay input. `Config.Validate` alone is **insufficient**
-  (no prefixes/timeout/single-default). A template failing any check errors and **writes nothing** (no partial
-  `.mtt/config.yaml`).
+  `require`** (committed || local), `Author` from the overlay, **and its no-domain-validate read-path
+  behavior** — it merely routes its provider checks through `checkDecoded`.
+  The external path is `ValidateTemplateBytes(data)` = decode a **single** YAML doc → `checkDecoded` → **plus
+  `Config.Validate`** (topology/flow/parents/events): init legitimately **is** the caller that owns the domain
+  check for an untrusted template, so an external template gets the full **provider + domain** validation
+  without changing `Load`. `Config.Validate` alone would be **insufficient** anyway (no prefixes/timeout/
+  single-default). A template failing any check errors and **writes nothing** (no partial `.mtt/config.yaml`).
 - **Write verbatim.** External bytes are written **as-is** (Decision 5) via the existing atomic write; no
   `{{.Name}}` substitution. The embedded `default` keeps its `{{.Name}}` render path. Consequently `--name` is
   **ignored for external sources** (verbatim skips `renderTemplate`): the CLI prints a stderr note when `--name`
@@ -183,10 +187,12 @@ prints the normal `initialized …` line only. `--json` gains a `source` field (
 - **Confirm/TTY** is a pure `confirmRemote(in, isTTY, autoYes)` (§3) — the *decision* is unit-tested with a
   scripted reader for `y`/`n`/empty/`--yes`/non-TTY; only the thin TTY-detection call (`os.Stdin.Stat()`) sits
   in the CLI, uninjected (its non-TTY result is what the e2e subprocess exercises).
-- **Validation** is the shared `checkDecoded(yc)` (§3): `Load` calls it **after** its two-file overlay; the
-  external path calls it via `ValidateTemplateBytes(data)` on a single decoded doc. One check-set, two callers
-  — no second/weaker validator, and `Load`'s overlay / tighten-only `require` / `Author` semantics are
-  **untouched** (a regression test pins that).
+- **Validation** is the shared provider check `checkDecoded(yc)` (§3): `Load` calls it **after** its two-file
+  overlay (its post-overlay checks, byte-identical to today — **no** `Config.Validate`); the external path
+  calls `ValidateTemplateBytes(data)` = single-doc decode → `checkDecoded` → `Config.Validate`. One
+  provider-check set, two callers; `Config.Validate` is added only where init owns the domain check. `Load`'s
+  overlay / tighten-only `require` / `Author` / no-domain-validate semantics are **untouched** (a regression
+  test pins that).
 - **Coverage split (honest):** the real binary in `testscript` runs as a non-TTY subprocess, so e2e covers
   **built-in `default`**, **file-path install** (+ the verbatim/`{{.ID}}` survival, validate-fail-closed), and
   the **non-TTY URL refuse** (errors before any fetch — no server needed). The **URL happy path + fetch error
@@ -251,11 +257,13 @@ grepped surface (`git grep -- "--template hierarchy|--template coding"`):
 - **Classification** unit table: `default`→builtin; `x.yaml`/`./x`/`a/b` (and Windows `a\b`)→file;
   `https://…`→url; `http://…`→error; unknown bare→sorted-names error; scheme-less `host.com/x.yaml`→file with
   the `https://` hint on not-found.
-- **`checkDecoded` / `ValidateTemplateBytes` (shared validation)**: rejects a bad prefix (empty / duplicate /
-  **shell-metachar** — the injection case), `defaults != 1`, a bad `command_timeout`, and a topology/flow
-  error — each writes **nothing**. **`Load` overlay regression**: existing `Load` tests stay green (two-file
-  overlay + `Author` from `config.local` + tighten-only `require` intact after routing checks through
-  `checkDecoded`).
+- **`checkDecoded` (provider checks)**: rejects a bad prefix (empty / duplicate / **shell-metachar** — the
+  injection case), `defaults != 1`, a bad `command_timeout` — each writes **nothing**. **`ValidateTemplateBytes`
+  adds the domain check**: an external template that is provider-valid but **domain-invalid** (a topology/flow
+  error `Config.Validate` catches) is rejected on the external path — *and* a test that the **`Load` path does
+  NOT** gain `Config.Validate` (a read command on a domain-invalid-but-provider-valid config still loads, per
+  the unchanged contract). **`Load` overlay regression**: existing `Load` tests stay green (two-file overlay +
+  `Author` from `config.local` + tighten-only `require` intact).
 - **Verbatim**: an external template containing `{{.ID}}` survives byte-for-byte (not eaten / not an error);
   `--name` with an external source is ignored + a stderr note is printed.
 - **Fetch (fake `http.RoundTripper` into a *real* client, no socket)**: success; https-reject (`http://`);
