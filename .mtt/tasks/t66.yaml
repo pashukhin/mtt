@@ -139,7 +139,7 @@ history:
         - cmd: out=$(git status --porcelain -- ":(exclude).mtt") && test -z "$out" || { echo "working tree not clean - commit your code/docs first (.mtt is swept by the move itself)" >&2; false; }
           exit: 0
     - at: "2026-07-24T16:51:12Z"
-      by: grisha
+      by: Grigorii Pashukhin
       from: approved
       to: done
       checks:
