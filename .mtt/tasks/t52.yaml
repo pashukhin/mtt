@@ -1,7 +1,7 @@
 id: t52
 type: task
 title: 'mtt init: scaffold agent settings + hooks (sessionStart -> mtt prime, etc.) for codex/claude/gemini'
-status: speccing
+status: spec_review
 priority: medium
 tags:
     - dx
@@ -15,7 +15,7 @@ refs:
       id: t51
       label: 'motivates: prime session-start hook'
 created: "2026-07-20T12:06:25Z"
-updated: "2026-07-25T15:10:50Z"
+updated: "2026-07-25T15:41:33Z"
 description: |-
     Sibling of t46 (which scaffolds agent DOCS: AGENTS.md/CLAUDE.md/GEMINI.md). This task scaffolds agent CONFIG/HOOKS: per-harness settings that wire mtt into the agent loop. Headline: a sessionStart hook running mtt prime (t51 left the hook as config-not-code; this makes init emit it), plus a read-only-mtt permissions allowlist.
 
@@ -37,4 +37,13 @@ history:
         - cmd: git switch task/t52 || (git switch main && git switch -c task/t52)
           exit: 0
         - cmd: test -f .mtt/tasks/t52.yaml || { echo "task file absent on this branch — its add has not reached main (merge/commit the branch that created it first)" >&2; false; }
+          exit: 0
+    - at: "2026-07-25T15:41:33Z"
+      by: Grigorii Pashukhin
+      from: speccing
+      to: spec_review
+      checks:
+        - cmd: ls docs/superpowers/specs/t52-*.md
+          exit: 0
+        - cmd: out=$(git status --porcelain -- ":(exclude).mtt") && test -z "$out" || { echo "working tree not clean - commit your code/docs first (.mtt is swept by the move itself)" >&2; false; }
           exit: 0
