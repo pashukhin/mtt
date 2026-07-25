@@ -101,10 +101,19 @@ Usecase logic. Depends **only** on the `pkg/mtt` domain contract and its ports �
   `task` via a task existence fn, `note` via a note fn or `unverified` when nil, `url` always `unverified`).
   `NewBacklinks(tasks, notes)` is the **computed cross-store** inverse index (`RefKey → []Referent`, sorted;
   never stored) backing `check`/`show`/the delete guard; `CheckRefs(tasks, notes, kbWired)` returns the non-ok
-  findings (dangling+unverified) deterministically (`ErrDanglingRefs` → CLI exit 7). `RefEditor`/`NoteRefEditor`
+  ref findings (dangling+unverified) deterministically. `RefEditor`/`NoteRefEditor`
   (upsert/remove on `Task.Refs`/`Note.Refs`, bump `Updated`, idempotent absent-remove) and `NoteRemover`
   (refuse-by-default on caller-supplied referents; `--force` forces who/why + audit before `DeleteNote`) mirror
   the task mutations. `Adder`/`NoteAdder` accept creation-time `Refs` (canonicalized, guarded nil-when-empty).
+- **Integrity (t58, `checkintegrity.go`):** `CheckIntegrity(tasks, notes, kbWired) []IntegrityFinding` is the
+  single pure integrity entry point — it composes `CheckRefs` with a **dangling-`depends_on`** sweep (an id
+  absent from the task set) and `NewDepGraph(tasks).Cycles()`, in a deterministic order (refs, then deps by the
+  task slice, then cycles). `IntegrityFinding{Kind, Ref *CheckFinding, Dep *DepFinding, Cycle []mtt.TaskID}` is a
+  **discriminated union** (exactly one payload per `Kind`); `IntegrityKind` is a **closed vocabulary** encoding
+  hardness in the kind itself — `dangling-ref`/`dangling-dep`/`cycle` are hard, `unverified-ref` soft — so a
+  consumer never reads a nested status to know whether it gates. `DepFinding{Task, Missing mtt.TaskID}`
+  references **by identity** (DDD). The sentinel is **`ErrIntegrity`** (`backlinks.go`; renamed from
+  `ErrDanglingRefs` — the sweep now covers more than refs) → CLI exit 7 on any hard finding.
 - **KB prime (t51, `prime.go`):** `Note.Priority` (reuse the task `Priority` VO) rides `NoteParams`/
   `NoteEditParams` (the `NoteEditor` guard gains `p.Priority == nil`) and `NoteFilter{Priorities, Sort}` — the
   priority filter (stored-label, `anyOrEmpty`) + `--sort priority` fold **into `SelectNotes`** via the shared

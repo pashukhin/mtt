@@ -7,6 +7,15 @@ All notable changes to mtt are documented here. The format follows
 ## [Unreleased]
 
 ### Added
+- **Integrity gate — `mtt check` covers the dependency graph (t58).** `check` becomes the single integrity
+  gate: one core entry point (`core.CheckIntegrity`) sweeps dangling `refs`, dangling `depends_on` (a blocker
+  id absent from the task set), and dependency **cycles**, and **exits 7** on any hard finding
+  (`dangling-ref` / `dangling-dep` / `cycle`); `unverified-ref` (url / no-KB) stays soft (exit 0). `--json` is
+  now a `kind`-tagged union — a consumer switches on `kind`. The exit-7 sentinel `core.ErrDanglingRefs` is
+  renamed **`core.ErrIntegrity`** (the sweep now covers more than refs; exit code unchanged). **`dep list
+  --cycles`** now gates too — exit 7 on a cycle, for CI parity with `check`. **`mtt roadmap`** marks a dangling
+  blocker `(missing)` (text) and adds a `blocked_by_missing` JSON array. Out of scope: a duplicate /
+  stem-mismatch task file still fails the load **closed** (c15) → exit 1, not 7 — a distinct failure mode.
 - **Lifecycle events (t66).** A new top-level `events:` config section hangs post-only command pipelines on
   create/update/delete of tasks and notes: they fire per entity, from the mutating usecases, only when
   something really persisted — never from a flow move. Task events expand `{{.ID}}`/`{{.Type}}`/`{{.Event}}`
