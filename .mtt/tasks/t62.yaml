@@ -1,7 +1,7 @@
 id: t62
 type: task
 title: 'ship runnable init templates: universal domain-neutral flow samples (content/approval/generic script-gate) + the git-integration flagship after t24'
-status: spec_review
+status: spec_fix
 priority: medium
 tags:
     - dx
@@ -12,7 +12,7 @@ refs:
     - kind: task
       id: t33
 created: "2026-07-23T03:58:11Z"
-updated: "2026-07-25T09:12:17Z"
+updated: "2026-07-25T09:22:16Z"
 description: |-
     Split out of t57 (2026-07-23 brainstorm). t57 ships the flow-authoring GUIDE (docs-only); this ships the runnable, discoverable SAMPLES.
 
@@ -44,3 +44,8 @@ history:
           exit: 0
         - cmd: out=$(git status --porcelain -- ":(exclude).mtt") && test -z "$out" || { echo "working tree not clean - commit your code/docs first (.mtt is swept by the move itself)" >&2; false; }
           exit: 0
+    - at: "2026-07-25T09:22:16Z"
+      by: Grigorii Pashukhin
+      why: 'adversarial spec review DECLINE: (BLOCKER) de-embedding coding breaks demo/coding-flow.sh -> make check red, demo/ not in migration scope; (MAJOR) validate-before-write named Config.Validate but prefix/timeout/exactly-one-default live in adapter checkPrefixes incl the letters-only shell-safety prefix rule -> need a shared bytes-decode running the FULL load-path checks (Load reads file, no bytes entry today); (MAJOR) migration undercounted: --template hierarchy in 11 testscripts + init_test + README/DESIGN/FLOW_GUIDE EN+RU, not just roadmap.txt; (MAJOR) TTY confirm + fetch seams under-specified vs t44 fake-httpDoer no-socket precedent; (MINORs) LimitReader silent-truncate, no non-200 check, --name silently ignored for external, git-flow stated-assumptions untestable + runnable-demo scope, classification/x-term dep.'
+      from: spec_review
+      to: spec_fix
