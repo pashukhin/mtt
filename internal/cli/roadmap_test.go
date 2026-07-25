@@ -16,8 +16,9 @@ func TestWriteRoadmapHuman(t *testing.T) {
 		{Task: mtt.Task{ID: "t2", Type: "task", Status: "tbd", Title: "docs"}, Ready: false, BlockedBy: []mtt.TaskID{"t1"}},
 		{Task: mtt.Task{ID: "e1", Type: "epic", Status: "tbd", Title: "epic"}, Ready: true, Contains: []mtt.TaskID{"t1", "t2"}},
 	}
+	tasks := []mtt.Task{{ID: "t1"}, {ID: "t2"}, {ID: "e1"}}
 	var b bytes.Buffer
-	if err := writeRoadmap(&b, entries); err != nil {
+	if err := writeRoadmap(&b, entries, tasks); err != nil {
 		t.Fatal(err)
 	}
 	out := b.String()
@@ -35,13 +36,41 @@ func TestWriteRoadmapHuman(t *testing.T) {
 	}
 }
 
+func TestRoadmapMarksMissing(t *testing.T) {
+	// t1 is blocked by t2 (present) and t99 (absent from the task set) — only the
+	// dangling id is marked, in both the human line and blocked_by_missing.
+	entry := core.RoadmapEntry{Task: mtt.Task{ID: "t1", Type: "task", Status: "tbd", Title: "x"},
+		BlockedBy: []mtt.TaskID{"t2", "t99"}}
+	tasks := []mtt.Task{{ID: "t1"}, {ID: "t2"}}
+
+	var b bytes.Buffer
+	if err := writeRoadmap(&b, []core.RoadmapEntry{entry}, tasks); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(b.String(), "↳ blocked by: t2, t99 (missing)") {
+		t.Fatalf("dangling blocker not marked (missing):\n%s", b.String())
+	}
+
+	data, err := json.Marshal(toRoadmapJSON(entry, existsSet(tasks)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(data), `"blocked_by_missing":["t99"]`) {
+		t.Fatalf("blocked_by_missing must list only the dangling id, got:\n%s", data)
+	}
+	if strings.Contains(string(data), `"t2"`) && strings.Contains(string(data), `"blocked_by_missing":["t2`) {
+		t.Fatalf("present blocker wrongly marked missing:\n%s", data)
+	}
+}
+
 func TestRoadmapJSONShape(t *testing.T) {
 	// A ready entry's blocked_by must serialize as [] (not null); priority is the
 	// stored value, "" when unset (honest, not omitempty).
+	exists := existsSet([]mtt.Task{{ID: "t1"}, {ID: "t2"}, {ID: "e1"}})
 	views := []roadmapJSON{
-		toRoadmapJSON(core.RoadmapEntry{Task: mtt.Task{ID: "t1", Status: "tbd", Priority: mtt.PriorityHigh}, Ready: true}),
-		toRoadmapJSON(core.RoadmapEntry{Task: mtt.Task{ID: "t2", Status: "tbd"}, Ready: false, BlockedBy: []mtt.TaskID{"t1"}}),
-		toRoadmapJSON(core.RoadmapEntry{Task: mtt.Task{ID: "e1", Status: "tbd"}, Ready: true, Contains: []mtt.TaskID{"t1", "t2"}}),
+		toRoadmapJSON(core.RoadmapEntry{Task: mtt.Task{ID: "t1", Status: "tbd", Priority: mtt.PriorityHigh}, Ready: true}, exists),
+		toRoadmapJSON(core.RoadmapEntry{Task: mtt.Task{ID: "t2", Status: "tbd"}, Ready: false, BlockedBy: []mtt.TaskID{"t1"}}, exists),
+		toRoadmapJSON(core.RoadmapEntry{Task: mtt.Task{ID: "e1", Status: "tbd"}, Ready: true, Contains: []mtt.TaskID{"t1", "t2"}}, exists),
 	}
 	data, err := json.Marshal(views)
 	if err != nil {

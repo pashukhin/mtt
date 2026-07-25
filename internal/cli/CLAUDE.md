@@ -264,13 +264,25 @@ each target per kind (`NewTaskID`/`NewNoteSlug`/`url.Parse` scheme+host) → usa
 `writeRefsAndBacklinks` (**c14:** an empty `refs:`/`backlinks:` section prints `  (none)`, mirroring `dep list`,
 not a bare header); `show`/`note show` append `formatRefsBacklinks` (human) and set `showJSON.Refs/
 Backlinks` / `noteShowJSON` (JSON — the lean `taskJSON`/`noteJSON` used by list/edit stay untouched);
-`refJSON`/`backlinkJSON` + `verifiedRefsJSON`/`toBacklinkJSON` are the shared views. **`mtt check`**
-(`check.go`) sweeps via `core.CheckRefs`, prints findings, returns `core.ErrDanglingRefs` → **exit 7** on any
-dangling (0 on clean/unverified); `--json` emits `refCheckJSON` (renamed to avoid the `json.go` `checkJSON`
-clash). Deletion guards: `rm` builds the real `Backlinks` (`loadBacklinks`) and passes it to `core.Remover`;
+`refJSON`/`backlinkJSON` + `verifiedRefsJSON`/`toBacklinkJSON` are the shared views. Deletion guards: `rm`
+builds the real `Backlinks` (`loadBacklinks`) and passes it to `core.Remover`;
 `note rm` gains `--force` + the guard via `core.NoteRemover` (referents from `referentIDs`, which drops the
 note's own self-ref), reusing `resolveAttribution` + `yaml.NewAuditStore` (missing who/why → exit 2).
-`exitCode` maps `core.ErrDanglingRefs → 7` (unit-tested in `TestExitCode`).
+
+Integrity gate (t58): **`mtt check`** (`check.go`) now sweeps via `core.CheckIntegrity` and renders **four
+kinds** — `dangling-ref`/`unverified-ref` (`carrier → kind:target [kind]`), `dangling-dep`
+(`task:X → depends_on:Y [dangling-dep]`), `cycle` (`cycle: a -> b`) — plus the `<dangling> dangling,
+<unverified> unverified, <cycle> cycle across <N> entities` summary (the `dangling` bucket folds ref+dep;
+`countIntegrityCarriers` dedups carriers/subjects; `joinIDs` reuses `idStrings`). It returns
+`core.ErrIntegrity` (renamed from `ErrDanglingRefs`) → **exit 7** iff `integrityHasHard` (any Kind !=
+unverified-ref). `--json` is a **kind-tagged union** (`integrityJSON` + `carrierJSON` with explicit lowercase
+`kind`/`id` tags — an untagged inline struct would capital-case the keys and regress the carrier shape;
+replaces the old `refCheckJSON`/`countCarriers`). **`dep list --cycles`** (`writeDepCycles`) prints then
+returns `core.ErrIntegrity` on a non-empty cycle report (exit 7, both text+`--json`). **`roadmap`**
+(`writeRoadmap`/`toRoadmapJSON` take the full `tasks` snapshot) marks a dangling blocker `(missing)` via
+`markMissing`, and `roadmapJSON.blocked_by_missing` (omitempty, `missingIDs`) lists the dangling subset;
+`existsSet` is the shared id-existence set. `exitCode` maps `core.ErrIntegrity → 7` (unit-tested in
+`TestExitCode`).
 
 KB prime (t51): `--priority` on `note add`/`note edit` (`parsePriority`; `Changed("priority")` → `*mtt.Priority`
 clear on empty, the task-`edit` idiom) and `note list --priority`/`--sort` (`toPriorities` + the validated

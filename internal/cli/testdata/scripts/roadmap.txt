@@ -58,3 +58,17 @@ stderr 'invalid --priority'
 # show prints the priority
 exec mtt show t2
 stdout 'priority: high'
+
+# --- a dangling blocker is marked (missing) (fresh project) ---
+cd $WORK
+mkdir missproj
+cd missproj
+exec mtt init
+exec mtt add 'A'
+exec mtt add 'B'
+exec mtt dep add t1 t2
+exec mtt rm t2 --force --who tester --why 'leave a dangling blocker'
+exec mtt roadmap
+stdout 'blocked by: t2 \(missing\)'
+exec mtt roadmap --json
+stdout '(?s)"blocked_by_missing": \[\s*"t2"\s*\]'

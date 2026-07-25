@@ -562,11 +562,14 @@ deterministic and cycle-safe across both axes (a hand-edited cycle cannot hang i
 returned, best-effort).
 
 - Human: a numbered list — `1. t3  [high]  (tbd)  schema design`, the `[..]` priority label **omitted when
-  unset** (as in `show`); a `  ↳ blocked by: t1, t2` line under a `depends_on`-blocked task, and a `  ↳
-  contains: c1, c2` line under a parent (its non-terminal children).
-- `--json`: `[{"id","title","status","priority","ready","blocked_by":[…],"contains":[…]}]`. `priority` is the
-  **stored** value (`""` when unset — honest; consumers apply their own default); `blocked_by` and `contains`
-  are always arrays (`[]` when empty, never `null`); an empty roadmap is `[]`.
+  unset** (as in `show`); a `  ↳ blocked by: t1, t2 (missing)` line under a `depends_on`-blocked task (a
+  **dangling** blocker — one absent from the task set — marked `(missing)`, consistent with `dep list`/`show`;
+  t58), and a `  ↳ contains: c1, c2` line under a parent (its non-terminal children).
+- `--json`: `[{"id","title","status","priority","ready","blocked_by":[…],"blocked_by_missing":[…],"contains":[…]}]`.
+  `priority` is the **stored** value (`""` when unset — honest; consumers apply their own default);
+  `blocked_by` and `contains` are always arrays (`[]` when empty, never `null`); **`blocked_by_missing`** (t58)
+  is the dangling subset of `blocked_by` (omitted when none, non-null when present — so a machine consumer sees
+  a broken dependency without `blocked_by` changing); an empty roadmap is `[]`.
 
 ---
 
@@ -596,7 +599,9 @@ dependents (`required by:`). With `--json`, emits `{id, depends_on, required_by}
   text tree and the JSON (before c16 the JSON dropped it entirely, so a diamond's second branch looked
   dependency-free).
 - `--cycles` — report dependency cycles in the project (defensive — `dep add` rejects cycles, so this only
-  fires on hand-edited data).
+  fires on hand-edited data). It **gates**: after printing the cycles it **exits `7`** (`ErrIntegrity`) when
+  any exist, for CI-scripting parity with `mtt check` (t58); `no cycles` → exit 0. `--json` exits 7 too when
+  the emitted array is non-empty.
 
 ---
 
@@ -633,13 +638,22 @@ stored). An empty `refs:`/`backlinks:` section prints `(none)` (like `dep list`)
 The same three operations for a **note** carrier (`mtt note ref add auth-design task:t2`, …). Notes can
 reference tasks/notes/urls; a note's backlinks show who references it.
 
-### `mtt check [--json]` — verify references  *(shipped t1)*
-Read-only repo-wide sweep for **dangling** references (a `task`/`note` target that does not exist). Prints
-each finding (`carrier → kind:target [status]`) plus a summary, and **exits `7`** when any dangling reference
-is found — usable as a CI / flow gate. Capability-aware: `note` refs are only checkable with a knowledge base
-(YAML always has one); a `url` is external and reported `unverified`. **`unverified` is not a failure** (exit
-0). `--json` emits a non-null array of `{carrier, ref, status}`. (An automated `--fix` is deferred — a
-follow-up.)
+### `mtt check [--json]` — verify repository integrity  *(shipped t1; integrity gate t58)*
+Read-only repo-wide **integrity** sweep across three finding classes: **dangling refs** (a `task`/`note`
+target that does not exist), **dangling `depends_on`** (a blocker id absent from the task set), and
+**dependency cycles**. Prints each finding (`carrier → kind:target [dangling-ref]`, `task:X → depends_on:Y
+[dangling-dep]`, or `cycle: a -> b -> a`) plus a `<dangling> dangling, <unverified> unverified, <cycle> cycle
+across <N> entities` summary — the `dangling` bucket folds **both** `dangling-ref` and `dangling-dep`, so a
+dangling-dep-only repo still reads `1 dangling` (never a zeroed line). **Exits `7`** on any *hard* finding —
+`dangling-ref` | `dangling-dep` | `cycle` — usable as a CI / flow gate. Capability-aware: `note` refs are only
+checkable with a knowledge base (YAML always has one); a `url` is external and reported `unverified`.
+**`unverified-ref` is soft — not a failure** (exit 0). `--json` emits a non-null, **`kind`-tagged union** — a
+consumer must switch on `kind`: the ref arms carry `{carrier, ref, status}` (+ `kind`), the dangling-dep arm
+`{kind, task, missing}`, the cycle arm `{kind, cycle:[…]}`. Related gates: **`dep list --cycles`** shares the
+exit (7 on a cycle), and **`roadmap`** marks a dangling blocker `(missing)`. **Not covered here:** a
+**duplicate / stem-mismatch** task file fails the YAML load **closed** (c15) → `mtt check` exits **1** (a load
+error surfaced *before* the sweep), not 7 — the two failure modes are distinct. (An automated `--fix` is
+deferred — a follow-up.)
 
 ---
 
@@ -776,14 +790,15 @@ Distinct codes let agents branch on the outcome without parsing text.
 | `4` | Not found (task/note/target does not exist) |
 | `5` | Post-action failed after a persisted move (`ErrPostAction`, t21) — the move is kept |
 | `6` | Invalid transition — not allowed by the type's flow |
-| `7` | Integrity: dangling references found by `mtt check` (`ErrDanglingRefs`, t1) |
+| `7` | Integrity: a hard finding from `mtt check` or `dep list --cycles` — dangling ref / dangling `depends_on` / dependency cycle (`ErrIntegrity`, t1/t58) |
 
 Codes `3` (gate blocked) and `6` (invalid transition) are **implemented (session 006)**, `2` (missing
 required attribution) is **implemented (session 006.5)**, `4` (not found) is **implemented (session 008.5)** —
 applied **uniformly** to every single-task-by-id path (`rm`/`show`/`edit`/`tree`/`use`/`status`/`dep`), which
-all wrap `mtt.ErrNotFound` — `5` (post-action, t21), and `7` (dangling refs, t1). `Execute()` maps
+all wrap `mtt.ErrNotFound` — `5` (post-action, t21), and `7` (integrity: dangling refs t1, broadened to
+dangling `depends_on` + cycles in t58). `Execute()` maps
 `core.ErrBlocked`→3, `core.ErrInvalidTransition`→6, `core.ErrMissingAttribution`→2, `mtt.ErrNotFound`→4,
-`core.ErrPostAction`→5, and `core.ErrDanglingRefs`→7. An unsupported capability (`ErrUnsupported`) has no
+`core.ErrPostAction`→5, and `core.ErrIntegrity`→7. An unsupported capability (`ErrUnsupported`) has no
 distinct code yet (it lands with capability gates); other error paths keep the generic `1`.
 
 **Actionable messages (t28).** Beyond the code, the stderr message tells you how to recover: an **exit 2** prints

@@ -234,7 +234,9 @@ func buildDepTreeJSON(g core.DepGraph, id mtt.TaskID) depTreeJSON {
 	return build(id, map[mtt.TaskID]bool{id: true})
 }
 
-// writeDepCycles reports the project's dependency cycles (or "no cycles").
+// writeDepCycles reports the project's dependency cycles (or "no cycles"), then
+// gates: a non-empty report returns core.ErrIntegrity (exit 7), for scripting
+// parity with `mtt check`. The cycles are always printed first.
 func writeDepCycles(cmd *cobra.Command, g core.DepGraph) error {
 	cycles := g.Cycles()
 	if jsonFlag(cmd) {
@@ -246,7 +248,13 @@ func writeDepCycles(cmd *cobra.Command, g core.DepGraph) error {
 			}
 			out = append(out, chain)
 		}
-		return writeJSON(cmd.OutOrStdout(), out)
+		if err := writeJSON(cmd.OutOrStdout(), out); err != nil {
+			return err
+		}
+		if len(cycles) > 0 {
+			return core.ErrIntegrity
+		}
+		return nil
 	}
 	if len(cycles) == 0 {
 		_, err := fmt.Fprintln(cmd.OutOrStdout(), "no cycles")
@@ -260,8 +268,10 @@ func writeDepCycles(cmd *cobra.Command, g core.DepGraph) error {
 		}
 		fmt.Fprintf(&b, "cycle: %s\n", strings.Join(chain, " -> "))
 	}
-	_, err := fmt.Fprint(cmd.OutOrStdout(), b.String())
-	return err
+	if _, err := fmt.Fprint(cmd.OutOrStdout(), b.String()); err != nil {
+		return err
+	}
+	return core.ErrIntegrity
 }
 
 // renderDepList renders a task's direct blockers ("depends on") and its computed

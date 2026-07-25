@@ -7,9 +7,10 @@ import (
 	"github.com/pashukhin/mtt/pkg/mtt"
 )
 
-// ErrDanglingRefs is returned by the check command when the sweep finds >=1
-// dangling reference (the CLI maps it to exit 7).
-var ErrDanglingRefs = errors.New("mtt: dangling references")
+// ErrIntegrity is returned by the check command when the integrity sweep finds
+// >=1 hard finding (a dangling ref, a dangling depends_on, or a dependency
+// cycle). The CLI maps it to exit 7.
+var ErrIntegrity = errors.New("mtt: integrity check failed")
 
 // RefKey is a reference's natural key (its target).
 type RefKey struct {

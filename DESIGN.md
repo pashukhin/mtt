@@ -886,8 +886,9 @@ refs:
 - **Verification is capability-aware:** `task`/`comment` resolve via `TaskStore` (always); `note` only with
   `KnowledgeStore` (otherwise "cannot verify: no KB"); `url` is external, not resolved (optional HEAD check later).
 - **Semantics:** on write — warn about a dangling reference (not a hard block); `mtt check` — a repo-wide
-  sweep for dangling references; `mtt show` — the references and **backlinks** ("what references this"); on
-  deleting a target — **refuse by default** (a delete is irreversible; `--force` overrides, signed).
+  **integrity** sweep (dangling refs + dangling `depends_on` + dependency cycles, exit 7 on any hard finding);
+  `mtt show` — the references and **backlinks** ("what references this"); on deleting a target — **refuse by
+  default** (a delete is irreversible; `--force` overrides, signed).
 - **Phases:** the `refs` field — in the model already at phase 1; all `refs` wiring + verification + backlinks
   + `mtt check` — **t1**.
 
@@ -903,13 +904,29 @@ refs:
 > warning, exit 0; the carrier must exist, else exit 4; a malformed `kind:target`/URL/slug is exit 1).
 > **Backlinks are a computed cross-store value** (`core.Backlinks` from a tasks+notes snapshot — the
 > "back-refs computed, never stored" invariant), surfaced in `mtt show`/`note show`/`ref list`. **`mtt check`**
-> is a read-only sweep that **exits 7** on any dangling ref (0 on clean/unverified) — gate/CI-usable.
+> is a read-only sweep that **exits 7** on any dangling ref (0 on clean/unverified) — gate/CI-usable (**t58**
+> broadened it into the full integrity gate; see Shipped t58 below).
 > **Deletion is refuse-by-default + `--force`, unified & cross-store:** `mtt rm`/`mtt note rm` consult the same
 > computed `Backlinks` (so a task referenced by a **note** also blocks) and refuse unless `--force`, which —
 > as a destructive override — forces `--who`/`--why` + an audit record (a new `core.NoteRemover` mirrors the
 > task `Remover`; `core.Remover` gains **no** KB port — it consumes the computed value). A self-reference never
 > blocks its own delete. **Still t2:** `comment` refs (target + carrier); **follow-up:** `mtt check --fix`, URL
 > liveness (HEAD).
+
+> **Shipped (t58): `check` is the single integrity gate.** `core.CheckIntegrity(tasks, notes, kbWired)`
+> composes the existing ref sweep with two detectors — a **dangling `depends_on`** sweep (a blocker id absent
+> from the task set) and **`DepGraph.Cycles()`** — into one `IntegrityFinding` discriminated union (`Kind` ∈
+> `dangling-ref` / `unverified-ref` / `dangling-dep` / `cycle`; hardness is **encoded in the kind**, so a
+> consumer never reads a nested status to know whether it gates). `mtt check` renders all four and **exits 7**
+> on any *hard* finding (`dangling-ref`/`dangling-dep`/`cycle`); `unverified-ref` (url / no-KB) stays soft
+> (exit 0). The sentinel `ErrDanglingRefs` is renamed **`ErrIntegrity`** (exit 7 unchanged — the code now
+> covers more than refs). `--json` is a **`kind`-tagged union** — a consumer switches on `kind` (the ref arms
+> keep `carrier`/`ref`/`status`; the dep arm is `{kind,task,missing}`; the cycle arm `{kind,cycle:[…]}`).
+> **`dep list --cycles` shares the exit** (returns `ErrIntegrity` on a cycle — CI-gating parity with `check`),
+> and **`roadmap`** marks a dangling blocker `(missing)` (text + a `blocked_by_missing` JSON array), consistent
+> with `dep list`/`show`. **Out of scope (Non-goal):** duplicate-id — a stem-mismatch file already fails the
+> load **closed** (c15 guard) → `mtt check` exits **1** (a load error before the sweep), not 7; the two failure
+> modes are distinct.
 
 > **Shipped (t51): KB prime — a curated session-start digest.** Notes gain an **importance axis** —
 > `Note.Priority` reuses the task `Priority` VO (high/medium/low; unset = medium in ordering, `omitempty` on
