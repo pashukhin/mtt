@@ -201,7 +201,7 @@ func exitCode(err error) int {
 		return 4
 	case errors.Is(err, core.ErrPostAction):
 		return 5
-	case errors.Is(err, core.ErrDanglingRefs):
+	case errors.Is(err, core.ErrIntegrity):
 		return 7
 	default:
 		return 1

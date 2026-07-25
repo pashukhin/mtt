@@ -57,7 +57,7 @@ func newCheckCmd() *cobra.Command {
 				}
 			}
 			if dangling > 0 {
-				return core.ErrDanglingRefs
+				return core.ErrIntegrity
 			}
 			return nil
 		},

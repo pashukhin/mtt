@@ -72,7 +72,7 @@ func TestExitCode(t *testing.T) {
 		{errors.New("wrap: " + core.ErrInvalidTransition.Error()), 1}, // plain string does not match
 		{core.ErrInvalidTransition, 6},
 		{core.ErrMissingAttribution, 2},
-		{core.ErrDanglingRefs, 7},
+		{core.ErrIntegrity, 7},
 		{core.ErrPostAction, 5},
 		{&core.PostActionError{Cause: "x"}, 5}, // typed form still maps to 5 via Is()
 		// the bulk aggregate is a PLAIN error (s008.9): generic 1, never a
