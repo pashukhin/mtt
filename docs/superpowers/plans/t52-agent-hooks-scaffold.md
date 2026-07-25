@@ -1327,7 +1327,7 @@ Expected: PASS.
 
 ```bash
 make check
-git add internal/cli/init.go internal/cli/json.go internal/cli/testdata/scripts/init.txt
+git add internal/cli/init.go internal/cli/json.go internal/cli/testdata/scripts/init.txt internal/cli/testdata/scripts/agent_hooks.txt
 git commit -m "t52: mtt init scaffolds agent hooks by default (--no-agent-hooks)"
 ```
 
