@@ -1,7 +1,8 @@
 # t62 — Runnable init templates (spec)
 
-Status: revision 1 — decided in the 2026-07-25 brainstorm (three user decisions: template strategy,
-built-in scope, external-source safety UX; + one user refinement: a top-level `templates/` directory).
+Status: revision 2 — addresses the 2026-07-25 adversarial spec review (1 blocker, 4 majors, 5 minors).
+Decided in the 2026-07-25 brainstorm (three user decisions: template strategy, built-in scope,
+external-source safety UX; + one user refinement: a top-level `templates/` directory).
 
 ## Problem
 
@@ -61,6 +62,11 @@ t62 ships the **runnable, discoverable** side. Today `mtt init --template <name>
   headers). Private hosting is out.
 - **A template registry / index / discovery service** — `--template <url>` is a direct file fetch.
 - **Non-https remote** — `http://` is refused (Decision 3); no ftp/file:// schemes.
+- **SSRF / loopback / internal-address blocking** — the user runs the fetch on their own machine against a URL
+  they typed; guarding against loopback/metadata-endpoint targets is out of scope (it would also foreclose a
+  future loopback test server). https-only + the loud review notice + validate-before-write is the boundary.
+- **A checksum / signature pin for a fetched template** — config-as-code is reviewed like a Makefile (SEC2);
+  the trust boundary is the notice + validate-before-write, not a supply-chain pin.
 
 ## Design
 
@@ -88,33 +94,55 @@ never bloating the binary. A golden/round-trip test asserts `default.yaml` loads
 Classify `arg` in this order (built-in names win for bare tokens; explicit shape selects file/url):
 
 1. prefix `https://` → **URL** source. A `http://` prefix is a hard error ("remote templates must be https").
-2. contains a path separator **or** ends in `.yaml`/`.yml` → **local file path** (a path that does not
-   exist / is unreadable is a clear error, exit 1). So a file is selected only by an explicit path shape.
+2. contains a path separator (`/` **or** the OS `filepath.Separator`, so Windows `\` counts) **or** ends in
+   `.yaml`/`.yml` → **local file path**. A path that does not exist / is unreadable is a clear error (exit 1);
+   when the missing path *looks* like a scheme-less URL (contains a `.`-bearing host segment before the first
+   `/`, e.g. `raw.githubusercontent.com/…/x.yaml`), the error appends a hint: "did you mean `https://…`?".
 3. otherwise (a **bare token** — no separator, no yaml suffix) → **built-in name**: `default` resolves to the
    embedded built-in; any other bare name is the existing sorted-valid-names error (never silently a file).
 
 Bare tokens are thus reserved for built-in names — `--template default` is the built-in even if a file
 `default` exists in cwd; a user selects that file with `./default` or `default.yaml`. The classifier is a
 pure function (returns the source kind + cleaned value) so the CLI can decide whether a confirmation prompt
-is needed before any I/O.
+is needed before any I/O. (SSRF / loopback-address blocking on a user-supplied URL is a **non-goal** — the
+user runs the fetch on their own machine against a URL they typed; see Non-goals.)
 
 ### 3. External source flow (path or URL)
 
-Both external kinds share: **fetch → validate → (confirm, url only) → write-verbatim → notice**.
+Both external kinds share: **(confirm, url only) → fetch → validate → write-verbatim → notice**. The
+confirm precedes the fetch so a declined URL touches the network zero times.
 
-- **Fetch bytes.** File: read the path. URL: `GET` behind an injectable seam (see §5) — **https-only**, a
-  **~30s timeout**, a **~1 MiB** body cap (`io.LimitReader`; over-cap is an error), redirects followed but
-  the final hop must stay https (a redirect to http is refused).
-- **Validate before write (fail-closed).** Parse the bytes through the config load path and run
-  `Config.Validate` (the same checks `Load` runs — exactly one default type, prefix rules, flow sanity). A
-  template that does not parse/validate errors and **writes nothing** (no partial `.mtt/config.yaml`).
-- **URL confirmation.** A URL source prompts on stderr: `install template from <url>? [y/N]` reading
-  `cmd.InOrStdin()`; only `y`/`yes` proceeds. `--yes` skips the prompt. **Non-interactive guard:** if stdin
-  is **not a TTY** and `--yes` was not passed, the URL is **refused** (exit 1, "refusing to fetch a remote
-  template without confirmation; pass --yes") — no silent remote fetch in a pipe/CI. A local path never
-  prompts.
+- **URL confirmation (before any I/O).** A URL source prompts on stderr: `install template from <url>?
+  [y/N]` reading `cmd.InOrStdin()`; only `y`/`yes` proceeds. `--yes` skips it. **Non-interactive guard:** if
+  stdin is **not a TTY** and `--yes` was not passed, the URL is **refused** (exit 1, "refusing to fetch a
+  remote template without confirmation; pass --yes") — no silent remote fetch in a pipe/CI. A local path never
+  prompts. The decision is a **pure function** `confirmRemote(in io.Reader, isTTY, autoYes bool) (proceed bool,
+  err error)` — unit-tested directly (isTTY=true + a scripted buffer for the `y`/`n`/empty paths; the
+  non-TTY-refuse path with isTTY=false). **TTY detection uses the stdlib** — `os.Stdin.Stat()` &
+  `os.ModeCharDevice` — so **no new dependency** (avoids `golang.org/x/term`; keeps the `go 1.23.1` floor per
+  the go-get-@latest lesson).
+- **Fetch bytes.** File: `os.ReadFile`. URL: `GET` behind an injectable **`httpDoer`** seam (see §5) —
+  **https-only**, a **~30s timeout**, a non-`200` response is an error (`fetch <url>: HTTP <status>`, so a
+  404/500 reads as "not found", not "invalid config"), redirects followed but a redirect whose target is not
+  https is **refused** (a `CheckRedirect` that rejects a non-https hop). **Size cap:** read with
+  `io.LimitReader(body, cap+1)` and error when the result exceeds `cap` (~1 MiB) — `LimitReader` truncates
+  **silently**, so the `+1` sentinel is required to detect (not silently truncate) an over-cap body.
+- **Validate before write (fail-closed).** Run the bytes through a **new shared adapter decode entry point**
+  `DecodeConfig(bytes) (Config, Settings, error)` that performs the **full load-path checks** — YAML decode +
+  **`checkPrefixes`** (exactly-one-default, prefix present + unique + **letters-only**, the documented
+  **shell-safety boundary**: a minted `<prefix><N>` is expanded into `{{.ID}}` inside `sh -c`, so a prefix
+  with shell metacharacters must be refused at init, not deferred to the first move) + **`parseCommandTimeout`**
+  + `Config.Validate` (topology/flow/parents/events). `Load(root)` refactors to `os.ReadFile` → `DecodeConfig`,
+  so a file config and an untrusted external template get **byte-identical** checks. `Config.Validate` alone is
+  **insufficient** — it does not check prefixes/timeout/single-default (those are the adapter's `checkPrefixes`
+  + `parseCommandTimeout`). A template failing any check errors and **writes nothing** (no partial
+  `.mtt/config.yaml`).
 - **Write verbatim.** External bytes are written **as-is** (Decision 5) via the existing atomic write; no
-  `{{.Name}}` substitution. The embedded `default` keeps its `{{.Name}}` render path.
+  `{{.Name}}` substitution. The embedded `default` keeps its `{{.Name}}` render path. Consequently `--name` is
+  **ignored for external sources** (verbatim skips `renderTemplate`): the CLI prints a stderr note when `--name`
+  is passed with a path/url so the drop is never silent, and `git-flow.yaml` pins a literal neutral
+  `project.name` (not `{{.Name}}`, which `core` never expands — it only expands `{{.ID}}/{{.Type}}/{{.From}}/
+  {{.To}}` in commands).
 
 ### 4. SEC2 "loud" review notice
 
@@ -128,20 +156,36 @@ After a successful **external** write (path or url), print a prominent notice on
 
 `init` runs nothing, so the guard is review-before-first-transition. The built-in `default` (no commands)
 prints the normal `initialized …` line only. `--json` gains a `source` field (`builtin:default` |
-`file:<path>` | `url:<url>`) so an automated caller sees provenance; the notice text is stderr-only.
+`file:<path>` | `url:<url>`) so an automated caller sees provenance; the existing `template` field stays
+(now holding the raw `--template` arg — the built-in name, path, or url) for back-compat with `init.txt`'s
+`"template": "default"` assertion. The notice text is stderr-only, so it never pollutes `--json` stdout.
 
 ### 5. Architecture / testability
 
 - **Classification** (§2) is a pure function — unit-tested table.
-- **Network fetch** is behind an injectable seam (mirroring t44's `ReleaseSource` → `internal/adapter/github`):
-  a small `TemplateFetcher` (`Fetch(url) ([]byte, error)`) with an https implementation and a fake/`httptest`
-  in tests. **No external network in tests** (AGENTS.md): URL paths are unit-tested against a loopback
-  `httptest.Server` (deterministic); e2e covers built-in + file-path + the **non-TTY URL refuse** (which
-  errors before any fetch, so it needs no server).
-- **Validation** reuses the existing config parse + `Config.Validate` — no second validator.
-- The **CLI stays thin**: classify → (prompt on url) → resolve bytes → validate → write → notice/JSON. The
-  adapter owns fetch/read/validate/write; `core`/`pkg` own no new policy beyond what `Config.Validate`
-  already enforces.
+- **Network fetch** mirrors t44 **exactly**: the github adapter injects a fake **`httpDoer`**
+  (`Do(*http.Request) (*http.Response, error)`) into the *real* `Source` so tests exercise the real logic
+  **without a socket** (`github/CLAUDE.md`: "tests use a fake — no socket; the no-network-in-tests rule").
+  The template fetcher does the same: a real `Fetcher{doer httpDoer}` holds all the https-only / redirect-refuse
+  / non-200 / size-cap / timeout logic, and unit tests inject a fake `httpDoer` returning crafted
+  `*http.Response`s to cover **each** branch (https-reject, redirect-to-http-refuse, HTTP 404, over-cap body,
+  success) — **no `httptest.Server`, no loopback socket**, honoring AGENTS.md. (Revised from rev1, which
+  proposed a loopback `httptest.Server` — that both contradicts the cited precedent and bends "no network in
+  tests"; a fake doer tests the same logic hermetically.)
+- **Confirm/TTY** is a pure `confirmRemote(in, isTTY, autoYes)` (§3) — the *decision* is unit-tested with a
+  scripted reader for `y`/`n`/empty/`--yes`/non-TTY; only the thin TTY-detection call (`os.Stdin.Stat()`) sits
+  in the CLI, uninjected (its non-TTY result is what the e2e subprocess exercises).
+- **Validation** is the new shared `DecodeConfig(bytes)` (§3) that `Load` also calls — one validator over both
+  a file config and untrusted external bytes; no second/weaker validator.
+- **Coverage split (honest):** the real binary in `testscript` runs as a non-TTY subprocess, so e2e covers
+  **built-in `default`**, **file-path install** (+ the verbatim/`{{.ID}}` survival, validate-fail-closed), and
+  the **non-TTY URL refuse** (errors before any fetch — no server needed). The **URL happy path + fetch error
+  branches** and the **interactive confirm** are **unit-tested** (fake `httpDoer` / scripted `confirmRemote`),
+  since a testscript subprocess can neither present a TTY nor be handed a fake doer. This split is deliberate
+  and stated (not an overclaim).
+- The **CLI stays thin**: classify → (confirmRemote on url) → fetch (adapter) → `DecodeConfig` (adapter) →
+  write (adapter) → notice/JSON. The adapter owns fetch/read/decode-validate/write; `core`/`pkg` own no new
+  policy.
 
 ### 6. The git-flow flagship (`templates/git-flow.yaml`)
 
@@ -154,32 +198,65 @@ brainstorm→spec→plan→TDD→review→deliver lifecycle, git `post:` actions
   = PR_TITLE` — stated where the deliver grep relies on it; the `--no-run` bypass caveat (t32) — in each
   state-moving edge's own description (a bypass skips **all** commands incl. context moves; the client owns
   their commands under bypass exactly as under execution).
-- It loads + validates (test). It is the canonical target of `mtt init --template <url>` and the FLOW_GUIDE
-  forward-link. It is **not** the live `.mtt/config.yaml` (which stays repo-operational).
+- **The "stated" half is made testable, not just reviewer-trusted:** a Go test asserts `git-flow.yaml`'s edge
+  descriptions actually contain the required keywords (case-insensitive `push`, `gh`, `jq`, `--no-run`), so a
+  future edit that drops a safety statement fails the suite. The template also **loads + validates**.
+- **Explicit scope reduction (owned, not silent):** the release bar says templates "ship runnable and tested
+  like `demo/`". A git-integration flow **cannot** run hermetically (it needs a real remote, `gh`, a merged
+  PR), so `git-flow.yaml` ships **load+validate + the keyword test**, **not** a `coding-flow.sh`-style runnable
+  demo. This is a deliberate, stated carve-out — the runnable-demo bar applies to command-free sample flows,
+  which this task does not add.
+- It is the canonical target of `mtt init --template <url>` and the FLOW_GUIDE forward-link. It is **not** the
+  live `.mtt/config.yaml` (which stays repo-operational).
 
 ### 7. Removed built-ins + test/migration
 
-- `renderTemplate`'s built-in registry shrinks to `{default}`; `--template` help + the unknown-name error
-  list only `default`.
-- `coding`/`hierarchy` move to `templates/` as hosted examples. Tests that used them migrate to the
-  **file-path** source (also exercising §2/§3): `roadmap.txt` (needs epic/parent types) ships `hierarchy.yaml`
-  as a txtar file in `$WORK` and does `mtt init --template ./hierarchy.yaml`; `init_test.go`/`init.txt` update
-  their template list + assertions.
+De-embedding `coding`/`hierarchy` removes them as **built-in names**, so every `--template coding|hierarchy`
+call site must migrate. The rev1 spec undercounted this badly (spec-review MAJOR + BLOCKER); the full,
+grepped surface (`git grep -- "--template hierarchy|--template coding"`):
+
+- **Built-in registry:** `renderTemplate`'s map shrinks to `{default}`; `--template` flag help + the
+  unknown-name error list only `default`.
+- **`demo/` (the BLOCKER — it rides `go test ./...` = `make check`):** `demo/coding-flow.sh:77` calls
+  `mtt init --template coding`; `demo/coding_flow_test.go` runs that script. Migrate the script to **write
+  `coding.yaml` into its work dir** (a heredoc, or copy from the repo `templates/coding.yaml` via a
+  `$REPO_ROOT`-relative path the test passes in) then `mtt init --template ./coding.yaml`. Update
+  `demo/README.md` + `demo/README.ru.md` (the `mtt init --template coding` prose) and `demo/doc.go` if it names it.
+- **11 testscripts** use `--template hierarchy`/`coding`: `add_depends_on.txt`, `add_show.txt`, `batch.txt`,
+  `dep.txt`, `init.txt`, `list_edit.txt`, `ready.txt`, `roadmap.txt`, `rm.txt`, `tags.txt`, `tree.txt`
+  (several genuinely need epic/subtask types). Mechanism: a shared **`testscript` `Setup` hook**
+  (`script_test.go`) writes `hierarchy.yaml` (and `coding.yaml` where used) into each script's `$WORK`; the
+  scripts switch `--template hierarchy` → `--template $WORK/hierarchy.yaml` (a mechanical one-token edit that
+  also exercises the new **file-path** source). `init.txt` additionally updates its built-in-list + unknown
+  assertions and adds the new external-source cases.
+- **`init_test.go:31`** (`--template coding`) migrates the same way (file-path fixture) or switches to `default`.
+- **Docs (EN+RU) naming the removed built-ins as runnable commands:** `README.md`/`README.ru.md` (×2 each),
+  `DESIGN.md`/`DESIGN.ru.md`, `FLOW_GUIDE.md`/`FLOW_GUIDE.ru.md` — updated in the Docs sweep (below), so no
+  doc tells a user to run a now-removed built-in.
 
 ## Testing (TDD)
 
-- **Classification** unit table: `default`→builtin; `x.yaml`/`./x`/`a/b`→file; `https://…`→url;
-  `http://…`→error; unknown bare→sorted-names error.
-- **Validate-fail-closed**: a malformed external template errors and writes no `.mtt/config.yaml`.
-- **Verbatim**: an external template containing `{{.ID}}` survives byte-for-byte (not eaten / not an error).
-- **URL (httptest, loopback)**: success; https-reject (`http://`); size-cap; timeout; redirect-to-http refuse;
-  `--yes` skips confirm; non-TTY + no `--yes` → refuse (no fetch).
-- **Confirm**: `y` proceeds, `n`/empty aborts (no write).
-- **Notice + `--json` source**: external write prints the ⚠ block on stderr and sets `source`; built-in does
-  not.
-- **Built-in `default` unchanged**: existing golden/e2e still green; `git-flow.yaml` + `default.yaml` load +
-  validate.
-- **e2e**: `init.txt` (built-in + file-path + non-TTY-url-refuse), migrated `roadmap.txt`.
+- **Classification** unit table: `default`→builtin; `x.yaml`/`./x`/`a/b` (and Windows `a\b`)→file;
+  `https://…`→url; `http://…`→error; unknown bare→sorted-names error; scheme-less `host.com/x.yaml`→file with
+  the `https://` hint on not-found.
+- **`DecodeConfig` (the shared validator)**: rejects a bad prefix (empty / duplicate / **shell-metachar** —
+  the injection case), `defaults != 1`, a bad `command_timeout`, and a topology/flow error — each writes
+  **nothing**. A regression check that the refactored `Load` still passes its existing tests (file → same
+  result).
+- **Verbatim**: an external template containing `{{.ID}}` survives byte-for-byte (not eaten / not an error);
+  `--name` with an external source is ignored + a stderr note is printed.
+- **Fetch (fake `httpDoer`, no socket)**: success; https-reject (`http://`); redirect-to-http refuse; HTTP
+  404/500 → `HTTP <status>` error; over-cap body → error (not silent truncation); each branch via a crafted
+  `*http.Response`.
+- **`confirmRemote` (pure)**: `y`/`yes`→proceed; `n`/empty→abort (no write); `autoYes`→proceed without reading;
+  `isTTY=false && !autoYes`→refuse.
+- **Notice + `--json`**: an external write prints the ⚠ block on stderr and sets `source` (`file:…`/`url:…`);
+  the built-in prints neither; `template` still carries the raw arg.
+- **git-flow.yaml**: loads + validates; the **description-keyword** test (`push`/`gh`/`jq`/`--no-run` present).
+- **Built-in `default` unchanged**: existing golden/e2e green; `default.yaml` loads + validates.
+- **e2e** (`init.txt`): built-in `default`; **file-path** install (+ verbatim `{{.ID}}` survival +
+  validate-fail-closed on a broken file); **non-TTY URL refuse** (errors before any fetch — no server); plus
+  the migrated hierarchy/coding scripts (via the `$WORK` fixture).
 
 ## Docs
 
@@ -188,19 +265,25 @@ Sweep all parallel occurrences (EN+RU) per the design-docs-parallel-occurrences 
 - **CLI_REFERENCE (EN+RU):** `mtt init --template <name|path|url>` — the three forms, the resolution rule, the
   https-only + confirm + `--yes` + caps for URL, validate-before-write, the review notice, the `--json`
   `source` field; the built-in list is now just `default`.
+- **README (EN+RU):** the `--template coding`/`hierarchy` mentions (×2 each) update — either to `default` or to
+  the new `--template <url>` example; no README tells a user to run a removed built-in.
 - **FLOW_GUIDE (EN+RU):** the forward-link resolves — "install a ready flow: `mtt init --template <url>`",
-  pointing at `templates/` (the git-flow flagship named).
+  pointing at `templates/git-flow.yaml`; any `--template hierarchy/coding` mention updated.
 - **DESIGN (EN+RU):** a Shipped(t62) note — the minimal-built-in + bring-your-own strategy, the top-level
-  `templates/` dir, the no-silent-traps / SEC2 posture, t24→t66 unblocking the flagship.
+  `templates/` dir, the `DecodeConfig` shared-validation refactor, the no-silent-traps / SEC2 posture, t24→t66
+  unblocking the flagship; any `--template hierarchy/coding` mention updated.
+- **`demo/README.md` + `demo/README.ru.md`** (+ `doc.go` if it names it): the `mtt init --template coding`
+  prose reflects the migrated demo (writes `coding.yaml` then `--template ./coding.yaml`).
 - **CLAUDE.md:** `internal/cli` (init external-source flow + confirm/notice), `internal/adapter/yaml`
-  (classification/fetch/validate/verbatim), and the new root `templates` package.
+  (classification/fetch/`DecodeConfig`/verbatim + the `Load` refactor), and the new root `templates` package.
 - **CHANGELOG:** one `[Unreleased]` entry. **`templates/README.md`:** adaptable-samples framing + fetch how-to.
 
 ## Open seams (recorded, not built)
 
 - **`--template <url>` for private/authed sources** — anonymous https only here; tokens/auth are a later ask.
 - **Template index / discovery** — no registry; a direct file fetch only.
-- **URL happy-path in `testscript`** — covered by unit `httptest`; a harness-served loopback URL for e2e is
-  possible (start a server in `TestMain`, pass via env) but deferred unless the unit coverage proves thin.
-- **A checksum/pin for a fetched template** — out of scope; the loud notice + validate-before-write is the
-  trust boundary (config-as-code is reviewed like a Makefile, SEC2).
+- **URL happy-path in `testscript`** — covered by unit tests with a fake `httpDoer` (no socket, §5); a
+  harness-served loopback URL for e2e is possible (start a server in `TestMain`, pass via env) but deferred
+  unless the unit coverage proves thin (and it would reintroduce a real socket, against no-network-in-tests).
+- **A checksum/pin for a fetched template** — out of scope (also a Non-goal); the loud notice +
+  validate-before-write is the trust boundary (config-as-code is reviewed like a Makefile, SEC2).
