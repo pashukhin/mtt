@@ -52,11 +52,7 @@ func Load(root string) (mtt.Config, Settings, error) {
 	if err := decodeInto(filepath.Join(root, dirName, localConfigName), &yc, false); err != nil {
 		return mtt.Config{}, Settings{}, err
 	}
-	cfg, prefixes := yc.toDomain()
-	if err := checkPrefixes(cfg, prefixes); err != nil {
-		return mtt.Config{}, Settings{}, err
-	}
-	timeout, err := parseCommandTimeout(yc.CommandTimeout)
+	cfg, prefixes, timeout, err := checkDecoded(yc)
 	if err != nil {
 		return mtt.Config{}, Settings{}, err
 	}
@@ -65,6 +61,39 @@ func Load(root string) (mtt.Config, Settings, error) {
 		Why: committedRequire.Why || yc.Require.Why,
 	}
 	return cfg, Settings{Prefixes: prefixes, CommandTimeout: timeout, Author: yc.Author, Require: require}, nil
+}
+
+// checkDecoded runs the YAML provider's post-decode checks — exactly what Load
+// applies after its overlay: toDomain + checkPrefixes (single default, prefix
+// present/unique/letters-only — the shell-safety boundary) + parseCommandTimeout.
+// It deliberately does NOT run Config.Validate (that is the caller's, per Load's
+// contract); the external-template path adds it in ValidateTemplateBytes.
+func checkDecoded(yc ymlConfig) (mtt.Config, map[string]string, time.Duration, error) {
+	cfg, prefixes := yc.toDomain()
+	if err := checkPrefixes(cfg, prefixes); err != nil {
+		return mtt.Config{}, nil, 0, err
+	}
+	timeout, err := parseCommandTimeout(yc.CommandTimeout)
+	if err != nil {
+		return mtt.Config{}, nil, 0, err
+	}
+	return cfg, prefixes, timeout, nil
+}
+
+// ValidateTemplateBytes fail-closed-validates an external (path/url) template:
+// decode a single doc → the provider checks (checkDecoded) → Config.Validate.
+// Init legitimately IS the caller that owns the domain check for an untrusted
+// template, so this is the one place Config.Validate rides the load path.
+func ValidateTemplateBytes(data []byte) error {
+	var yc ymlConfig
+	if err := goyaml.Unmarshal(data, &yc); err != nil {
+		return fmt.Errorf("parse template: %w", err)
+	}
+	cfg, _, _, err := checkDecoded(yc)
+	if err != nil {
+		return err
+	}
+	return cfg.Validate()
 }
 
 // parseCommandTimeout parses the command_timeout string; empty yields the
