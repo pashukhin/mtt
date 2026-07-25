@@ -12,6 +12,17 @@ refusal; **m5** the merge is nil-/type-safe over arbitrary user JSON (unknown sh
 incompatible existing type at a path we must extend ⇒ loud refusal, never clobber); **m6** `mtt agent hooks`
 resolves the root via `projectRoot` (requires `.mtt/`, honors `--dir`/`MTT_DIR`).
 
+rev3 addresses the 2026-07-25 **second** adversarial spec review (0 blocker, 3 major, 3 minor — all small, all
+in rev2's own fixes or a gap it surfaced): **R1** the one serializer must be a `json.Encoder` with
+`SetEscapeHTML(false)` — `json.MarshalIndent` HTML-escapes `>` and would write our own `mtt prime 2>/dev/null`
+(verified empirically); **R2** the `fsutil` extraction must also export `SyncDir` and repoint `audit.go`'s
+direct `syncDir` caller (else the adapter won't compile — "tests stay green" was false); **R3** define
+`mtt init`'s config-then-scaffold **failure contract** (config is written first; a scaffold error is exit 1
+with config-success reported first) + `Run`'s multi-harness/read-error semantics; **r4** an explicit JSON
+`null` at a container path ⇒ treated as absent (create), like m4; **r5** the presence predicate is a
+leading-`mtt prime` **prefix** match (after trimming), not a loose substring; **r6** `Run` treats only
+`os.IsNotExist` as absent, other read errors propagate.
+
 ## Problem
 
 t51 shipped `mtt prime` (a curated KB session-start digest) but left **the hook that runs it as
@@ -108,6 +119,15 @@ so t46's docs facet is a sibling subcommand of the same `mtt agent` group.
 - `mtt init` gains **`--no-agent-hooks`** (bool, default false). After the config write, unless the flag is
   set, init runs the shared scaffold and folds the results into its output. `initJSON` gains a `scaffold`
   array of the same `{harness, path, action}` objects (non-null; empty `[]` when opted out).
+- **init failure contract (R3).** The config write is init's **primary job** and runs **first**; the scaffold
+  runs **after**, so a scaffold failure can only occur once config is already on disk. If `Run` errors (a
+  pre-existing malformed / m5-incompatible `.claude/settings.json`), init **reports the config success first**
+  (human: the existing `initialized …` line; then the scaffold error on stderr) and returns the **wrapped
+  scaffold error → exit 1** — `.mtt/config.yaml` is **kept** (it was written and is valid; no rollback of a
+  completed primary job, mirroring the t21/t28 "the change IS saved" posture). In `--json` mode, init prints
+  **no** partial JSON object on a scaffold failure (a half-object would misread as success); the error goes to
+  stderr and the non-zero exit is the signal. (A config-write failure — e.g. `ErrAlreadyInitialized` without
+  `--force` — aborts **before** the scaffold, unchanged from today.)
 - **Root resolution (m6).** `mtt agent hooks` resolves the project root via **`projectRoot(cmd)`** (the shared
   `--dir`/`MTT_DIR`-then-`FindRoot` resolver used by the read commands) — it is an onboarding command **for an
   already-initialized mtt project** (the scaffolded hook runs `mtt prime`, which needs `.mtt/`), so an absent
@@ -137,11 +157,11 @@ A single JSON file, two concerns. Newly-created shape (existing files are **merg
 }
 ```
 
-> **On-disk byte order (M1).** The block above is shown in **reading order**. On disk the single map-based
-> serializer (see Merge semantics) emits object keys **alphabetically** (`command` before `type`; `PreCompact`
-> before `SessionStart`; `hooks` before `permissions`) with 2-space indent + a trailing newline. **Array**
-> element order (the `allow` list) is preserved as authored. Unit test 1 and the e2e assert those exact bytes —
-> not the reading-order shape.
+> **On-disk byte order (M1/R1).** The block above is shown in **reading order**. On disk the single serializer
+> (see Merge semantics) emits object keys **alphabetically** (`command` before `type`; `PreCompact` before
+> `SessionStart`; `hooks` before `permissions`) with 2-space indent + a trailing newline. `>` is **not**
+> escaped (`SetEscapeHTML(false)`), so `2>/dev/null` is written literally. **Array** element order (the `allow`
+> list) is preserved as authored. Unit test 1 and the e2e assert those exact bytes — not the reading-order shape.
 
 - **Hooks** — the field-tested reference shape (both `SessionStart` and `PreCompact`; the latter re-injects
   the digest around compaction, and `SessionStart` also re-fires with `source=compact`). The command is
@@ -172,23 +192,37 @@ it):
 - `claude.go` — the Claude Code `Harness` (JSON merge, below).
 - `registry.go` — the registry `Registry() []Harness` (t52: exactly `claude`); the **single** extension point.
 - `Run(root string, harnesses []Harness) ([]Result, error)` — the thin **IO edge**, shared by `mtt agent
-  hooks` and `mtt init` (DRY): for each harness, read `<root>/<RelPath>` (absent ⇒ `exists=false`), call
-  `Merge`, and — iff `action != Unchanged` — `MkdirAll` the parent dir + **`fsutil.AtomicWrite(path, data,
-  0o644)`**; collect `Result{Harness, Path, Action}`. A `Merge` error (malformed existing JSON, or an
-  incompatible existing shape per m5) aborts that harness with a wrapped error naming the path; with one
-  harness this fails the command.
+  hooks` and `mtt init` (DRY): for each harness, read `<root>/<RelPath>`, call `Merge`, and — iff `action !=
+  Unchanged` — `MkdirAll` the parent dir + **`fsutil.AtomicWrite(path, data, 0o644)`**; collect
+  `Result{Harness, Path, Action}`. Semantics pinned for the seam (R3/r6):
+  - **Read errors (r6):** only `os.IsNotExist` ⇒ `exists=false` (⇒ `Merge` may `Create`); **any other** read
+    error (EACCES, …) is **propagated**, never mistaken for absent.
+  - **Failure = stop, return partial results (R3):** a `Merge` error (malformed existing JSON, or an
+    incompatible existing shape per m5) or a write error aborts the loop and returns `(resultsSoFar, wrapped
+    error naming the harness+path)` — **write-as-you-go**, so already-processed harnesses' `Result`s come back
+    alongside the error (callers can report what did land). With t52's single harness this is simply "the
+    command fails"; the contract is fixed **now** so the deferred second harness has defined behavior.
 
 The **pure `Merge`** is unit-tested exhaustively; the tiny IO wrapper is covered by CLI e2e.
 
 ### Merge semantics (Claude Code)
 
-**One serializer for both paths (M1).** The create path and the merge path build the **same**
-`map[string]any` value and run it through **one** serializer — `json.MarshalIndent(m, "", "  ")` + a trailing
-`\n`. This is load-bearing for idempotency: Go's `encoding/json` **sorts object keys alphabetically**, so a
-value that first landed via a struct/literal (`type` before `command`) would *not* byte-match the map-marshal
-output on the next (merge) run, and the `Unchanged` check below would loop forever reporting `Merged`. Because
-**both** paths marshal the same map, the on-disk bytes are the fixed point of the serializer (alphabetical
-keys) and convergence holds. (Numbers round-trip through `float64` — see Non-goals; irrelevant in this domain.)
+**One serializer for both paths (M1/R1).** The create path and the merge path build the **same**
+`map[string]any` value and run it through **one** serializer: a `json.Encoder` with **`SetEscapeHTML(false)`**
+and `SetIndent("", "  ")` (`enc.Encode(m)` already appends the trailing `\n` — do **not** double-add). This is
+load-bearing for idempotency on two counts:
+- Go's `encoding/json` **sorts object keys alphabetically**, so a value that first landed via a struct/literal
+  (`type` before `command`) would *not* byte-match the map-marshal output on the next (merge) run, and the
+  `Unchanged` check below would loop forever reporting `Merged`. Because **both** paths marshal the same map,
+  the on-disk bytes are the serializer's fixed point (alphabetical keys) and convergence holds.
+- **`SetEscapeHTML(false)` is mandatory (R1):** the default `json.MarshalIndent` HTML-escapes `<`, `>`, `&` —
+  our own hook command contains `2>/dev/null`, which the default emits as the escaped `2>/dev/null`. That
+  both contradicts the field-tested literal shape and would rewrite this repo's readable `.claude/settings.json`
+  into the `>` form on first merge. Verified empirically (`json.MarshalIndent` → `2>/dev/null`;
+  `json.Encoder`+`SetEscapeHTML(false)` → `2>/dev/null`, keys still alphabetical). Tests assert the literal
+  byte `2>/dev/null` — the exact byte the naive `MarshalIndent` gets wrong.
+
+(Numbers round-trip through `float64` — see Non-goals; irrelevant in this domain.)
 
 Given existing bytes:
 
@@ -199,18 +233,23 @@ Given existing bytes:
    failure ⇒ **error, no write** (never clobber). Then, working on the map — every access **nil-/type-safe**
    (m5): a value of an unexpected type is handled explicitly, never a panic:
    - `hooks.SessionStart` / `hooks.PreCompact` (each independently): the hook is considered **already present**
-     iff **any** command string reachable under that event contains the token `mtt prime` (substring) — robust
-     to a user who customized the args (e.g. `mtt prime --limit 5`), so we never append a duplicate. The
-     presence walk tolerates arbitrary shapes (event not an array, an entry missing `hooks`, `hooks` not an
-     array, `command` not a string) — any such shape simply reads as "not ours". If absent, **append** our
-     matcher-group `{hooks:[{type:command,command:...}]}`, preserving existing entries; a missing `hooks`
-     map / event array is created. **But** if `hooks` exists and is **not** a JSON object, or an event key
-     exists and is **not** an array (a structure we cannot safely extend), ⇒ **loud refusal naming the path**
+     iff **any** command string reachable under that event, **after trimming leading whitespace, starts with
+     `mtt prime`** (a prefix match, r5 — robust to customized args like `mtt prime --limit 5`, but not
+     false-positived by a command that merely *mentions* the phrase, e.g. `git commit -m "wire mtt prime"`,
+     which a loose substring would wrongly treat as present and silently suppress our hook). The presence walk
+     tolerates arbitrary shapes (event not an array, an entry missing `hooks`, `hooks` not an array, `command`
+     not a string) — any such shape simply reads as "not ours". If absent, **append** our matcher-group
+     `{hooks:[{type:command,command:...}]}`, preserving existing entries; a missing `hooks` map / event array
+     is created. **But** if `hooks` exists and is a **non-null, non-object** value, or an event key is a
+     **non-null, non-array** value (a structure we cannot safely extend), ⇒ **loud refusal naming the path**
      (never overwrite user data).
    - `permissions.allow`: **union** our read-only entries into the existing array (existing entries first, our
      new ones appended in canonical order), **dedup** by exact string. Missing `permissions`/`allow` created;
-     an existing `permissions` that is not an object, or an `allow` that is not an array ⇒ **loud refusal**
-     (same no-clobber rule).
+     an existing `permissions` that is a non-null, non-object value, or an `allow` that is a non-null,
+     non-array value ⇒ **loud refusal** (same no-clobber rule).
+   - **Explicit JSON `null` at a container path (r4):** a `null` at `hooks`, an event key, `permissions`, or
+     `allow` is treated as **absent** (create the container) — mirroring m4's empty-file rule (a `null`
+     placeholder is not a structure to preserve, and not "malformed"), so it never trips the refusal above.
    - Every other key is untouched.
 3. Serialize the (possibly modified) map with the **same** serializer. If the bytes **equal** the existing
    bytes, action `Unchanged` (no write); else `Merged`.
@@ -231,12 +270,18 @@ yaml adapter's discipline into a new tiny package:
 - **`internal/fsutil.AtomicWrite(path string, data []byte, fallbackMode os.FileMode) error`** — the existing
   `internal/adapter/yaml` `atomicWriteMode` behavior verbatim: `CreateTemp` in the target dir → write → `Chmod`
   (**preserve** an existing non-empty target's mode, else `fallbackMode`) → `Sync` → close → `Rename` →
-  best-effort parent-dir fsync (`syncDir` — the won `errors.ErrUnsupported`/`syscall.EINVAL`/Windows handling
-  moves with it). `MkdirAll` of the parent is the caller's job (both callers already do it).
-- The yaml adapter's `atomicWrite`/`atomicWriteMode`/`syncDir` become thin **re-delegations** to
-  `fsutil.AtomicWrite` (its `atomicWrite` = `fsutil.AtomicWrite(path, data, 0o644)`, `Current`'s fresh
-  `config.local.yaml` = `…, 0o600`). Observable behavior is **byte-identical** — the adapter's existing tests
-  and goldens (incl. the perm-policy and reserve-artifact cases) are the safety net and stay green.
+  best-effort parent-dir fsync via `SyncDir`. `MkdirAll` of the parent is the caller's job (both callers do it).
+- **`internal/fsutil.SyncDir(dir string) error`** — the parent-dir fsync with the won
+  `errors.ErrUnsupported`/`syscall.EINVAL`/Windows handling, **exported (R2)** because `syncDir` has a **second,
+  direct** consumer beyond the writer chain: `internal/adapter/yaml/audit.go:60` fsyncs the `.mtt` dirent after
+  the audit-log append. That caller is repointed to `fsutil.SyncDir` (or via a one-line yaml shim). Verified
+  the full consumer set before extracting: `atomicWrite` (init.go:54, note.go:69, task.go:84), `atomicWriteMode`
+  (current.go:115, +via atomicWrite), `syncDir` (init.go:144 in the writer, **audit.go:60 direct**).
+- The yaml adapter's `atomicWrite`/`atomicWriteMode` become thin **re-delegations** to `fsutil.AtomicWrite`
+  (`atomicWrite` = `fsutil.AtomicWrite(path, data, 0o644)`, `Current`'s fresh `config.local.yaml` = `…, 0o600`);
+  `syncDir` becomes a shim to `fsutil.SyncDir` (or is deleted and callers repointed). Observable behavior is
+  **byte-identical** — the adapter's existing tests and goldens (perm-policy, reserve-artifact, audit fsync)
+  are the safety net and stay green **only because `audit.go` is repointed** (missing it fails the build).
 - **`scaffold`** calls `fsutil.AtomicWrite(path, data, 0o644)` — new settings files land `0644`, and a user who
   chmod'd their `settings.json` to `0600` keeps it (mode preservation is the *better* policy, and now shared).
 
@@ -255,7 +300,8 @@ mechanical extract-and-delegate, not a behavior change.
 ### Testing
 
 - **Unit** (`internal/scaffold`, table-driven on `claude.Merge`) — assert exact **alphabetical-key** bytes:
-  1. absent ⇒ `Created` with the canonical shape (assert both events + the allow set, byte-exact);
+  1. absent ⇒ `Created` with the canonical shape (assert both events + the allow set, byte-exact — **including
+     the literal `mtt prime 2>/dev/null || true`**, the byte a naive `MarshalIndent` would `>`-escape, R1);
   2. existing file with unrelated keys (`env`, a custom hook) ⇒ `Merged`, unrelated keys preserved, our hooks
      appended;
   3. existing file already carrying our exact hooks + allow (in alphabetical bytes) ⇒ `Unchanged`, no write;
@@ -272,11 +318,18 @@ mechanical extract-and-delegate, not a behavior change.
   12. **(m5 tolerate)** valid-JSON-but-odd shapes the presence walk must survive without panic and read as
       "not ours" (`SessionStart: "oops"`, `SessionStart: [{}]`, an entry whose `command` is a number) ⇒ our
       hook appended where safe;
-  13. **(m5 refuse)** an incompatible type at a path we must extend (`hooks` not an object, an event key not an
-      array, `permissions.allow` not an array) ⇒ **loud refusal**, `Run` performs no write.
-- **CLI e2e** (`testscript`): `mtt agent hooks` in a temp dir ⇒ asserts `.claude/settings.json` content; a
-  second run ⇒ idempotent (`unchanged`); `mtt init` (default) ⇒ scaffolds; `mtt init --no-agent-hooks` ⇒ no
-  `.claude/`; `--json` surfaces for both the subcommand and init.
+  13. **(m5 refuse)** an incompatible **non-null** type at a path we must extend (`hooks` a string, an event
+      key a string, `permissions.allow` a string/object) ⇒ **loud refusal**, `Run` performs no write;
+  14. **(r4 null)** `null` at `hooks` / an event / `permissions` / `allow` ⇒ treated as absent, `Created`/`Merged`
+      (not a refusal);
+  15. **(r5 prefix)** a command that merely mentions the phrase not-at-start (`git commit -m "wire mtt prime"`)
+      ⇒ **not** treated as present, our hook appended (a loose substring would wrongly report `unchanged`).
+- **CLI e2e** (`testscript`): `mtt agent hooks` in a temp dir ⇒ asserts `.claude/settings.json` content
+  (literal `2>/dev/null`); a second run ⇒ idempotent (`unchanged`); `mtt init` (default) ⇒ scaffolds; `mtt
+  init --no-agent-hooks` ⇒ no `.claude/`; `--json` surfaces for both the subcommand and init;
+  **`mtt agent hooks` outside an mtt project ⇒ actionable error (m6)**; **(R3)** `mtt init` with a
+  **pre-existing malformed `.claude/settings.json`** ⇒ exit 1, `.mtt/config.yaml` **written** (config-success
+  reported first), scaffold error on stderr, and **no** partial JSON object under `--json`.
 
 ## Docs to update (behavior change)
 
