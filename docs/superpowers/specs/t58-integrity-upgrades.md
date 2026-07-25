@@ -112,8 +112,11 @@ func CheckIntegrity(tasks []mtt.Task, notes []mtt.Note, kbWired bool) []Integrit
   embedded `CheckFinding` keeps its `Status` too, but the top-level `Kind` is the single source of
   hardness (no consumer has to read a nested status to know whether it gates).
 - **Dangling-dep** findings: for each task, each `depends_on` id absent from the task-id set →
-  one `IntegrityFinding{Kind: dangling-dep, Dep: {Task, Missing}}`. Deterministic (task order by
-  the shared recency comparator, then dep order as stored). A new tiny `DepFinding` value type.
+  one `IntegrityFinding{Kind: dangling-dep, Dep: {Task, Missing}}`. **Order = the input task-slice
+  order** (the adapter's `List()` lexicographic-by-filename order), then dep order as stored —
+  deterministic (the CLI does not re-order the snapshot before the sweep; a multi-dangling-dep repo
+  lists them in that stable order, not by recency — a refinement from the plan review vs the earlier
+  "recency" note). A new tiny `DepFinding` value type.
 - **Cycle** findings: `NewDepGraph(tasks).Cycles()` → one finding per cycle (the id chain as
   returned; `Cycles()` is already deterministic + cycle-safe).
 - `ErrDanglingRefs` → **`ErrIntegrity`** (`var ErrIntegrity = errors.New("mtt: integrity check failed")`).

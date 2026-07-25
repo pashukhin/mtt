@@ -191,27 +191,74 @@ git commit -m "t58: core — CheckIntegrity (refs + dangling-dep + cycles); rena
 - Consumes: `CheckIntegrity`, `ErrIntegrity` (Task 1).
 - Produces: `check` prints per-kind lines + the `<dangling> dangling, <unverified> unverified, <cycle> cycle across <N> entities` summary; `--json` a `kind`-tagged array; returns `ErrIntegrity` iff a hard finding exists.
 
-- [ ] **Step 1: Write the failing e2e** — extend `check.txt`:
+- [ ] **Step 1: Write the failing e2e** — append TWO **fresh-project** blocks to `check.txt` (the
+existing script leaves `proj` with a dangling `task:t999` ref on `t1`, so appending into it would
+make the dangling count `2` and inherit unrelated state — isolate in new subdirs):
 
 ```
-# a dangling depends_on is now an integrity failure (exit 7).
-# CLI can't mint a dangling edge directly (dep add validates existence), so add
-# a target, depend on it, then rm --force it to leave the edge dangling.
-exec mtt add 'C'
+# --- dangling depends_on is an integrity failure (fresh project) ---
+cd $WORK
+mkdir depproj
+cd depproj
+exec mtt init
+exec mtt add 'X'
+exec mtt add 'Y'
+exec mtt add 'Z'
+# CLI can't mint a dangling edge (dep add validates existence): depend on t3, then rm --force it.
 exec mtt dep add t2 t3
 exec mtt rm t3 --force --who tester --why 'leave a dangling dep'
 ! exec mtt check
-stdout 'dangling-dep'
-stdout '1 dangling'
+stdout 'task:t2 → depends_on:t3   \[dangling-dep\]'
+stdout '1 dangling, 0 unverified, 0 cycle'
 stderr 'integrity check failed'
-
-# --json is a kind-tagged union
-exec mtt check --json
+# --json is a kind-tagged union (still hard -> exit 7)
+! exec mtt check --json
 stdout '"kind": "dangling-dep"'
 stdout '"missing": "t3"'
+
+# --- a dependency cycle (hand-written yaml: the CLI rejects a cyclic dep add,
+#     but the load path accepts id==stem files that mutually depend) ---
+cd $WORK
+mkdir cycleproj
+cd cycleproj
+exec mtt init
+mkdir .mtt/tasks
+cp c1.yaml .mtt/tasks/t1.yaml
+cp c2.yaml .mtt/tasks/t2.yaml
+! exec mtt check
+stdout 'cycle: t1 -> t2'
+stdout '0 dangling, 0 unverified, 1 cycle'
+stderr 'integrity check failed'
+! exec mtt check --json
+stdout '"kind": "cycle"'
 ```
 
-(Runs in a fresh `mtt init` project — the default template configures no events, so `rm --force` fires no pipeline; it needs `--who`/`--why` as a dangerous op.) The **cycle path cannot be reached through the CLI** (`dep add` rejects a cycle), so it is covered by the Task 1 core test and Task 3's `writeDepCycles` unit test; note this in the script comment rather than attempting a hand-written-yaml e2e.
+with the file section at the end of `check.txt`:
+
+```
+-- c1.yaml --
+id: t1
+type: task
+title: one
+status: tbd
+depends_on:
+    - t2
+created: 2026-07-25T00:00:00Z
+updated: 2026-07-25T00:00:00Z
+-- c2.yaml --
+id: t2
+type: task
+title: two
+status: tbd
+depends_on:
+    - t1
+created: 2026-07-25T00:00:00Z
+updated: 2026-07-25T00:00:00Z
+```
+
+(Fresh `mtt init` = default template — no events, so `rm --force` fires no pipeline; it needs
+`--who`/`--why` as a dangerous op. The cycle e2e exercises `check.go`'s **cycle render + hard-exit**
+branches, which the core/unit tests do not — the r1 finding.)
 
 - [ ] **Step 2: Run** → FAIL (check still exits 0 on a dangling dep).
 
@@ -267,18 +314,29 @@ return nil
 Add helpers in `check.go`: `integrityHasHard(fs)` (any Kind != unverified-ref), `countIntegrityCarriers(fs)` (dedup set of ref `CarrierID` + dep `Task` + each id in any cycle chain), `joinIDs`, and the `integrityJSON`/`toIntegrityJSON` union view:
 
 ```go
+// carrierJSON keeps the exact lowercase keys the old refCheckJSON.Carrier used
+// (json:"kind"/"id") — an inline struct{Kind,ID string} WITHOUT tags would
+// marshal as "Kind"/"ID" and silently regress the check --json carrier shape.
+type carrierJSON struct {
+	Kind string `json:"kind"`
+	ID   string `json:"id"`
+}
+
 type integrityJSON struct {
-	Kind    string   `json:"kind"`
-	Carrier *struct{ Kind, ID string } `json:"carrier,omitempty"`
-	Ref     *refJSON `json:"ref,omitempty"`
-	Status  string   `json:"status,omitempty"`
-	Task    string   `json:"task,omitempty"`
-	Missing string   `json:"missing,omitempty"`
-	Cycle   []string `json:"cycle,omitempty"`
+	Kind    string       `json:"kind"`
+	Carrier *carrierJSON `json:"carrier,omitempty"`
+	Ref     *refJSON     `json:"ref,omitempty"`
+	Status  string       `json:"status,omitempty"`
+	Task    string       `json:"task,omitempty"`
+	Missing string       `json:"missing,omitempty"`
+	Cycle   []string     `json:"cycle,omitempty"`
 }
 ```
 
-`toIntegrityJSON` fills the arm matching `f.Kind` (ref arm reuses the old `carrier`/`ref`/`status` fields so `check.txt`'s existing `"status": "dangling"` assertion still passes). Delete the now-unused `refCheckJSON`/`toRefCheckJSON`/`countCarriers` (or keep `countCarriers`'s logic folded into `countIntegrityCarriers`).
+`toIntegrityJSON` fills the arm matching `f.Kind` (the ref arms set `Carrier`/`Ref`/`Status` with the
+byte-identical lowercase keys, so `check.txt`'s existing `"status": "dangling"` assertion still passes;
+the dep arm sets `Task`/`Missing`; the cycle arm sets `Cycle`). Delete the now-unused
+`refCheckJSON`/`toRefCheckJSON` and fold `countCarriers`'s logic into `countIntegrityCarriers`.
 
 - [ ] **Step 4: Run** — `go test ./internal/cli/ -run 'TestScript/check' -v` → PASS; `make check` → green.
 
@@ -299,7 +357,10 @@ git commit -m "t58: check — render dangling-dep + cycles, kind-tagged --json, 
 - Consumes: `ErrIntegrity`.
 - Produces: `writeDepCycles` returns `ErrIntegrity` when `len(cycles) > 0` (after printing); `no cycles` → nil (exit 0).
 
-- [ ] **Step 1: Write the failing e2e.** A CLI-minted cycle is impossible (`dep add` rejects it), so cover this by the same leave-a-dangling technique is not a cycle. Instead assert the **exit-0 path is preserved** (acyclic `--cycles` still exits 0 with `no cycles`) AND add a `TestWriteDepCyclesGates` **unit test** in `dep_test.go` that builds a `core.DepGraph` from a cyclic task slice and asserts `writeDepCycles` returns `core.ErrIntegrity`:
+- [ ] **Step 1: Write the failing unit test.** A CLI-minted cycle is impossible (`dep add` rejects
+it), so `dep list --cycles`'s gate is covered by a `TestWriteDepCyclesGates` **unit test** in
+`dep_test.go` (the acyclic exit-0 path is already covered by `dep.txt`). It builds a `core.DepGraph`
+from a cyclic task slice and asserts `writeDepCycles` returns `core.ErrIntegrity`:
 
 ```go
 func TestWriteDepCyclesGates(t *testing.T) {
@@ -345,9 +406,16 @@ git commit -m "t58: dep list --cycles gates CI (exit 7 via ErrIntegrity) on a cy
 **Interfaces:**
 - Produces: `writeRoadmap(w, entries, tasks)` (new `tasks` param for the existence set); text appends ` (missing)` to a dangling blocker; `roadmapJSON` gains `BlockedByMissing []string \`json:"blocked_by_missing,omitempty"\``.
 
-- [ ] **Step 1: Write the failing e2e** — extend `roadmap.txt`: a task with a dangling blocker (create t1, dep t1→t2, rm t2 --force) → `roadmap` prints `↳ blocked by: t2 (missing)`:
+- [ ] **Step 1: Write the failing e2e** — append a **fresh-project** block to `roadmap.txt` (the
+existing script already has `e1,t1,t2,t3` with `t2 depends_on t1`, so reusing those ids collides —
+`dep add t1 t2` would be rejected as a cycle). Fresh subdir, clean ids:
 
 ```
+# --- a dangling blocker is marked (missing) (fresh project) ---
+cd $WORK
+mkdir missproj
+cd missproj
+exec mtt init
 exec mtt add 'A'
 exec mtt add 'B'
 exec mtt dep add t1 t2
@@ -355,8 +423,11 @@ exec mtt rm t2 --force --who tester --why 'leave a dangling blocker'
 exec mtt roadmap
 stdout 'blocked by: t2 \(missing\)'
 exec mtt roadmap --json
-stdout '"blocked_by_missing"'
+stdout '(?s)"blocked_by_missing": \[\s*"t2"\s*\]'
 ```
+
+(t1 depends on t2, then t2 is force-deleted, leaving t1's blocker dangling; the default template has
+no events, so `rm --force` fires no pipeline.)
 
 - [ ] **Step 2: Run** → FAIL (no marker). **Step 3: Implement:**
   - `newRoadmapCmd` passes `tasks` into `writeRoadmap` and `toRoadmapJSON`.
