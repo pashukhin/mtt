@@ -330,3 +330,9 @@ the raw `template` arg. Coverage split (no network in tests): e2e (`init.txt`) c
 (+ verbatim `{{.ID}}` survival, validate-fail-closed, the scheme-less hint, the coding-not-a-builtin error) +
 the **non-TTY URL refuse** (errors before any fetch); the fetch branches + confirm are unit-tested (fake
 `http.RoundTripper` / scripted `confirmRemote`).
+
+Agent scaffolding (t52): `newAgentCmd` (`agent.go`) is the `mtt agent` group (the `note`/`dep` group pattern);
+`mtt agent hooks` scaffolds `.claude/settings.json` for every `scaffold.Registry()` harness via `scaffold.Run`
+(root through `projectRoot`), rendering per-harness `created|merged|unchanged` (shared `reportScaffold`/
+`scaffoldJSON`/`toScaffoldJSON`, reused by `init`). No business logic here — merge/IO live in `internal/scaffold`.
+e2e: `agent_hooks.txt`.
