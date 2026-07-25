@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 	"time"
 )
 
@@ -40,6 +41,11 @@ func newFetcherWithTransport(rt http.RoundTripper) *Fetcher {
 // 1 MiB size cap (LimitReader(cap+1) so an over-cap body errors instead of
 // silently truncating).
 func (f *Fetcher) Fetch(url string) ([]byte, error) {
+	// Self-enforce https even though ClassifyTemplate is the sole caller and only
+	// yields https URLs — an exported fetcher must not trust its input scheme.
+	if !strings.HasPrefix(url, "https://") {
+		return nil, fmt.Errorf("fetch %s: only https is supported", url)
+	}
 	resp, err := f.client.Get(url)
 	if err != nil {
 		return nil, fmt.Errorf("fetch %s: %w", url, err)

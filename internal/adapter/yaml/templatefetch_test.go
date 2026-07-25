@@ -57,14 +57,29 @@ func TestHTTPSOnlyRedirect(t *testing.T) {
 
 // The seam-wiring test: a 302 → http hop must be refused by the REAL client's
 // CheckRedirect (a fake transport alone can't prove this — only a real
-// http.Client runs CheckRedirect).
+// http.Client runs CheckRedirect). The error must NAME the scheme — otherwise the
+// test would also pass on the client's default 10-redirect-loop limit, i.e. even
+// if httpsOnlyRedirect were removed/broken (a false-confidence test).
 func TestFetchRefusesRedirectToHTTP(t *testing.T) {
 	f := newFetcherWithTransport(roundTripFunc(func(_ *http.Request) (*http.Response, error) {
 		h := make(http.Header)
 		h.Set("Location", "http://evil/x.yaml")
 		return &http.Response{StatusCode: 302, Body: io.NopCloser(strings.NewReader("")), Header: h}, nil
 	}))
-	if _, err := f.Fetch("https://h/x.yaml"); err == nil {
-		t.Fatal("a redirect to http must be refused by the real client's CheckRedirect")
+	_, err := f.Fetch("https://h/x.yaml")
+	if err == nil || !strings.Contains(err.Error(), "non-https") {
+		t.Fatalf("a redirect to http must be refused by CheckRedirect (error naming the scheme), got %v", err)
+	}
+}
+
+// The exported fetcher self-enforces https on the initial request (not just
+// redirects) — it must not trust its input scheme.
+func TestFetchRejectsNonHTTPS(t *testing.T) {
+	f := newFetcherWithTransport(roundTripFunc(func(_ *http.Request) (*http.Response, error) {
+		t.Fatal("transport must not be reached for a non-https URL")
+		return nil, nil
+	}))
+	if _, err := f.Fetch("http://h/x.yaml"); err == nil || !strings.Contains(err.Error(), "https") {
+		t.Fatalf("non-https initial URL must be rejected before any request, got %v", err)
 	}
 }
