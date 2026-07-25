@@ -1,9 +1,13 @@
 package cli
 
 import (
+	"bytes"
+	"errors"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/spf13/cobra"
 
 	"github.com/pashukhin/mtt/internal/core"
 	"github.com/pashukhin/mtt/pkg/mtt"
@@ -78,6 +82,28 @@ func TestBuildDepTreeJSONDiamond(t *testing.T) {
 	}
 	if len(second.DependsOn[0].DependsOn) != 0 {
 		t.Fatalf("revisited node must carry no children: %+v", second.DependsOn[0])
+	}
+}
+
+func TestWriteDepCyclesGates(t *testing.T) {
+	g := core.NewDepGraph([]mtt.Task{
+		{ID: "t1", DependsOn: []mtt.TaskID{"t2"}},
+		{ID: "t2", DependsOn: []mtt.TaskID{"t1"}},
+	})
+	cmd := &cobra.Command{}
+	var out bytes.Buffer
+	cmd.SetOut(&out)
+	err := writeDepCycles(cmd, g)
+	if !errors.Is(err, core.ErrIntegrity) {
+		t.Fatalf("cyclic --cycles = %v, want ErrIntegrity", err)
+	}
+	if !strings.Contains(out.String(), "cycle:") {
+		t.Fatalf("cycle still printed? %q", out.String())
+	}
+	// acyclic -> nil
+	g2 := core.NewDepGraph([]mtt.Task{{ID: "t1"}})
+	if err := writeDepCycles(cmd, g2); err != nil {
+		t.Fatalf("acyclic --cycles = %v, want nil", err)
 	}
 }
 
