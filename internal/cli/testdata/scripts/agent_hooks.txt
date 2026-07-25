@@ -1,10 +1,8 @@
 # agent hooks scaffolds Claude settings into an initialized project.
-# NB: plain `mtt init` here — at Task 3, init does NOT scaffold yet (Task 4 adds
-# that + the --no-agent-hooks flag), so .claude/ is absent until `agent hooks`.
-# Task 4 rewrites this line to `mtt init --no-agent-hooks` once init scaffolds by default.
+# init scaffolds by default (Task 4), so opt out here to test `agent hooks` alone.
 mkdir proj
 cd proj
-exec mtt init
+exec mtt init --no-agent-hooks
 ! exists .claude/settings.json
 exec mtt agent hooks
 stdout 'claude: created'

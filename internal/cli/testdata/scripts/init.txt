@@ -98,6 +98,44 @@ cd codingproj
 ! exec mtt init --template coding
 stderr 'unknown template "coding"'
 
+# --- t52: init scaffolds agent hooks by default ---
+cd $WORK
+mkdir scaffoldproj
+cd scaffoldproj
+exec mtt init
+stdout 'initialized'
+stdout 'claude: created'
+exists .claude/settings.json
+grep 'mtt prime 2>/dev/null' .claude/settings.json
+
+# --no-agent-hooks opts out
+cd $WORK
+mkdir noscaffold
+cd noscaffold
+exec mtt init --no-agent-hooks
+stdout 'initialized'
+! exists .claude/settings.json
+
+# init --json carries a non-null scaffold array
+cd $WORK
+mkdir jsonscaffold
+cd jsonscaffold
+exec mtt init --json
+stdout '"scaffold"'
+stdout '"harness": "claude"'
+
+# R3: a pre-existing malformed .claude/settings.json fails the scaffold, but
+# config is written (primary job) and reported; exit non-zero; no partial JSON.
+cd $WORK
+mkdir malformed
+cd malformed
+mkdir .claude
+cp $WORK/badsettings.json .claude/settings.json
+! exec mtt init
+stdout 'initialized'
+stderr 'parse existing settings'
+exists .mtt/config.yaml
+
 -- empty/.keep --
 -- ext.yaml --
 version: 1
@@ -123,3 +161,5 @@ types:
     default: true
     statuses: [{name: tbd, kind: initial}]
     transitions: []
+-- badsettings.json --
+{not valid json
