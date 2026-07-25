@@ -721,7 +721,7 @@ git commit -m "t62: --template <url> — https fetcher (RoundTripper seam) + con
 - Modify (e2e + demo): `internal/cli/script_test.go` (shared `Setup` + `repoRoot`), the **11** testscripts, `demo/coding-flow.sh`, `demo/coding_flow_test.go`
 
 **Interfaces:**
-- Produces: `templates.Default() []byte`, `templates.BuiltinNames() []string` (root package). Consumed by `internal/adapter/yaml/templates.go`. Test helpers: `repoRoot(t)` (go.mod-anchored, one per test package that needs it) and `hierarchyTemplate(t)` (cli).
+- Produces: `templates.Default() []byte`, `templates.BuiltinNames() []string` (root package). Consumed by `internal/adapter/yaml/templates.go`. Test helpers: no-arg `repoRoot() string` (go.mod-anchored via `runtime.Caller`, one per test package that needs it) and `hierarchyTemplate(t)` (cli).
 
 - [ ] **Step 1: Move + de-template + create the package.** `git mv internal/adapter/yaml/templates/default.yaml templates/default.yaml` (same for coding, hierarchy). **Critical de-template:** all three files carry unquoted `name: {{.Name}}` on line 3, which is **invalid standalone YAML** (`yaml.v3` parses `{{.Name}}` as a flow map → "cannot unmarshal !!map into string"). `default.yaml` stays as-is (it is the **built-in**, rendered through `text/template` — `{{.Name}}` is substituted). But `coding.yaml` and `hierarchy.yaml` now travel the **verbatim file-path** source, so replace their `name: {{.Name}}` with a literal `name: my-project`. (Verify: `go run` a quick `yaml.Unmarshal` or just rely on Step 6's tests — a non-de-templated file fails `ValidateTemplateBytes` at install.) Create `templates/templates.go`:
 
@@ -836,7 +836,7 @@ func initHierarchy(t *testing.T) string {
 
   Add a package-test **no-arg `repoRoot() string`** helper anchored via `runtime.Caller(0)` (the test file's own dir) walked up to the dir containing `go.mod` — robust regardless of cwd, and usable from the testscript `Setup` (which has no `*testing.T`). `git rm` the now-unused `testdata/golden/{coding,hierarchy}.yaml`.
 
-- [ ] **Step 4: Migrate the cli Go tests** (`internal/cli`). Add a shared helper + a `repoRoot(t)` (go.mod-anchored) in a cli test file:
+- [ ] **Step 4: Migrate the cli Go tests** (`internal/cli`). Add a shared helper + a no-arg `repoRoot() string` (go.mod-anchored via `runtime.Caller`) in a cli test file:
 
 ```go
 // hierarchyTemplate returns the repo's hosted hierarchy example path — the
