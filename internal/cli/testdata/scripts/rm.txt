@@ -1,7 +1,7 @@
 # rm: hard-delete; reject-if-referenced; --force; not-found exit 4
 mkdir proj
 cd proj
-exec mtt init --template hierarchy
+exec mtt init --template $WORK/hierarchy.yaml
 stdout 'initialized'
 
 exec mtt add --type epic 'E'

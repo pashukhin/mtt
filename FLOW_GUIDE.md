@@ -28,8 +28,9 @@ Three layers, all name-agnostic (the engine has no hard-coded status or type nam
 - **Transitions** — directed edges between statuses. On an edge you may hang **`commands:`** (gates — all must
   pass or the move is blocked) and **`post:`** actions (run after the move is saved).
 
-Start from a template (`mtt init`, or `mtt init --template coding|hierarchy`) and inspect any flow with
-**`mtt types`**, which renders the graph, the gate commands, and the named edge verbs.
+Start from the built-in `default` (`mtt init`) or install a richer sample by path/url (`mtt init --template
+templates/coding.yaml`, `templates/hierarchy.yaml`, or the `git-flow` flagship — see §8), then inspect any
+flow with **`mtt types`**, which renders the graph, the gate commands, and the named edge verbs.
 
 ## 2. A minimal flow from scratch
 
@@ -209,7 +210,8 @@ types:
       - {from: review, to: denied,   name: deny}
 ```
 
-Runnable versions of these (`mtt init --template …`) ship separately — see the Neighbours section.
+Runnable versions ship in the repo's `templates/` dir — install one by path or URL, e.g.
+`mtt init --template https://raw.githubusercontent.com/pashukhin/mtt/main/templates/git-flow.yaml`.
 
 ## 8. The git-integration pattern (a sample)
 
@@ -282,9 +284,9 @@ cycles via `mtt check` — is a separate concern, strengthened in a later task; 
 
 ## 12. Neighbours
 
-Out of scope here, tracked separately:
+Shipped (t62): the **git-flow flagship** and the `coding`/`hierarchy` samples live in the repo's `templates/`
+dir, installable by path or `--template <url>` (only `default` is built into the binary). Still tracked
+separately:
 
-- **Runnable universal templates** — domain-neutral `mtt init --template <name>` samples (content-review,
-  approval, generic script-gate) and the one-command version of the git flow above.
 - **Agent-usage docs** — a generic tool-level `AGENTS.md`/`CLAUDE.md` for how an agent uses mtt day-to-day.
 - **Settings & hooks** — scaffolding editor/agent settings and hooks (e.g. `sessionStart → mtt prime`).

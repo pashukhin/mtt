@@ -690,7 +690,7 @@ exit-кодам. `Runner` определён в `core`, реализован в 
 `mtt init` пишет `.mtt/config.yaml` из шаблона `default` — плоские корневые типы `task`+`chore` с линейным
 flow (`initial → active → terminal`, плюс второй терминал для отмены). Эти имена — из **шаблона**, не из кода.
 **Команд по умолчанию нет** — их навешивает пользователь под свой проект. Пример `epic`/`task`/`subtask`
-ниже — это шаблон `hierarchy` (`mtt init --template hierarchy`).
+ниже — это шаблон `hierarchy` (`mtt init --template templates/hierarchy.yaml`).
 
 ```yaml
 version: 1
@@ -753,10 +753,28 @@ types:
 
 Так же добавляется тип `bug` (`prefix: b`, `parents: [epic]`, flow с active-статусом `review`) — только конфигом.
 
-`mtt init --template coding` кладёт примерные coding-типы — `feature`/`bugfix`/`refactor` — каждый со своим
+`mtt init --template templates/coding.yaml` кладёт примерные coding-типы — `feature`/`bugfix`/`refactor` — каждый со своим
 гейтящим Definition of Done (ветка + lint/test; у `bugfix` ещё сначала падающий тест; у `refactor` — без
 diff публичного API), как готовое демо ценности enforcement. Запускаемый end-to-end проход по этому
 шаблону — в `demo/`.
+
+> **Выпущено (t62): runnable-шаблоны — минимальный built-in + bring-your-own.** `mtt init --template`
+> разрешает три вида источника по форме (чистый классификатор): **голое имя** → единственный вкомпилированный
+> `default`; **путь к файлу** или **`https://` URL** → внешний конфиг ставится **verbatim** (без рендера
+> `{{.Name}}` — внешние конфиги несут *runtime*-плейсхолдеры `{{.ID}}`/`{{.Type}}`, которые init-time
+> шаблонизация сломала бы). Внешние байты **валидируются до записи** (fail-closed) через общий адаптер-чек
+> (`checkDecoded` = ровно провайдер-проверки `Load` — `checkPrefixes`, включая letters-only shell-safety
+> правило префикса, + `parseCommandTimeout` — так `Load` остаётся byte-identical; `ValidateTemplateBytes`
+> добавляет `Config.Validate` только на внешнем пути, где init законно владеет доменной проверкой). URL-fetch
+> — за инъектируемым `http.RoundTripper` (**только https**, таймаут ~30s, кап ~1 MiB, редирект на http
+> отклоняется реальным `CheckRedirect` клиента) и требует интерактивного **confirm** (`--yes` пропускает;
+> non-TTY без `--yes` — отказ, без молчаливого fetch). Так как внешний конфиг — **недоверенный
+> config-as-code** (его gate/post исполняются через `sh -c`), после внешней установки печатается громкий
+> нотис **review-before-first-move** (сам init ничего не исполняет — SEC2). Вкомпилирован только `default`;
+> `coding`/`hierarchy` и **флагман git-flow** (обобщённый dogfood-флоу, разблокирован t66-`post_defaults`) —
+> **файлы-хосты** в корневом каталоге `templates/` — fetchable по URL, малая maintenance-поверхность, «движок
+> — продукт; флоу — образец, не мандат». Описания review-этапов флоу теперь явно проговаривают порядок
+> **машинное ревью → человеческая подпись** (агент-гейт первым, человек строго после).
 
 ## Зависимости
 

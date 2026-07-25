@@ -27,8 +27,9 @@ HTTP-вызов, нотификация. **Прогон тестов — лиш�
 - **Переходы** — направленные рёбра между статусами. На ребро можно повесить **`commands:`** (гейты — все
   должны пройти, иначе переход заблокирован) и **`post:`**-действия (запускаются после сохранения перехода).
 
-Начните с шаблона (`mtt init`, или `mtt init --template coding|hierarchy`) и осмотрите любой флоу через
-**`mtt types`** — он рендерит граф, gate-команды и именованные ребра-вербы.
+Начните со встроенного `default` (`mtt init`) или поставьте более богатый образец по пути/url
+(`mtt init --template templates/coding.yaml`, `templates/hierarchy.yaml` или флагман `git-flow` — см. §8),
+затем осмотрите любой флоу через **`mtt types`** — он рендерит граф, gate-команды и именованные ребра-вербы.
 
 ## 2. Минимальный флоу с нуля
 
@@ -209,7 +210,8 @@ types:
       - {from: review, to: denied,   name: deny}
 ```
 
-Runnable-версии этих (`mtt init --template …`) поставляются отдельно — см. раздел «Соседи».
+Runnable-версии лежат в каталоге репо `templates/` — ставь по пути или URL, напр.
+`mtt init --template https://raw.githubusercontent.com/pashukhin/mtt/main/templates/git-flow.yaml`.
 
 ## 8. Паттерн git-интеграции (образец)
 
@@ -284,10 +286,10 @@ mtt status i1 done --no-run --who me --why "skip"   # bypass the gate: --no-run 
 
 ## 12. Соседи
 
-Вне этого гайда, трекается отдельно:
+Выпущено (t62): **флагман git-flow** и образцы `coding`/`hierarchy` лежат в каталоге репо `templates/`,
+ставятся по пути или `--template <url>` (в бинарь вкомпилирован только `default`). Всё ещё трекается
+отдельно:
 
-- **Runnable-универсальные шаблоны** — доменно-нейтральные `mtt init --template <name>` образцы
-  (content-review, approval, generic script-gate) и one-command версия git-флоу выше.
 - **Agent-usage доки** — генеральные tool-level `AGENTS.md`/`CLAUDE.md` про то, как агент пользуется mtt
   день-в-день.
 - **Настройки и хуки** — scaffolding настроек редактора/агента и хуков (напр. `sessionStart → mtt prime`).

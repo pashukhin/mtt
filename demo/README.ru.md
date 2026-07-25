@@ -1,8 +1,8 @@
 # Демо coding-шаблона
 
 Запускаемый и покрытый тестом проход по стартовому шаблону `coding`
-(`mtt init --template coding` → `feature` / `bugfix` / `refactor`): каждый тип
-проводится end-to-end через свой **гейтящий Definition of Done**.
+(ставится из `templates/coding.yaml` → `feature` / `bugfix` / `refactor`): каждый
+тип проводится end-to-end через свой **гейтящий Definition of Done**.
 
 ## Запуск
 

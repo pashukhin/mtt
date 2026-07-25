@@ -7,6 +7,18 @@ All notable changes to mtt are documented here. The format follows
 ## [Unreleased]
 
 ### Added
+- **Runnable init templates — `mtt init --template <name|path|url>` (t62).** `--template` now accepts a
+  built-in name, a **local file path**, or an **`https://` URL** (resolved by shape). Only `default` stays
+  compiled into the binary; `coding`/`hierarchy` and a new **git-integration flagship** (`git-flow`) ship as
+  hosted files in the repo-root `templates/` dir, installable by path or URL. External templates are written
+  **verbatim** after a **fail-closed validation** (an invalid config errors and writes nothing), and — since
+  they are untrusted config-as-code whose gate/post run via `sh -c` — `init` prints a loud **review-before-
+  first-move** notice (init itself runs nothing). A URL fetch is **https-only** (30s timeout, 1 MiB cap,
+  redirect-to-http refused) and requires an interactive confirmation (**`--yes`** to skip; a non-TTY without
+  `--yes` is refused — no silent remote fetch). `init --json` gains a `source` field (`builtin:`/`file:`/
+  `url:`). **Breaking:** `--template coding` / `--template hierarchy` (as built-in names) are removed — install
+  the hosted files (`--template templates/coding.yaml`) instead. The flow's review-stage descriptions now
+  state the **machine-review → human-sign-off** ordering explicitly.
 - **Integrity gate — `mtt check` covers the dependency graph (t58).** `check` becomes the single integrity
   gate: one core entry point (`core.CheckIntegrity`) sweeps dangling `refs`, dangling `depends_on` (a blocker
   id absent from the task set), and dependency **cycles**, and **exits 7** on any hard finding

@@ -20,6 +20,22 @@ func Init(root, tmplName, projectName string, force bool) error {
 	if err != nil {
 		return err
 	}
+	return writeConfig(root, content, force)
+}
+
+// InstallConfig validates external template bytes (fail-closed) then writes them
+// verbatim. Used for --template <path|url>; the built-in path stays Init.
+func InstallConfig(root string, data []byte, force bool) error {
+	if err := ValidateTemplateBytes(data); err != nil {
+		return err
+	}
+	return writeConfig(root, data, force)
+}
+
+// writeConfig writes content to <root>/.mtt/config.yaml atomically, dropping the
+// .gitignore and refusing overwrite without force (shared by the builtin render
+// path and the external verbatim path).
+func writeConfig(root string, content []byte, force bool) error {
 	dir := filepath.Join(root, dirName)
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return fmt.Errorf("create %s: %w", dir, err)

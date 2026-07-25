@@ -682,7 +682,7 @@ never hardcoded (like types/statuses).
 `mtt init` writes `.mtt/config.yaml` from the `default` template — flat root types `task`+`chore` with a
 linear flow (`initial → active → terminal`, plus a second terminal for cancellation). Those names are the
 **template's**, not the code's. **There are no commands by default** — the user hangs them for their own
-project. The `epic`/`task`/`subtask` example below is the `hierarchy` template (`mtt init --template hierarchy`).
+project. The `epic`/`task`/`subtask` example below is the `hierarchy` template (`mtt init --template templates/hierarchy.yaml`).
 
 ```yaml
 version: 1
@@ -743,10 +743,28 @@ Hanging commands — by editing a transition (no code changes):
 A `bug` type (`prefix: b`, `parents: [epic]`, a flow with a `review` active status) is added the same way —
 config only.
 
-`mtt init --template coding` ships example coding types — `feature`/`bugfix`/`refactor` — each with its own
+`mtt init --template templates/coding.yaml` installs example coding types — `feature`/`bugfix`/`refactor` — each with its own
 gated Definition of Done (branch + lint/test; `bugfix` also requires a failing test first; `refactor`
 requires no public-API diff), as a ready-made demo of the enforcement value. See `demo/` for a runnable,
 tested end-to-end walkthrough of this template.
+
+> **Shipped (t62): runnable templates — minimal built-in + bring-your-own.** `mtt init --template` resolves
+> three source kinds by shape (a pure classifier): a **bare name** → the sole embedded built-in `default`; a
+> **file path** or an **`https://` URL** → an external config installed **verbatim** (no `{{.Name}}` render —
+> external configs carry `{{.ID}}`/`{{.Type}}` *runtime* placeholders that init-time templating would choke
+> on). External bytes are **validated before write** (fail-closed) through a shared adapter check
+> (`checkDecoded` = the exact provider checks `Load` runs — `checkPrefixes`, incl. the letters-only
+> shell-safety prefix rule, + `parseCommandTimeout` — so `Load` stays byte-identical; `ValidateTemplateBytes`
+> adds `Config.Validate` on the external path only, where init legitimately owns the domain check). URL fetch
+> is behind an injectable `http.RoundTripper` (**https-only**, ~30s timeout, ~1 MiB cap, a redirect to http
+> refused via the real client's `CheckRedirect`) and requires an interactive **confirm** (`--yes` to skip; a
+> non-TTY without `--yes` is refused — no silent remote fetch). Because an external config is **untrusted
+> config-as-code** (its gate/post run via `sh -c`), a loud **review-before-first-move** notice fires after an
+> external install (init itself runs nothing — SEC2). Only `default` is embedded; `coding`/`hierarchy` and the
+> **git-flow flagship** (the generalized dogfood flow, now unblocked by t66's `post_defaults`) are **hosted
+> files** in the repo-root `templates/` dir — URL-fetchable, low maintenance surface, "the engine is the
+> product; a flow is a sample, not a mandate". The flow's own review descriptions now state the
+> **machine-review → human-sign-off** ordering explicitly (agent gate first, human strictly after).
 
 ## Dependencies
 

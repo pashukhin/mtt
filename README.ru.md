@@ -43,7 +43,7 @@ flow, переходы которого запускают гейты** (кон�
   обязаны все пройти — `["make lint", "make test"]` как гейт `→ done` — или выполнить действия (создать
   ветку). Definition of Done свой на каждый тип (bugfix/refactor/feature). Агент работает в терминах задач
   (`mtt start`, `mtt done`), а дисциплину держит инструмент.
-- **Типы и иерархия — из конфига.** Эпик → задача → подзадача — лишь шаблон `hierarchy` (`mtt init --template hierarchy`); ни имён типов, ни
+- **Типы и иерархия — из конфига.** Эпик → задача → подзадача — лишь шаблон `hierarchy` (`mtt init --template templates/hierarchy.yaml`); ни имён типов, ни
   структуры ID в коде нет. ID читаемые и **плоские** по префиксу (`e1`, `t17`, `s3`) — стабильны при
   ре-парентинге (иерархия живёт в поле `parent`, а не в ID).
 - **Приоритеты, теги, зависимости и роадмап.** `--priority`, `#hashtags` / `--tag`, `depends_on` / `ready` и
@@ -116,7 +116,7 @@ mtt done t1                 # -> терминал done (в default-флоу не
 mtt list                    # все задачи
 mtt tree                    # дерево задач
 mtt roadmap                 # порядок исполнения по зависимостям + приоритетам
-# Для иерархии epic > task > subtask: mtt init --template hierarchy
+# Для иерархии epic > task > subtask: mtt init --template templates/hierarchy.yaml
 ```
 
 Полный список команд и коды выхода — в [CLI_REFERENCE.ru.md](CLI_REFERENCE.ru.md).

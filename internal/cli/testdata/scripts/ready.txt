@@ -1,7 +1,7 @@
 # ready: a blocked task is excluded; blockers with no deps are ready
 mkdir proj
 cd proj
-exec mtt init --template hierarchy
+exec mtt init --template $WORK/hierarchy.yaml
 stdout 'initialized'
 
 exec mtt add --type epic 'E'

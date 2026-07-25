@@ -28,7 +28,7 @@ func TestInitCommand(t *testing.T) {
 	if err := runRoot(t, "init"); err == nil {
 		t.Fatal("re-init without --force should fail")
 	}
-	if err := runRoot(t, "init", "--force", "--template", "coding"); err != nil {
+	if err := runRoot(t, "init", "--force", "--template", "default"); err != nil {
 		t.Fatalf("force init: %v", err)
 	}
 }

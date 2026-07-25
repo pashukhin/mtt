@@ -1,8 +1,8 @@
 # Coding-template demo
 
 A runnable, tested walkthrough of mtt's `coding` starter template
-(`mtt init --template coding` → `feature` / `bugfix` / `refactor`), each type
-driven end-to-end through its **gated Definition of Done**.
+(installed from `templates/coding.yaml` → `feature` / `bugfix` / `refactor`), each
+type driven end-to-end through its **gated Definition of Done**.
 
 ## Run it
 

@@ -165,11 +165,22 @@ func TestGetNamesCorruptFile(t *testing.T) {
 	}
 }
 
+// initHierarchy scaffolds a project from the hosted hierarchy example. It is no
+// longer a built-in NAME (t62), so it installs the file via the verbatim
+// file-path source (InstallConfig) instead of Init(root, "hierarchy", …).
 func initHierarchy(t *testing.T) string {
 	t.Helper()
 	root := t.TempDir()
-	if err := Init(root, "hierarchy", "demo", false); err != nil {
-		t.Fatalf("init: %v", err)
+	repo, err := FindRoot(".")
+	if err != nil {
+		t.Fatalf("find repo root: %v", err)
+	}
+	data, err := os.ReadFile(filepath.Join(repo, "templates", "hierarchy.yaml"))
+	if err != nil {
+		t.Fatalf("read hierarchy example: %v", err)
+	}
+	if err := InstallConfig(root, data, false); err != nil {
+		t.Fatalf("install hierarchy: %v", err)
 	}
 	return root
 }

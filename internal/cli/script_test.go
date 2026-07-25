@@ -49,7 +49,24 @@ func TestMain(m *testing.M) {
 }
 
 func TestScripts(t *testing.T) {
-	testscript.Run(t, testscript.Params{Dir: "testdata/scripts"})
+	testscript.Run(t, testscript.Params{
+		Dir: "testdata/scripts",
+		// t62: coding/hierarchy are no longer built-in names — drop the hosted
+		// example configs into each script's $WORK so scripts can install them via
+		// the file-path source (`--template $WORK/hierarchy.yaml`).
+		Setup: func(env *testscript.Env) error {
+			for _, name := range []string{"hierarchy.yaml", "coding.yaml"} {
+				data, err := os.ReadFile(filepath.Join(repoRoot(), "templates", name))
+				if err != nil {
+					return err
+				}
+				if err := os.WriteFile(filepath.Join(env.WorkDir, name), data, 0o644); err != nil {
+					return err
+				}
+			}
+			return nil
+		},
+	})
 }
 
 // TestScrubMttEnv guards the harness scrub: an inherited MTT_DIR/MTT_BY/MTT_ROLE
