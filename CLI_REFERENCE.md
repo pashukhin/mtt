@@ -210,12 +210,23 @@ becomes committable (create-if-absent: an existing `.gitignore` is never overwri
 Projects initialized before this shipped should add it by hand: `echo config.local.yaml > .mtt/.gitignore`.
 
 - `--force` — overwrite an existing `config.yaml`.
-- `--name <name>` — project name written into the config (default: directory name).
-- `--template <name>` — starter config: `default` (flat `task`+`chore`, no commands), `coding`
-  (feature/bugfix/refactor, each with a gated per-type Definition of Done), or `hierarchy`
-  (epic/task/subtask, no commands). Default: `default`.
-- `--json` — emit the created-config summary `{path, template, name, created}` (absolute `path`) instead of
-  the human line. *(t45)*
+- `--name <name>` — project name written into the config (default: directory name). **Ignored for an
+  external `--template`** (a path/url is written verbatim — a stderr note says so). *(t62)*
+- `--template <name|path|url>` *(t62)* — the starter config, resolved by shape:
+  - a **bare name** → the sole built-in `default` (flat `task`+`chore`, no commands; the only compiled-in
+    template); any other bare name errors with the valid list.
+  - a **file path** (contains a separator, or ends `.yaml`/`.yml`) → installed **verbatim** after a
+    fail-closed validation (an unloadable/invalid config errors and writes nothing).
+  - an **`https://` URL** → fetched (https only — `http://` errors; ~30s timeout, ~1 MiB cap, a redirect to
+    http refused), then verbatim-installed. A URL prompts for confirmation `[y/N]`; **`--yes`** skips it, and
+    a **non-TTY without `--yes` is refused** (no silent remote fetch).
+  - **Untrusted config-as-code:** an external template's gate/post commands run via `sh -c` on your
+    transitions — after an external install `mtt init` prints a ⚠ notice to **review `.mtt/config.yaml`
+    before your first move** (init itself runs nothing). More adaptable samples ship in the repo's
+    `templates/` dir (`coding`, `hierarchy`, and the `git-flow` flagship) — install by path or URL.
+- `--yes` — skip the confirmation prompt for a remote (`https://`) `--template`. *(t62)*
+- `--json` — emit the created-config summary `{path, template, source?, name, created}` (absolute `path`;
+  `source` is `builtin:<name>` / `file:<path>` / `url:<url>`) instead of the human line. *(t45, source t62)*
 
 Running any other command outside a project (no `.mtt/` found by discovery, or a `--dir` without one) errors
 with a `run 'mtt init' to create one` hint (session 008.97/U4).

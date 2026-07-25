@@ -43,7 +43,7 @@ backend you already have. (An honest comparison lives in
   that must all pass — `["make lint", "make test"]` gating `→ done` — or perform actions (create a branch).
   The Definition of Done differs per task type (bugfix/refactor/feature). Agents work in task terms
   (`mtt start`, `mtt done`) while the tool enforces the discipline.
-- **Config-driven types & hierarchy.** Epic → task → subtask is just the `hierarchy` template (`mtt init --template hierarchy`); no type names or
+- **Config-driven types & hierarchy.** Epic → task → subtask is just the `hierarchy` template (`mtt init --template templates/hierarchy.yaml`); no type names or
   ID structure are hardcoded. IDs are readable and **flat** per-prefix (`e1`, `t17`, `s3`) — stable under
   re-parenting (hierarchy lives in a `parent` field, not the ID).
 - **Priorities, tags, dependencies & a roadmap.** `--priority`, `#hashtags` / `--tag`, `depends_on` / `ready`,
@@ -116,7 +116,7 @@ mtt done t1                 # -> the done terminal (default flow has no gate com
 mtt list                    # all tasks
 mtt tree                    # the task tree
 mtt roadmap                 # dependency + priority execution order
-# For an epic > task > subtask hierarchy: mtt init --template hierarchy
+# For an epic > task > subtask hierarchy: mtt init --template templates/hierarchy.yaml
 ```
 
 See [CLI_REFERENCE.md](CLI_REFERENCE.md) for the full command surface and exit codes.

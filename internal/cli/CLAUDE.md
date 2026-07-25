@@ -317,3 +317,16 @@ threads `EventOptions` through, and takes `--no-run` (local flag). Bulk: `bulkJS
 the aggregate stays the plain exit-1 error (s008.9). e2e: `events.txt`, `events_norun.txt`,
 `events_bulk.txt`, `events_type_injection.txt` (the c15-class poisoned-`type:` guard through the real load
 path).
+
+Init templates (t62): `mtt init --template <name|path|url>` classifies the arg via `yaml.ClassifyTemplate`
+(pure) and branches — a **builtin** name → `yaml.Init` (only `default` embedded); a **file path** → `os.ReadFile`
+(`templateReadError` adds a `did you mean https://…?` hint when a missing path looks scheme-less) → `yaml.InstallConfig`
+(validate-then-verbatim); a **URL** → a confirm prompt (`confirmRemote` in `confirm.go`, pure + unit-tested;
+`stdinIsTTY` via stdlib `os.ModeCharDevice`, no `x/term`; `--yes` skips, a non-TTY without `--yes` is refused)
+→ `yaml.NewFetcher().Fetch` → `InstallConfig`. An external install prints the loud SEC2 `printExternalNotice`
+(review `.mtt/config.yaml` before the first move; stderr-only, so `--json` stdout stays clean) and `--name` is
+ignored with a stderr note (external is verbatim). `initJSON` gains `source` (`builtin:`/`file:`/`url:`) beside
+the raw `template` arg. Coverage split (no network in tests): e2e (`init.txt`) covers builtin + file-path
+(+ verbatim `{{.ID}}` survival, validate-fail-closed, the scheme-less hint, the coding-not-a-builtin error) +
+the **non-TTY URL refuse** (errors before any fetch); the fetch branches + confirm are unit-tested (fake
+`http.RoundTripper` / scripted `confirmRemote`).
