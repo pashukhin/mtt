@@ -1,7 +1,7 @@
 id: t62
 type: task
 title: 'ship runnable init templates: universal domain-neutral flow samples (content/approval/generic script-gate) + the git-integration flagship after t24'
-status: plan_review
+status: plan_fix
 priority: medium
 tags:
     - dx
@@ -12,7 +12,7 @@ refs:
     - kind: task
       id: t33
 created: "2026-07-23T03:58:11Z"
-updated: "2026-07-25T10:12:02Z"
+updated: "2026-07-25T10:27:01Z"
 description: |-
     Split out of t57 (2026-07-23 brainstorm). t57 ships the flow-authoring GUIDE (docs-only); this ships the runnable, discoverable SAMPLES.
 
@@ -104,3 +104,8 @@ history:
           exit: 0
         - cmd: out=$(git status --porcelain -- ":(exclude).mtt") && test -z "$out" || { echo "working tree not clean - commit your code/docs first (.mtt is swept by the move itself)" >&2; false; }
           exit: 0
+    - at: "2026-07-25T10:27:01Z"
+      by: Grigorii Pashukhin
+      why: 'adversarial plan review DECLINE (verified): (BLOCKER) migration surface grossly undercounted — a --template-hierarchy string grep misses ~9 Go test files that use the built-in NAME via Init(root,"hierarchy"/"coding") or runRoot(...,"init","--template","hierarchy") as separate args: initHierarchy helper (task_test:171, ~20 tests in task_test/task_security/perm_unix), init_test golden/unknown/Init tests, load_test:12, and ~8 cli tests (add/edit/list/project/show_json/show). (BLOCKER) coding/hierarchy carry unquoted name: {{.Name}} = invalid standalone YAML → verbatim file-path install fails to parse; must de-template to a literal (default stays {{.Name}} as the rendered built-in; TestExamplesLoadAndValidate must exclude default). (MAJOR) Task6 ordering assertion loops {task,chore} but chore has no spec_review/plan stages. (MAJOR) init.txt ends with -- empty/.keep -- so appended cmds are swallowed (false-green). +MINORs: missing redirect-through-real-client + --name-note tests, confirm.go imports, erroneous git rm -r after git mv, demo/doc.go.'
+      from: plan_review
+      to: plan_fix
