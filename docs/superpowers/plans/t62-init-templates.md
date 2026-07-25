@@ -258,7 +258,7 @@ git commit -m "t62: ClassifyTemplate — resolve --template into builtin/file/ur
 - Consumes: `ValidateTemplateBytes` (T1), `ClassifyTemplate` (T2).
 - Produces: `func InstallConfig(root string, data []byte, force bool) error` (validate-then-write-verbatim). Consumed by Task 4 (url).
 
-- [ ] **Step 1: Write the failing e2e** — append to `internal/cli/testdata/scripts/init.txt`:
+- [ ] **Step 1: Write the failing e2e.** **txtar ordering matters:** `init.txt` currently ends with a single file section `-- empty/.keep --` (line 63). Insert the **command** block **immediately before** `-- empty/.keep --` (all commands must precede all file blocks), and add the two new file sections `-- ext.yaml --`/`-- bad.yaml --` **after** `-- empty/.keep --`. Command block:
 
 ```
 # --- file-path source: verbatim install of an external template ---
@@ -273,6 +273,9 @@ grep '\{\{\.ID\}\}' .mtt/config.yaml
 # --json carries the source provenance
 exec mtt init --template $WORK/ext.yaml --force --json
 stdout '"source": "file:'
+# --name is ignored for an external source (with a stderr note, never silent)
+exec mtt init --template $WORK/ext.yaml --force --name ignored
+stderr 'note: --name is ignored'
 # a broken external template fails closed — nothing written
 cd $WORK
 mkdir badproj
@@ -282,7 +285,11 @@ cd badproj
 # a scheme-less URL-looking arg (dotted host + / + .yaml) misses as a file, with an https hint
 ! exec mtt init --template raw.githubusercontent.com/x/y.yaml
 stderr 'did you mean https://'
+```
 
+File sections (after `-- empty/.keep --`):
+
+```
 -- ext.yaml --
 version: 1
 project: {name: ext}
@@ -496,6 +503,21 @@ func TestHTTPSOnlyRedirect(t *testing.T) {
 		t.Fatalf("https redirect must be allowed: %v", err)
 	}
 }
+
+// The seam-wiring test the spec §5 justified: a 302 → http hop must be refused by
+// the REAL client's CheckRedirect (a fake transport alone can't prove this — only
+// a real http.Client runs CheckRedirect). The transport serves the 302; the
+// client's httpsOnlyRedirect must reject the http Location before a second hop.
+func TestFetchRefusesRedirectToHTTP(t *testing.T) {
+	f := newFetcherWithTransport(roundTripFunc(func(r *http.Request) (*http.Response, error) {
+		h := make(http.Header)
+		h.Set("Location", "http://evil/x.yaml")
+		return &http.Response{StatusCode: 302, Body: io.NopCloser(strings.NewReader("")), Header: h}, nil
+	}))
+	if _, err := f.Fetch("https://h/x.yaml"); err == nil {
+		t.Fatal("a redirect to http must be refused by the real client's CheckRedirect")
+	}
+}
 ```
 
 (Add `"io"` to imports.) `confirm_test.go`:
@@ -601,8 +623,8 @@ package cli
 import (
 	"bufio"
 	"errors"
-	"fmt"
 	"io"
+	"os"
 	"strings"
 )
 
@@ -631,8 +653,6 @@ func stdinIsTTY() bool {
 	return err == nil && info.Mode()&os.ModeCharDevice != 0
 }
 ```
-
-(Add `"os"` to the imports; `fmt` may be unused — drop it if so.)
 
 - [ ] **Step 5: Wire the url branch** in `init.go` — replace `return errURLNotYetWired` with:
 
@@ -663,7 +683,7 @@ case yaml.SourceURL:
 
 Add the flag: `cmd.Flags().BoolVar(&autoYes, "yes", false, "skip the confirmation prompt for a remote --template URL")` and declare `var autoYes bool`. Delete `errURLNotYetWired`.
 
-- [ ] **Step 6: e2e non-TTY refuse** — add this block to `init.txt` **immediately before the first `-- ext.yaml --` file section** (txtar requires all script commands before the file blocks Task 3 appended). testscript stdin is a non-TTY pipe, so this errors before any fetch — no server needed:
+- [ ] **Step 6: e2e non-TTY refuse** — add this block to `init.txt` **before `-- empty/.keep --`** (with all the other command blocks — every command precedes every `-- file --` section). testscript stdin is a non-TTY pipe, so this errors before any fetch — no server needed:
 
 ```
 # --- a URL template is refused without --yes when stdin is not a TTY ---
@@ -690,15 +710,20 @@ git commit -m "t62: --template <url> — https fetcher (RoundTripper seam) + con
 
 **This task is atomic** — de-embedding the built-ins and migrating every `--template coding|hierarchy` consumer must land together, or `make check` goes red.
 
+> **Migration surface is large and grep-invisible.** A `--template hierarchy` *string* grep (spec §7) misses every Go test that passes the flag as **separate args** (`runRoot(t, "init", "--template", "hierarchy")`) or calls the adapter directly (`Init(root, "hierarchy", …)`). The full surface, enumerated below, is ~9 Go test files across two packages **plus** the 11 testscripts + demo. Missing any one reds `make check`.
+
 **Files:**
-- Create: `templates/templates.go` (package `templates`, `//go:embed default.yaml`), `templates/default.yaml`, `templates/coding.yaml`, `templates/hierarchy.yaml`, `templates/git-flow.yaml` (placeholder now, authored in Task 6), `templates/README.md`
-- Delete: `internal/adapter/yaml/templates/{default,coding,hierarchy}.yaml` + the `//go:embed` in `internal/adapter/yaml/templates.go`
-- Modify: `internal/adapter/yaml/templates.go` (source `default` from the new package; registry → `{default}`), `internal/cli/init.go` (flag help), `internal/cli/init_test.go`, `internal/cli/script_test.go` (shared Setup writing fixtures), the **11** testscripts, `demo/coding-flow.sh`, `demo/coding_flow_test.go` (pass repo-root path)
+- Create: `templates/templates.go` (package `templates`, `//go:embed default.yaml`), `templates/default.yaml` (moved, keeps `{{.Name}}`), `templates/coding.yaml` + `templates/hierarchy.yaml` (moved **and de-templated** — literal name), `templates/git-flow.yaml` (valid placeholder now, authored Task 7), `templates/README.md`
+- Delete (via `git mv`): `internal/adapter/yaml/templates/{default,coding,hierarchy}.yaml`; remove the `//go:embed` in `internal/adapter/yaml/templates.go`; remove now-unused goldens `internal/adapter/yaml/testdata/golden/{coding,hierarchy}.yaml`
+- Modify (impl): `internal/adapter/yaml/templates.go` (source `default` from the package; registry → `{default}`), `internal/cli/init.go` (flag help)
+- Modify (**adapter Go tests** — the undercounted surface): `internal/adapter/yaml/init_test.go` (`TestRenderGolden`→`{default}`; `TestRenderUnknownTemplate`→valid list is `{default}`; `TestInitKeepsExistingGitignore`+`TestInit` use `"default"`), `internal/adapter/yaml/load_test.go` (`TestInitLoadValidate`→`{default}`), `internal/adapter/yaml/task_test.go` (`initHierarchy` helper → file-path via `InstallConfig`; shared by task_test/task_security_test/perm_unix_test — ~20 tests)
+- Modify (**cli Go tests**): `internal/cli/init_test.go:31` (`coding`→`default` or file-path), and the 8 `runRoot/runOut(…, "--template", "hierarchy")` sites (`add_test.go:22`, `edit_test.go:11/42/58`, `list_test.go:19`, `project_test.go:16`, `show_json_test.go`, `show_test.go`) → a shared `hierarchyTemplate(t)` path helper
+- Modify (e2e + demo): `internal/cli/script_test.go` (shared `Setup` + `repoRoot`), the **11** testscripts, `demo/coding-flow.sh`, `demo/coding_flow_test.go`
 
 **Interfaces:**
-- Produces: `templates.Default() []byte`, `templates.BuiltinNames() []string` (root package). Consumed by `internal/adapter/yaml/templates.go`.
+- Produces: `templates.Default() []byte`, `templates.BuiltinNames() []string` (root package). Consumed by `internal/adapter/yaml/templates.go`. Test helpers: `repoRoot(t)` (go.mod-anchored, one per test package that needs it) and `hierarchyTemplate(t)` (cli).
 
-- [ ] **Step 1: Create the root package + move the files.** `git mv internal/adapter/yaml/templates/default.yaml templates/default.yaml` (same for coding, hierarchy). Create `templates/templates.go`:
+- [ ] **Step 1: Move + de-template + create the package.** `git mv internal/adapter/yaml/templates/default.yaml templates/default.yaml` (same for coding, hierarchy). **Critical de-template:** all three files carry unquoted `name: {{.Name}}` on line 3, which is **invalid standalone YAML** (`yaml.v3` parses `{{.Name}}` as a flow map → "cannot unmarshal !!map into string"). `default.yaml` stays as-is (it is the **built-in**, rendered through `text/template` — `{{.Name}}` is substituted). But `coding.yaml` and `hierarchy.yaml` now travel the **verbatim file-path** source, so replace their `name: {{.Name}}` with a literal `name: my-project`. (Verify: `go run` a quick `yaml.Unmarshal` or just rely on Step 6's tests — a non-de-templated file fails `ValidateTemplateBytes` at install.) Create `templates/templates.go`:
 
 ```go
 // Package templates holds mtt's init config templates as plain files so they are
@@ -740,7 +765,7 @@ The rest are examples you install with a path or URL:
   the repo's squash-merge title = PR title.
 ```
 
-Create a placeholder `templates/git-flow.yaml` = a copy of `templates/default.yaml` for now (Task 6 authors it; keeping it valid keeps the tree green).
+Create a **valid** placeholder `templates/git-flow.yaml` for now — a copy of the **de-templated** `templates/coding.yaml` (literal `name:`, so it parses standalone; a copy of `default.yaml` would carry `{{.Name}}` and be invalid). Nothing validates `git-flow.yaml` until Task 7, but keeping it standalone-valid avoids a surprise if a test lands early.
 
 - [ ] **Step 2: Rewire `renderTemplate`** (`internal/adapter/yaml/templates.go`) — drop the `//go:embed`, source `default` from the package, shrink the registry:
 
@@ -787,7 +812,44 @@ func renderTemplate(name, projectName string) ([]byte, error) {
 
 Update the `--template` flag help in `internal/cli/init.go`: `"starter template: default | a file path | an https URL"`.
 
-- [ ] **Step 3: Shared testscript fixture Setup.** In `internal/cli/script_test.go`, add a `Setup` that writes the repo's `templates/hierarchy.yaml` + `templates/coding.yaml` into every script's `$WORK`, so migrated scripts reference `$WORK/hierarchy.yaml`. Pin the repo root via `go.mod` (mirroring `dogfood_test.go`):
+- [ ] **Step 3: Migrate the adapter Go tests** (`internal/adapter/yaml`). These call the built-in names directly and would all red on de-embed:
+  - `init_test.go` `TestRenderGolden` (line 16): change the loop to `[]string{"default"}` (coding/hierarchy no longer render through `renderTemplate`).
+  - `init_test.go` `TestRenderUnknownTemplate` (line 47): the valid-names list is now `{default}` — change the asserted loop to `[]string{"default"}` (and optionally assert the error does NOT list `coding`/`hierarchy`).
+  - `init_test.go` `TestInitKeepsExistingGitignore` (line 99) + `TestInit` (line 127): `Init(root, "default", "demo", …)` instead of `"coding"`.
+  - `load_test.go` `TestInitLoadValidate` (line 12): loop → `[]string{"default"}` (the hosted examples are covered by Task 7's `TestExamplesLoadAndValidate`).
+  - `task_test.go` `initHierarchy` (line 168) — the shared helper (~20 callers in task_test/task_security_test/perm_unix_test) now installs the **hosted** hierarchy example via the file-path source:
+
+```go
+func initHierarchy(t *testing.T) string {
+	t.Helper()
+	root := t.TempDir()
+	data, err := os.ReadFile(filepath.Join(repoRoot(), "templates", "hierarchy.yaml"))
+	if err != nil {
+		t.Fatalf("read hierarchy example: %v", err)
+	}
+	if err := InstallConfig(root, data, false); err != nil {
+		t.Fatalf("install hierarchy: %v", err)
+	}
+	return root
+}
+```
+
+  Add a package-test **no-arg `repoRoot() string`** helper anchored via `runtime.Caller(0)` (the test file's own dir) walked up to the dir containing `go.mod` — robust regardless of cwd, and usable from the testscript `Setup` (which has no `*testing.T`). `git rm` the now-unused `testdata/golden/{coding,hierarchy}.yaml`.
+
+- [ ] **Step 4: Migrate the cli Go tests** (`internal/cli`). Add a shared helper + a `repoRoot(t)` (go.mod-anchored) in a cli test file:
+
+```go
+// hierarchyTemplate returns the repo's hosted hierarchy example path — the
+// file-path replacement for the removed `hierarchy` built-in name.
+func hierarchyTemplate(t *testing.T) string {
+	t.Helper()
+	return filepath.Join(repoRoot(), "templates", "hierarchy.yaml")
+}
+```
+
+  (Add the same no-arg `repoRoot() string` helper — `runtime.Caller`-anchored — to a cli test file.) Then in each of `add_test.go:22`, `edit_test.go:11/42/58`, `list_test.go:19`, `project_test.go:16`, `show_json_test.go`, `show_test.go`, replace the literal `"hierarchy"` arg with `hierarchyTemplate(t)` (e.g. `runRoot(t, "init", "--template", hierarchyTemplate(t))`). In `init_test.go:31`, replace `"coding"` with `"default"` (the force-init test needs no coding-specific types).
+
+- [ ] **Step 5: Shared testscript fixture Setup.** In `internal/cli/script_test.go`, add a `Setup` that writes the repo's `templates/hierarchy.yaml` + `templates/coding.yaml` into every script's `$WORK`, so migrated scripts reference `$WORK/hierarchy.yaml`. Pin the repo root via `go.mod` (mirroring `dogfood_test.go`):
 
 ```go
 // in testscript.Params:
@@ -805,20 +867,20 @@ Setup: func(env *testscript.Env) error {
 },
 ```
 
-Add a `repoRoot()` helper (walk up to the dir containing `go.mod`) if the package lacks one.
+(The `Setup` uses the same no-arg `repoRoot()` — `runtime.Caller`-anchored — added in Step 4/its cli test file.)
 
-- [ ] **Step 4: Migrate the 11 testscripts.** In each of `add_depends_on.txt`, `add_show.txt`, `batch.txt`, `dep.txt`, `init.txt`, `list_edit.txt`, `ready.txt`, `roadmap.txt`, `rm.txt`, `tags.txt`, `tree.txt`, replace `--template hierarchy` → `--template $WORK/hierarchy.yaml` and `--template coding` → `--template $WORK/coding.yaml` (mechanical). In `init.txt`, additionally update any built-in-list assertion and add: `! exec mtt init --template coding` / `stderr 'unknown template "coding"'` (coding is no longer a built-in name).
+- [ ] **Step 6: Migrate the 11 testscripts.** In each of `add_depends_on.txt`, `add_show.txt`, `batch.txt`, `dep.txt`, `init.txt`, `list_edit.txt`, `ready.txt`, `roadmap.txt`, `rm.txt`, `tags.txt`, `tree.txt`, replace `--template hierarchy` → `--template $WORK/hierarchy.yaml` and `--template coding` → `--template $WORK/coding.yaml` (mechanical; the `$WORK` fixtures come from the Step 5 Setup). In `init.txt`, add (as a **command** block, before `-- empty/.keep --`): `! exec mtt init --template coding` / `stderr 'unknown template "coding"'` (coding is no longer a built-in name → classified as a bare builtin name → `renderTemplate` unknown-name error listing `default`).
 
-- [ ] **Step 5: Migrate `init_test.go` + the demo.** `internal/cli/init_test.go:31` — change `--template coding` to write a `coding.yaml` into the test dir and use `--template ./coding.yaml`, or switch the assertion to `default`. In `demo/coding-flow.sh`, before the init, materialize the template: `cp "$REPO_ROOT/templates/coding.yaml" ./coding.yaml` then `"$MTT" init --template ./coding.yaml` (pass `REPO_ROOT` from `demo/coding_flow_test.go`, which already computes the repo root — export it into the script's env).
+- [ ] **Step 7: Migrate the demo.** In `demo/coding-flow.sh`, before the init, materialize the example: `cp "$REPO_ROOT/templates/coding.yaml" ./coding.yaml` then `"$MTT" init --template ./coding.yaml`. `demo/coding_flow_test.go` already computes `repoRoot` — export it into the script env (`cmd.Env = append(cmd.Env, "REPO_ROOT="+repoRoot)`). (`init_test.go:31` was already migrated in Step 4.)
 
-- [ ] **Step 6: Run** — `go test ./... -run 'TestScript|TestCodingFlowDemo|TestInit' -v` → PASS; `go build ./...` clean (no dangling embed). `make check` → green.
+- [ ] **Step 8: Run** — `go test ./... -run 'TestScript|TestCodingFlowDemo|TestInit|TestRender|TestInitLoadValidate|Task|Security|Perm' -v` → PASS; `go build ./...` clean (no dangling embed). `make check` → green.
 
-- [ ] **Step 7: Commit**
+- [ ] **Step 9: Commit** (the `git mv`s already staged the deletions of the old template files; only the goldens need an explicit `git rm`):
 
 ```bash
-git add templates/ internal/adapter/yaml/templates.go internal/cli/init.go internal/cli/init_test.go internal/cli/script_test.go internal/cli/testdata/scripts/ demo/coding-flow.sh demo/coding_flow_test.go
-git rm -r internal/adapter/yaml/templates
-git commit -m "t62: templates/ dir (embed default only); de-embed coding/hierarchy; migrate all consumers to file-path"
+git rm internal/adapter/yaml/testdata/golden/coding.yaml internal/adapter/yaml/testdata/golden/hierarchy.yaml
+git add templates/ internal/adapter/yaml/ internal/cli/ demo/
+git commit -m "t62: templates/ dir (embed default only); de-embed coding/hierarchy; migrate all consumers (Go tests + testscripts + demo) to file-path"
 ```
 
 ---
@@ -835,16 +897,25 @@ Reword the review-stage descriptions so "agent gate first, human sign-off strict
 - [ ] **Step 1: Add the red-first assertions** to `dogfood_test.go` (after the existing description checks):
 
 ```go
-	// machine→human ordering must be explicit (t62 Goal 5/§8)
+	// machine→human ordering must be explicit (t62 Goal 5/§8). Only the `task`
+	// type has the spec/plan review stages; `chore` has just tbd→implementing→
+	// impl_review→approved (its human step is the PR merge, already after the
+	// agent impl_review), so DO NOT loop {task, chore} here (chore lacks these
+	// statuses → StatusByName returns a zero Status and the assertion would
+	// falsely fail).
+	if s, _ := task.StatusByName("spec_review"); !strings.Contains(s.Description, "agent") {
+		t.Fatalf("task spec_review must name the agent gate: %q", s.Description)
+	}
+	if s, _ := task.StatusByName("spec_human_review"); !strings.Contains(s.Description, "after the agent") {
+		t.Fatalf("task spec_human_review must state it is after the agent review: %q", s.Description)
+	}
+	if s, _ := task.StatusByName("plan_human_review"); !strings.Contains(s.Description, "after the agent") {
+		t.Fatalf("task plan_human_review must state it is after the agent review: %q", s.Description)
+	}
+	// both types: the machine review status names the agent gate.
 	for _, tc := range []mtt.Type{task, chore} {
-		if s, _ := tc.StatusByName("spec_review"); !strings.Contains(s.Description, "agent") {
-			t.Fatalf("%s spec_review must name the agent gate: %q", tc.Name, s.Description)
-		}
-		if s, _ := tc.StatusByName("spec_human_review"); !strings.Contains(s.Description, "after the agent") {
-			t.Fatalf("%s spec_human_review must state it is after the agent review: %q", tc.Name, s.Description)
-		}
-		if s, _ := tc.StatusByName("plan_human_review"); !strings.Contains(s.Description, "after the agent") {
-			t.Fatalf("%s plan_human_review must state it is after the agent review: %q", tc.Name, s.Description)
+		if s, _ := tc.StatusByName("impl_review"); !strings.Contains(s.Description, "agent") {
+			t.Fatalf("%s impl_review must name the agent gate: %q", tc.Name, s.Description)
 		}
 	}
 ```
@@ -893,7 +964,11 @@ import (
 )
 
 func TestExamplesLoadAndValidate(t *testing.T) {
-	for _, name := range []string{"default.yaml", "coding.yaml", "hierarchy.yaml", "git-flow.yaml"} {
+	// The hosted, verbatim-installed examples must be standalone-valid. NOT
+	// default.yaml — it is the templated built-in (carries {{.Name}}, rendered
+	// via text/template), so it is not valid standalone YAML; its validity is
+	// covered by the adapter's render+Load golden tests.
+	for _, name := range []string{"coding.yaml", "hierarchy.yaml", "git-flow.yaml"} {
 		data, err := os.ReadFile(name)
 		if err != nil {
 			t.Fatalf("read %s: %v", name, err)
@@ -951,7 +1026,7 @@ git commit -m "t62: author git-flow.yaml flagship (generalized reworded dogfood 
 - [ ] **Step 2: README (+ru)** — replace the two `--template coding`/`hierarchy` runnable mentions with `default` and a `--template <url>` example (fetch `git-flow.yaml`); no README runs a removed built-in.
 - [ ] **Step 3: FLOW_GUIDE (+ru)** — the forward-link resolves: "install a ready flow: `mtt init --template <url>`" → `templates/git-flow.yaml`; update any `--template hierarchy/coding` mention.
 - [ ] **Step 4: DESIGN (+ru)** — a `Shipped (t62)` note: the minimal-built-in + bring-your-own strategy, the top-level `templates/` dir, the `checkDecoded`/`ValidateTemplateBytes` boundary, the no-silent-traps / SEC2 posture, t24→t66 unblocking the flagship, and the explicit machine→human review-ordering wording.
-- [ ] **Step 5: `demo/README.md` + `.ru.md`** — the `mtt init --template coding` prose → the migrated form (`--template ./coding.yaml`).
+- [ ] **Step 5: `demo/README.md` + `.ru.md`** (+ `demo/doc.go` if it names a removed built-in) — the `mtt init --template coding` prose → the migrated form (`--template ./coding.yaml`).
 - [ ] **Step 6: CLAUDE.md** — `internal/cli` (init external-source flow + confirm/notice/`--yes`), `internal/adapter/yaml` (`ClassifyTemplate`/`Fetcher`/`checkDecoded`+`ValidateTemplateBytes`/verbatim; the `Load` refactor keeps the overlay), and a new `templates/CLAUDE.md` (embed `default` only; the rest hosted examples).
 - [ ] **Step 7: CHANGELOG** — one `[Unreleased]` entry (the `--template <path|url>` sources, the de-embed of coding/hierarchy, the git-flow flagship, the review-ordering wording).
 - [ ] **Step 8: Close-out** — `make check` green; run the AGENTS.md Principles self-check; `git grep -n "internal/adapter/yaml/templates"` returns no stale references; verify `./bin/mtt init` (no arg), `--template ./templates/coding.yaml`, and the non-TTY URL refuse by hand. Then `mtt submit`.
