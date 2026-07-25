@@ -1,7 +1,7 @@
 id: t52
 type: task
 title: 'mtt init: scaffold agent settings + hooks (sessionStart -> mtt prime, etc.) for codex/claude/gemini'
-status: plan_human_review
+status: implementing
 priority: medium
 tags:
     - dx
@@ -15,7 +15,7 @@ refs:
       id: t51
       label: 'motivates: prime session-start hook'
 created: "2026-07-20T12:06:25Z"
-updated: "2026-07-25T17:33:26Z"
+updated: "2026-07-25T17:34:29Z"
 description: |-
     Sibling of t46 (which scaffolds agent DOCS: AGENTS.md/CLAUDE.md/GEMINI.md). This task scaffolds agent CONFIG/HOOKS: per-harness settings that wire mtt into the agent loop. Headline: a sessionStart hook running mtt prime (t51 left the hook as config-not-code; this makes init emit it), plus a read-only-mtt permissions allowlist.
 
@@ -138,3 +138,7 @@ history:
       by: Grigorii Pashukhin
       from: plan_review
       to: plan_human_review
+    - at: "2026-07-25T17:34:29Z"
+      by: Grigorii Pashukhin
+      from: plan_human_review
+      to: implementing
