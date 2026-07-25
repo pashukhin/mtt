@@ -1,6 +1,6 @@
 # t52 — Scaffold agent settings + hooks (spec)
 
-Status: revision 2 — rev1 decided in the 2026-07-25 brainstorm (four user decisions: harness breadth, merge
+Status: revision 4 — rev1 decided in the 2026-07-25 brainstorm (four user decisions: harness breadth, merge
 strategy, command surface, permissions allowlist; + one refinement: the group `mtt agent hooks`, not a flat
 `mtt scaffold-agents`). rev2 addresses the 2026-07-25 adversarial spec review (0 blocker, 3 major, 3 minor):
 **M1** a single serializer for the create+merge paths (Go sorts map keys, so the on-disk order is
@@ -22,6 +22,13 @@ with config-success reported first) + `Run`'s multi-harness/read-error semantics
 `null` at a container path ⇒ treated as absent (create), like m4; **r5** the presence predicate is a
 leading-`mtt prime` **prefix** match (after trimming), not a loose substring; **r6** `Run` treats only
 `os.IsNotExist` as absent, other read errors propagate.
+
+rev4 addresses the 2026-07-25 **third** spec review (all six round-2 findings verified FIXED; 1 major + 3
+minor remained): **D1** the docs checklist must also create `internal/fsutil/CLAUDE.md` (the non-negotiable
+"every `internal/` package keeps its own CLAUDE.md" rule for the newly-extracted package); **d2** the stale
+`Status: revision 2` header (now correct); **d3** a test for r6's non-`IsNotExist` read-error propagation
+(a `.claude/settings.json` that is a **directory**); **d4** r5 tightened to a **word-boundary** prefix (equal
+to `mtt prime` or followed by a space) so `mtt primer` does not match.
 
 ## Problem
 
@@ -233,10 +240,11 @@ Given existing bytes:
    failure ⇒ **error, no write** (never clobber). Then, working on the map — every access **nil-/type-safe**
    (m5): a value of an unexpected type is handled explicitly, never a panic:
    - `hooks.SessionStart` / `hooks.PreCompact` (each independently): the hook is considered **already present**
-     iff **any** command string reachable under that event, **after trimming leading whitespace, starts with
-     `mtt prime`** (a prefix match, r5 — robust to customized args like `mtt prime --limit 5`, but not
-     false-positived by a command that merely *mentions* the phrase, e.g. `git commit -m "wire mtt prime"`,
-     which a loose substring would wrongly treat as present and silently suppress our hook). The presence walk
+     iff **any** command string reachable under that event, **after trimming leading whitespace, equals
+     `mtt prime` or begins with `mtt prime ` (a trailing space)** — a **word-boundary** prefix (r5/d4), so
+     `mtt prime --limit 5` matches but `mtt primer …` does not, and a command that merely *mentions* the phrase
+     (e.g. `git commit -m "wire mtt prime"`) is correctly **not** present (a loose substring would wrongly treat
+     it as present and silently suppress our hook). The presence walk
      tolerates arbitrary shapes (event not an array, an entry missing `hooks`, `hooks` not an array, `command`
      not a string) — any such shape simply reads as "not ours". If absent, **append** our matcher-group
      `{hooks:[{type:command,command:...}]}`, preserving existing entries; a missing `hooks` map / event array
@@ -322,14 +330,17 @@ mechanical extract-and-delegate, not a behavior change.
       key a string, `permissions.allow` a string/object) ⇒ **loud refusal**, `Run` performs no write;
   14. **(r4 null)** `null` at `hooks` / an event / `permissions` / `allow` ⇒ treated as absent, `Created`/`Merged`
       (not a refusal);
-  15. **(r5 prefix)** a command that merely mentions the phrase not-at-start (`git commit -m "wire mtt prime"`)
-      ⇒ **not** treated as present, our hook appended (a loose substring would wrongly report `unchanged`).
+  15. **(r5 word-boundary)** commands that must **not** count as present — a mention not-at-start
+      (`git commit -m "wire mtt prime"`) and a longer word (`mtt primer`) ⇒ our hook appended (neither a loose
+      substring nor a bare prefix should report `unchanged`); and `mtt prime --limit 5` **does** count.
 - **CLI e2e** (`testscript`): `mtt agent hooks` in a temp dir ⇒ asserts `.claude/settings.json` content
   (literal `2>/dev/null`); a second run ⇒ idempotent (`unchanged`); `mtt init` (default) ⇒ scaffolds; `mtt
   init --no-agent-hooks` ⇒ no `.claude/`; `--json` surfaces for both the subcommand and init;
   **`mtt agent hooks` outside an mtt project ⇒ actionable error (m6)**; **(R3)** `mtt init` with a
   **pre-existing malformed `.claude/settings.json`** ⇒ exit 1, `.mtt/config.yaml` **written** (config-success
-  reported first), scaffold error on stderr, and **no** partial JSON object under `--json`.
+  reported first), scaffold error on stderr, and **no** partial JSON object under `--json`;
+  **(r6/d3)** `.claude/settings.json` that is a **directory** ⇒ the non-`IsNotExist` read error **propagates**
+  (the command fails; not mistaken for absent).
 
 ## Docs to update (behavior change)
 
@@ -350,9 +361,14 @@ Grep the whole tree for the changed flow-fact — the "sessionStart hook is conf
   "wire it into session start" section to point at the command (the hook is **now** scaffolded, no longer only
   a manual snippet).
 - `internal/cli/CLAUDE.md`: the new command wiring; **amend the stale claim** at `internal/cli/CLAUDE.md:294`
-  ("`sessionStart` hook is config … **not code**"). **New** `internal/scaffold/CLAUDE.md` (package
-  responsibility, the `Harness` seam, "no `pkg/mtt` domain, no `.mtt/` storage") and a one-line note in
-  `internal/adapter/yaml/CLAUDE.md` that `atomicWrite` now delegates to `internal/fsutil`.
+  ("`sessionStart` hook is config … **not code**").
+- **New `internal/scaffold/CLAUDE.md`** (package responsibility, the `Harness` seam, "no `pkg/mtt` domain, no
+  `.mtt/` storage").
+- **New `internal/fsutil/CLAUDE.md` (D1)** — the required per-package doc for the newly-extracted package: the
+  shared atomic-write + dir-fsync durability primitive lifted from the yaml adapter; no domain, no storage
+  semantics (the non-negotiable `CLAUDE.md:22` "every `internal/` package keeps its own CLAUDE.md" rule).
+- `internal/adapter/yaml/CLAUDE.md`: a one-line note that `atomicWrite`/`syncDir` now delegate to
+  `internal/fsutil`.
 - `CHANGELOG.md`: an `[Unreleased]` entry (the `task` flow gates on it).
 - `README.md`/`.ru` if the getting-started section enumerates init behavior.
 
