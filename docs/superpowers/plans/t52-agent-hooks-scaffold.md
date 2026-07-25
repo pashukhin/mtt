@@ -32,6 +32,9 @@ e2e, table-driven unit tests.
 - **Every `internal/` package keeps its own `CLAUDE.md`** (root `CLAUDE.md:22`) — new packages `internal/fsutil`
   and `internal/scaffold` each get one in this change.
 - **`make check` green before every commit** (gofmt + vet + golangci-lint v2 + `go test -race` + build).
+- **gosec G304 on new file-IO:** the `.golangci.yml` G304 exclusion is scoped to `_test.go` + `internal/adapter/
+  yaml/` only. The extracted `fsutil.SyncDir` (`os.Open`) and `scaffold.Run` (`os.ReadFile`) are outside it, so
+  each carries an inline `// #nosec G304 -- <reason>` (the init.go:48 idiom) or the gate goes red.
 - **CHANGELOG `[Unreleased]` entry** is required before the implementing→impl_review `mtt submit` (the gate).
 - **Commit under the user's git identity**; trailer `Co-Authored-By: Claude Opus 4.8 (1M context)
   <noreply@anthropic.com>`.
@@ -194,6 +197,9 @@ func AtomicWrite(path string, data []byte, fallbackMode os.FileMode) error {
 // the same way. The write itself is already flushed; only the entry's
 // durability window stays platform-dependent there.
 func SyncDir(dir string) error {
+	// #nosec G304 -- dir is a caller-supplied local directory path (project root
+	// subtree), never network/untrusted input. The yaml adapter's exclusion no
+	// longer covers this code once extracted, so suppress inline (init.go idiom).
 	d, err := os.Open(dir)
 	if err != nil {
 		return fmt.Errorf("open dir %s: %w", dir, err)
@@ -401,6 +407,29 @@ func TestMergeConvergence(t *testing.T) {
 	}
 }
 
+func TestMergeReorderConvergesInOneStep(t *testing.T) {
+	// spec test 5: a hand-authored file carrying our hooks but with type-before-
+	// command key order (and no permissions) ⇒ exactly one Merged (re-sort + add
+	// the allowlist), then Unchanged.
+	h := claudeHarness{}
+	in := `{"hooks":{"SessionStart":[{"hooks":[{"type":"command","command":"mtt prime 2>/dev/null || true"}]}],` +
+		`"PreCompact":[{"hooks":[{"type":"command","command":"mtt prime 2>/dev/null || true"}]}]}}`
+	first, a1, err := h.Merge([]byte(in), true)
+	if err != nil {
+		t.Fatalf("Merge(1): %v", err)
+	}
+	if a1 != Merged {
+		t.Fatalf("first = %q, want merged", a1)
+	}
+	_, a2, err := h.Merge(first, true)
+	if err != nil {
+		t.Fatalf("Merge(2): %v", err)
+	}
+	if a2 != Unchanged {
+		t.Fatalf("second = %q, want unchanged", a2)
+	}
+}
+
 func TestMergeEmptyFileTreatedAsAbsent(t *testing.T) {
 	got, action, err := claudeHarness{}.Merge([]byte("   \n\t"), true)
 	if err != nil {
@@ -435,8 +464,14 @@ func TestMergeCustomPrimeArgsNoDuplicate(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Merge: %v", err)
 	}
-	if n := strings.Count(string(got), "mtt prime"); n != 2 {
-		t.Fatalf("expected the 2 existing prime hooks, no duplicate; got %d occurrences:\n%s", n, got)
+	// Count the exact custom command (NOT the bare "mtt prime" substring, which
+	// also appears in the "Bash(mtt prime:*)" allowlist entry): the two existing
+	// hooks stay, and our guarded command is NOT appended (they satisfy presence).
+	if n := strings.Count(string(got), "mtt prime --limit 5"); n != 2 {
+		t.Fatalf("expected the 2 existing custom prime hooks, no duplicate; got %d:\n%s", n, got)
+	}
+	if strings.Contains(string(got), "mtt prime 2>/dev/null") {
+		t.Fatalf("our guarded hook should not be appended when a prime hook is already present:\n%s", got)
 	}
 }
 
@@ -460,31 +495,36 @@ func TestMergeWordBoundaryNotPresent(t *testing.T) {
 }
 
 func TestMergeMalformedJSON(t *testing.T) {
-	if _, _, err := claudeHarness{}.Merge([]byte("{not json"), true); err == nil {
+	// NB: a composite literal (claudeHarness{}) may not appear in an if-init
+	// header (Go parse ambiguity) — hoist it to a local.
+	h := claudeHarness{}
+	if _, _, err := h.Merge([]byte("{not json"), true); err == nil {
 		t.Fatal("malformed JSON must error")
 	}
 }
 
 func TestMergeRefusesIncompatibleShape(t *testing.T) {
+	h := claudeHarness{}
 	for _, in := range []string{
 		`{"hooks":"oops"}`,
 		`{"hooks":{"SessionStart":"oops"}}`,
 		`{"permissions":{"allow":"oops"}}`,
 	} {
-		if _, _, err := claudeHarness{}.Merge([]byte(in), true); err == nil {
+		if _, _, err := h.Merge([]byte(in), true); err == nil {
 			t.Fatalf("incompatible shape %q must refuse", in)
 		}
 	}
 }
 
 func TestMergeNullContainerTreatedAsAbsent(t *testing.T) {
+	h := claudeHarness{}
 	for _, in := range []string{
 		`{"hooks":null}`,
 		`{"hooks":{"SessionStart":null}}`,
 		`{"permissions":null}`,
 		`{"permissions":{"allow":null}}`,
 	} {
-		if _, _, err := claudeHarness{}.Merge([]byte(in), true); err != nil {
+		if _, _, err := h.Merge([]byte(in), true); err != nil {
 			t.Fatalf("null container %q must be treated as absent, got err %v", in, err)
 		}
 	}
@@ -492,11 +532,12 @@ func TestMergeNullContainerTreatedAsAbsent(t *testing.T) {
 
 func TestMergeToleratesOddShapes(t *testing.T) {
 	// valid JSON, odd shapes the presence walk must survive without panic.
+	h := claudeHarness{}
 	for _, in := range []string{
 		`{"hooks":{"SessionStart":[{}]}}`,
 		`{"hooks":{"SessionStart":[{"hooks":[{"command":42}]}]}}`,
 	} {
-		if _, _, err := claudeHarness{}.Merge([]byte(in), true); err != nil {
+		if _, _, err := h.Merge([]byte(in), true); err != nil {
 			t.Fatalf("odd shape %q should not error, got %v", in, err)
 		}
 	}
@@ -817,6 +858,8 @@ func Run(root string, harnesses []Harness) ([]Result, error) {
 	var results []Result
 	for _, h := range harnesses {
 		path := filepath.Join(root, filepath.FromSlash(h.RelPath()))
+		// #nosec G304 -- path is <root>/<harness RelPath> under a locally-resolved
+		// project root (projectRoot/baseDir), not network/untrusted input.
 		existing, err := os.ReadFile(path)
 		exists := true
 		if err != nil {
@@ -1118,7 +1161,10 @@ and pin the config-then-scaffold failure contract.
 **Interfaces:**
 - Consumes: `scaffold.Run`, `scaffold.Registry`, `toScaffoldJSON`, `reportScaffold` (Task 3).
 
-- [ ] **Step 1: Extend the init e2e** — append to `internal/cli/testdata/scripts/init.txt`:
+- [ ] **Step 1: Extend the init e2e** — in `internal/cli/testdata/scripts/init.txt`, **insert this command
+  block at the END of the command section, immediately BEFORE the first `-- ` txtar marker** (the existing
+  `-- empty/.keep --`). Commands placed after a `--` marker parse as file data and would silently never run
+  (false green), so ordering matters:
 
 ```
 # --- t52: init scaffolds agent hooks by default ---
@@ -1160,7 +1206,8 @@ stderr 'parse existing settings'
 exists .mtt/config.yaml
 ```
 
-  and add the fixture file at the bottom of `init.txt` (in the txtar `--` section):
+  and add the fixture file **at the very bottom of `init.txt`, after the existing `-- bad.yaml --` fixture**
+  (all txtar `-- file --` blocks live together at the end):
 
 ```
 -- badsettings.json --
@@ -1276,7 +1323,8 @@ claims (the project's logged docs-sync lesson) — and the CHANGELOG gate.
 
 **Files:**
 - Modify: `DESIGN.md` (+ `DESIGN.ru.md`) — new Shipped(t52) note; amend the stale t51 claim at `DESIGN.md:957-958`
-  / `DESIGN.ru.md:972`. Leave `DESIGN.md:508` / `.ru:514` (t26 auto-commit, a different fact).
+  / `DESIGN.ru.md:~973` (grep `config, not code` / `конфиг, не` to confirm — line numbers drift). Leave
+  `DESIGN.md:508` / `.ru:514` (t26 auto-commit, a different fact).
 - Modify: `FLOW_GUIDE.md:292` (+ `FLOW_GUIDE.ru.md:295`) — flip the "Settings & hooks" future bullet to Shipped/t52.
 - Modify: `CLI_REFERENCE.md` (+ `.ru`) — document `mtt agent hooks` + `mtt init --no-agent-hooks`; update the t51
   "wire it into session start" snippet to point at the command.
@@ -1297,7 +1345,8 @@ claims (the project's logged docs-sync lesson) — and the CHANGELOG gate.
   config, not code — mtt ships only the command" to note t52 makes it **also** scaffolded (config **and** code —
   `mtt agent hooks` / init default emit it; still user-overridable). Do NOT touch line 508 (t26 fact).
 
-- [ ] **Step 3: Mirror Steps 1-2 in `DESIGN.ru.md`** (Shipped(t52) note + amend line 972). Keep EN/RU in sync.
+- [ ] **Step 3: Mirror Steps 1-2 in `DESIGN.ru.md`** (Shipped(t52) note + amend the stale claim near line ~973
+  — grep `конфиг, не` / `sessionStart` to locate). Keep EN/RU in sync.
 
 - [ ] **Step 4: FLOW_GUIDE.md:292 + FLOW_GUIDE.ru.md:295** — flip the "Settings & hooks — scaffolding
   editor/agent settings and hooks (`sessionStart → mtt prime`)" bullet from the future/"still tracked
