@@ -1,7 +1,7 @@
 id: t62
 type: task
 title: 'ship runnable init templates: universal domain-neutral flow samples (content/approval/generic script-gate) + the git-integration flagship after t24'
-status: spec_human_review
+status: planning
 priority: medium
 tags:
     - dx
@@ -12,7 +12,7 @@ refs:
     - kind: task
       id: t33
 created: "2026-07-23T03:58:11Z"
-updated: "2026-07-25T09:40:44Z"
+updated: "2026-07-25T09:51:49Z"
 description: |-
     Split out of t57 (2026-07-23 brainstorm). t57 ships the flow-authoring GUIDE (docs-only); this ships the runnable, discoverable SAMPLES.
 
@@ -90,3 +90,8 @@ history:
       by: Grigorii Pashukhin
       from: spec_review
       to: spec_human_review
+    - at: "2026-07-25T09:51:49Z"
+      by: Grigorii Pashukhin
+      why: 'human sign-off: spec accepted (rev4) after 3-round adversarial review'
+      from: spec_human_review
+      to: planning
