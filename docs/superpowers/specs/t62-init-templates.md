@@ -2,9 +2,10 @@
 
 Status: revision 4 — rev2 addressed the 2026-07-25 adversarial spec review (1 blocker, 4 majors, 5 minors);
 rev3 fixed the 3 issues that review introduced; rev4 fixes the last minor (keep `Config.Validate` out of the
-shared `checkDecoded` so `Load` stays byte-identical; it lives in the external path only). Decided in the
-2026-07-25 brainstorm (three user decisions: template strategy, built-in scope, external-source safety UX;
-+ one user refinement: a top-level `templates/` directory).
+shared `checkDecoded` so `Load` stays byte-identical; it lives in the external path only); rev5 folds in a
+post-sign-off user directive (Goal 5 / §8 — make the machine→human review ordering explicit in the config +
+git-flow.yaml descriptions). Decided in the 2026-07-25 brainstorm (three user decisions: template strategy,
+built-in scope, external-source safety UX; + one user refinement: a top-level `templates/` directory).
 
 ## Problem
 
@@ -53,6 +54,12 @@ t62 ships the **runnable, discoverable** side. Today `mtt init --template <name>
    derivative of our dogfood flow whose edge descriptions already carry the pushable-main (t33), gh+jq,
    squash-title, and `--no-run` bypass (t32) statements. It is a shipped template and meets the release bar.
 4. Preserve test coverage and the FLOW_GUIDE forward-link; docs (EN+RU) reflect the new `--template` forms.
+5. **(Addendum — post-sign-off user directive, 2026-07-25)** Make the **machine-review→human-review ordering
+   explicit in the review-stage descriptions** — in **both** the dogfood `.mtt/config.yaml` and the shipped
+   `git-flow.yaml`. The invariant is already enforced structurally (no edge reaches a `*_human_review` /
+   `approved` without first passing the agent `*_review`), but the *wording* does not say so; a human reader
+   (or an external user of the template) should see that a human never signs before the agent gate passes.
+   See §8.
 
 ## Non-goals
 
@@ -252,6 +259,26 @@ grepped surface (`git grep -- "--template hierarchy|--template coding"`):
   `DESIGN.md`/`DESIGN.ru.md`, `FLOW_GUIDE.md`/`FLOW_GUIDE.ru.md` — updated in the Docs sweep (below), so no
   doc tells a user to run a now-removed built-in.
 
+### 8. Review-stage description ordering — machine → human (Goal 5)
+
+Make the "agent review first, human sign-off strictly after" invariant **explicit in the descriptions**, in
+both the dogfood `.mtt/config.yaml` and `git-flow.yaml`. Purely a **wording** change — no edge/status is added
+or removed (the ordering is already structurally enforced). The three review pairs get consistent phrasing:
+
+- the machine `*_review` **status** + the `submit`/`decline` **edges** into it read as the **agent gate**, and
+  the `approve` edge out says it advances **to the human sign-off** (not "final approval") — e.g. `spec_review`
+  → `approve`: "agent review passed → **human sign-off next**".
+- the `*_human_review` **status** + its inbound `approve` edge state the sign-off happens **only after the
+  agent review passed** — e.g. `spec_human_review`: "human sign-off (**only after the agent `*_review`
+  passed**) …".
+- the impl stage has no `impl_human_review` status; its human step is the **PR merge** (`approved` →
+  `deliver`), which is already after `impl_review` — its wording is aligned to the same "agent gate → then a
+  human acts" framing so the three stages read consistently.
+
+`git-flow.yaml` carries the same phrasing (it is the external teaching artifact for the flow). Because the
+committed config's descriptions change, **`TestRepoDogfoodConfig`** (which pins the config byte-shape) is
+updated red-first for the new strings; this is a `config-is-code` (SEC2) edit reviewed like a Makefile.
+
 ## Testing (TDD)
 
 - **Classification** unit table: `default`→builtin; `x.yaml`/`./x`/`a/b` (and Windows `a\b`)→file;
@@ -276,6 +303,9 @@ grepped surface (`git grep -- "--template hierarchy|--template coding"`):
   the built-in prints neither; `template` still carries the raw arg.
 - **git-flow.yaml**: loads + validates; the **description-keyword** test (`push`/`jq`/`--no-run`; `gh` matched
   as a **token**, not a substring).
+- **Review-ordering wording (§8)**: `TestRepoDogfoodConfig` updated red-first for the reworded review-stage
+  descriptions in `.mtt/config.yaml`; a `git-flow.yaml` assertion that its `*_review`/`*_human_review`
+  descriptions state the machine→human ordering (agent-gate + "human sign-off after the agent review").
 - **Built-in `default` unchanged**: existing golden/e2e green; `default.yaml` loads + validates.
 - **e2e** (`init.txt`): built-in `default`; **file-path** install (+ verbatim `{{.ID}}` survival +
   validate-fail-closed on a broken file); **non-TTY URL refuse** (errors before any fetch — no server); plus
