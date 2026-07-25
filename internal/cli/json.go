@@ -114,6 +114,7 @@ type versionJSON struct {
 type initJSON struct {
 	Path     string `json:"path"`
 	Template string `json:"template"`
+	Source   string `json:"source,omitempty"`
 	Name     string `json:"name"`
 	Created  bool   `json:"created"`
 }

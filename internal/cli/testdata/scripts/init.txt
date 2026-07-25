@@ -60,4 +60,53 @@ stdout '"template": "default"'
 stdout '"name": "jsonproj"'
 stdout '"created": true'
 
+# --- file-path source: verbatim install of an external template ---
+cd $WORK
+mkdir fileproj
+cd fileproj
+exec mtt init --template $WORK/ext.yaml
+stdout 'initialized'
+stderr 'review .mtt/config.yaml before your first'
+# verbatim: the external {{.ID}} runtime placeholder survives byte-for-byte
+grep '\{\{\.ID\}\}' .mtt/config.yaml
+# --json carries the source provenance
+exec mtt init --template $WORK/ext.yaml --force --json
+stdout '"source": "file:'
+# --name is ignored for an external source (with a stderr note, never silent)
+exec mtt init --template $WORK/ext.yaml --force --name ignored
+stderr 'note: --name is ignored'
+# a broken external template fails closed — nothing written
+cd $WORK
+mkdir badproj
+cd badproj
+! exec mtt init --template $WORK/bad.yaml
+! exists .mtt/config.yaml
+# a scheme-less URL-looking arg (dotted host + / + .yaml) misses as a file, with an https hint
+! exec mtt init --template raw.githubusercontent.com/x/y.yaml
+stderr 'did you mean https://'
+
 -- empty/.keep --
+-- ext.yaml --
+version: 1
+project: {name: ext}
+command_timeout: 5m
+types:
+  - name: task
+    prefix: t
+    default: true
+    statuses:
+      - {name: tbd, kind: initial}
+      - {name: doing, kind: active}
+      - {name: done, kind: terminal}
+    transitions:
+      - {from: tbd, to: doing, description: "close {{.ID}}"}
+      - {from: doing, to: done}
+-- bad.yaml --
+version: 1
+project: {name: bad}
+types:
+  - name: task
+    prefix: "t;rm"
+    default: true
+    statuses: [{name: tbd, kind: initial}]
+    transitions: []
