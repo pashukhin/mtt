@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -12,16 +11,14 @@ import (
 	"github.com/pashukhin/mtt/internal/adapter/yaml"
 )
 
-// errURLNotYetWired is a temporary stub for the url branch (Task 4 wires it).
-var errURLNotYetWired = errors.New("url templates land in the next task")
-
 // newInitCmd builds `mtt init`: write the starter .mtt/config.yaml from a
 // built-in name, a local file path, or an https URL.
 func newInitCmd() *cobra.Command {
 	var (
-		tmpl  string
-		force bool
-		name  string
+		tmpl    string
+		force   bool
+		name    string
+		autoYes bool
 	)
 	cmd := &cobra.Command{
 		Use:   "init",
@@ -61,7 +58,27 @@ func newInitCmd() *cobra.Command {
 				source = "file:" + value
 				printExternalNotice(cmd, value)
 			case yaml.SourceURL:
-				return errURLNotYetWired
+				_, _ = fmt.Fprintf(cmd.ErrOrStderr(), "install template from %s? [y/N] ", value)
+				ok, cerr := confirmRemote(cmd.InOrStdin(), stdinIsTTY(), autoYes)
+				if cerr != nil {
+					return cerr
+				}
+				if !ok {
+					_, werr := fmt.Fprintln(cmd.OutOrStdout(), "aborted")
+					return werr
+				}
+				data, ferr := yaml.NewFetcher().Fetch(value)
+				if ferr != nil {
+					return ferr
+				}
+				if name != "" {
+					_, _ = fmt.Fprintf(cmd.ErrOrStderr(), "note: --name is ignored for an external template (%s)\n", value)
+				}
+				if err := yaml.InstallConfig(base, data, force); err != nil {
+					return err
+				}
+				source = "url:" + value
+				printExternalNotice(cmd, value)
 			}
 			if jsonFlag(cmd) {
 				absBase, err := filepath.Abs(base)
@@ -82,6 +99,7 @@ func newInitCmd() *cobra.Command {
 	cmd.Flags().StringVar(&tmpl, "template", "default", "starter template: default | a file path | an https URL")
 	cmd.Flags().BoolVar(&force, "force", false, "overwrite an existing config")
 	cmd.Flags().StringVar(&name, "name", "", "project name (default: current directory name)")
+	cmd.Flags().BoolVar(&autoYes, "yes", false, "skip the confirmation prompt for a remote --template URL")
 	return cmd
 }
 
