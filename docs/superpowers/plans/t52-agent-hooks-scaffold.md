@@ -990,10 +990,13 @@ Wire the `mtt agent` group + `hooks` subcommand over `scaffold.Run`, with `--jso
 - [ ] **Step 1: Write the failing e2e** — `internal/cli/testdata/scripts/agent_hooks.txt`
 
 ```
-# agent hooks scaffolds Claude settings into an initialized project
+# agent hooks scaffolds Claude settings into an initialized project.
+# NB: plain `mtt init` here — at Task 3, init does NOT scaffold yet (Task 4 adds
+# that + the --no-agent-hooks flag), so .claude/ is absent until `agent hooks`.
+# Task 4 rewrites this line to `mtt init --no-agent-hooks` once init scaffolds by default.
 mkdir proj
 cd proj
-exec mtt init --no-agent-hooks
+exec mtt init
 ! exists .claude/settings.json
 exec mtt agent hooks
 stdout 'claude: created'
@@ -1156,7 +1159,10 @@ and pin the config-then-scaffold failure contract.
 - Modify: `internal/cli/init.go` (add flag; call `scaffold.Run` after the switch; failure contract; output)
 - Modify: `internal/cli/json.go:114-120` (`initJSON` gains `Scaffold []scaffoldJSON`)
 - Modify: `internal/cli/testdata/scripts/init.txt` (scaffold-by-default, opt-out, malformed-failure)
-- Test: extend `internal/cli/init.txt` (above) — no new file.
+- Modify: `internal/cli/testdata/scripts/agent_hooks.txt` (rewrite its opening `exec mtt init` →
+  `exec mtt init --no-agent-hooks`, now that init scaffolds by default — else that script's
+  `! exists .claude/settings.json` breaks). **Cross-task dependency:** Task 3 wrote this file with plain
+  `mtt init`; Task 4 owns this one-line edit.
 
 **Interfaces:**
 - Consumes: `scaffold.Run`, `scaffold.Registry`, `toScaffoldJSON`, `reportScaffold` (Task 3).
@@ -1293,6 +1299,17 @@ type initJSON struct {
 ```
 
   `toScaffoldJSON(nil)` returns a non-null empty slice, so `--no-agent-hooks --json` emits `"scaffold": []`.
+
+- [ ] **Step 4b: Fix the cross-task coupling in `agent_hooks.txt`** — now that `mtt init` scaffolds by default,
+  the Task 3 script's opening `exec mtt init` would create `.claude/settings.json` and break its
+  `! exists .claude/settings.json` assertion. Rewrite that one line to opt out:
+
+```
+exec mtt init --no-agent-hooks
+```
+
+  (drop the Task-3 NB comment block above it — the coupling is now resolved). Re-run the agent_hooks e2e to
+  confirm it is green again: `go test ./internal/cli/ -run 'TestScripts/agent_hooks' -v` → PASS.
 
 - [ ] **Step 5: Run the e2e to verify it passes**
 
