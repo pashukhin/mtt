@@ -1,7 +1,7 @@
 id: t62
 type: task
 title: 'ship runnable init templates: universal domain-neutral flow samples (content/approval/generic script-gate) + the git-integration flagship after t24'
-status: spec_review
+status: spec_fix
 priority: medium
 tags:
     - dx
@@ -12,7 +12,7 @@ refs:
     - kind: task
       id: t33
 created: "2026-07-23T03:58:11Z"
-updated: "2026-07-25T09:26:02Z"
+updated: "2026-07-25T09:30:51Z"
 description: |-
     Split out of t57 (2026-07-23 brainstorm). t57 ships the flow-authoring GUIDE (docs-only); this ships the runnable, discoverable SAMPLES.
 
@@ -58,3 +58,8 @@ history:
           exit: 0
         - cmd: out=$(git status --porcelain -- ":(exclude).mtt") && test -z "$out" || { echo "working tree not clean - commit your code/docs first (.mtt is swept by the move itself)" >&2; false; }
           exit: 0
+    - at: "2026-07-25T09:30:51Z"
+      by: Grigorii Pashukhin
+      why: 'spec re-review: all rev1 findings resolved, but rev2 introduced (MAJOR) "Load refactors to os.ReadFile->DecodeConfig" misdescribes Load — it is a TWO-FILE overlay (config.yaml + config.local.yaml later-wins) + pre-overlay committedRequire capture + tighten-only require + Author from overlay; a one-slice DecodeConfig cannot express that and would drop the overlay/attribution. Fix: shared checkDecoded(yc) after the overlay; external path = ValidateTemplateBytes(single doc). (MINOR) fake httpDoer.Do bypasses http.Client CheckRedirect so redirect-to-http-refuse untestable — inject http.RoundTripper into a real client + pure httpsOnlyRedirect predicate. (MINOR) gh keyword substring false-positives (through/high) -> token match; scheme-less-URL hint misfires on ./x.yaml -> exclude leading ./../ .'
+      from: spec_review
+      to: spec_fix
