@@ -1,7 +1,7 @@
 id: t52
 type: task
 title: 'mtt init: scaffold agent settings + hooks (sessionStart -> mtt prime, etc.) for codex/claude/gemini'
-status: spec_fix
+status: spec_review
 priority: medium
 tags:
     - dx
@@ -15,7 +15,7 @@ refs:
       id: t51
       label: 'motivates: prime session-start hook'
 created: "2026-07-20T12:06:25Z"
-updated: "2026-07-25T16:07:36Z"
+updated: "2026-07-25T16:11:10Z"
 description: |-
     Sibling of t46 (which scaffolds agent DOCS: AGENTS.md/CLAUDE.md/GEMINI.md). This task scaffolds agent CONFIG/HOOKS: per-harness settings that wire mtt into the agent loop. Headline: a sessionStart hook running mtt prime (t51 left the hook as config-not-code; this makes init emit it), plus a read-only-mtt permissions allowlist.
 
@@ -66,3 +66,12 @@ history:
       why: 'spec re-review r2: 3 majors (json HTML-escapes our own 2> command → use Encoder SetEscapeHTML(false); fsutil extract forgot audit.go syncDir consumer → export SyncDir; init default-path scaffold-failure contract undefined), 3 minors (json null container, substring mtt-prime false-positive, non-ENOENT read errors)'
       from: spec_review
       to: spec_fix
+    - at: "2026-07-25T16:11:10Z"
+      by: Grigorii Pashukhin
+      from: spec_fix
+      to: spec_review
+      checks:
+        - cmd: ls docs/superpowers/specs/t52-*.md
+          exit: 0
+        - cmd: out=$(git status --porcelain -- ":(exclude).mtt") && test -z "$out" || { echo "working tree not clean - commit your code/docs first (.mtt is swept by the move itself)" >&2; false; }
+          exit: 0
