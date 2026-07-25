@@ -1,7 +1,7 @@
 id: t62
 type: task
 title: 'ship runnable init templates: universal domain-neutral flow samples (content/approval/generic script-gate) + the git-integration flagship after t24'
-status: spec_fix
+status: spec_review
 priority: medium
 tags:
     - dx
@@ -12,7 +12,7 @@ refs:
     - kind: task
       id: t33
 created: "2026-07-23T03:58:11Z"
-updated: "2026-07-25T09:37:58Z"
+updated: "2026-07-25T09:38:53Z"
 description: |-
     Split out of t57 (2026-07-23 brainstorm). t57 ships the flow-authoring GUIDE (docs-only); this ships the runnable, discoverable SAMPLES.
 
@@ -77,3 +77,12 @@ history:
       why: 'spec re-review: rev2 items all closed; one new MINOR — checkDecoded as written includes Config.Validate but Load today does NOT run it (load.go:45 "domain invariants are the caller`s"; only add.go/types.go call Validate), so routing Load through it would change read-path behavior on ~24 callers. Fix (reviewer-prescribed): checkDecoded = toDomain+checkPrefixes+parseCommandTimeout only (Load byte-identical); Config.Validate lives in the external ValidateTemplateBytes path alone (init owns the domain check for an untrusted template).'
       from: spec_review
       to: spec_fix
+    - at: "2026-07-25T09:38:53Z"
+      by: Grigorii Pashukhin
+      from: spec_fix
+      to: spec_review
+      checks:
+        - cmd: ls docs/superpowers/specs/t62-*.md
+          exit: 0
+        - cmd: out=$(git status --porcelain -- ":(exclude).mtt") && test -z "$out" || { echo "working tree not clean - commit your code/docs first (.mtt is swept by the move itself)" >&2; false; }
+          exit: 0
