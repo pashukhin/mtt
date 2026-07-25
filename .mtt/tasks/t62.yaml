@@ -1,7 +1,7 @@
 id: t62
 type: task
 title: 'ship runnable init templates: universal domain-neutral flow samples (content/approval/generic script-gate) + the git-integration flagship after t24'
-status: impl_review
+status: impl_fix
 priority: medium
 tags:
     - dx
@@ -12,7 +12,7 @@ refs:
     - kind: task
       id: t33
 created: "2026-07-23T03:58:11Z"
-updated: "2026-07-25T13:10:18Z"
+updated: "2026-07-25T13:21:32Z"
 description: |-
     Split out of t57 (2026-07-23 brainstorm). t57 ships the flow-authoring GUIDE (docs-only); this ships the runnable, discoverable SAMPLES.
 
@@ -139,3 +139,8 @@ history:
           exit: 0
         - cmd: make check
           exit: 0
+    - at: "2026-07-25T13:21:32Z"
+      by: Grigorii Pashukhin
+      why: 'adversarial code review APPROVE (no blocker/major); folding 2 minor quality fixes: (1) Fetcher.Fetch should self-check the initial URL scheme is https (defense-in-depth per spec §5 pre-request check; today only ClassifyTemplate guards it); (2) TestFetchRefusesRedirectToHTTP passes for the wrong reason — the fake transport 302-loops so Fetch errors on the 10-redirect limit even if httpsOnlyRedirect were broken; assert the error names the scheme so it actually proves the CheckRedirect refusal. (minors 3/4/5 — dotted-path hint, TTY-decline json, README path — left: spec-sanctioned / unreachable / acceptable.)'
+      from: impl_review
+      to: impl_fix
