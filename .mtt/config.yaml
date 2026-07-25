@@ -46,15 +46,15 @@ types:
     statuses:
       - {name: tbd, kind: initial, description: "queued; `mtt start` to take into work"}
       - {name: speccing, kind: active, description: "brainstorm first (superpowers:brainstorming), then write the design spec — a decision record — to docs/superpowers/specs/{{.ID}}-<slug>.md (commit early and often), then `mtt submit`"}
-      - {name: spec_review, kind: active, description: "run an adversarial subagent review of the spec; `mtt approve` when it passes, `mtt decline` to send back"}
-      - {name: spec_human_review, kind: active, description: "get human sign-off on the spec; `mtt approve` or `mtt decline`"}
+      - {name: spec_review, kind: active, description: "agent gate: run an adversarial subagent review of the spec; `mtt approve` (→ human sign-off) when it passes, `mtt decline` to send back"}
+      - {name: spec_human_review, kind: active, description: "human sign-off — only after the agent spec_review passed; `mtt approve` or `mtt decline`"}
       - {name: spec_fix, kind: active, description: "address spec findings, then `mtt submit` to re-review"}
       - {name: planning, kind: active, description: "write the implementation plan (superpowers:writing-plans) to docs/superpowers/plans/{{.ID}}-<slug>.md, then `mtt submit`"}
-      - {name: plan_review, kind: active, description: "run an adversarial subagent review of the plan; `mtt approve` when it passes, `mtt decline` to send back"}
-      - {name: plan_human_review, kind: active, description: "get human sign-off on the plan; `mtt approve` or `mtt decline`"}
+      - {name: plan_review, kind: active, description: "agent gate: run an adversarial subagent review of the plan; `mtt approve` (→ human sign-off) when it passes, `mtt decline` to send back"}
+      - {name: plan_human_review, kind: active, description: "human sign-off — only after the agent plan_review passed; `mtt approve` or `mtt decline`"}
       - {name: plan_fix, kind: active, description: "address plan findings, then `mtt submit` to re-review"}
       - {name: implementing, kind: active, description: "implement test-first (TDD), make check green between commits, then `mtt submit`"}
-      - {name: impl_review, kind: active, description: "run an adversarial code review: the AGENTS.md Principles self-check + Go conventions, and DESIGN.md/CLAUDE.md updated if behavior changed; `mtt approve` when it passes, `mtt decline` to send back"}
+      - {name: impl_review, kind: active, description: "agent gate: run an adversarial code review: the AGENTS.md Principles self-check + Go conventions, and DESIGN.md/CLAUDE.md updated if behavior changed; `mtt approve` when it passes, `mtt decline` to send back"}
       - {name: impl_fix, kind: active, description: "address review findings, then `mtt submit` to re-review"}
       - {name: approved, kind: active, description: "the PR is opened/updated automatically (mtt runs gh pr create for you; the branch was auto-pushed) — ask the human to merge; after the squash-merge run `mtt deliver`; human-requested changes -> `mtt decline`"}
       - {name: done, kind: terminal, description: "delivered to main"}
@@ -258,7 +258,7 @@ types:
     statuses:
       - {name: tbd, kind: initial, description: "queued; `mtt start` to take into work"}
       - {name: implementing, kind: active, description: "implement test-first (TDD), make check green between commits, then `mtt submit`"}
-      - {name: impl_review, kind: active, description: "run an adversarial code review: the AGENTS.md Principles self-check + Go conventions, and DESIGN.md/CLAUDE.md updated if behavior changed; if the diff contains design decisions not recorded elsewhere — decline: it must be a `task` (cancel this chore and recreate). `mtt approve` / `mtt decline`"}
+      - {name: impl_review, kind: active, description: "agent gate: run an adversarial code review: the AGENTS.md Principles self-check + Go conventions, and DESIGN.md/CLAUDE.md updated if behavior changed; if the diff contains design decisions not recorded elsewhere — decline: it must be a `task` (cancel this chore and recreate). `mtt approve` / `mtt decline`"}
       - {name: impl_fix, kind: active, description: "address review findings, then `mtt submit` to re-review"}
       - {name: approved, kind: active, description: "the PR is opened/updated automatically (mtt runs gh pr create for you; the branch was auto-pushed) — ask the human to merge; after the squash-merge run `mtt deliver`; human-requested changes -> `mtt decline`"}
       - {name: done, kind: terminal, description: "delivered to main"}

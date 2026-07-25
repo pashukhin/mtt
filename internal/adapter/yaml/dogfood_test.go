@@ -284,6 +284,27 @@ func TestRepoDogfoodConfig(t *testing.T) {
 			t.Fatalf("%s deliver description lost the --no-run caveat: %q", tc.Name, d.Description)
 		}
 	}
+
+	// machine→human ordering must be EXPLICIT in the wording (t62 Goal 5/§8). Only
+	// the `task` type has the spec/plan review stages; `chore` has just
+	// tbd→implementing→impl_review→approved (its human step is the PR merge, already
+	// after the agent impl_review), so DO NOT loop {task, chore} for spec/plan
+	// statuses — chore lacks them (StatusByName → zero Status, a false failure).
+	if s, _ := task.StatusByName("spec_review"); !strings.Contains(s.Description, "agent") {
+		t.Fatalf("task spec_review must name the agent gate: %q", s.Description)
+	}
+	if s, _ := task.StatusByName("spec_human_review"); !strings.Contains(s.Description, "after the agent") {
+		t.Fatalf("task spec_human_review must state it is after the agent review: %q", s.Description)
+	}
+	if s, _ := task.StatusByName("plan_human_review"); !strings.Contains(s.Description, "after the agent") {
+		t.Fatalf("task plan_human_review must state it is after the agent review: %q", s.Description)
+	}
+	// both types: the machine review status names the agent gate.
+	for _, tc := range []mtt.Type{task, chore} {
+		if s, _ := tc.StatusByName("impl_review"); !strings.Contains(s.Description, "agent") {
+			t.Fatalf("%s impl_review must name the agent gate: %q", tc.Name, s.Description)
+		}
+	}
 }
 
 func assertEventHook(t *testing.T, kind string, hook mtt.EventHook, want ...string) {
