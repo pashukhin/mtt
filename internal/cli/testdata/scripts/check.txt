@@ -25,3 +25,60 @@ stdout '1 dangling'
 # --json emits a non-null array with a status per finding (still dangling -> exit 7)
 ! exec mtt check --json
 stdout '"status": "dangling"'
+
+# --- dangling depends_on is an integrity failure (fresh project) ---
+cd $WORK
+mkdir depproj
+cd depproj
+exec mtt init
+exec mtt add 'X'
+exec mtt add 'Y'
+exec mtt add 'Z'
+# CLI can't mint a dangling edge (dep add validates existence): depend on t3, then rm --force it.
+exec mtt dep add t2 t3
+exec mtt rm t3 --force --who tester --why 'leave a dangling dep'
+! exec mtt check
+stdout 'task:t2 → depends_on:t3   \[dangling-dep\]'
+stdout '1 dangling, 0 unverified, 0 cycle'
+stderr 'integrity check failed'
+# --json is a kind-tagged union (still hard -> exit 7)
+! exec mtt check --json
+stdout '"kind": "dangling-dep"'
+stdout '"missing": "t3"'
+
+# --- a dependency cycle (hand-written yaml: the CLI rejects a cyclic dep add,
+#     but the load path accepts id==stem files that mutually depend) ---
+cd $WORK
+mkdir cycleproj
+cd cycleproj
+exec mtt init
+mkdir .mtt/tasks
+# testscript extracts the txtar file blocks into $WORK; CWD here is $WORK/cycleproj,
+# so the sources need the $WORK/ prefix (a bare `cp c1.yaml` would look in cycleproj).
+cp $WORK/c1.yaml .mtt/tasks/t1.yaml
+cp $WORK/c2.yaml .mtt/tasks/t2.yaml
+! exec mtt check
+stdout 'cycle: t1 -> t2'
+stdout '0 dangling, 0 unverified, 1 cycle'
+stderr 'integrity check failed'
+! exec mtt check --json
+stdout '"kind": "cycle"'
+
+-- c1.yaml --
+id: t1
+type: task
+title: one
+status: tbd
+depends_on:
+    - t2
+created: 2026-07-25T00:00:00Z
+updated: 2026-07-25T00:00:00Z
+-- c2.yaml --
+id: t2
+type: task
+title: two
+status: tbd
+depends_on:
+    - t1
+created: 2026-07-25T00:00:00Z
+updated: 2026-07-25T00:00:00Z
