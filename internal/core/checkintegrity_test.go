@@ -3,6 +3,7 @@ package core
 import (
 	"reflect"
 	"testing"
+	"time"
 
 	"github.com/pashukhin/mtt/pkg/mtt"
 )
@@ -24,7 +25,7 @@ func TestCheckIntegrity(t *testing.T) {
 	for _, f := range got {
 		kinds = append(kinds, f.Kind)
 	}
-	// deterministic order: refs (CheckRefs order), then deps (task recency), then cycles
+	// deterministic order: refs (CheckRefs order), then deps (task-slice order), then cycles
 	want := []IntegrityKind{IntegrityDanglingRef, IntegrityUnverifiedRef, IntegrityDanglingDep, IntegrityCycle}
 	if !reflect.DeepEqual(kinds, want) {
 		t.Fatalf("kinds = %v, want %v", kinds, want)
@@ -41,6 +42,25 @@ func TestCheckIntegrity(t *testing.T) {
 	}
 	if len(got[3].Cycle) == 0 {
 		t.Fatalf("cycle payload empty")
+	}
+}
+
+func TestCheckIntegrityDepOrder(t *testing.T) {
+	// Multiple dangling depends_on must be reported in TASK-SLICE order, not by
+	// recency: give the later slice entry the NEWER Created so a recency sort would
+	// flip them — the findings must still read t1 then t2.
+	tasks := []mtt.Task{
+		{ID: "t1", Type: "task", Status: "tbd", DependsOn: []mtt.TaskID{"gone1"},
+			Created: time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)},
+		{ID: "t2", Type: "task", Status: "tbd", DependsOn: []mtt.TaskID{"gone2"},
+			Created: time.Date(2030, 1, 1, 0, 0, 0, 0, time.UTC)},
+	}
+	got := CheckIntegrity(tasks, nil, true)
+	if len(got) != 2 {
+		t.Fatalf("want 2 dangling-dep findings, got %d: %+v", len(got), got)
+	}
+	if got[0].Dep == nil || got[1].Dep == nil || got[0].Dep.Task != "t1" || got[1].Dep.Task != "t2" {
+		t.Fatalf("dep order must follow the task slice (t1 then t2), got %+v", got)
 	}
 }
 
