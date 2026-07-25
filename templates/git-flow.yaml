@@ -1,48 +1,93 @@
 version: 1
+# git-flow — the git-integration flagship (a generalized, adaptable sample of the
+# flow mtt dogfoods on itself). Each task rides its own branch: start branches,
+# every move auto-commits .mtt, an agent review gates before a human signs off,
+# approve opens a PR, and deliver squash-lands it on main.
+#
+# NO SILENT TRAPS — every external assumption is gated OR stated in the edge that
+# relies on it. ADAPT the commands to your project; this is a sample, not a mandate.
+#   - assumes a pushable `main` (deliver pushes it) and `gh`+`jq` on PATH (approve
+#     opens the PR); the deliver check assumes your squash-merge commit title = the
+#     PR title (so it can find the merge on main).
+#   - state-moving edges (deliver/cancel) carry the `--no-run` caveat: a bypass
+#     skips ALL commands, including the git switch — you own the move by hand then.
 project:
   name: my-project
-command_timeout: 5m
 types:
-  - name: feature
-    description: A new capability. DoD — a branch and a green gate.
-    prefix: f
+  - name: task
+    prefix: t
     parents: []
     default: true
+    description: "A unit of work carried on its own git branch through an agent review and a human sign-off to a merged PR."
+    # applied to every edge (defaults-first); commits the .mtt state change.
+    post_defaults:
+      - 'git add .mtt && git commit -m "{{.ID}}: {{.From}} → {{.To}}" -- .mtt'
     statuses:
-      - {name: tbd,         kind: initial}
-      - {name: in_progress, kind: active}
-      - {name: done,        kind: terminal}
-      - {name: cancelled,   kind: terminal}
+      - {name: tbd, kind: initial, description: "queued; `mtt start` to take into work"}
+      - {name: implementing, kind: active, description: "do the work on this task's branch; commit code as you go, then `mtt submit`"}
+      - {name: review, kind: active, description: "agent gate: run an adversarial code review; `mtt approve` (→ human sign-off) when it passes, `mtt decline` to send back"}
+      - {name: human_review, kind: active, description: "human sign-off — only after the agent review passed; `mtt approve` or `mtt decline`"}
+      - {name: fix, kind: active, description: "address the review findings, then `mtt submit` to re-review"}
+      - {name: approved, kind: active, description: "the PR is opened/updated automatically (mtt runs `gh pr create`; needs `gh`+`jq`) — ask a human to merge; after the squash-merge run `mtt deliver`"}
+      - {name: done, kind: terminal, description: "delivered to main"}
+      - {name: cancelled, kind: terminal, description: "abandoned"}
     transitions:
-      - {from: tbd,         to: in_progress, description: "create a feature branch", current: set}
-      - {from: tbd,         to: cancelled}
-      - {from: in_progress, to: done, description: "quality gate", commands: ["make lint", "make test"], current: clear}
-      - {from: in_progress, to: cancelled}
-  - name: bugfix
-    description: A fix. DoD — a failing test first, then green.
-    prefix: b
-    parents: []
-    statuses:
-      - {name: tbd,         kind: initial}
-      - {name: in_progress, kind: active}
-      - {name: done,        kind: terminal}
-      - {name: cancelled,   kind: terminal}
-    transitions:
-      - {from: tbd,         to: in_progress, description: "write a failing test that reproduces the bug", commands: ["! make test"], current: set}
-      - {from: tbd,         to: cancelled}
-      - {from: in_progress, to: done, description: "quality gate", commands: ["make lint", "make test"], current: clear}
-      - {from: in_progress, to: cancelled}
-  - name: refactor
-    description: A behavior-preserving change. DoD — no public-API diff, then green.
-    prefix: r
-    parents: []
-    statuses:
-      - {name: tbd,         kind: initial}
-      - {name: in_progress, kind: active}
-      - {name: done,        kind: terminal}
-      - {name: cancelled,   kind: terminal}
-    transitions:
-      - {from: tbd,         to: in_progress, description: "create a branch", current: set}
-      - {from: tbd,         to: cancelled}
-      - {from: in_progress, to: done, description: "no public-API change + quality gate", commands: ["git diff --exit-code -- pkg/", "make lint", "make test"], current: clear}
-      - {from: in_progress, to: cancelled}
+      - from: tbd
+        to: implementing
+        name: start
+        current: set
+        description: "pull main first (a stale base makes conflict-prone PRs), then enter (or create from main) the branch task/{{.ID}}"
+        commands:
+          - 'git switch task/{{.ID}} || (git switch main && git switch -c task/{{.ID}})'
+      - from: implementing
+        to: review
+        name: submit
+        description: "work done; run the agent review"
+        commands:
+          - 'out=$(git status --porcelain -- ":(exclude).mtt") && test -z "$out" || { echo "working tree not clean — commit your code first (.mtt is swept by the move itself)" >&2; false; }'
+      - {from: review, to: human_review, name: approve, description: "agent review passed → human sign-off next"}
+      - {from: review, to: fix, name: decline, description: "review found issues; address them, then `mtt submit`"}
+      - from: human_review
+        to: approved
+        name: approve
+        description: "human signed off; push the branch and open/update the PR (idempotent)"
+        commands:
+          - 'out=$(git status --porcelain -- ":(exclude).mtt") && test -z "$out" || { echo "working tree not clean — commit your code first" >&2; false; }'
+        post:
+          - 'git push -u origin task/{{.ID}}'
+          - '[ -n "$(gh pr list --head task/{{.ID}} --state open --json number --jq ".[].number")" ] || gh pr create --base main --head task/{{.ID}} --title "{{.ID}}: $(mtt show {{.ID}} --json | jq -r ".title // empty")" --body "Automated PR for {{.ID}} — see: mtt show {{.ID}}"'
+      - {from: human_review, to: fix, name: decline, description: "human requested changes; address them, then `mtt submit`"}
+      - from: fix
+        to: review
+        name: submit
+        description: "fixes done; re-review"
+        commands:
+          - 'out=$(git status --porcelain -- ":(exclude).mtt") && test -z "$out" || { echo "working tree not clean — commit your code first" >&2; false; }'
+      - from: approved
+        to: done
+        name: deliver
+        current: clear
+        inherit_post: false
+        description: "after the squash-merge: pull main, then deliver (moves your tree to main and writes done there); caution: --no-run skips the git switch too — a bypassed deliver writes done on whatever branch you are on"
+        commands:
+          - 'git switch main'
+          - 'git log -n 1000 --format=%s | grep -v "^mtt: " | head -200 | grep "^{{.ID}}: " || { echo "no squash commit \"{{.ID}}: …\" on local main: git pull first, and check the PR/merge title started with \"{{.ID}}: \"" >&2; false; }'
+        post:
+          - 'a=.mtt/tasks/{{.ID}}.yaml; test -f .mtt/audit.log && a="$a .mtt/audit.log"; git add -- $a && git commit -m "{{.ID}}: {{.From}} → {{.To}}" -- $a'
+          - 'git push origin main'
+      - from: tbd
+        to: cancelled
+        name: cancel
+        current: clear
+        description: "abandon before work starts; caution: --no-run skips context moves too"
+      - from: implementing
+        to: cancelled
+        name: cancel
+        current: clear
+        inherit_post: false
+        description: "abandon the task (moves your tree to main); caution: --no-run skips the git switch too — a bypassed cancel writes cancelled on whatever branch you are on"
+        commands:
+          - 'git switch main'
+        post:
+          - 'a=.mtt/tasks/{{.ID}}.yaml; test -f .mtt/audit.log && a="$a .mtt/audit.log"; git add -- $a && git commit -m "{{.ID}}: {{.From}} → {{.To}}" -- $a'
+          - 'git push origin main'
