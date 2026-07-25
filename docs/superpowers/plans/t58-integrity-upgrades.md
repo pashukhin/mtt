@@ -223,8 +223,10 @@ mkdir cycleproj
 cd cycleproj
 exec mtt init
 mkdir .mtt/tasks
-cp c1.yaml .mtt/tasks/t1.yaml
-cp c2.yaml .mtt/tasks/t2.yaml
+# testscript extracts the txtar file blocks into $WORK; CWD here is $WORK/cycleproj,
+# so the sources need the $WORK/ prefix (a bare `cp c1.yaml` would look in cycleproj).
+cp $WORK/c1.yaml .mtt/tasks/t1.yaml
+cp $WORK/c2.yaml .mtt/tasks/t2.yaml
 ! exec mtt check
 stdout 'cycle: t1 -> t2'
 stdout '0 dangling, 0 unverified, 1 cycle'
