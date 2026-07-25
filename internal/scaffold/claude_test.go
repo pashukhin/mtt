@@ -159,19 +159,27 @@ func TestMergeCustomPrimeArgsNoDuplicate(t *testing.T) {
 }
 
 func TestMergeWordBoundaryNotPresent(t *testing.T) {
-	// r5/d4: a mention not-at-start, and a longer word, must NOT count as present.
-	for _, cmd := range []string{`git commit -m "wire mtt prime"`, "mtt primer"} {
+	// r5/d4: a mention not-at-start, and a longer word, must NOT count as present;
+	// our hook is appended AND the original command is preserved (spec 6).
+	cases := []struct{ cmd, survives string }{
+		{`git commit -m "wire mtt prime"`, "git commit -m"},
+		{"mtt primer", "mtt primer"},
+	}
+	for _, c := range cases {
 		in := `{"hooks":{"SessionStart":[{"hooks":[{"type":"command","command":` +
-			mustJSONString(cmd) + `}]}]}}`
+			mustJSONString(c.cmd) + `}]}]}}`
 		got, action, err := claudeHarness{}.Merge([]byte(in), true)
 		if err != nil {
-			t.Fatalf("Merge(%q): %v", cmd, err)
+			t.Fatalf("Merge(%q): %v", c.cmd, err)
 		}
 		if action != Merged || strings.Count(string(got), "SessionStart") != 1 {
-			t.Fatalf("cmd %q: our hook should be appended; action %q:\n%s", cmd, action, got)
+			t.Fatalf("cmd %q: our hook should be appended; action %q:\n%s", c.cmd, action, got)
 		}
 		if !strings.Contains(string(got), "mtt prime 2>/dev/null") {
-			t.Fatalf("cmd %q: our prime command missing:\n%s", cmd, got)
+			t.Fatalf("cmd %q: our prime command missing:\n%s", c.cmd, got)
+		}
+		if !strings.Contains(string(got), c.survives) {
+			t.Fatalf("cmd %q: the original command must be preserved:\n%s", c.cmd, got)
 		}
 	}
 }
@@ -213,14 +221,19 @@ func TestMergeNullContainerTreatedAsAbsent(t *testing.T) {
 }
 
 func TestMergeToleratesOddShapes(t *testing.T) {
-	// valid JSON, odd shapes the presence walk must survive without panic.
+	// valid JSON, odd shapes the presence walk must survive without panic — and
+	// (spec 12) our hook is still appended where safe.
 	h := claudeHarness{}
 	for _, in := range []string{
 		`{"hooks":{"SessionStart":[{}]}}`,
 		`{"hooks":{"SessionStart":[{"hooks":[{"command":42}]}]}}`,
 	} {
-		if _, _, err := h.Merge([]byte(in), true); err != nil {
+		got, _, err := h.Merge([]byte(in), true)
+		if err != nil {
 			t.Fatalf("odd shape %q should not error, got %v", in, err)
+		}
+		if !strings.Contains(string(got), "mtt prime 2>/dev/null") {
+			t.Fatalf("odd shape %q: our hook should be appended:\n%s", in, got)
 		}
 	}
 }

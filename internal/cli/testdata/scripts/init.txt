@@ -124,6 +124,14 @@ exec mtt init --json
 stdout '"scaffold"'
 stdout '"harness": "claude"'
 
+# --no-agent-hooks --json: scaffold is a non-null EMPTY array (not null)
+cd $WORK
+mkdir nojsonscaffold
+cd nojsonscaffold
+exec mtt init --no-agent-hooks --json
+stdout '"scaffold": \[\]'
+! exists .claude/settings.json
+
 # R3: a pre-existing malformed .claude/settings.json fails the scaffold, but
 # config is written (primary job) and reported; exit non-zero; no partial JSON.
 cd $WORK
@@ -133,6 +141,17 @@ mkdir .claude
 cp $WORK/badsettings.json .claude/settings.json
 ! exec mtt init
 stdout 'initialized'
+stderr 'parse existing settings'
+exists .mtt/config.yaml
+
+# R3 under --json: config written, but NO partial JSON object on stdout
+cd $WORK
+mkdir malformedjson
+cd malformedjson
+mkdir .claude
+cp $WORK/badsettings.json .claude/settings.json
+! exec mtt init --json
+! stdout '"path"'
 stderr 'parse existing settings'
 exists .mtt/config.yaml
 
