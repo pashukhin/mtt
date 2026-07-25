@@ -1,7 +1,7 @@
 id: t52
 type: task
 title: 'mtt init: scaffold agent settings + hooks (sessionStart -> mtt prime, etc.) for codex/claude/gemini'
-status: plan_fix
+status: plan_review
 priority: medium
 tags:
     - dx
@@ -15,7 +15,7 @@ refs:
       id: t51
       label: 'motivates: prime session-start hook'
 created: "2026-07-20T12:06:25Z"
-updated: "2026-07-25T17:26:36Z"
+updated: "2026-07-25T17:27:35Z"
 description: |-
     Sibling of t46 (which scaffolds agent DOCS: AGENTS.md/CLAUDE.md/GEMINI.md). This task scaffolds agent CONFIG/HOOKS: per-harness settings that wire mtt into the agent loop. Headline: a sessionStart hook running mtt prime (t51 left the hook as config-not-code; this makes init emit it), plus a read-only-mtt permissions allowlist.
 
@@ -125,3 +125,12 @@ history:
       why: 'plan re-review r2: all prior fixes verified FIXED empirically (golangci 0 issues). 1 new major — cross-task ordering: Task 3 agent_hooks.txt used mtt init --no-agent-hooks (flag added only in Task 4) → Task 3 make check red. Fix: Task 3 plain init, Task 4 edits it.'
       from: plan_review
       to: plan_fix
+    - at: "2026-07-25T17:27:35Z"
+      by: Grigorii Pashukhin
+      from: plan_fix
+      to: plan_review
+      checks:
+        - cmd: ls docs/superpowers/plans/t52-*.md
+          exit: 0
+        - cmd: out=$(git status --porcelain -- ":(exclude).mtt") && test -z "$out" || { echo "working tree not clean - commit your code/docs first (.mtt is swept by the move itself)" >&2; false; }
+          exit: 0
