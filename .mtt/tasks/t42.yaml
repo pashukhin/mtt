@@ -1,7 +1,7 @@
 id: t42
 type: task
 title: user-docs audit — reconcile README/DESIGN/CLI_REFERENCE (EN+RU) with reality; kill contradictions and unshipped-as-present claims
-status: planning
+status: plan_review
 priority: high
 tags:
     - docs
@@ -19,7 +19,7 @@ depends_on:
     - t1
     - t46
 created: "2026-07-12T06:25:37Z"
-updated: "2026-07-26T04:47:34Z"
+updated: "2026-07-26T04:53:28Z"
 description: 'The s009.x assessment found human docs describe unshipped features as present (README Key ideas / For agents / For humans list comment trees, knowledge storage, text search, refs, mtt-ui), a stale status badge (0.8.98-dev vs 0.9.0-dev build), and the over-broad root claim all commands support --json. Audit README/README.ru, DESIGN/DESIGN.ru, CLI_REFERENCE/CLI_REFERENCE.ru for: claims outrunning the shipped surface, internal contradictions, EN-RU drift, stale versions. Overlaps the planned s009.5 release-positioning README fix — this is the broader sweep. Audit 2026-07-22 additions: CHANGELOG is in scope too — the 0.9.0 entry claims an mtt guide command that never existed; DESIGN.md (EN only) carries a broken YAML hierarchy-template example (list items glued into one line, around lines 634-679); README Quickstart/pitch examples use mtt start, which is PARKED and absent from shipped templates (mtt done works as verb sugar).'
 history:
     - at: "2026-07-26T03:55:28Z"
@@ -64,3 +64,12 @@ history:
       why: Human sign-off on the spec (owner approved in session).
       from: spec_human_review
       to: planning
+    - at: "2026-07-26T04:53:28Z"
+      by: Grigorii Pashukhin
+      from: planning
+      to: plan_review
+      checks:
+        - cmd: ls docs/superpowers/plans/t42-*.md
+          exit: 0
+        - cmd: out=$(git status --porcelain -- ":(exclude).mtt") && test -z "$out" || { echo "working tree not clean - commit your code/docs first (.mtt is swept by the move itself)" >&2; false; }
+          exit: 0
