@@ -25,7 +25,8 @@ Shorthand: 'mtt <status> [<id>]' moves a task (e.g. 'mtt done t1'); with the id
 omitted it acts on the current task ('mtt use <id>'). Start with 'mtt roadmap'
 (what to do, in order), 'mtt ready' (what is unblocked), 'mtt types' (the flows
 and their gates); resuming, 'mtt use' shows your current task and 'mtt show' its
-status + next moves. All commands support --json.`,
+status + next moves. Every command that emits output supports --json (the
+generated completion/help aside).`,
 		SilenceUsage:  true,
 		SilenceErrors: true,
 		Args:          cobra.ArbitraryArgs,

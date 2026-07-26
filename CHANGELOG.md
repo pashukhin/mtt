@@ -82,7 +82,7 @@ All notable changes to mtt are documented here. The format follows
   descriptions now state that a bypass skips ALL edge commands — state-moving ones included — and DESIGN
   records why the signed bypass stays (the unsigned alternative, a local config edit, is invisible).
 - **Error-message polish, round 2 (c14).** Five messages now read honestly:
-  - `mtt init --template <bogus>` lists the valid names (`coding, default, hierarchy`) instead of just
+  - `mtt init --template <bogus>` lists the valid names (`default`) instead of just
     rejecting the input.
   - Moving a task whose status is **not in the flow** (a hand-edited / config-drift value) says so
     (`status X is not in the "task" flow — config drift?`) instead of the wrong "it is terminal".
