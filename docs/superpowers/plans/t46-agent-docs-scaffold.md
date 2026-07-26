@@ -44,7 +44,7 @@ a **refactor**: the existing (updated) tests are the safety net — `make check`
 **Files:**
 - Modify: `internal/scaffold/scaffold.go` (`Harness`→`Target`, `Registry`→`HookTargets`, `Result.Harness`→`Result.Name`, `Run` sig)
 - Modify: `internal/scaffold/claude.go` (`claudeHarness`→`claudeTarget`)
-- Modify: `internal/scaffold/claude_test.go` (`claudeHarness{}`→`claudeTarget{}`, 11 uses)
+- Modify: `internal/scaffold/claude_test.go` (global replace `claudeHarness`→`claudeTarget` — 13 code uses + 1 comment)
 - Modify: `internal/scaffold/run_test.go` (`Registry()`→`HookTargets()`, 3 uses)
 - Modify: `internal/cli/agent.go` (`scaffoldJSON` `{name}`, `toScaffoldJSON`/`reportScaffold` use `r.Name`; `reportScaffold` gains `note`; hooks caller passes the hook note)
 - Modify: `internal/cli/init.go` (`Registry()`→`HookTargets()`, `initJSON.Scaffold`→`Hooks`, `reportScaffold(…, hookNote)`)
@@ -119,7 +119,9 @@ func Run(root string, targets []Target) ([]Result, error) {
 
 - [ ] **Step 2: Rename the concrete type in `internal/scaffold/claude.go`** — `claudeHarness` → `claudeTarget`
   (the struct decl + its three method receivers `func (claudeTarget) …`). Update the doc comment. In
-  `internal/scaffold/claude_test.go`, replace all `claudeHarness{}` with `claudeTarget{}` (11 uses).
+  `internal/scaffold/claude_test.go`, **global-replace every `claudeHarness` → `claudeTarget`** (13 code uses
+  + 1 comment; e.g. `sed -i 's/claudeHarness/claudeTarget/g'`) — a residual `claudeHarness` is a compile error,
+  so a partial edit fails the gate.
 
 - [ ] **Step 3: Rename in `internal/scaffold/run_test.go`** — `Registry()` → `HookTargets()` (3 call sites).
 
@@ -738,7 +740,17 @@ exists .claude/settings.json
 ```
 
   In the `jsonscaffold` block, add `stdout '"docs"'` and `stdout '"name": "agents"'`. Add a
-  `--no-agent-docs --json` case asserting `stdout '"docs": \[\]'`.
+  `--no-agent-docs --json` case (full boilerplate):
+
+```
+# --no-agent-docs --json: docs is a non-null EMPTY array
+cd $WORK
+mkdir nodocsjson
+cd nodocsjson
+exec mtt init --no-agent-docs --json
+stdout '"docs": \[\]'
+stdout '"hooks"'
+```
 
 - [ ] **Step 7: Run the e2e to verify it passes**
 
