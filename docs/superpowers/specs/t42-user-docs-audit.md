@@ -49,8 +49,9 @@ DESIGN historical-narrative unload (that is t63).
    `default` template has statuses `tbd/in_progress/done/cancelled` and transitions with **no** `name:`, so
    `mtt start` does not resolve out of the box (whereas `mtt done`/`mtt in_progress`/`mtt cancelled` do, as
    status sugar). Replace pitch/"key ideas" uses of `mtt start` with template-neutral wording (the
-   `mtt <status>` sugar / point at `mtt types`/`mtt show`); do **not** hardcode our flow. The Quickstart
-   block is already correct (`mtt status t1 in_progress` → `mtt done t1`).
+   `mtt <status>` sugar / point at `mtt types`/`mtt show`); do **not** hardcode our flow. This applies to
+   **every** `mtt start` occurrence, not just the README pitch — DESIGN.md/.ru carry it too (see F6). The
+   README Quickstart block is already correct (`mtt status t1 in_progress` → `mtt done t1`).
 6. **README vision sections** (`Key ideas` / `For agents` / `For humans`) — keep the product vision but mark
    each unshipped feature explicitly as **planned / later phase**, in sync with the top status caveat. This
    removes the caveat↔body contradiction while keeping the pitch's ambition honest.
@@ -65,9 +66,13 @@ Each item is a confirmed defect with its proof. The planning step expands this i
 EN+RU-paired fix list; new findings surfaced during the full pass are appended there.
 
 **Version / badge**
-- **F1** — `README.md:7` & `README.ru.md:7`: status badge `0.8.98-dev`; build is `v0.10.0-51`.
-  *Proof:* `mtt version`. The version is injected at build time (ldflags), so any pinned number in prose
-  is stale by construction → replace with a version-agnostic status line.
+- **F1** — `README.md:7` & `README.ru.md:7`: the whole **Status** line is stale, not just the badge.
+  (a) status badge `0.8.98-dev` vs build `v0.10.0-51` (*proof:* `mtt version`; the version is injected at
+  build time via ldflags, so any pinned number in prose is stale by construction). (b) "Phases 1–3 are
+  implemented" is itself out of date — the KB (`mtt note`/`mtt prime`, DESIGN phase 5), references
+  (`mtt ref`/`mtt check`), and the agent-scaffold group (`mtt agent`) have all shipped since. **Fix owns the
+  entire status line:** a version-agnostic, surface-accurate phrasing (drop the pinned number and the stale
+  phase enumeration; point at `mtt version` / `mtt --help` for the live surface), not a badge-only swap.
 
 **Unshipped-as-present (README)**
 - **F2** — `README` Key ideas: "Optional features (history, dependencies, **comment trees, search**) are
@@ -79,9 +84,12 @@ EN+RU-paired fix list; new findings surfaced during the full pass are appended t
 - **F5** — For agents: "**comment trees**, optional knowledge storage, **simple text search**, external
   **indexer hook**." Knowledge storage shipped (t47 `mtt note`); comment trees (t2), text search (t6),
   indexer hook (t9) unshipped.
-- **F6** — Pitch (`README.md:23`, `:45`): `mtt start` used as if usable; it does not resolve on the
-  shipped default template (see decision 5). The same doc's caveat (`:11`) already says the
-  `advance`/`start`/`done` meta-walk is parked → contradiction.
+- **F6** — `mtt start` used as if usable, though it does not resolve on the shipped default template (see
+  decision 5). Occurrences: `README.md:23`, `:45`, **and `DESIGN.md:380` / `DESIGN.ru.md:385`**
+  ("the agent works in task terms (`mtt start t17`, `mtt done t17`)"). *Proof (empirical):* temp-dir
+  `mtt init` → `mtt start t1` → `unknown command "start"` (exit 1); `mtt in_progress t1` / `mtt done t1`
+  route. README's own caveat (`:11`) already says the `advance`/`start`/`done` meta-walk is parked →
+  contradiction. Both the README and DESIGN pairs (EN+RU) are fixed.
 
 **`--json` over-broad**
 - **F7** — `CLI_REFERENCE.md:902` / `.ru:897` ("every command supports JSON"), `CHANGELOG.md:209`
@@ -96,32 +104,60 @@ EN+RU-paired fix list; new findings surfaced during the full pass are appended t
   mentions **was** true at 0.9.0 and stays — the t62 breaking removal is already noted under Unreleased).
 
 **DESIGN broken YAML + EN↔RU drift**
-- **F9** — `DESIGN.md:705` and `:721`: two YAML list items glued onto the previous line
-  (`...to: cancelled}  - name: task` / `...  - name: subtask`) in the hierarchy-template example.
-  `DESIGN.ru.md` (714/729) is correct → EN regressed against RU. Fix EN to match the correct RU shape.
+- **F9** — `DESIGN.md` ~`:705` / ~`:719` (string-anchored; line numbers drift): two YAML list items glued
+  onto the previous line (`...to: cancelled}  - name: task` / `...  - name: subtask`) in the
+  hierarchy-template example. `DESIGN.ru.md` is correct (no glue) → EN regressed against RU. Fix EN to match
+  the correct RU shape.
+- **F10** (missed by the first pass; surfaced in spec review) — `CHANGELOG.md:85` (under **[Unreleased]**,
+  the c14 error-polish entry) claims `mtt init --template <bogus>` lists valid names `(coding, default,
+  hierarchy)`. *Proof:* the binary now prints `error: unknown template "bogus" (valid: default)` (t62 removed
+  the built-in `coding`/`hierarchy` names). This is (a) unshipped-as-present drift and (b) an internal
+  contradiction with `CHANGELOG.md:35`, also under [Unreleased], which states those built-ins were removed.
+  Both are still-unreleased entries → fix the c14 line to `(default)`.
 
-## Drift-guard test (design)
+**Minor / nice-to-have (plan may fold in):** `mtt comment add`/`mtt comment list` (`CLI_REFERENCE.md:682`/
+`:687`) rely on a section-level `## Comments *(phase 4; …)*` marker rather than an inline `*(phase 4)*` tag
+per heading, unlike every other unshipped command. Honest at the section level; a one-line inline tag would
+match the surrounding convention. The full file-by-file pass appends any further drift found in flight.
 
-A single lightweight Go test in the `make check` gate, following the `TestRepoDogfoodConfig` pattern
-(discover the repo root, read repo-root doc files). Three focused, low-fragility assertions:
+## Drift-guard test (design — revised after spec review)
 
-1. **Registry ⊆ CLI_REFERENCE** — every live top-level command (walk the built root command) has a
-   ```### `mtt <name>` ``` section heading in `CLI_REFERENCE.md`. Catches a shipped-but-undocumented
-   command.
-2. **Command tokens ⊆ registry ∪ allowlist** — scan the in-scope prose docs (README/.ru, CLI_REFERENCE/.ru,
-   CHANGELOG, FLOW_GUIDE/.ru) for backtick command tokens ```` `mtt <word>` ````; each `<word>` must be
-   (a) a registry command, (b) a shipped-`default`-template status used as sugar (`done`/`in_progress`/
-   `cancelled`), or (c) in a small **explicit allowlist** of documented-parked/future verbs
-   (`advance`/`start`/`cancel`/`caps`/`comment`/`search`/`gantt`/`ui`). Catches phantoms like `mtt guide`.
-   When a parked command ships it moves from the allowlist into the registry — the test then guides the
-   author to update it (a forcing function, not a maintenance tax).
-3. **Version badge** — `README.md`/`README.ru.md` status line carries no hardcoded `\d+\.\d+\.\d+`
-   semver. Catches a re-introduced pinned badge.
+A single lightweight Go test living in **`internal/cli`** (it needs the exported `NewRootCmd()` at
+`internal/cli/root.go:16` to walk the live registry) and reusing the existing **`repoRoot()`** helper
+(`internal/cli/repo_test.go:13` — anchors via `runtime.Caller` up to `go.mod`, more robust than
+`dogfood_test.go`'s cwd-dependent discovery). The registry is walked from `NewRootCmd().Commands()`
+**without** running `Execute`, so cobra's lazily-injected `help`/`completion` do not appear (confirmed in
+review). Three focused assertions:
 
-The exact extraction regexes are pinned during TDD: write the test first, confirm it fails on the
-current docs (F1/F6/F8 + any undocumented command), then fix the docs to green. The token-scan
-allowlist is the one deliberate, explicit cap — documented in the test so it never reads as "covers
-everything".
+1. **Registry ⊆ CLI_REFERENCE.** For each command in `NewRootCmd().Commands()`, assert some
+   `CLI_REFERENCE.md` heading of the form ```### `mtt …` ``` whose backtick content **starts with
+   `mtt <name>` at a word boundary**. This must handle reality (verified): headings carry the **full usage
+   line** (```### `mtt add [title] [flags]` — create a task```), and **group** commands (`dep`/`ref`/`note`/
+   `agent`/`tag`) have **no bare heading** — only subcommand headings (```### `mtt dep add …` ```), which
+   still satisfy the `mtt dep`-prefix test. The word boundary distinguishes `tag` (```mtt tag add|rm …```)
+   from `tags` (```mtt tags …```). Catches a shipped-but-undocumented command.
+2. **Command tokens ⊆ registry ∪ allowlist.** Scan **README/.ru + CLI_REFERENCE/.ru + CHANGELOG** for
+   inline command tokens ```` `mtt <word>` ````; each `<word>` must be (a) a registry command, (b) a
+   shipped-`default`-template status used as sugar (`done`/`in_progress`/`cancelled`), or (c) in a small
+   **explicit allowlist** of documented non-registry verbs — parked/planned/edge-sugar:
+   `advance`, `start`, `cancel`, `caps`, `comment`, `search`, `gantt`, `ui`, **`decline`** (edge-verb
+   sugar), **`reparent`**, **`move`** (both documented as planned). Catches phantoms like `mtt guide`.
+   **`FLOW_GUIDE`/.ru are excluded from this scan by design** — that guide *teaches authoring custom
+   flows*, so it legitimately contains arbitrary illustrative verbs (`mtt doing`, and any future example),
+   which are indistinguishable from a phantom by token shape; the exclusion is a **documented, deliberate
+   cap**, stated in the test comment so it never reads as "covers everything".
+3. **No hardcoded version badge.** `README.md`/`README.ru.md` carry no hardcoded `\d+\.\d+\.\d+` semver
+   (the only current match is the F1 badge, so a whole-file scan is safe; the status blockquote is located
+   by `> **Status:**` / `> **Статус:**`). Catches a re-introduced pinned badge.
+
+**Honest framing (revised).** The allowlist is *not* zero-cost: it is a small, explicit, reviewed
+enumeration of the known non-registry verbs the tool's docs mention. Adding a new parked/planned/edge-sugar
+verb mention to README/CLI_REFERENCE/CHANGELOG requires a one-line allowlist update — a deliberate forcing
+function that also blocks a phantom from slipping in. That is a real (small) maintenance point, not "no
+maintenance tax". The exact extraction regexes are pinned during TDD: write the test first, confirm it goes
+**red** on the current docs (F1 badge + F8 `mtt guide` + any undocumented command), fix the docs, confirm
+**green** — including that the completed allowlist leaves the corrected docs (with their legitimate
+`decline`/`reparent`/`move` mentions) passing.
 
 ## Non-goals / risks
 
