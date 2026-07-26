@@ -1,7 +1,12 @@
 # t46 — Scaffold how-to-use-mtt agent docs (spec)
 
 Status: revision 1 — decided in the 2026-07-26 brainstorm (three user decisions: doc set, merge strategy,
-command surface; + one approval: the pre-release API consolidation of the `internal/scaffold` seam).
+command surface; + one approval: the pre-release API consolidation of the `internal/scaffold` seam). The
+2026-07-26 adversarial spec review returned **no blocker/major** (the API-consolidation count grep-verified
+complete, the runbook generic + accurate, the merge convergent); its five polish minors are folded here —
+a concrete rename change-inventory, the `claudeHarness`→`claudeTarget` rename + intentional `"claude"`
+name-reuse note, the init two-scaffold output ordering, the CHANGELOG prose seam-name, and naming `GEMINI.md`
+in the FLOW_GUIDE flip.
 
 ## Problem
 
@@ -84,7 +89,9 @@ continuation of t19's self-instructing runbook and the prime directive "mechaniz
 - `mtt init` gains **`--no-agent-docs`** (bool, default false). After the config write **and** the t52 hook
   scaffold, unless the flag is set, init runs the doc scaffold and folds the results into output. `initJSON`
   carries **`hooks`** (t52, renamed from `scaffold`) and **`docs`** arrays (both non-null; `[]` when the
-  respective opt-out is set).
+  respective opt-out is set). **Output ordering:** config-success line first, then the hook lines, then the
+  doc lines; a doc-scaffold error (hooks already succeeded) prints config-success + hook results first, then
+  the error → exit 1 (no partial JSON) — the t52 contract extended to the second scaffold.
 - Targets (relative to project root): `AGENTS.md` (the runbook), `CLAUDE.md`, `GEMINI.md` (pointers). Parent
   is the project root itself, so no directory creation.
 
@@ -170,9 +177,12 @@ Convergence in one step: a first `append` (case 2) leaves a well-formed block, s
 The seam is `internal/scaffold`, reused verbatim for the IO and generalized in name (Decision 4):
 
 - **Rename** `Harness` → **`Target`** (interface `{ Name() string; RelPath() string; Merge(existing []byte,
-  exists bool) ([]byte, Action, error) }`); `Registry()` → **`HookTargets()`**; `Result.Harness` →
-  **`Result.Name`**. `Action`/`Result`/`Run` behavior is otherwise unchanged. `Run(root string, targets
-  []Target)` stays the write-as-you-go IO edge.
+  exists bool) ([]byte, Action, error) }`); the concrete `claudeHarness` → **`claudeTarget`** (for
+  consistency); `Registry()` → **`HookTargets()`**; `Result.Harness` → **`Result.Name`**. `Action`/`Result`/
+  `Run` behavior is otherwise unchanged. `Run(root string, targets []Target)` stays the write-as-you-go IO
+  edge. **Name reuse is intentional:** the hook target and the CLAUDE.md doc target both report `Name() =
+  "claude"` — disambiguated by their distinct `Path` (human output) and by living in separate `hooks`/`docs`
+  arrays (`init --json`), so there is no functional collision.
 - **New `scaffold/docs.go`** — `DocTargets() []Target` returns three `docTarget{name, relPath, content}`
   values (agents/claude/gemini), each `Merge` delegating to the shared pure **`blockMerge(existing, exists,
   content)`**; the runbook + pointer content are package constants.
@@ -180,6 +190,15 @@ The seam is `internal/scaffold`, reused verbatim for the IO and generalized in n
   the shared `reportScaffold`; `scaffoldJSON` becomes `{name, path, action}`; `mtt init` calls both
   `HookTargets()` (unless `--no-agent-hooks`) and `DocTargets()` (unless `--no-agent-docs`), folding `hooks`
   and `docs` into `initJSON` + output.
+
+**Rename change-inventory (so the plan drops nothing):** the consolidation touches, beyond the docs list
+below — `internal/scaffold/scaffold.go` (interface, `Registry`→`HookTargets`, `Result.Name`, `Run` sig),
+`internal/scaffold/claude.go` + `claude_test.go` (`claudeHarness`→`claudeTarget`), `internal/scaffold/run_test.go`
+(`Registry()` → `HookTargets()`), `internal/cli/agent.go` (`scaffoldJSON`/`r.Harness`→`r.Name`),
+`internal/cli/init.go` (`Registry()`→`HookTargets()`, `Scaffold`→`Hooks`), `internal/cli/json.go`
+(`initJSON.Scaffold`→`Hooks`+add `Docs`), and the two testscripts
+`internal/cli/testdata/scripts/{agent_hooks.txt,init.txt}` (the `"harness"`/`"scaffold"` JSON assertions).
+`go build`/`go test` enforce the code+test sites; the docs are the only silently-missable class (listed below).
 
 `internal/scaffold` stays onboarding infra — **not** `pkg/mtt` domain, **not** `.mtt/` storage, writing via
 `internal/fsutil.AtomicWrite` (t52).
@@ -216,13 +235,15 @@ The seam is `internal/scaffold`, reused verbatim for the IO and generalized in n
   init default + `--no-agent-docs`, the marked-block merge, the doc set, and the seam consolidation
   (`Target`/`HookTargets`/`DocTargets`). Update any t52 wording that named the JSON key `harness`/`scaffold`.
 - **`FLOW_GUIDE.md`(+ru)** — the "Agent-usage docs" bullet in the "still tracked separately" list is **shipped
-  by t46**; flip it (mirrors the t52 "Settings & hooks" flip).
+  by t46**; flip it (mirrors the t52 "Settings & hooks" flip) and name all three files (**AGENTS.md / CLAUDE.md
+  / GEMINI.md**), since the bullet currently says only "AGENTS.md/CLAUDE.md".
 - **`CLI_REFERENCE.md`(+ru)** — a `mtt agent docs` entry + `mtt init --no-agent-docs`; update the t52
   `mtt agent hooks` `--json` shape `{harness,…}` → `{name,…}` and `init --json` `scaffold` → `hooks`+`docs`.
 - **`internal/cli/CLAUDE.md`** — the `agent docs` wiring + the renamed reporting; **`internal/scaffold/CLAUDE.md`**
   — the `Target`/`HookTargets`/`DocTargets` seam + `blockMerge`.
 - **`CHANGELOG.md`** — an `[Unreleased]` entry for `mtt agent docs`; amend the t52 entry's `--json` wording to
-  the consolidated `hooks`/`docs`/`name` shape (both are `[Unreleased]`).
+  the consolidated `hooks`/`docs`/`name` shape **and its prose "extensible `Harness` seam" → `Target`** (both
+  are `[Unreleased]`).
 - **`README.md`(+ru)** — the Quickstart `mtt init` line already notes hook scaffolding; extend to docs (or note
   `--no-agent-docs`).
 
