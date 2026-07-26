@@ -679,12 +679,12 @@ deferred — a follow-up.)
 
 ## Comments  *(phase 4; capability `CommentStore`)*
 
-### `mtt comment add <id> <body> [--reply <cid>]` — add a comment
+### `mtt comment add <id> <body> [--reply <cid>]` — add a comment  *(phase 4)*
 Appends a comment to the task; `--reply <cid>` nests it under an existing comment (tree).
 
 - `--ref <kind>:<target>…` — attach references to the comment.
 
-### `mtt comment list <id>` — print the comment tree
+### `mtt comment list <id>` — print the comment tree  *(phase 4)*
 (Also shown by `mtt show`.)
 
 ---
