@@ -7,14 +7,22 @@ All notable changes to mtt are documented here. The format follows
 ## [Unreleased]
 
 ### Added
+- **Scaffold how-to-use-mtt agent docs — `mtt agent docs` (t46).** The docs sibling of `mtt agent hooks`:
+  scaffolds a **project-agnostic** "Working under mtt" runbook into `AGENTS.md` (the cross-tool standard) plus
+  thin pointer blocks into `CLAUDE.md`/`GEMINI.md`. The content describes mtt's *mechanics* and directs the
+  agent to `mtt types`/`mtt roadmap`/`mtt show` to discover *this* project's flow — it hardcodes no status and
+  assumes no named edge, so it stays honest as a flow evolves. **`mtt init` runs it by default**
+  (`--no-agent-docs` opts out). The merge injects a `<!-- mtt:begin -->…<!-- mtt:end -->` block —
+  create/append/**regenerate**, preserving all surrounding content; a mangled marker pair is refused. `init
+  --json` now carries `hooks` and `docs` arrays (the t52 `scaffold` array split + renamed).
 - **Scaffold agent settings + hooks — `mtt agent hooks` (t52).** A new `mtt agent` group scaffolds a coding
   agent's configuration into the project. `mtt agent hooks` writes/merges Claude Code's `.claude/settings.json`
   — `SessionStart`+`PreCompact` hooks running `mtt prime` (this makes t51's session-start hook *scaffolded*
   code, not just a documented snippet) plus a **read-only `permissions.allow`** allowlist. **`mtt init` runs it
-  by default** (`--no-agent-hooks` opts out; `init --json` gains a `scaffold` array). The merge is **additive,
-  idempotent, and no-clobber** — a re-run is a no-op, existing settings are preserved, and a malformed file is
-  refused, never overwritten. Other harnesses (codex/gemini) are deferred behind an extensible `Harness` seam
-  (no guessed config is written).
+  by default** (`--no-agent-hooks` opts out; `init --json` reports it in the `hooks` array). The merge is
+  **additive, idempotent, and no-clobber** — a re-run is a no-op, existing settings are preserved, and a
+  malformed file is refused, never overwritten. Other harnesses (codex/gemini) are deferred behind an
+  extensible `Target` seam (no guessed config is written).
 - **Runnable init templates — `mtt init --template <name|path|url>` (t62).** `--template` now accepts a
   built-in name, a **local file path**, or an **`https://` URL** (resolved by shape). Only `default` stays
   compiled into the binary; `coding`/`hierarchy` and a new **git-integration flagship** (`git-flow`) ship as

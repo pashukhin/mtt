@@ -229,9 +229,13 @@ Projects initialized before this shipped should add it by hand: `echo config.loc
   [`mtt agent hooks`](#mtt-agent-hooks--scaffold-agent-settings--hooks--shipped-t52) (writing/merging
   `.claude/settings.json`); this flag opts out. If the scaffold fails (a malformed existing settings file),
   the config is still written and reported, and `init` exits 1 (the config is kept — no rollback).
-- `--json` — emit the created-config summary `{path, template, source?, name, created, scaffold}` (absolute
-  `path`; `source` is `builtin:<name>` / `file:<path>` / `url:<url>`; `scaffold` is the non-null
-  `[{harness, path, action}]` array, `[]` under `--no-agent-hooks`) instead of the human line. *(t45, source t62, scaffold t52)*
+- `--no-agent-docs` *(t46)* — skip scaffolding agent docs. By default `mtt init` also runs
+  [`mtt agent docs`](#mtt-agent-docs--scaffold-agent-docs--shipped-t46) (injecting the runbook into
+  `AGENTS.md` + pointer blocks into `CLAUDE.md`/`GEMINI.md`); this flag opts out (same config-kept, exit-1
+  failure contract as hooks — hooks run first, then docs).
+- `--json` — emit the created-config summary `{path, template, source?, name, created, hooks, docs}` (absolute
+  `path`; `source` is `builtin:<name>` / `file:<path>` / `url:<url>`; `hooks` and `docs` are non-null
+  `[{name, path, action}]` arrays, `[]` under the respective opt-out) instead of the human line. *(t45, source t62, scaffold t52/t46)*
 
 Running any other command outside a project (no `.mtt/` found by discovery, or a `--dir` without one) errors
 with a `run 'mtt init' to create one` hint (session 008.97/U4).
@@ -759,11 +763,29 @@ Code**). It writes/merges `.claude/settings.json` with:
 
 The merge is **additive, idempotent, and no-clobber**: a re-run is a no-op (`unchanged`), your other settings
 are preserved, and a malformed/type-incompatible existing file is refused (never overwritten). It requires an
-initialized project (`.mtt/`). Prints one line per harness (`claude: created|merged|unchanged <path>`);
-`--json` emits `[{harness, path, action}]`. codex/gemini are deferred behind an extensible seam (no guessed
+initialized project (`.mtt/`). Prints one line per target (`claude: created|merged|unchanged <path>`);
+`--json` emits `[{name, path, action}]`. codex/gemini are deferred behind an extensible seam (no guessed
 config is written).
 
 `mtt init` runs this by default — pass **`--no-agent-hooks`** to skip it.
+
+### `mtt agent docs` — scaffold agent docs  *(shipped t46)*
+Scaffolds a **project-agnostic** "Working under mtt" runbook so a coding agent knows how to work under the
+flow. It writes/merges three files:
+
+- **`AGENTS.md`** — the full runbook (the cross-tool standard): what mtt is, and — crucially — it directs the
+  agent to `mtt roadmap` / `mtt ready` / `mtt types` / `mtt show <id>` to discover **this** project's actual
+  flow, gates, and next moves (it does **not** hardcode any status or assume a named edge);
+- **`CLAUDE.md`** and **`GEMINI.md`** — thin pointer blocks (each auto-loaded by its harness) redirecting to
+  `AGENTS.md` + `mtt roadmap`.
+
+The content is injected inside `<!-- mtt:begin -->…<!-- mtt:end -->` markers: create-if-absent, **append** to
+an existing file, **regenerate** the block on re-run (so it stays current as mtt evolves) — all surrounding
+content is preserved, and a mangled marker pair is refused (never a clobber). Requires an initialized project
+(`.mtt/`). Prints one line per file (`agents|claude|gemini: created|merged|unchanged <path>`); `--json` emits
+`[{name, path, action}]`.
+
+`mtt init` runs this by default — pass **`--no-agent-docs`** to skip it.
 
 ---
 

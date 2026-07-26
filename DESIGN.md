@@ -772,7 +772,7 @@ tested end-to-end walkthrough of this template.
 > flagship — the only verified harness — is **Claude Code**: it writes/merges `.claude/settings.json` with a
 > `SessionStart`+`PreCompact` hook running `mtt prime 2>/dev/null || true` (this makes t51's "config, not code"
 > hook *scaffolded* code) plus a **read-only `permissions.allow`** allowlist (granular per read-only
-> subcommand; every mutating verb excluded). codex/gemini are **deferred behind a `Harness` seam** (interface +
+> subcommand; every mutating verb excluded). codex/gemini are **deferred behind a `Target` seam** (interface +
 > registry in `internal/scaffold`) — no *guessed* config is written (a silent trap against t62's release bar).
 > The merge is **additive, idempotent, no-clobber**: a single `json.Encoder` (`SetEscapeHTML(false)` — our
 > `2>/dev/null` stays literal — 2-space indent, alphabetical keys) is the fixed point that makes a re-run a
@@ -785,6 +785,23 @@ tested end-to-end walkthrough of this template.
 > `audit.go` included). **No silent traps:** opt-in, every write/merge is reported (human + `--json`), and
 > init's config-then-scaffold **failure contract** is fixed — config (the primary job) is written first and
 > kept; a scaffold failure reports the config success, then exits 1 (no partial JSON).
+
+> **Shipped (t46): scaffold how-to-use-mtt agent docs.** The docs sibling of t52: **`mtt agent docs`** (the
+> second facet of the `mtt agent` group) scaffolds a **project-agnostic** "Working under mtt" runbook into
+> **`AGENTS.md`** (the cross-tool standard) plus thin pointer blocks into **`CLAUDE.md`/`GEMINI.md`** (each
+> auto-loaded by its harness → redirect to AGENTS.md). **`mtt init` runs it by default** (`--no-agent-docs`
+> opts out). The content is **static and generic** by construction (the t23 split constraint): it describes
+> mtt's *mechanics* and directs the agent to **`mtt types`/`mtt roadmap`/`mtt show`** to discover *this*
+> project's flow — it hardcodes **no** status and assumes **no** named edge (it points at `mtt show <id>`'s
+> `next:`), so it stays honest as a flow evolves. The merge is a pure **`blockMerge`** over
+> `<!-- mtt:begin -->…<!-- mtt:end -->` markers: create-if-absent, **append** to an existing file,
+> **regenerate** the block on re-run (surrounding content preserved; a malformed marker pair refuses — never a
+> clobber); markdown carries no format risk (unlike t52's config), so all three files are written. **Seam
+> consolidation (pre-release):** t52's `Harness`/`Registry` were renamed to the honest general
+> **`Target`/`HookTargets()`**, joined by **`DocTargets()`** (both consumed by the shared `Run`); reporting is
+> `Result.Name` and `--json` is `{name, path, action}`; `init --json` carries **`hooks`** and **`docs`**
+> arrays. Content is `//go:embed`-ed markdown (backticks preclude a Go raw literal). The next onboarding step,
+> the user-docs audit (t42), reconciles the human-facing docs with reality.
 
 ## Dependencies
 

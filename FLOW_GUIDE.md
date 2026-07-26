@@ -288,7 +288,9 @@ Shipped (t62): the **git-flow flagship** and the `coding`/`hierarchy` samples li
 dir, installable by path or `--template <url>` (only `default` is built into the binary). Still tracked
 separately:
 
-- **Agent-usage docs** — a generic tool-level `AGENTS.md`/`CLAUDE.md` for how an agent uses mtt day-to-day.
+- **Agent-usage docs** — *shipped (t46)*: `mtt agent docs` (and `mtt init` by default) scaffold a generic
+  tool-level runbook into `AGENTS.md` + pointer blocks into `CLAUDE.md`/`GEMINI.md` (marked-block, regenerable;
+  `--no-agent-docs` opts init out).
 - **Settings & hooks** — *shipped (t52)*: `mtt agent hooks` (and `mtt init` by default) scaffold
   `.claude/settings.json` — `SessionStart`+`PreCompact → mtt prime` plus a read-only permissions allowlist —
   via an additive, no-clobber merge (`--no-agent-hooks` opts init out).

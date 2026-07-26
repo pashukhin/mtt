@@ -108,7 +108,7 @@ make build      # -> bin/mtt
 ## Быстрый старт
 
 ```sh
-mtt init                    # создать .mtt/ + скаффолд .claude/settings.json хуков (--no-agent-hooks чтобы пропустить)
+mtt init                    # создать .mtt/ + скаффолд агентских хуков + доков (AGENTS.md/CLAUDE.md/GEMINI.md; --no-agent-hooks/--no-agent-docs чтобы пропустить)
 mtt add "Ship auth"         # -> t1 (корневая задача; --parent не нужен)
 mtt add "Login endpoint"    # -> t2
 mtt status t1 in_progress   # движение по флоу (здесь запускаются + гейтят commands перехода)
