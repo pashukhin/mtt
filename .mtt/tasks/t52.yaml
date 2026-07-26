@@ -1,7 +1,7 @@
 id: t52
 type: task
 title: 'mtt init: scaffold agent settings + hooks (sessionStart -> mtt prime, etc.) for codex/claude/gemini'
-status: tbd
+status: approved
 priority: medium
 tags:
     - dx
@@ -15,7 +15,7 @@ refs:
       id: t51
       label: 'motivates: prime session-start hook'
 created: "2026-07-20T12:06:25Z"
-updated: "2026-07-23T17:13:41Z"
+updated: "2026-07-25T18:05:35Z"
 description: |-
     Sibling of t46 (which scaffolds agent DOCS: AGENTS.md/CLAUDE.md/GEMINI.md). This task scaffolds agent CONFIG/HOOKS: per-harness settings that wire mtt into the agent loop. Headline: a sessionStart hook running mtt prime (t51 left the hook as config-not-code; this makes init emit it), plus a read-only-mtt permissions allowlist.
 
@@ -28,3 +28,135 @@ description: |-
     Builds on t51 (mtt prime) and is a sibling of t46 (agent docs).
 
     Extension (2026-07-24, user-decided): the scaffolded hook set is BOTH SessionStart AND PreCompact running mtt prime — inject the KB digest at session start and refresh it around compaction (SessionStart also re-fires with source=compact after a compact, so the digest survives context loss). Field-tested in this repo as a quick fix ahead of this task: .claude/settings.json now carries exactly these two hooks (command: mtt prime 2>/dev/null || true — guarded so a missing mtt binary never nags a contributor); use it as the reference shape for the Claude Code target.
+history:
+    - at: "2026-07-25T15:10:50Z"
+      by: Grigorii Pashukhin
+      from: tbd
+      to: speccing
+      checks:
+        - cmd: git switch task/t52 || (git switch main && git switch -c task/t52)
+          exit: 0
+        - cmd: test -f .mtt/tasks/t52.yaml || { echo "task file absent on this branch — its add has not reached main (merge/commit the branch that created it first)" >&2; false; }
+          exit: 0
+    - at: "2026-07-25T15:41:33Z"
+      by: Grigorii Pashukhin
+      from: speccing
+      to: spec_review
+      checks:
+        - cmd: ls docs/superpowers/specs/t52-*.md
+          exit: 0
+        - cmd: out=$(git status --porcelain -- ":(exclude).mtt") && test -z "$out" || { echo "working tree not clean - commit your code/docs first (.mtt is swept by the move itself)" >&2; false; }
+          exit: 0
+    - at: "2026-07-25T15:53:20Z"
+      by: Grigorii Pashukhin
+      why: 'adversarial spec review: 2 majors (map-key sort breaks idempotency; docs-sync misses FLOW_GUIDE + stale ''config,not code''), 1 major reconsidered (extract fsutil.AtomicWrite), 3 minors (empty-file, defensive type-asserts, root resolution)'
+      from: spec_review
+      to: spec_fix
+    - at: "2026-07-25T15:57:11Z"
+      by: Grigorii Pashukhin
+      from: spec_fix
+      to: spec_review
+      checks:
+        - cmd: ls docs/superpowers/specs/t52-*.md
+          exit: 0
+        - cmd: out=$(git status --porcelain -- ":(exclude).mtt") && test -z "$out" || { echo "working tree not clean - commit your code/docs first (.mtt is swept by the move itself)" >&2; false; }
+          exit: 0
+    - at: "2026-07-25T16:07:36Z"
+      by: Grigorii Pashukhin
+      why: 'spec re-review r2: 3 majors (json HTML-escapes our own 2> command → use Encoder SetEscapeHTML(false); fsutil extract forgot audit.go syncDir consumer → export SyncDir; init default-path scaffold-failure contract undefined), 3 minors (json null container, substring mtt-prime false-positive, non-ENOENT read errors)'
+      from: spec_review
+      to: spec_fix
+    - at: "2026-07-25T16:11:10Z"
+      by: Grigorii Pashukhin
+      from: spec_fix
+      to: spec_review
+      checks:
+        - cmd: ls docs/superpowers/specs/t52-*.md
+          exit: 0
+        - cmd: out=$(git status --porcelain -- ":(exclude).mtt") && test -z "$out" || { echo "working tree not clean - commit your code/docs first (.mtt is swept by the move itself)" >&2; false; }
+          exit: 0
+    - at: "2026-07-25T16:19:22Z"
+      by: Grigorii Pashukhin
+      why: 'spec re-review r3: all 6 prior findings verified FIXED; 1 new major (docs checklist omits required internal/fsutil/CLAUDE.md) + 3 minors (stale ''revision 2'' header, untested r6 dir-read, r5 word-boundary). No technical/design blocker left.'
+      from: spec_review
+      to: spec_fix
+    - at: "2026-07-25T16:21:01Z"
+      by: Grigorii Pashukhin
+      from: spec_fix
+      to: spec_review
+      checks:
+        - cmd: ls docs/superpowers/specs/t52-*.md
+          exit: 0
+        - cmd: out=$(git status --porcelain -- ":(exclude).mtt") && test -z "$out" || { echo "working tree not clean - commit your code/docs first (.mtt is swept by the move itself)" >&2; false; }
+          exit: 0
+    - at: "2026-07-25T16:23:03Z"
+      by: Grigorii Pashukhin
+      from: spec_review
+      to: spec_human_review
+    - at: "2026-07-25T16:52:09Z"
+      by: Grigorii Pashukhin
+      from: spec_human_review
+      to: planning
+    - at: "2026-07-25T17:00:03Z"
+      by: Grigorii Pashukhin
+      from: planning
+      to: plan_review
+      checks:
+        - cmd: ls docs/superpowers/plans/t52-*.md
+          exit: 0
+        - cmd: out=$(git status --porcelain -- ":(exclude).mtt") && test -z "$out" || { echo "working tree not clean - commit your code/docs first (.mtt is swept by the move itself)" >&2; false; }
+          exit: 0
+    - at: "2026-07-25T17:13:21Z"
+      by: Grigorii Pashukhin
+      why: 'adversarial plan review (empirical): 3 blockers — composite-literal-in-if compile error (4 tests); wrong substring count 2 vs 3 (allowlist has Bash(mtt prime:*)); gosec G304 unsuppressed on new fsutil/scaffold packages. golden bytes + merge logic verified correct. 2 minors (init.txt txtar placement, DESIGN.ru line-ref).'
+      from: plan_review
+      to: plan_fix
+    - at: "2026-07-25T17:15:44Z"
+      by: Grigorii Pashukhin
+      from: plan_fix
+      to: plan_review
+      checks:
+        - cmd: ls docs/superpowers/plans/t52-*.md
+          exit: 0
+        - cmd: out=$(git status --porcelain -- ":(exclude).mtt") && test -z "$out" || { echo "working tree not clean - commit your code/docs first (.mtt is swept by the move itself)" >&2; false; }
+          exit: 0
+    - at: "2026-07-25T17:26:36Z"
+      by: Grigorii Pashukhin
+      why: 'plan re-review r2: all prior fixes verified FIXED empirically (golangci 0 issues). 1 new major — cross-task ordering: Task 3 agent_hooks.txt used mtt init --no-agent-hooks (flag added only in Task 4) → Task 3 make check red. Fix: Task 3 plain init, Task 4 edits it.'
+      from: plan_review
+      to: plan_fix
+    - at: "2026-07-25T17:27:35Z"
+      by: Grigorii Pashukhin
+      from: plan_fix
+      to: plan_review
+      checks:
+        - cmd: ls docs/superpowers/plans/t52-*.md
+          exit: 0
+        - cmd: out=$(git status --porcelain -- ":(exclude).mtt") && test -z "$out" || { echo "working tree not clean - commit your code/docs first (.mtt is swept by the move itself)" >&2; false; }
+          exit: 0
+    - at: "2026-07-25T17:33:26Z"
+      by: Grigorii Pashukhin
+      from: plan_review
+      to: plan_human_review
+    - at: "2026-07-25T17:34:29Z"
+      by: Grigorii Pashukhin
+      from: plan_human_review
+      to: implementing
+    - at: "2026-07-25T17:53:44Z"
+      by: Grigorii Pashukhin
+      from: implementing
+      to: impl_review
+      checks:
+        - cmd: out=$(git status --porcelain -- ":(exclude).mtt") && test -z "$out" || { echo "working tree not clean - commit your code/docs first (.mtt is swept by the move itself)" >&2; false; }
+          exit: 0
+        - cmd: 'git diff --quiet main...HEAD -- cmd internal pkg go.mod go.sum || git diff --name-only main...HEAD -- CHANGELOG.md | grep -q . || { echo "code changed but CHANGELOG.md has no entry - add one under [Unreleased] (pure refactor? bypass: mtt do submit --no-run --who ... --why ...)" >&2; false; }'
+          exit: 0
+        - cmd: make check
+          exit: 0
+    - at: "2026-07-25T18:05:35Z"
+      by: Grigorii Pashukhin
+      from: impl_review
+      to: approved
+      checks:
+        - cmd: out=$(git status --porcelain -- ":(exclude).mtt") && test -z "$out" || { echo "working tree not clean - commit your code/docs first (.mtt is swept by the move itself)" >&2; false; }
+          exit: 0

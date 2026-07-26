@@ -291,7 +291,8 @@ clear on empty, the task-`edit` idiom) and `note list --priority`/`--sort` (`toP
 `core.NewBacklinks` → `core.Prime` → `writePrime` (markdown pointer digest, `N of M` footer, empty→actionable
 line) or `primeJSON`/`toPrimeJSON` (`tags` non-null). `--min-priority` (default `high`) is validated **inline**
 via `mtt.Priority.Valid()` (not `parsePriority`, which treats `""` as valid); `--limit` default 20. The
-`sessionStart` hook is config (documented in CLI_REFERENCE), not code.
+`sessionStart` hook was config-only at t51; **t52** makes `mtt agent hooks` / `mtt init` scaffold it into
+`.claude/settings.json` (see the Agent-scaffolding note below).
 
 Self-update (t44): **`mtt self-update`** (`selfupdate.go`, `newSelfUpdateCmd`) wires the current version
 (`resolveVersion()`), target (`EvalSymlinks(os.Executable())`), `runtime.GOOS/GOARCH`, `goAvailable`
@@ -330,3 +331,9 @@ the raw `template` arg. Coverage split (no network in tests): e2e (`init.txt`) c
 (+ verbatim `{{.ID}}` survival, validate-fail-closed, the scheme-less hint, the coding-not-a-builtin error) +
 the **non-TTY URL refuse** (errors before any fetch); the fetch branches + confirm are unit-tested (fake
 `http.RoundTripper` / scripted `confirmRemote`).
+
+Agent scaffolding (t52): `newAgentCmd` (`agent.go`) is the `mtt agent` group (the `note`/`dep` group pattern);
+`mtt agent hooks` scaffolds `.claude/settings.json` for every `scaffold.Registry()` harness via `scaffold.Run`
+(root through `projectRoot`), rendering per-harness `created|merged|unchanged` (shared `reportScaffold`/
+`scaffoldJSON`/`toScaffoldJSON`, reused by `init`). No business logic here — merge/IO live in `internal/scaffold`.
+e2e: `agent_hooks.txt`.

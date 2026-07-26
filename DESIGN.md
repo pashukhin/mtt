@@ -766,6 +766,26 @@ tested end-to-end walkthrough of this template.
 > product; a flow is a sample, not a mandate". The flow's own review descriptions now state the
 > **machine-review → human-sign-off** ordering explicitly (agent gate first, human strictly after).
 
+> **Shipped (t52): scaffold agent settings + hooks.** The onboarding arc continues past t62 (init templates):
+> a new **`mtt agent`** group (`mtt agent hooks`; t46 later adds `mtt agent docs`) scaffolds a coding agent's
+> **configuration** into the project, and **`mtt init` runs it by default** (`--no-agent-hooks` opts out). The
+> flagship — the only verified harness — is **Claude Code**: it writes/merges `.claude/settings.json` with a
+> `SessionStart`+`PreCompact` hook running `mtt prime 2>/dev/null || true` (this makes t51's "config, not code"
+> hook *scaffolded* code) plus a **read-only `permissions.allow`** allowlist (granular per read-only
+> subcommand; every mutating verb excluded). codex/gemini are **deferred behind a `Harness` seam** (interface +
+> registry in `internal/scaffold`) — no *guessed* config is written (a silent trap against t62's release bar).
+> The merge is **additive, idempotent, no-clobber**: a single `json.Encoder` (`SetEscapeHTML(false)` — our
+> `2>/dev/null` stays literal — 2-space indent, alphabetical keys) is the fixed point that makes a re-run a
+> byte-identical `Unchanged`; presence of our hook is a **word-boundary `mtt prime` prefix** (robust to
+> customized args, not fooled by an incidental mention); a malformed or type-incompatible existing file is a
+> **loud refusal**, never overwritten; an empty/`null` container reads as absent. The pure `Merge` lives in
+> **`internal/scaffold`** (onboarding infra — **not** `pkg/mtt` domain, **not** `.mtt/` storage, no port);
+> `Run` is the thin IO edge (write-as-you-go, only `os.IsNotExist` ⇒ absent). Durability is shared via a new
+> **`internal/fsutil.AtomicWrite`/`SyncDir`** extracted from the yaml adapter (DRY — the adapter now delegates,
+> `audit.go` included). **No silent traps:** opt-in, every write/merge is reported (human + `--json`), and
+> init's config-then-scaffold **failure contract** is fixed — config (the primary job) is written first and
+> kept; a scaffold failure reports the config success, then exits 1 (no partial JSON).
+
 ## Dependencies
 
 - `depends_on: [id, …]` is a **blocking** edge (distinct from the hierarchy `parent` and the informational
@@ -954,8 +974,9 @@ refs:
 > priority ≥ `--min-priority` (default `high`) appear — an **unset note is never** primed — and note **bodies
 > are never emitted**; the digest is capped (`--limit`). Ranking = priority band, then **backlink-count**
 > (reusing t1's computed `Backlinks`), then recency. Note priority is also authored via `--priority` on
-> `note add`/`note edit` and surfaced by `note list --priority`/`--sort priority`. **The `sessionStart` hook is
-> config, not code** — mtt ships only the command; the hook is a documented `settings.json` snippet. KB stays a
+> `note add`/`note edit` and surfaced by `note list --priority`/`--sort priority`. At t51 **the `sessionStart`
+> hook was config, not code** — mtt shipped only the command; **t52 makes it *also* scaffolded** (config **and**
+> code: `mtt agent hooks` / `mtt init` emit it into `.claude/settings.json`, still overridable). KB stays a
 > **supporting** feature (positioning), now with a real prime story. **Follow-up:** an optional body snippet in
 > the digest, URL/`--full` variants.
 

@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/pashukhin/mtt/internal/fsutil"
 	"github.com/pashukhin/mtt/pkg/mtt"
 )
 
@@ -57,7 +58,7 @@ func (s *AuditStore) Append(e mtt.AuditEntry) error {
 	}
 	// The first-ever append O_CREATEs the file; without a directory fsync that
 	// new dirent can vanish with a crash even though the line itself is synced.
-	if err := syncDir(dir); err != nil {
+	if err := fsutil.SyncDir(dir); err != nil {
 		return fmt.Errorf("audit: %w", err)
 	}
 	return nil

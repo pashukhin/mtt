@@ -289,4 +289,6 @@ dir, installable by path or `--template <url>` (only `default` is built into the
 separately:
 
 - **Agent-usage docs** — a generic tool-level `AGENTS.md`/`CLAUDE.md` for how an agent uses mtt day-to-day.
-- **Settings & hooks** — scaffolding editor/agent settings and hooks (e.g. `sessionStart → mtt prime`).
+- **Settings & hooks** — *shipped (t52)*: `mtt agent hooks` (and `mtt init` by default) scaffold
+  `.claude/settings.json` — `SessionStart`+`PreCompact → mtt prime` plus a read-only permissions allowlist —
+  via an additive, no-clobber merge (`--no-agent-hooks` opts init out).

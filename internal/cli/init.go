@@ -9,16 +9,18 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/pashukhin/mtt/internal/adapter/yaml"
+	"github.com/pashukhin/mtt/internal/scaffold"
 )
 
 // newInitCmd builds `mtt init`: write the starter .mtt/config.yaml from a
 // built-in name, a local file path, or an https URL.
 func newInitCmd() *cobra.Command {
 	var (
-		tmpl    string
-		force   bool
-		name    string
-		autoYes bool
+		tmpl         string
+		force        bool
+		name         string
+		autoYes      bool
+		noAgentHooks bool
 	)
 	cmd := &cobra.Command{
 		Use:   "init",
@@ -80,6 +82,22 @@ func newInitCmd() *cobra.Command {
 				source = "url:" + value
 				printExternalNotice(cmd, value)
 			}
+			// The config write (the switch above) is init's primary job and has
+			// succeeded here. Scaffold agent hooks by default (opt-out flag), then
+			// fold the results into output. A scaffold failure (a pre-existing
+			// malformed .claude/settings.json) is reported AFTER the config success
+			// and returns exit 1 — config is kept, no rollback (R3).
+			var scaffoldResults []scaffold.Result
+			if !noAgentHooks {
+				var serr error
+				scaffoldResults, serr = scaffold.Run(base, scaffold.Registry())
+				if serr != nil {
+					if !jsonFlag(cmd) {
+						_, _ = fmt.Fprintf(cmd.OutOrStdout(), "initialized .mtt/config.yaml (template %q)\n", tmpl)
+					}
+					return serr
+				}
+			}
 			if jsonFlag(cmd) {
 				absBase, err := filepath.Abs(base)
 				if err != nil {
@@ -88,18 +106,20 @@ func newInitCmd() *cobra.Command {
 				return writeJSON(cmd.OutOrStdout(), initJSON{
 					Path:     filepath.Join(absBase, ".mtt", "config.yaml"),
 					Template: tmpl, Source: source, Name: projectName, Created: true,
+					Scaffold: toScaffoldJSON(scaffoldResults),
 				})
 			}
 			if _, err := fmt.Fprintf(cmd.OutOrStdout(), "initialized .mtt/config.yaml (template %q)\n", tmpl); err != nil {
 				return err
 			}
-			return nil
+			return reportScaffold(cmd, scaffoldResults)
 		},
 	}
 	cmd.Flags().StringVar(&tmpl, "template", "default", "starter template: default | a file path | an https URL")
 	cmd.Flags().BoolVar(&force, "force", false, "overwrite an existing config")
 	cmd.Flags().StringVar(&name, "name", "", "project name (default: current directory name)")
 	cmd.Flags().BoolVar(&autoYes, "yes", false, "skip the confirmation prompt for a remote --template URL")
+	cmd.Flags().BoolVar(&noAgentHooks, "no-agent-hooks", false, "skip scaffolding agent settings + hooks (.claude/settings.json)")
 	return cmd
 }
 

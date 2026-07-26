@@ -7,6 +7,14 @@ All notable changes to mtt are documented here. The format follows
 ## [Unreleased]
 
 ### Added
+- **Scaffold agent settings + hooks — `mtt agent hooks` (t52).** A new `mtt agent` group scaffolds a coding
+  agent's configuration into the project. `mtt agent hooks` writes/merges Claude Code's `.claude/settings.json`
+  — `SessionStart`+`PreCompact` hooks running `mtt prime` (this makes t51's session-start hook *scaffolded*
+  code, not just a documented snippet) plus a **read-only `permissions.allow`** allowlist. **`mtt init` runs it
+  by default** (`--no-agent-hooks` opts out; `init --json` gains a `scaffold` array). The merge is **additive,
+  idempotent, and no-clobber** — a re-run is a no-op, existing settings are preserved, and a malformed file is
+  refused, never overwritten. Other harnesses (codex/gemini) are deferred behind an extensible `Harness` seam
+  (no guessed config is written).
 - **Runnable init templates — `mtt init --template <name|path|url>` (t62).** `--template` now accepts a
   built-in name, a **local file path**, or an **`https://` URL** (resolved by shape). Only `default` stays
   compiled into the binary; `coding`/`hierarchy` and a new **git-integration flagship** (`git-flow`) ship as
@@ -59,6 +67,9 @@ All notable changes to mtt are documented here. The format follows
   stored field was invisible outside `dep list`.
 
 ### Changed
+- **Shared `internal/fsutil` durability primitive (t52).** The yaml adapter's atomic write + dir-fsync
+  (`AtomicWrite`/`SyncDir`) is extracted into `internal/fsutil` and reused by the new scaffold, so the
+  durability discipline lives in one place; the adapter now delegates (behavior unchanged).
 - **`--no-run` caveat sweep (c19).** CLI_REFERENCE/FLOW_GUIDE (EN+RU) and the dogfood `deliver`/`cancel`
   descriptions now state that a bypass skips ALL edge commands — state-moving ones included — and DESIGN
   records why the signed bypass stays (the unsigned alternative, a local config edit, is invisible).
