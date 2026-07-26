@@ -106,22 +106,28 @@ func TestDocsCommandsDocumented(t *testing.T) {
 	}
 }
 
-// knownVerbs = registry commands + shipped default-template statuses (verb
-// sugar) + an explicit allowlist of documented non-registry verbs
+// knownVerbs = registry commands + cobra built-ins (real but lazily injected,
+// so absent from NewRootCmd().Commands()) + shipped default-template statuses
+// (verb sugar) + an explicit allowlist of documented non-registry verbs
 // (parked/planned/edge-sugar). MAINTENANCE POINT, not zero-cost: a new
 // parked/planned/edge-sugar verb mentioned in README/CLI_REFERENCE/CHANGELOG
 // must be added here (a deliberate forcing function that also blocks phantoms).
+// NOTE: the scan covers released CHANGELOG sections too, so a future *rename*
+// of a real command would re-trip on historical entries — resolve by adding the
+// old name here (an intended, visible signal), never by rewriting history.
 func knownVerbs() map[string]bool {
 	k := map[string]bool{}
 	for _, n := range registryCommands() {
 		k[n] = true
 	}
-	for _, s := range []string{"done", "in_progress", "cancelled"} { // default-template statuses
+	for _, s := range []string{"help", "completion"} { // cobra built-ins: real commands, documented, lazily added
+		k[s] = true
+	}
+	for _, s := range []string{"done", "in_progress", "cancelled"} { // default-template statuses (verb sugar)
 		k[s] = true
 	}
 	for _, s := range []string{ // parked / planned / edge-verb sugar, documented honestly
-		"advance", "start", "cancel", "caps", "comment", "search",
-		"gantt", "ui", "decline", "reparent", "move",
+		"advance", "start", "cancel", "caps", "comment", "search", "gantt", "decline", "reparent",
 	} {
 		k[s] = true
 	}
@@ -167,15 +173,15 @@ func TestDocsNoHardcodedVersion(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Run the guard test — observe RED, enumerate every flagged token**
+- [ ] **Step 2: Run the guard test — observe RED, confirm exactly the expected findings**
 
 Run: `go test ./internal/cli/ -run 'TestDocs' -v`
-Expected FAIL on:
-- `TestDocsNoHardcodedVersion` — `README.md`/`README.ru.md` `0.8.98-dev` (F1).
-- `TestDocsNoPhantomCommands` — `CHANGELOG.md: `mtt guide`` (F8).
-- `TestDocsCommandsDocumented` — expected PASS (all shipped commands are documented; verify no surprise).
+Expected FAIL (verified empirically against current docs with this exact `knownVerbs()`):
+- `TestDocsNoHardcodedVersion` — `README.md` **and** `README.ru.md` flag `0.8.98` (F1).
+- `TestDocsNoPhantomCommands` — **exactly one** token: `CHANGELOG.md: `mtt guide`` (F8). (The regex flags `mtt help`/`mtt completion` from CLI_REFERENCE too, but they are now allowlisted as cobra built-ins → not reported. If they still appear, the allowlist edit above was dropped.)
+- `TestDocsCommandsDocumented` — expected **PASS** (all 23 registry commands have a `### `mtt …`` heading; verified in review).
 
-**Empirically confirm the phantom set.** Read every `TestDocsNoPhantomCommands` failure line. Only `guide` must be a real phantom. If any *other* token is flagged (e.g. an allowlist gap), decide per token: a legitimate parked/planned/edge-sugar verb → add it to `knownVerbs()`; a real phantom → it will be fixed by a doc edit. Refine `tokenRe`/allowlist until the ONLY remaining failure is `guide` (F8) plus the version badge (F1). Record the final flagged set in the commit message.
+**Empirically confirm the flagged set.** Read every `TestDocsNoPhantomCommands` failure line. The ONLY expected failure is `guide`. If any *other* token is flagged, decide per token: a legitimate command/parked/planned/edge-sugar verb → add it to `knownVerbs()` (with a comment); a real phantom → fix the doc. Record the final flagged set in the commit message.
 
 - [ ] **Step 3: Fix F1 — rewrite the README status blockquote (EN)**
 
@@ -198,7 +204,18 @@ In `README.ru.md`, replace the parallel blockquote (grep-anchor `> **Стату�
 
 - [ ] **Step 5: Fix F8 — remove the phantom `mtt guide` from CHANGELOG**
 
-In `CHANGELOG.md`, grep-anchor the `0.9.0` Added line containing `` `mtt guide` `` (`Project & flow:`). Remove the ``, `mtt guide` (pre-flow orientation: queue navigation, first-move setup, mid-flight resumption)`` clause (the command never existed) while keeping the surrounding `mtt init`/`mtt types` items and the historically-true `coding` template mention intact.
+In `CHANGELOG.md` (the `0.9.0` `Project & flow:` bullet), the phantom clause **wraps across two lines** — the Edit `old_string` must include the newline + 2-space continuation indent. Replace exactly:
+
+old_string (spans CHANGELOG.md:173–174):
+```
+`mtt types` (type + edge map), `mtt guide` (pre-flow orientation: queue navigation,
+  first-move setup, mid-flight resumption).
+```
+new_string:
+```
+`mtt types` (type + edge map).
+```
+This keeps the surrounding `mtt init`/`mtt types` items and the historically-true `coding` mention intact.
 
 - [ ] **Step 6: Run the guard test — observe GREEN**
 
@@ -230,13 +247,33 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 - Consumes: the guard from Task 1 stays green (these edits touch no semver/command tokens beyond neutral swaps).
 - Produces: honest README body — unshipped features marked planned; `mtt start` removed from prose.
 
-- [ ] **Step 1: F2/F3 — Key ideas: mark unshipped capabilities as planned (EN)**
+- [ ] **Step 1: F2/F3 — Key ideas: mark unshipped capabilities as planned (EN, + the wrapped F2 RU)**
 
-In `README.md`:
-- Grep-anchor `Optional features (history, dependencies, comment trees, search) are per-adapter capabilities` → reword so shipped-vs-planned is explicit, e.g.:
-  `Optional per-adapter capabilities: history and dependencies today; comment trees and text search are planned.`
-- Grep-anchor `Verifiable references & append-only history.` bullet (`Tasks/comments carry checkable refs`) → refs shipped, comments planned:
-  `**Verifiable references & append-only history.** Tasks carry checkable `refs` to notes/tasks; every status transition is recorded for audit. (Threaded comments are planned.)`
+F2 — the "Optional features" clause **wraps across two lines** in both READMEs; the Edit `old_string` must include the newline + 2-space indent.
+
+In `README.md` (spans :53–54) replace exactly:
+```
+Optional features (history, dependencies, comment trees,
+  search) are per-adapter capabilities.
+```
+with:
+```
+Optional per-adapter capabilities: history and dependencies today; comment trees and text search are planned.
+```
+
+In `README.ru.md` (spans :53–54) replace exactly:
+```
+Опциональные возможности (история, зависимости, дерево комментариев, поиск) —
+  capability уровня адаптера.
+```
+with:
+```
+Опциональные capability уровня адаптера: история и зависимости — сейчас; дерево комментариев и текстовый поиск — планируются.
+```
+
+F3 (EN, single line) — grep-anchor the `Verifiable references & append-only history.` bullet (`Tasks/comments carry checkable`) → refs shipped, comments planned:
+`**Verifiable references & append-only history.** Tasks carry checkable `refs` to notes/tasks; every status transition is recorded for audit. (Threaded comments are planned.)`
+(The F3 RU mirror is handled in Step 5 — its anchor does not wrap.)
 
 - [ ] **Step 2: F4 — Key ideas: mark `mtt-ui` planned (EN)**
 
@@ -251,14 +288,36 @@ Grep-anchor the `## For agents` paragraph → distinguish shipped from planned:
 Grep-anchor `## For humans (optional)` → mark the whole section planned:
 `*(Planned.)* `mtt-ui` (a small local web server): minimal task management, a Gantt chart, a KB browser. Plus CLI text output for task info, KB search, and an ASCII Gantt.`
 
-- [ ] **Step 4: F6 — pitch: remove `mtt start` (EN)**
+- [ ] **Step 4: F6 — pitch: remove `mtt start` (EN, + the wrapped "task terms" RU)**
 
-- Grep-anchor `a small Go CLI (`mtt add`, `mtt start`, `mtt done`, …)` → `a small Go CLI (`mtt add`, `mtt status`, `mtt done`, …)`.
-- Grep-anchor `Agents work in task terms (`mtt start`, `mtt done`)` → `Agents work in task terms (a gated status move like `mtt done`)`.
+- Pitch (single line, `README.md:23`) — grep-anchor `a small Go CLI (`mtt add`, `mtt start`, `mtt done`, …)` → `a small Go CLI (`mtt add`, `mtt status`, `mtt done`, …)`. (RU `:23` mirror in Step 5, single line.)
+- "Key ideas / killer feature" (**wraps across `README.md:44–45`**) — replace exactly:
+  ```
+  task terms
+    (`mtt start`, `mtt done`) while the tool enforces the discipline.
+  ```
+  with:
+  ```
+  task terms (a gated status move like `mtt done`) while the tool enforces the discipline.
+  ```
+- Same clause **wraps in `README.ru.md:44–45`** — replace exactly:
+  ```
+  в терминах задач
+    (`mtt start`, `mtt done`), а дисциплину держит инструмент.
+  ```
+  with:
+  ```
+  в терминах задач (переход-гейт вроде `mtt done`), а дисциплину держит инструмент.
+  ```
 
-- [ ] **Step 5: Mirror Steps 1–4 in `README.ru.md` (RU)**
+- [ ] **Step 5: Mirror the remaining Step 1–4 edits in `README.ru.md` (RU)**
 
-Apply the Russian mirror of every Step 1–4 edit at its parallel anchor (`## Для агентов`, `## Для людей`, the Key-ideas bullets, the pitch line `небольшая Go CLI (…)`). Same facts; keep EN and RU consistent.
+The two wrapped RU edits (F2 capabilities clause, F6 "task terms") were already applied in Steps 1 and 4. Here apply the RU mirror of the **single-line** edits at their parallel anchors:
+- F3 — grep-anchor `**Проверяемые ссылки и append-only история.**` (`Задачи/комментарии несут проверяемые`) → refs shipped, comments planned (mirror of Step 1 F3).
+- F4 — grep-anchor `**Опциональный человеческий UI (`mtt-ui`).**` → mark `(планируется)`.
+- F5 — grep-anchor `## Для агентов` paragraph and `## Для людей (опционально)` → mark comment trees / text search / indexer / mtt-ui / Gantt as planned.
+- F6 pitch — grep-anchor `небольшая Go CLI (`mtt add`, `mtt start`, `mtt done`, …)` → replace `mtt start` with `mtt status`.
+Same facts as EN; keep the mirrors consistent.
 
 - [ ] **Step 6: Full README/.ru residual pass**
 
