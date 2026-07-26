@@ -6,6 +6,8 @@ All notable changes to mtt are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.11.0] — 2026-07-26
+
 ### Added
 - **Scaffold how-to-use-mtt agent docs — `mtt agent docs` (t46).** The docs sibling of `mtt agent hooks`:
   scaffolds a **project-agnostic** "Working under mtt" runbook into `AGENTS.md` (the cross-tool standard) plus
