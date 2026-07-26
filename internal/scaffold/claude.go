@@ -24,16 +24,16 @@ var readOnlyAllow = []string{
 	"Bash(mtt note show:*)", "Bash(mtt note list:*)", "Bash(mtt ref list:*)", "Bash(mtt note ref list:*)",
 }
 
-// claudeHarness scaffolds Claude Code's .claude/settings.json.
-type claudeHarness struct{}
+// claudeTarget scaffolds Claude Code's .claude/settings.json.
+type claudeTarget struct{}
 
-func (claudeHarness) Name() string    { return "claude" }
-func (claudeHarness) RelPath() string { return ".claude/settings.json" }
+func (claudeTarget) Name() string    { return "claude" }
+func (claudeTarget) RelPath() string { return ".claude/settings.json" }
 
 // Merge computes the desired settings bytes from the current ones. Pure: no IO.
 // Create-if-absent (or empty), additive union if present, Unchanged if already
 // there, loud refusal if malformed or type-incompatible — never a clobber.
-func (claudeHarness) Merge(existing []byte, exists bool) ([]byte, Action, error) {
+func (claudeTarget) Merge(existing []byte, exists bool) ([]byte, Action, error) {
 	created := !exists || len(bytes.TrimSpace(existing)) == 0
 	m := map[string]any{}
 	if !created {

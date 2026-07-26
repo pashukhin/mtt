@@ -121,15 +121,15 @@ cd $WORK
 mkdir jsonscaffold
 cd jsonscaffold
 exec mtt init --json
-stdout '"scaffold"'
-stdout '"harness": "claude"'
+stdout '"hooks"'
+stdout '"name": "claude"'
 
 # --no-agent-hooks --json: scaffold is a non-null EMPTY array (not null)
 cd $WORK
 mkdir nojsonscaffold
 cd nojsonscaffold
 exec mtt init --no-agent-hooks --json
-stdout '"scaffold": \[\]'
+stdout '"hooks": \[\]'
 ! exists .claude/settings.json
 
 # R3: a pre-existing malformed .claude/settings.json fails the scaffold, but

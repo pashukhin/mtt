@@ -90,7 +90,7 @@ func newInitCmd() *cobra.Command {
 			var scaffoldResults []scaffold.Result
 			if !noAgentHooks {
 				var serr error
-				scaffoldResults, serr = scaffold.Run(base, scaffold.Registry())
+				scaffoldResults, serr = scaffold.Run(base, scaffold.HookTargets())
 				if serr != nil {
 					if !jsonFlag(cmd) {
 						_, _ = fmt.Fprintf(cmd.OutOrStdout(), "initialized .mtt/config.yaml (template %q)\n", tmpl)
@@ -106,13 +106,13 @@ func newInitCmd() *cobra.Command {
 				return writeJSON(cmd.OutOrStdout(), initJSON{
 					Path:     filepath.Join(absBase, ".mtt", "config.yaml"),
 					Template: tmpl, Source: source, Name: projectName, Created: true,
-					Scaffold: toScaffoldJSON(scaffoldResults),
+					Hooks: toScaffoldJSON(scaffoldResults),
 				})
 			}
 			if _, err := fmt.Fprintf(cmd.OutOrStdout(), "initialized .mtt/config.yaml (template %q)\n", tmpl); err != nil {
 				return err
 			}
-			return reportScaffold(cmd, scaffoldResults)
+			return reportScaffold(cmd, scaffoldResults, hookScaffoldNote)
 		},
 	}
 	cmd.Flags().StringVar(&tmpl, "template", "default", "starter template: default | a file path | an https URL")

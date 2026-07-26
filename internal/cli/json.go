@@ -111,14 +111,14 @@ type versionJSON struct {
 }
 
 // initJSON is `mtt init --json`: the created-config summary + agent-scaffold
-// results (non-null array; [] when --no-agent-hooks).
+// results (non-null arrays; [] when the respective opt-out is set).
 type initJSON struct {
 	Path     string         `json:"path"`
 	Template string         `json:"template"`
 	Source   string         `json:"source,omitempty"`
 	Name     string         `json:"name"`
 	Created  bool           `json:"created"`
-	Scaffold []scaffoldJSON `json:"scaffold"`
+	Hooks    []scaffoldJSON `json:"hooks"`
 }
 
 // writeJSON marshals v as indented JSON with a trailing newline (stable diff).

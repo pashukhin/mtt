@@ -14,7 +14,7 @@ import (
 	"github.com/pashukhin/mtt/internal/fsutil"
 )
 
-// Action is what Merge/Run did to a harness's file.
+// Action is what Merge/Run did to a target's file.
 type Action string
 
 // The three merge outcomes (also the human/JSON labels).
@@ -24,32 +24,33 @@ const (
 	Unchanged Action = "unchanged"
 )
 
-// Result is the per-harness scaffold outcome.
+// Result is one target's scaffold outcome.
 type Result struct {
-	Harness string
-	Path    string
-	Action  Action
+	Name   string
+	Path   string
+	Action Action
 }
 
-// Harness is a scaffold target (one agent tool's config). Merge is pure.
-type Harness interface {
+// Target is a scaffold target (a file + a pure merge from current to desired
+// bytes + a name for reporting). Merge is pure.
+type Target interface {
 	Name() string
 	RelPath() string
 	Merge(existing []byte, exists bool) (content []byte, action Action, err error)
 }
 
-// Registry is the set of supported harnesses (the single extension point).
-func Registry() []Harness { return []Harness{claudeHarness{}} }
+// HookTargets is the set of agent-tool config targets (t52; the hooks facet).
+func HookTargets() []Target { return []Target{claudeTarget{}} }
 
-// Run scaffolds each harness under root and returns per-harness results. It is
+// Run scaffolds each target under root and returns per-target results. It is
 // write-as-you-go: a read/merge/write failure aborts the loop and returns the
 // results collected so far alongside a wrapped error. Only os.ErrNotExist marks
 // a file absent; any other read error propagates.
-func Run(root string, harnesses []Harness) ([]Result, error) {
+func Run(root string, targets []Target) ([]Result, error) {
 	var results []Result
-	for _, h := range harnesses {
-		path := filepath.Join(root, filepath.FromSlash(h.RelPath()))
-		// #nosec G304 -- path is <root>/<harness RelPath> under a locally-resolved
+	for _, t := range targets {
+		path := filepath.Join(root, filepath.FromSlash(t.RelPath()))
+		// #nosec G304 -- path is <root>/<target RelPath> under a locally-resolved
 		// project root (projectRoot/baseDir), not network/untrusted input.
 		existing, err := os.ReadFile(path)
 		exists := true
@@ -57,22 +58,22 @@ func Run(root string, harnesses []Harness) ([]Result, error) {
 			if errors.Is(err, os.ErrNotExist) {
 				exists, existing = false, nil
 			} else {
-				return results, fmt.Errorf("%s: read %s: %w", h.Name(), path, err)
+				return results, fmt.Errorf("%s: read %s: %w", t.Name(), path, err)
 			}
 		}
-		content, action, err := h.Merge(existing, exists)
+		content, action, err := t.Merge(existing, exists)
 		if err != nil {
-			return results, fmt.Errorf("%s: %s: %w", h.Name(), path, err)
+			return results, fmt.Errorf("%s: %s: %w", t.Name(), path, err)
 		}
 		if action != Unchanged {
 			if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-				return results, fmt.Errorf("%s: mkdir %s: %w", h.Name(), filepath.Dir(path), err)
+				return results, fmt.Errorf("%s: mkdir %s: %w", t.Name(), filepath.Dir(path), err)
 			}
 			if err := fsutil.AtomicWrite(path, content, 0o644); err != nil {
-				return results, fmt.Errorf("%s: write %s: %w", h.Name(), path, err)
+				return results, fmt.Errorf("%s: write %s: %w", t.Name(), path, err)
 			}
 		}
-		results = append(results, Result{Harness: h.Name(), Path: path, Action: action})
+		results = append(results, Result{Name: t.Name(), Path: path, Action: action})
 	}
 	return results, nil
 }
