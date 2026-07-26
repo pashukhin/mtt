@@ -1,7 +1,7 @@
 id: t46
 type: task
 title: 'mtt init: scaffold how-to-use-mtt agent docs — generic tool-level AGENTS.md/CLAUDE.md/GEMINI.md (merge-vs-create)'
-status: tbd
+status: approved
 priority: medium
 tags:
     - docs
@@ -10,5 +10,67 @@ tags:
 depends_on:
     - t52
 created: "2026-07-17T15:44:33Z"
-updated: "2026-07-25T14:00:10Z"
+updated: "2026-07-26T03:21:47Z"
 description: 'Split from t23 (2026-07-17), Part A. mtt init should help a fresh project adopt the workflow by emitting/scaffolding GENERIC, tool-level agent docs: a ''Working under mtt'' runbook in AGENTS.md, plus a root CLAUDE.md and (optionally) GEMINI.md / per-package stubs. Constraint (the split rationale): describe mtt MECHANICS — types/statuses/transitions, gates, attribution, dangerous-ops, the per-move commit — in a project-agnostic way, and point agents at ''mtt types''/''mtt show''/''mtt roadmap'' to discover THIS project''s actual flow. Do NOT hardcode our specialized dogfood statuses (continuation of t19''s self-instructing runbook). Design-open: the exact template/doc set, new-file-vs-merge behavior (idempotent injection into an existing AGENTS.md), and how scaffolded text stays honest as the flow evolves. Relates to the prime directive ''mechanize the process into mtt'' and t19.'
+history:
+    - at: "2026-07-26T00:42:55Z"
+      by: Grigorii Pashukhin
+      from: tbd
+      to: speccing
+      checks:
+        - cmd: git switch task/t46 || (git switch main && git switch -c task/t46)
+          exit: 0
+        - cmd: test -f .mtt/tasks/t46.yaml || { echo "task file absent on this branch — its add has not reached main (merge/commit the branch that created it first)" >&2; false; }
+          exit: 0
+    - at: "2026-07-26T01:04:58Z"
+      by: Grigorii Pashukhin
+      from: speccing
+      to: spec_review
+      checks:
+        - cmd: ls docs/superpowers/specs/t46-*.md
+          exit: 0
+        - cmd: out=$(git status --porcelain -- ":(exclude).mtt") && test -z "$out" || { echo "working tree not clean - commit your code/docs first (.mtt is swept by the move itself)" >&2; false; }
+          exit: 0
+    - at: "2026-07-26T01:15:41Z"
+      by: Grigorii Pashukhin
+      from: spec_review
+      to: spec_human_review
+    - at: "2026-07-26T02:23:09Z"
+      by: Grigorii Pashukhin
+      from: spec_human_review
+      to: planning
+    - at: "2026-07-26T02:30:03Z"
+      by: Grigorii Pashukhin
+      from: planning
+      to: plan_review
+      checks:
+        - cmd: ls docs/superpowers/plans/t46-*.md
+          exit: 0
+        - cmd: out=$(git status --porcelain -- ":(exclude).mtt") && test -z "$out" || { echo "working tree not clean - commit your code/docs first (.mtt is swept by the move itself)" >&2; false; }
+          exit: 0
+    - at: "2026-07-26T02:45:09Z"
+      by: Grigorii Pashukhin
+      from: plan_review
+      to: plan_human_review
+    - at: "2026-07-26T02:55:56Z"
+      by: Grigorii Pashukhin
+      from: plan_human_review
+      to: implementing
+    - at: "2026-07-26T03:12:21Z"
+      by: Grigorii Pashukhin
+      from: implementing
+      to: impl_review
+      checks:
+        - cmd: out=$(git status --porcelain -- ":(exclude).mtt") && test -z "$out" || { echo "working tree not clean - commit your code/docs first (.mtt is swept by the move itself)" >&2; false; }
+          exit: 0
+        - cmd: 'git diff --quiet main...HEAD -- cmd internal pkg go.mod go.sum || git diff --name-only main...HEAD -- CHANGELOG.md | grep -q . || { echo "code changed but CHANGELOG.md has no entry - add one under [Unreleased] (pure refactor? bypass: mtt do submit --no-run --who ... --why ...)" >&2; false; }'
+          exit: 0
+        - cmd: make check
+          exit: 0
+    - at: "2026-07-26T03:21:47Z"
+      by: Grigorii Pashukhin
+      from: impl_review
+      to: approved
+      checks:
+        - cmd: out=$(git status --porcelain -- ":(exclude).mtt") && test -z "$out" || { echo "working tree not clean - commit your code/docs first (.mtt is swept by the move itself)" >&2; false; }
+          exit: 0

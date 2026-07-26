@@ -8,7 +8,7 @@ import (
 
 func TestRunCreatesThenIdempotent(t *testing.T) {
 	root := t.TempDir()
-	res, err := Run(root, Registry())
+	res, err := Run(root, HookTargets())
 	if err != nil {
 		t.Fatalf("Run: %v", err)
 	}
@@ -19,7 +19,7 @@ func TestRunCreatesThenIdempotent(t *testing.T) {
 	if _, err := os.Stat(path); err != nil {
 		t.Fatalf("settings not written: %v", err)
 	}
-	res2, err := Run(root, Registry())
+	res2, err := Run(root, HookTargets())
 	if err != nil {
 		t.Fatalf("Run(2): %v", err)
 	}
@@ -35,7 +35,7 @@ func TestRunPropagatesNonNotExistReadError(t *testing.T) {
 	if err := os.MkdirAll(filepath.Join(root, ".claude", "settings.json"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := Run(root, Registry()); err == nil {
+	if _, err := Run(root, HookTargets()); err == nil {
 		t.Fatal("expected a read error to propagate")
 	}
 }

@@ -1,0 +1,48 @@
+# agent docs scaffolds the runbook + pointers into an initialized project
+mkdir proj
+cd proj
+exec mtt init --no-agent-docs --no-agent-hooks
+! exists AGENTS.md
+exec mtt agent docs
+stdout 'agents: created'
+stdout 'claude: created'
+stdout 'gemini: created'
+exists AGENTS.md
+exists CLAUDE.md
+exists GEMINI.md
+grep 'Working under mtt' AGENTS.md
+grep 'mtt:begin' AGENTS.md
+grep 'mtt roadmap' AGENTS.md
+grep 'AGENTS.md' CLAUDE.md
+
+# idempotent second run
+exec mtt agent docs
+stdout 'agents: unchanged'
+
+# --json surfaces the result array
+exec mtt agent docs --json
+stdout '"name": "agents"'
+stdout '"action": "unchanged"'
+
+# merge into a pre-existing AGENTS.md preserves the original content
+cd $WORK
+mkdir proj2
+cd proj2
+exec mtt init --no-agent-docs --no-agent-hooks
+cp $WORK/existing-agents.md AGENTS.md
+exec mtt agent docs
+stdout 'agents: merged'
+grep 'My existing runbook' AGENTS.md
+grep 'Working under mtt' AGENTS.md
+
+# outside a project: actionable error
+cd $WORK
+mkdir empty
+cd empty
+! exec mtt agent docs
+stderr 'mtt init'
+
+-- existing-agents.md --
+# AGENTS.md
+
+My existing runbook. Do not clobber me.

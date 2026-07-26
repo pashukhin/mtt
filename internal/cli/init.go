@@ -21,6 +21,7 @@ func newInitCmd() *cobra.Command {
 		name         string
 		autoYes      bool
 		noAgentHooks bool
+		noAgentDocs  bool
 	)
 	cmd := &cobra.Command{
 		Use:   "init",
@@ -82,20 +83,25 @@ func newInitCmd() *cobra.Command {
 				source = "url:" + value
 				printExternalNotice(cmd, value)
 			}
-			// The config write (the switch above) is init's primary job and has
-			// succeeded here. Scaffold agent hooks by default (opt-out flag), then
-			// fold the results into output. A scaffold failure (a pre-existing
-			// malformed .claude/settings.json) is reported AFTER the config success
-			// and returns exit 1 — config is kept, no rollback (R3).
-			var scaffoldResults []scaffold.Result
+			// Config (the switch above) is init's primary job and has succeeded.
+			// Scaffold agent hooks then docs by default (opt-out flags); a scaffold
+			// failure is reported AFTER config-success and exits 1 — config kept (R3).
+			var hookResults, docResults []scaffold.Result
 			if !noAgentHooks {
 				var serr error
-				scaffoldResults, serr = scaffold.Run(base, scaffold.Registry())
+				hookResults, serr = scaffold.Run(base, scaffold.HookTargets())
 				if serr != nil {
-					if !jsonFlag(cmd) {
-						_, _ = fmt.Fprintf(cmd.OutOrStdout(), "initialized .mtt/config.yaml (template %q)\n", tmpl)
-					}
-					return serr
+					// hooks failed: config-success only (nothing scaffolded landed).
+					return reportInitConfigThen(cmd, tmpl, nil, serr)
+				}
+			}
+			if !noAgentDocs {
+				var derr error
+				docResults, derr = scaffold.Run(base, scaffold.DocTargets())
+				if derr != nil {
+					// docs failed: config-success + every line that DID land (hooks +
+					// the doc targets processed before the failure — Run is write-as-you-go).
+					return reportInitConfigThen(cmd, tmpl, append(hookResults, docResults...), derr)
 				}
 			}
 			if jsonFlag(cmd) {
@@ -106,13 +112,16 @@ func newInitCmd() *cobra.Command {
 				return writeJSON(cmd.OutOrStdout(), initJSON{
 					Path:     filepath.Join(absBase, ".mtt", "config.yaml"),
 					Template: tmpl, Source: source, Name: projectName, Created: true,
-					Scaffold: toScaffoldJSON(scaffoldResults),
+					Hooks: toScaffoldJSON(hookResults), Docs: toScaffoldJSON(docResults),
 				})
 			}
 			if _, err := fmt.Fprintf(cmd.OutOrStdout(), "initialized .mtt/config.yaml (template %q)\n", tmpl); err != nil {
 				return err
 			}
-			return reportScaffold(cmd, scaffoldResults)
+			if err := reportScaffold(cmd, hookResults, hookScaffoldNote); err != nil {
+				return err
+			}
+			return reportScaffold(cmd, docResults, docScaffoldNote)
 		},
 	}
 	cmd.Flags().StringVar(&tmpl, "template", "default", "starter template: default | a file path | an https URL")
@@ -120,6 +129,7 @@ func newInitCmd() *cobra.Command {
 	cmd.Flags().StringVar(&name, "name", "", "project name (default: current directory name)")
 	cmd.Flags().BoolVar(&autoYes, "yes", false, "skip the confirmation prompt for a remote --template URL")
 	cmd.Flags().BoolVar(&noAgentHooks, "no-agent-hooks", false, "skip scaffolding agent settings + hooks (.claude/settings.json)")
+	cmd.Flags().BoolVar(&noAgentDocs, "no-agent-docs", false, "skip scaffolding agent docs (AGENTS.md/CLAUDE.md/GEMINI.md)")
 	return cmd
 }
 
@@ -134,6 +144,20 @@ func templateReadError(path string, err error) error {
 		}
 	}
 	return fmt.Errorf("read template %q: %w", path, err)
+}
+
+// reportInitConfigThen prints the config-success line then the per-target human
+// lines of what DID land (human mode), and returns the scaffold error → exit 1;
+// config is written and kept, no partial JSON (R3). landed is nil on a hooks
+// failure (nothing scaffolded), or the hook results on a docs failure.
+func reportInitConfigThen(cmd *cobra.Command, tmpl string, landed []scaffold.Result, serr error) error {
+	if !jsonFlag(cmd) {
+		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "initialized .mtt/config.yaml (template %q)\n", tmpl)
+		for _, r := range landed {
+			_, _ = fmt.Fprintf(cmd.OutOrStdout(), "%s: %s %s\n", r.Name, r.Action, r.Path)
+		}
+	}
+	return serr
 }
 
 // printExternalNotice is the loud SEC2 review notice for an external install.

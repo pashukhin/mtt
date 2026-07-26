@@ -64,7 +64,7 @@ func mustJSONString(s string) string {
 }
 
 func TestMergeCreatedFromAbsent(t *testing.T) {
-	got, action, err := claudeHarness{}.Merge(nil, false)
+	got, action, err := claudeTarget{}.Merge(nil, false)
 	if err != nil {
 		t.Fatalf("Merge: %v", err)
 	}
@@ -81,7 +81,7 @@ func TestMergeCreatedFromAbsent(t *testing.T) {
 
 func TestMergeConvergence(t *testing.T) {
 	// R1: the Created output is the serializer's fixed point.
-	_, action, err := claudeHarness{}.Merge([]byte(createdBytes), true)
+	_, action, err := claudeTarget{}.Merge([]byte(createdBytes), true)
 	if err != nil {
 		t.Fatalf("Merge: %v", err)
 	}
@@ -94,7 +94,7 @@ func TestMergeReorderConvergesInOneStep(t *testing.T) {
 	// spec test 5: a hand-authored file carrying our hooks but with type-before-
 	// command key order (and no permissions) ⇒ exactly one Merged (re-sort + add
 	// the allowlist), then Unchanged.
-	h := claudeHarness{}
+	h := claudeTarget{}
 	in := `{"hooks":{"SessionStart":[{"hooks":[{"type":"command","command":"mtt prime 2>/dev/null || true"}]}],` +
 		`"PreCompact":[{"hooks":[{"type":"command","command":"mtt prime 2>/dev/null || true"}]}]}}`
 	first, a1, err := h.Merge([]byte(in), true)
@@ -114,7 +114,7 @@ func TestMergeReorderConvergesInOneStep(t *testing.T) {
 }
 
 func TestMergeEmptyFileTreatedAsAbsent(t *testing.T) {
-	got, action, err := claudeHarness{}.Merge([]byte("   \n\t"), true)
+	got, action, err := claudeTarget{}.Merge([]byte("   \n\t"), true)
 	if err != nil {
 		t.Fatalf("Merge: %v", err)
 	}
@@ -125,7 +125,7 @@ func TestMergeEmptyFileTreatedAsAbsent(t *testing.T) {
 
 func TestMergePreservesUnrelatedKeys(t *testing.T) {
 	in := `{"env":{"FOO":"bar"}}`
-	got, action, err := claudeHarness{}.Merge([]byte(in), true)
+	got, action, err := claudeTarget{}.Merge([]byte(in), true)
 	if err != nil {
 		t.Fatalf("Merge: %v", err)
 	}
@@ -143,7 +143,7 @@ func TestMergePreservesUnrelatedKeys(t *testing.T) {
 func TestMergeCustomPrimeArgsNoDuplicate(t *testing.T) {
 	in := `{"hooks":{"SessionStart":[{"hooks":[{"type":"command","command":"mtt prime --limit 5"}]}],` +
 		`"PreCompact":[{"hooks":[{"type":"command","command":"mtt prime --limit 5"}]}]}}`
-	got, _, err := claudeHarness{}.Merge([]byte(in), true)
+	got, _, err := claudeTarget{}.Merge([]byte(in), true)
 	if err != nil {
 		t.Fatalf("Merge: %v", err)
 	}
@@ -168,7 +168,7 @@ func TestMergeWordBoundaryNotPresent(t *testing.T) {
 	for _, c := range cases {
 		in := `{"hooks":{"SessionStart":[{"hooks":[{"type":"command","command":` +
 			mustJSONString(c.cmd) + `}]}]}}`
-		got, action, err := claudeHarness{}.Merge([]byte(in), true)
+		got, action, err := claudeTarget{}.Merge([]byte(in), true)
 		if err != nil {
 			t.Fatalf("Merge(%q): %v", c.cmd, err)
 		}
@@ -185,16 +185,16 @@ func TestMergeWordBoundaryNotPresent(t *testing.T) {
 }
 
 func TestMergeMalformedJSON(t *testing.T) {
-	// NB: a composite literal (claudeHarness{}) may not appear in an if-init
+	// NB: a composite literal (claudeTarget{}) may not appear in an if-init
 	// header (Go parse ambiguity) — hoist it to a local.
-	h := claudeHarness{}
+	h := claudeTarget{}
 	if _, _, err := h.Merge([]byte("{not json"), true); err == nil {
 		t.Fatal("malformed JSON must error")
 	}
 }
 
 func TestMergeRefusesIncompatibleShape(t *testing.T) {
-	h := claudeHarness{}
+	h := claudeTarget{}
 	for _, in := range []string{
 		`{"hooks":"oops"}`,
 		`{"hooks":{"SessionStart":"oops"}}`,
@@ -207,7 +207,7 @@ func TestMergeRefusesIncompatibleShape(t *testing.T) {
 }
 
 func TestMergeNullContainerTreatedAsAbsent(t *testing.T) {
-	h := claudeHarness{}
+	h := claudeTarget{}
 	for _, in := range []string{
 		`{"hooks":null}`,
 		`{"hooks":{"SessionStart":null}}`,
@@ -223,7 +223,7 @@ func TestMergeNullContainerTreatedAsAbsent(t *testing.T) {
 func TestMergeToleratesOddShapes(t *testing.T) {
 	// valid JSON, odd shapes the presence walk must survive without panic — and
 	// (spec 12) our hook is still appended where safe.
-	h := claudeHarness{}
+	h := claudeTarget{}
 	for _, in := range []string{
 		`{"hooks":{"SessionStart":[{}]}}`,
 		`{"hooks":{"SessionStart":[{"hooks":[{"command":42}]}]}}`,
@@ -240,7 +240,7 @@ func TestMergeToleratesOddShapes(t *testing.T) {
 
 func TestMergePermissionsUnionDedup(t *testing.T) {
 	in := `{"permissions":{"allow":["Bash(mtt roadmap:*)","Custom(x)"]}}`
-	got, _, err := claudeHarness{}.Merge([]byte(in), true)
+	got, _, err := claudeTarget{}.Merge([]byte(in), true)
 	if err != nil {
 		t.Fatalf("Merge: %v", err)
 	}
@@ -258,7 +258,7 @@ func TestMergePermissionsUnionDedup(t *testing.T) {
 
 func TestMergeOneEventPresent(t *testing.T) {
 	in := `{"hooks":{"SessionStart":[{"hooks":[{"type":"command","command":"mtt prime"}]}]}}`
-	got, action, err := claudeHarness{}.Merge([]byte(in), true)
+	got, action, err := claudeTarget{}.Merge([]byte(in), true)
 	if err != nil {
 		t.Fatalf("Merge: %v", err)
 	}

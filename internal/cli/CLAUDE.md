@@ -332,8 +332,13 @@ the raw `template` arg. Coverage split (no network in tests): e2e (`init.txt`) c
 the **non-TTY URL refuse** (errors before any fetch); the fetch branches + confirm are unit-tested (fake
 `http.RoundTripper` / scripted `confirmRemote`).
 
-Agent scaffolding (t52): `newAgentCmd` (`agent.go`) is the `mtt agent` group (the `note`/`dep` group pattern);
-`mtt agent hooks` scaffolds `.claude/settings.json` for every `scaffold.Registry()` harness via `scaffold.Run`
-(root through `projectRoot`), rendering per-harness `created|merged|unchanged` (shared `reportScaffold`/
-`scaffoldJSON`/`toScaffoldJSON`, reused by `init`). No business logic here — merge/IO live in `internal/scaffold`.
-e2e: `agent_hooks.txt`.
+Agent scaffolding (t52/t46): `newAgentCmd` (`agent.go`) is the `mtt agent` group (the `note`/`dep` group
+pattern) with two facets. `mtt agent hooks` scaffolds `.claude/settings.json` via `scaffold.Run(root,
+scaffold.HookTargets())`; `mtt agent docs` scaffolds the generic runbook (AGENTS.md) + pointer stubs
+(CLAUDE.md/GEMINI.md) via `scaffold.Run(root, scaffold.DocTargets())` — both root through `projectRoot` and
+render per-target `created|merged|unchanged` through the shared `reportScaffold(cmd, results, note)` /
+`scaffoldJSON{name,path,action}` / `toScaffoldJSON` (a per-facet stderr note when anything changed). `mtt init`
+runs BOTH `HookTargets()` (unless `--no-agent-hooks`) and `DocTargets()` (unless `--no-agent-docs`) by default,
+folding `hooks`+`docs` into `initJSON` and the output; the config-then-scaffold failure contract
+(`reportInitConfigThen`: config written & kept, exit 1, no partial JSON) extends to the docs phase. No business
+logic here — merge/IO live in `internal/scaffold`. e2e: `agent_hooks.txt`, `agent_docs.txt`.

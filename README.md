@@ -108,7 +108,7 @@ make build      # -> bin/mtt
 ## Quickstart
 
 ```sh
-mtt init                    # create .mtt/ + scaffold .claude/settings.json hooks (--no-agent-hooks to skip)
+mtt init                    # create .mtt/ + scaffold agent hooks + docs (AGENTS.md/CLAUDE.md/GEMINI.md; --no-agent-hooks/--no-agent-docs to skip)
 mtt add "Ship auth"         # -> t1 (a root task; no --parent needed)
 mtt add "Login endpoint"    # -> t2
 mtt status t1 in_progress   # move through the flow (a transition's commands run + gate here)

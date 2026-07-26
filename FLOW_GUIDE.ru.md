@@ -290,8 +290,9 @@ mtt status i1 done --no-run --who me --why "skip"   # bypass the gate: --no-run 
 ставятся по пути или `--template <url>` (в бинарь вкомпилирован только `default`). Всё ещё трекается
 отдельно:
 
-- **Agent-usage доки** — генеральные tool-level `AGENTS.md`/`CLAUDE.md` про то, как агент пользуется mtt
-  день-в-день.
+- **Agent-usage доки** — *реализовано (t46)*: `mtt agent docs` (и `mtt init` по умолчанию) скаффолдят
+  генеральный tool-level рунбук в `AGENTS.md` + указатель-блоки в `CLAUDE.md`/`GEMINI.md` (marked-block,
+  регенерируемо; `--no-agent-docs` отключает у init).
 - **Настройки и хуки** — *реализовано (t52)*: `mtt agent hooks` (и `mtt init` по умолчанию) скаффолдят
   `.claude/settings.json` — `SessionStart`+`PreCompact → mtt prime` плюс read-only allowlist разрешений —
   аддитивным no-clobber мёржем (`--no-agent-hooks` отключает у init).

@@ -20,7 +20,7 @@ stdout 'claude: unchanged'
 
 # --json surfaces the result array
 exec mtt agent hooks --json
-stdout '"harness": "claude"'
+stdout '"name": "claude"'
 stdout '"action": "unchanged"'
 
 # outside a project: actionable error (m6)
