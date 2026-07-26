@@ -731,7 +731,8 @@ types:
       - {from: tbd,         to: in_progress}
       - {from: tbd,         to: cancelled}
       - {from: in_progress, to: done}
-      - {from: in_progress, to: cancelled}```
+      - {from: in_progress, to: cancelled}
+```
 
 Hanging commands — by editing a transition (no code changes):
 
