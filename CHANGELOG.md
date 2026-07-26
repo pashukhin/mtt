@@ -95,6 +95,16 @@ All notable changes to mtt are documented here. The format follows
     `dep list`) instead of a bare header.
 
 ### Fixed
+- **Docs audit (t42).** Reconciled the human-facing docs (README/.ru, DESIGN/.ru, CLI_REFERENCE/.ru,
+  CHANGELOG, FLOW_GUIDE/.ru) with the shipped surface: dropped unshipped-as-present claims (comment threads,
+  text search, `mtt-ui`, external indexer marked as present; now planned), stale version badges (`0.8.98-dev`
+  in the READMEs and CLI_REFERENCE) and a stale phase list, the never-existent `guide` command (0.9.0 entry) and
+  a stale `mtt init` template-name list, an over-broad "all commands support `--json`" (completion/help are
+  exempt), the parked `mtt start` in pitch/DESIGN prose (the shipped `default` template has no `start`; the
+  `mtt <status>` sugar / `mtt done` is representative), and a broken DESIGN hierarchy-template YAML example
+  (glued list items). Added a `make check` **docs-guard test** (`internal/cli/docs_guard_test.go`): live
+  registry ↔ CLI_REFERENCE consistency, no phantom `` `mtt <verb>` `` tokens (FLOW_GUIDE excluded — it teaches
+  custom flows), and no hardcoded README version badge — so these classes cannot silently drift again.
 - **Text & tag hygiene (c13).** A `#fragment` inside a pasted `scheme://` URL is no longer minted as a tag —
   `mtt add 'see https://ex.com/page/#anchor'` used to create the tag `anchor` (and the `tag rm` guard then
   refused to remove it while the link stayed in the text). And `add`/`edit` now reject a **newline in the
