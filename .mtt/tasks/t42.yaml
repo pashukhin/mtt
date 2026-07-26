@@ -1,7 +1,7 @@
 id: t42
 type: task
 title: user-docs audit — reconcile README/DESIGN/CLI_REFERENCE (EN+RU) with reality; kill contradictions and unshipped-as-present claims
-status: impl_review
+status: impl_fix
 priority: high
 tags:
     - docs
@@ -19,7 +19,7 @@ depends_on:
     - t1
     - t46
 created: "2026-07-12T06:25:37Z"
-updated: "2026-07-26T05:32:47Z"
+updated: "2026-07-26T05:44:18Z"
 description: 'The s009.x assessment found human docs describe unshipped features as present (README Key ideas / For agents / For humans list comment trees, knowledge storage, text search, refs, mtt-ui), a stale status badge (0.8.98-dev vs 0.9.0-dev build), and the over-broad root claim all commands support --json. Audit README/README.ru, DESIGN/DESIGN.ru, CLI_REFERENCE/CLI_REFERENCE.ru for: claims outrunning the shipped surface, internal contradictions, EN-RU drift, stale versions. Overlaps the planned s009.5 release-positioning README fix — this is the broader sweep. Audit 2026-07-22 additions: CHANGELOG is in scope too — the 0.9.0 entry claims an mtt guide command that never existed; DESIGN.md (EN only) carries a broken YAML hierarchy-template example (list items glued into one line, around lines 634-679); README Quickstart/pitch examples use mtt start, which is PARKED and absent from shipped templates (mtt done works as verb sugar).'
 history:
     - at: "2026-07-26T03:55:28Z"
@@ -108,3 +108,8 @@ history:
           exit: 0
         - cmd: make check
           exit: 0
+    - at: "2026-07-26T05:44:18Z"
+      by: Grigorii Pashukhin
+      why: 'Adversarial impl review (fresh subagent, empirical): FIX-THEN-SHIP. Guard test solid (all 3 assertions fire on injected regressions; lint clean; allowlist honest, no dead entries), every doc claim verified correct, EN-RU parity holds, no broken links. One real should-fix: F9 only PARTIALLY fixed - DESIGN.md:734 closing code-fence is glued to the last YAML transition line (a third glue beyond the two name-entry ones), so the hierarchy example still does not parse / renders broken (RU mirror is correct). Earlier validation was fooled by a non-greedy regex stripping the glued fence. Fix: split the fence onto its own line.'
+      from: impl_review
+      to: impl_fix
