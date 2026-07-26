@@ -99,8 +99,9 @@ func newInitCmd() *cobra.Command {
 				var derr error
 				docResults, derr = scaffold.Run(base, scaffold.DocTargets())
 				if derr != nil {
-					// docs failed: config-success + the hook lines that DID land.
-					return reportInitConfigThen(cmd, tmpl, hookResults, derr)
+					// docs failed: config-success + every line that DID land (hooks +
+					// the doc targets processed before the failure — Run is write-as-you-go).
+					return reportInitConfigThen(cmd, tmpl, append(hookResults, docResults...), derr)
 				}
 			}
 			if jsonFlag(cmd) {

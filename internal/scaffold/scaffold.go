@@ -1,8 +1,10 @@
-// Package scaffold writes agent-facing configuration (hooks + permissions) for
-// supported harnesses. It is onboarding infrastructure: it writes files outside
-// .mtt/ (via internal/fsutil), never through a TaskStore/KnowledgeStore, and
-// carries no pkg/mtt domain. The Harness interface + Registry are the extension
-// seam; only "claude" is registered (codex/gemini deferred until verified).
+// Package scaffold writes agent-facing artifacts — config/hooks (t52) and docs
+// (t46) — into a project. It is onboarding infrastructure: it writes files
+// outside .mtt/ (via internal/fsutil), never through a TaskStore/KnowledgeStore,
+// and carries no pkg/mtt domain. The Target interface is the extension seam, with
+// two producers — HookTargets() (agent-tool config; only "claude", codex/gemini
+// deferred until verified) and DocTargets() (the AGENTS.md runbook + CLAUDE.md/
+// GEMINI.md pointers) — both consumed by Run.
 package scaffold
 
 import (

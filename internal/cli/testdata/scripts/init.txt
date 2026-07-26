@@ -178,6 +178,19 @@ cp $WORK/badsettings.json .claude/settings.json
 stderr 'parse existing settings'
 exists .mtt/config.yaml
 
+# docs-phase failure (a pre-seeded malformed CLAUDE.md) still writes AND reports
+# the doc target that landed first (AGENTS.md); config kept; exit 1.
+cd $WORK
+mkdir docsfail
+cd docsfail
+cp $WORK/malformed-claude.md CLAUDE.md
+! exec mtt init --no-agent-hooks
+stdout 'initialized'
+stdout 'agents: created'
+exists AGENTS.md
+stderr 'cannot merge'
+exists .mtt/config.yaml
+
 -- empty/.keep --
 -- ext.yaml --
 version: 1
@@ -205,3 +218,8 @@ types:
     transitions: []
 -- badsettings.json --
 {not valid json
+-- malformed-claude.md --
+# CLAUDE.md
+
+<!-- mtt:begin -->
+lone begin, no end
