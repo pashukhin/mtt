@@ -1,7 +1,7 @@
 id: t42
 type: task
 title: user-docs audit — reconcile README/DESIGN/CLI_REFERENCE (EN+RU) with reality; kill contradictions and unshipped-as-present claims
-status: plan_human_review
+status: implementing
 priority: high
 tags:
     - docs
@@ -19,7 +19,7 @@ depends_on:
     - t1
     - t46
 created: "2026-07-12T06:25:37Z"
-updated: "2026-07-26T05:07:05Z"
+updated: "2026-07-26T05:15:30Z"
 description: 'The s009.x assessment found human docs describe unshipped features as present (README Key ideas / For agents / For humans list comment trees, knowledge storage, text search, refs, mtt-ui), a stale status badge (0.8.98-dev vs 0.9.0-dev build), and the over-broad root claim all commands support --json. Audit README/README.ru, DESIGN/DESIGN.ru, CLI_REFERENCE/CLI_REFERENCE.ru for: claims outrunning the shipped surface, internal contradictions, EN-RU drift, stale versions. Overlaps the planned s009.5 release-positioning README fix — this is the broader sweep. Audit 2026-07-22 additions: CHANGELOG is in scope too — the 0.9.0 entry claims an mtt guide command that never existed; DESIGN.md (EN only) carries a broken YAML hierarchy-template example (list items glued into one line, around lines 634-679); README Quickstart/pitch examples use mtt start, which is PARKED and absent from shipped templates (mtt done works as verb sugar).'
 history:
     - at: "2026-07-26T03:55:28Z"
@@ -92,3 +92,8 @@ history:
       why: 'Adversarial plan review addressed + empirically re-verified: corrected guard (help/completion allowlisted, move/ui dropped) reds on exactly {README badge x2, mtt guide} with assertion-1 green — the green-gate blocker is fixed; 3 wrapped anchors now supplied as exact multi-line old->new; RU-mirror anchors verified present. Ready for human sign-off.'
       from: plan_review
       to: plan_human_review
+    - at: "2026-07-26T05:15:30Z"
+      by: Grigorii Pashukhin
+      why: Human sign-off on the plan (owner approved in session).
+      from: plan_human_review
+      to: implementing
