@@ -4,12 +4,12 @@
 
 > 🇷🇺 Читать по-русски: [README.ru.md](README.ru.md)
 
-> **Status:** working alpha (`0.8.98-dev`). Phases 1–3 are implemented — `init`, `add`/`show`/`list`/`edit`,
-> hierarchy (`tree`), dependencies (`dep`/`ready`), and the **flow gate** (`mtt status <id> <new>` or the
-> `mtt <status> <id>` sugar run a transition's commands and block on a red gate, writing history; structured
-> commands + rollback included).
-> The `advance`/`start`/`done` meta-walk is **parked** (single-edge `status` is the norm); the knowledge base,
-> search, `mtt-ui`, and external adapters are later phases. Full plan in [DESIGN.md](DESIGN.md).
+> **Status:** working alpha — the flow engine ships (per-type flows + executable, gated status
+> transitions with history, structured commands + rollback), plus tasks/hierarchy/dependencies, the
+> knowledge base (`mtt note`/`mtt prime`), verifiable references (`mtt ref`/`mtt check`), and agent-config
+> scaffolding (`mtt agent`). Run `mtt version` for the build and `mtt --help` for the live surface.
+> The `advance`/`start`/`done` meta-walk is **parked** (single-edge `status` is the norm); comment threads,
+> text search, `mtt-ui`, and external adapters are later phases. Full plan in [DESIGN.md](DESIGN.md).
 
 > **Pitch.** Coding agents write code well but respect a task's lifecycle poorly — "done" is often just a
 > text label. mtt turns a task into an executable state machine: a status transition passes through gates

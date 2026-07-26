@@ -170,8 +170,7 @@ executable, gated status flow. Everything below ships in 0.9.0.
 
 ### Added
 - **Project & flow:** `mtt init` (`default` / `coding` templates — the `default` is flat (`task` + `chore`),
-  hierarchy is opt-in), `mtt types` (type + edge map), `mtt guide` (pre-flow orientation: queue navigation,
-  first-move setup, mid-flight resumption).
+  hierarchy is opt-in), `mtt types` (type + edge map).
 - **Tasks (CRUD):** `mtt add` (`--type` / `--parent` / `--priority` / `--tag` / `--depends-on`), `mtt show`,
   `mtt list` (status/type/kind/parent/priority/tag/ready filters, `--json`), `mtt edit`,
   `mtt rm` (reject-if-referenced + `--force`), `mtt tree` (hierarchy).
