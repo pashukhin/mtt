@@ -342,3 +342,11 @@ runs BOTH `HookTargets()` (unless `--no-agent-hooks`) and `DocTargets()` (unless
 folding `hooks`+`docs` into `initJSON` and the output; the config-then-scaffold failure contract
 (`reportInitConfigThen`: config written & kept, exit 1, no partial JSON) extends to the docs phase. No business
 logic here — merge/IO live in `internal/scaffold`. e2e: `agent_hooks.txt`, `agent_docs.txt`.
+
+Docs guard (t42): `docs_guard_test.go` is a `make check` guard against human-doc drift, reusing
+`repoRoot()`/`NewRootCmd()`. `TestDocsCommandsDocumented` — every live `NewRootCmd().Commands()` name has a
+`### `mtt …`` heading in `CLI_REFERENCE.md`. `TestDocsNoPhantomCommands` — every `` `mtt <verb>` `` token in
+README/.ru + CLI_REFERENCE/.ru + CHANGELOG is a registry command, a shipped-`default` status, a cobra built-in,
+or an entry in the maintained `knownVerbs()` allowlist (parked/planned/edge-sugar) — catches a phantom like
+`mtt guide`; **FLOW_GUIDE is excluded by design** (it teaches custom flows → arbitrary illustrative verbs).
+`TestDocsNoHardcodedVersion` — no pinned `x.y.z` in a README status blockquote (the version is ldflags-injected).

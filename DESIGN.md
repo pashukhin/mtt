@@ -377,7 +377,7 @@ This turns the flow from advice into an **executable gate + action**. Examples:
 - `in_progress → done`: `["make lint", "make test"]` — don't let it into `done` until it's green.
 - `tbd → in_progress`: review the spec + create a branch for the task.
 
-The point: **the agent works in task terms** (`mtt start t17`, `mtt done t17`), while the transition
+The point: **the agent works in task terms** (`mtt status t17 in_progress`, `mtt done t17`), while the transition
 hides the status-flow mechanics (checks, branch, …) — less distraction on details.
 
 Execution is behind the **`Runner`** port: `core` orchestrates the transition, calls `Runner`, and gates on
@@ -702,7 +702,8 @@ types:
       - {from: tbd,         to: in_progress}
       - {from: tbd,         to: cancelled}
       - {from: in_progress, to: done, description: "all epic tasks closed"}
-      - {from: in_progress, to: cancelled}  - name: task                   # DEFAULT type (add without --type)
+      - {from: in_progress, to: cancelled}
+  - name: task                   # DEFAULT type (add without --type)
     description: A unit of work under an epic.
     prefix: t
     parents: [epic]
@@ -716,7 +717,8 @@ types:
       - {from: tbd,         to: in_progress, description: "review the spec, create a branch"}
       - {from: tbd,         to: cancelled}
       - {from: in_progress, to: done, description: "quality gate"}
-      - {from: in_progress, to: cancelled}  - name: subtask
+      - {from: in_progress, to: cancelled}
+  - name: subtask
     description: A small step within a task.
     prefix: s
     parents: [task]
@@ -729,7 +731,8 @@ types:
       - {from: tbd,         to: in_progress}
       - {from: tbd,         to: cancelled}
       - {from: in_progress, to: done}
-      - {from: in_progress, to: cancelled}```
+      - {from: in_progress, to: cancelled}
+```
 
 Hanging commands — by editing a transition (no code changes):
 

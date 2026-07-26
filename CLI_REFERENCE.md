@@ -7,12 +7,9 @@ two purposes: a reference for humans and agents, and a way to sanity-check the d
 (man/usage) rather than from requirements. To **author a flow** (types/statuses/transitions + gates/`post:`),
 see [FLOW_GUIDE.md](FLOW_GUIDE.md).
 
-**Status:** this is the target command surface. **Implemented today (through session 008.98, `0.8.98-dev`):**
-`version`, `init`, `types`, `add`, `show`, `list`, `edit`, `tree`, `dep add/rm/list`, `ready`, `roadmap`,
-`status` (plus the `mtt <status> <id>` verb sugar), `use`, `rm`, `tag add/rm` — with a **task-set selector**
-(explicit ids | stdin `-` | `--filter`) + an **`--ids`** output on `list`/`ready` powering **bulk** `tag add/rm`
-and `rm` (s008.9) — and cobra's built-in `completion`/`help`. Everything
-else below is design surface, each tagged with the phase/session that introduces it (see the plan in
+**Status:** this is the target command surface. Each command below is tagged with the phase/session that
+introduced it, or with `PARKED`/a later phase when it is not yet shipped; run `mtt --help` for the live list
+and `mtt version` for the build. Everything not tagged as shipped is design surface (see the plan in
 [DESIGN.md](DESIGN.md#implementation-order)). The `advance`/`start`/`done`/`cancel` meta-walk is **PARKED**
 (single-edge `status` is the norm — see the note in "Flow" below).
 
@@ -679,12 +676,12 @@ deferred — a follow-up.)
 
 ## Comments  *(phase 4; capability `CommentStore`)*
 
-### `mtt comment add <id> <body> [--reply <cid>]` — add a comment
+### `mtt comment add <id> <body> [--reply <cid>]` — add a comment  *(phase 4)*
 Appends a comment to the task; `--reply <cid>` nests it under an existing comment (tree).
 
 - `--ref <kind>:<target>…` — attach references to the comment.
 
-### `mtt comment list <id>` — print the comment tree
+### `mtt comment list <id>` — print the comment tree  *(phase 4)*
 (Also shown by `mtt show`.)
 
 ---
