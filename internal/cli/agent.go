@@ -9,13 +9,13 @@ import (
 )
 
 // newAgentCmd builds `mtt agent` — the onboarding group for agent-facing
-// artifacts (t52: `hooks`; t46 later adds `docs`).
+// artifacts: `hooks` (config; t52) and `docs` (how-to-use-mtt runbook; t46).
 func newAgentCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "agent",
-		Short: "Scaffold agent-facing configuration for coding-agent harnesses",
+		Short: "Scaffold agent-facing configuration and docs for coding agents",
 	}
-	cmd.AddCommand(newAgentHooksCmd())
+	cmd.AddCommand(newAgentHooksCmd(), newAgentDocsCmd())
 	return cmd
 }
 
@@ -81,3 +81,28 @@ func reportScaffold(cmd *cobra.Command, results []scaffold.Result, note string) 
 
 // hookScaffoldNote is printed by `agent hooks` / `init` when a hook file changed.
 const hookScaffoldNote = "→ a SessionStart/PreCompact hook now runs `mtt prime` at session start; review the settings file."
+
+// docScaffoldNote is printed by `agent docs` / `init` when a doc file changed.
+const docScaffoldNote = "→ a `Working under mtt` runbook was scaffolded into AGENTS.md (+ CLAUDE.md/GEMINI.md pointers); review it."
+
+// newAgentDocsCmd builds `mtt agent docs` — scaffold a project-agnostic "Working
+// under mtt" runbook (AGENTS.md) + pointer stubs (CLAUDE.md, GEMINI.md).
+// Idempotent; re-runnable.
+func newAgentDocsCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "docs",
+		Short: "Scaffold generic how-to-use-mtt agent docs (AGENTS.md runbook + CLAUDE.md/GEMINI.md pointers)",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			root, err := projectRoot(cmd)
+			if err != nil {
+				return err
+			}
+			results, err := scaffold.Run(root, scaffold.DocTargets())
+			if err != nil {
+				return err
+			}
+			return reportScaffold(cmd, results, docScaffoldNote)
+		},
+	}
+}

@@ -119,6 +119,7 @@ type initJSON struct {
 	Name     string         `json:"name"`
 	Created  bool           `json:"created"`
 	Hooks    []scaffoldJSON `json:"hooks"`
+	Docs     []scaffoldJSON `json:"docs"`
 }
 
 // writeJSON marshals v as indented JSON with a trailing newline (stable diff).

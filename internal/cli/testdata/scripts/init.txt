@@ -107,30 +107,53 @@ stdout 'initialized'
 stdout 'claude: created'
 exists .claude/settings.json
 grep 'mtt prime 2>/dev/null' .claude/settings.json
+# t46: init also scaffolds docs by default
+exists AGENTS.md
+stdout 'agents: created'
+grep 'Working under mtt' AGENTS.md
 
-# --no-agent-hooks opts out
+# --no-agent-hooks + --no-agent-docs opts both out (a clean no-scaffold init)
 cd $WORK
 mkdir noscaffold
 cd noscaffold
-exec mtt init --no-agent-hooks
+exec mtt init --no-agent-hooks --no-agent-docs
 stdout 'initialized'
 ! exists .claude/settings.json
+! exists AGENTS.md
 
-# init --json carries a non-null scaffold array
+# --no-agent-docs opts docs out (hooks still scaffold)
+cd $WORK
+mkdir nodocs
+cd nodocs
+exec mtt init --no-agent-docs
+exists .claude/settings.json
+! exists AGENTS.md
+
+# init --json carries non-null hooks + docs arrays
 cd $WORK
 mkdir jsonscaffold
 cd jsonscaffold
 exec mtt init --json
 stdout '"hooks"'
+stdout '"docs"'
 stdout '"name": "claude"'
+stdout '"name": "agents"'
 
-# --no-agent-hooks --json: scaffold is a non-null EMPTY array (not null)
+# --no-agent-hooks --json: hooks is a non-null EMPTY array (not null)
 cd $WORK
 mkdir nojsonscaffold
 cd nojsonscaffold
-exec mtt init --no-agent-hooks --json
+exec mtt init --no-agent-hooks --no-agent-docs --json
 stdout '"hooks": \[\]'
 ! exists .claude/settings.json
+
+# --no-agent-docs --json: docs is a non-null EMPTY array
+cd $WORK
+mkdir nodocsjson
+cd nodocsjson
+exec mtt init --no-agent-docs --json
+stdout '"docs": \[\]'
+stdout '"hooks"'
 
 # R3: a pre-existing malformed .claude/settings.json fails the scaffold, but
 # config is written (primary job) and reported; exit non-zero; no partial JSON.
