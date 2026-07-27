@@ -6,4 +6,5 @@ priority: medium
 tags:
     - multiagent
 created: "2026-07-10T13:53:10Z"
-updated: "2026-07-22T08:01:24Z"
+updated: "2026-07-27T01:43:57Z"
+description: 'multi-agent concurrency cluster: lost-update/write-concurrency + subagent identity + roles-on-edges (decide together; trigger = 2nd writing agent on one store). Note: monotonic id minting was SPLIT OUT into t74 (it is an audit-integrity issue independent of concurrency, surfaced by the v0.11.0 pilot: ids reused after rm). Concurrency/multi-user was validated single-writer-per-branch in the pilot (no conflict hit); a universal tracker still needs an explicit concurrency story (embrace single-writer? CRDT-ish audit? documented merge strategy?) — see also t33 (team semantics of the YAML store).'
