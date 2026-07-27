@@ -1,0 +1,11 @@
+id: c20
+type: chore
+title: pitch to README (EN+RU) — the two-paragraph why + who it is not for
+status: tbd
+priority: high
+tags:
+    - docs
+    - release
+created: "2026-07-27T15:50:58Z"
+updated: "2026-07-27T15:50:58Z"
+description: 'Pre-1.0 polish (Variant A). Put the two-paragraph pitch into README (EN and RU): the pain (an agent silently skips unenforced checks and lies about done) and what mtt does (per-type flow whose transitions run your shell checks as blocking gates; the status cannot lie). Include who it is NOT for (just want a to-do list -> use something lighter) and both faces of the wedge: agent-cannot-lie AND human-sees-true-state via show/list/roadmap. Align with the existing root tagline. Source text: KB note pitch.'
