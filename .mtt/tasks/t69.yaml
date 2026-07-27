@@ -1,0 +1,14 @@
+id: t69
+type: task
+title: 'description-hashtag extraction: opt-in / title-only + tag rm suppresses text-derived tags'
+status: tbd
+priority: medium
+tags:
+    - "1"
+    - backlog
+    - hashtags
+    - ux
+    - word
+created: "2026-07-27T01:40:46Z"
+updated: "2026-07-27T01:40:46Z"
+description: 'Surfaced by the v0.11.0 pilot. A `#word` anywhere in a task DESCRIPTION becomes a tag, and `mtt tag rm` won''t stick (it re-derives from the text) — so importing real prose ("see finder2 #1", or a feature literally about `#hashtags`) mints spurious tags removable only by editing the source text. Make description-hashtag extraction opt-in (or title-only), and/or let `tag rm` suppress a text-derived tag without mutating the prose. Essential for a clean `mtt import`. Relates to t49 (the note-side hashtag extraction, still explicit-only for the markdown-heading-collision reason).'
