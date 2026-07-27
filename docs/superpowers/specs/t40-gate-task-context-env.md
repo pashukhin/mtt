@@ -33,8 +33,10 @@ template placeholders. This is the crux that keeps safety intact:
 
 Injected into every gate `commands:`, edge `post:`, and lifecycle-`event` post process:
 
-- **`MTT_TASK_JSON`** — the whole task as JSON (the same DTO as `mtt show --json`), the general/
-  extensible channel (`jq` for anything not covered by a scalar).
+- **`MTT_TASK_JSON`** — the whole task as JSON, the **lean `toTaskJSON` DTO** (`internal/cli/json.go` —
+  the shape `list`/`add --json` emit), **not** the rich `show --json`/`showJSON` (which drags in the flow
+  `cfg` for `next` and cross-store `backlinks` the env has no need for). The general/extensible channel
+  (`jq` for anything not covered by a scalar).
 - **`MTT_TASK_CHILDREN_JSON`** — the task's children, each with (at least) `{id, type, status}`, as a JSON
   array. This is the **one relational field** the pilot genuinely needed (the roll-up gate) and what an
   HTTP/deploy "is-this-aggregate-complete" gate needs. Requires listing the task set (a `List` on the
@@ -59,29 +61,40 @@ Injected into every gate `commands:`, edge `post:`, and lifecycle-`event` post p
 
 ## Wiring / design considerations (plan to resolve)
 
-- **`core` stays serialization-free** (AGENTS.md: `pkg/mtt` types carry no json tags). The JSON blobs
-  (`MTT_TASK_JSON`/`MTT_TASK_CHILDREN_JSON`) therefore serialize through the **CLI's task-JSON DTO** (single
-  source, same shape as `show --json`), NOT a duplicate marshaler in core. Because lifecycle events fire
-  **per-entity inside core** (e.g. `Remover`'s bulk loop), the CLI cannot pre-build every env — so the
-  cleanest shape is an **injected env-builder function** (`func(task, children) map[string]string`) passed
-  to `Transitioner` **and** `EventEmitter` (mirroring the injected clock/runner): core decides *when* to
-  build and *what whitelist*, the injected fn (from the CLI) does the serialization. The plan picks the
-  exact seam (injected fn vs a shared DTO package); the invariant is **no json marshaling of domain types
-  inside core**.
-- **`Runner` port gains env.** `Run(commands, env)` (and `Compensate(commands, env)` for parity) — the
-  exec adapter sets `env` on the `sh -c` process (`cmd.Env = append(os.Environ(), …)`), faked in tests.
-  This is the one interface change; it lives in `internal/core` (Runner is a core-defined port) + the exec
-  adapter + test fakes.
-- **Children need the task set.** `Transitioner`/`EventEmitter` obtain children via `TaskStore.List`
-  (they already hold the store) → build children-with-statuses. One extra `List` per move/mutation —
-  acceptable (moves are not a hot loop); the plan may scope children-json to transitions if the per-event
-  `List` proves not worth it, but task-field scalars/blob ride both.
+- **`core` stays serialization-free** (AGENTS.md: `pkg/mtt` types carry no json tags), so the JSON blobs
+  serialize through the **CLI's task-JSON DTO** (`toTaskJSON`), never a duplicate marshaler in core. Because
+  lifecycle events fire **per-entity inside core** (e.g. `Remover`'s bulk loop), the CLI cannot pre-build
+  every env — so inject an **env-builder `func(mtt.Task) map[string]string`** into `Transitioner` **and**
+  `EventEmitter` (mirroring the injected clock/runner). Core passes only the **task**; the injected fn — a
+  **CLI closure that captures the store** — does BOTH the children-`List` AND the serialization, and returns
+  the ready `MTT_TASK_*` map. Core decides *when* to call it and forwards the map to the runner; it does no
+  `List` and no marshaling. **Correction (spec review): `EventEmitter` does NOT currently hold a `TaskStore`
+  — this seam is exactly why we do not add one** (only the builder fn joins its constructor). The
+  **env-var key whitelist** (which `MTT_TASK_*` keys) is presentation and lives in the CLI builder (like
+  `taskJSON`'s json tags); the **security whitelist** (`cmdContext{ID,Type,From,To}` for `{{...}}`) stays in
+  core, unchanged.
+- **`Runner` port gains env.** `Run(commands, env)` (and `Compensate(commands, env)` for **parity only** —
+  no concrete env-dependent-compensator need) — the exec adapter sets `env` on the `sh -c` process
+  (`cmd.Env = append(os.Environ(), …)`), faked in tests. It lives in `internal/core` (Runner is a
+  core-defined port) + `internal/adapter/exec` + the test fakes (`transition_test.go`/`remove_test.go`/
+  `exec_test.go`/`exec_pgid_test.go`) **and the doc-model `Runner` in `docs/architecture/model.go`** (a
+  compiled snapshot — keep it in sync).
+- **Note events get NO `MTT_TASK_*`.** `EventEmitter.NoteEvent` fires with a `mtt.Note`
+  (`noteEventContext{Slug,Event}`), not a task — the task env is meaningless there. Task events + gate/post
+  get `MTT_TASK_*`; note events get none (an `MTT_NOTE_*` surface is out of scope / demand-driven).
 
 ## Safety (the load-bearing argument)
 
 - `{{...}}` whitelist unchanged → no new free-text-into-command-string surface.
-- Env values are **data**: `sh -c` does not re-evaluate them; a gate that `eval`s an env value owns that
-  (documented). Title is single-line (c13) so no newline surprises; the JSON blobs are well-formed JSON.
+- Env values are **data**: `sh -c` does not re-evaluate them (verified in review — a title of
+  `` $(touch /tmp/PWNED) `` referenced as `"$MTT_TASK_TITLE"` echoes literally; nothing runs); a gate that
+  `eval`s an env value owns that (documented). The JSON blobs are **marshaled** (never string-concatenated),
+  so a `"` in the title is escaped; `MTT_TASK_TAGS` is comma-joined safely (tags forbid commas).
+- **The real env edge is a NUL byte** (not a newline — newlines in env are fine): Go's `exec` refuses an
+  env value containing NUL (`environment variable contains NUL`), which would fail the gate **operationally**
+  (not a security hole). NUL is unreachable from argv but reachable from a hand-edited YAML title; the
+  builder should strip/guard NUL (or accept the loud operational failure). `validateTitle` today rejects
+  only `\n\r`.
 - Same env is offered to events — no new privilege (events already run `sh -c` post pipelines).
 
 ## TDD / acceptance
@@ -94,6 +107,8 @@ Injected into every gate `commands:`, edge `post:`, and lifecycle-`event` post p
   (blocks until all children done) work end-to-end.
 - **Invariant preserved:** the existing `{{...}}` whitelist tests stay green (a `{{.Title}}` is still a
   template error); no free text enters the command string.
-- `make check` green; CHANGELOG updated; `internal/core`/`internal/adapter/exec` CLAUDE.md updated (Runner
-  gains env; the env surface documented). t77 recorded as the deferred facet-(a) sibling (done). The env
-  surface is documented so the t76 `github-gated` template can drop its re-query workarounds.
+- `make check` green; CHANGELOG updated; `internal/core`/`internal/adapter/exec` CLAUDE.md + the doc-model
+  `docs/architecture/model.go` updated (Runner gains env; the env surface documented). t40 re-titled to
+  facet (b) (done). The deferred facet-(a) sibling **t77 was created on `main` (2026-07-27)** — real, though
+  it is not on this feature branch (branched earlier), so it resolves at delivery; not a silent drop. The
+  env surface is documented so the t76 `github-gated` template can drop its re-query workarounds.
