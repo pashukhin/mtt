@@ -1,14 +1,14 @@
 id: t40
 type: task
 title: task-context environment (MTT_TASK_*) for gate/post/event commands
-status: spec_fix
+status: spec_review
 priority: high
 tags:
     - backlog
     - flow
     - think
 created: "2026-07-12T04:05:25Z"
-updated: "2026-07-27T05:10:39Z"
+updated: "2026-07-27T05:11:55Z"
 description: |-
     Spun off from t27 (mechanized gh pr create). t27 mechanizes PR opening config-only, reading the title via read-only mtt show --json and taking the body from an optional artifact file with a generated fallback. It deliberately did NOT add the flag variant (mtt approve --pr-body-file). This task generalizes that: a per-invocation channel to thread caller-supplied values into the gate/post placeholder context, beyond the fixed {ID,Type,From,To} whitelist — e.g. mtt <edge> --arg key=value expanded as {{.Args.key}}, or a typed flag like --pr-body-file. Design-open: naming, whitelist interaction, safety (avoid re-opening the narrow-whitelist SEC surface t5/t21 kept to 4 fields), precedence with existing placeholders. First consumer: t27 PR body. Decide the general mechanism before adding more one-off flags.
 
@@ -42,3 +42,12 @@ history:
       why: 'Adversarial spec review (fresh subagent, empirical - prototyped sh -c env + proved injection-safety): core idea CONFIRMED (env on sh -c works, {{}} boundary untouched, no env collisions, children-json shape adequate). FIX-THEN-SHIP: (1) EventEmitter has NO store - adopt injected func(mtt.Task) map[string]string where the CLI closure owns the children List + serialization (core stays serialization-free, event needs no store); (2) MTT_TASK_JSON = lean toTaskJSON, not rich show --json; (3) note-events get no MTT_TASK_* - state it; (4) re-title t40 to facet (b) (title still says facet a); (5) add docs/architecture/model.go to the Runner ripple; nits: NUL-byte (not newline) is the real env edge, Compensate env is parity-only.'
       from: spec_review
       to: spec_fix
+    - at: "2026-07-27T05:11:55Z"
+      by: Grigorii Pashukhin
+      from: spec_fix
+      to: spec_review
+      checks:
+        - cmd: ls docs/superpowers/specs/t40-*.md
+          exit: 0
+        - cmd: out=$(git status --porcelain -- ":(exclude).mtt") && test -z "$out" || { echo "working tree not clean - commit your code/docs first (.mtt is swept by the move itself)" >&2; false; }
+          exit: 0
