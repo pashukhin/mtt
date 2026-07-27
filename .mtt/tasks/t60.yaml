@@ -20,7 +20,7 @@ depends_on:
     - c19
     - t40
 created: "2026-07-22T08:01:24Z"
-updated: "2026-07-27T12:06:36Z"
+updated: "2026-07-27T15:52:21Z"
 description: |-
     MILESTONE: public release — Medium article + announced release cut.
 
@@ -35,3 +35,5 @@ description: |-
     - t59 (pilot milestone) is no longer a blocker: its value is captured in the pilot feedback -> backlog; its still-open status is the no-code-terminal gap (t75), not a real release gate.
 
     Release message drafts from the KB note positioning-vs-beads (consolidation+enforcement; "not a better beads, a different tool"; honest non-goals map). Honest docs (t42) and installability (v0.11.0) are already done.
+
+    SCOPE UPDATE (2026-07-27 reflection — Variant A lock): the release is POLISH-ONLY. See the KB note release-scope. The real pre-release gate is the `release`-tagged polish set: pitch to README (EN+RU), an example-flow gallery, the hashtag toggle (t69), and doc-hygiene (t63). ACCEPTANCE: a new user lives the two-paragraph pitch in ~10 minutes via a cold start (init -> add -> a blocked transition -> roadmap). Reconciling the stale blocker line above: t40 is DONE; the t76 / external-tracker GitHub showcase is DEFERRED to fast-follow, NOT a 1.0 blocker (flag if you disagree — this reframes what 1.0 ships).
