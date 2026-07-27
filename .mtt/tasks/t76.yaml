@@ -6,9 +6,8 @@ priority: low
 tags:
     - adapter
     - backlog
-    - release
 created: "2026-07-27T02:13:16Z"
-updated: "2026-07-27T12:17:52Z"
+updated: "2026-07-27T16:26:36Z"
 description: |-
     Bring bet 2 (external tracker as store-of-record) forward: the public release (t60) should let adopters put mtt's executable gates on a free, popular tracker they already use — GitHub Issues first — VALIDATED BY DOGFOODING it on this repo before release ("an mtt that doesn't dogfood itself is a poor one"). Concrete first slice of the t9 umbrella (t9 stays for Jira/Confluence + the indexer hook).
 
