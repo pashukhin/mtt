@@ -10,8 +10,10 @@ tags:
 depends_on:
     - t31
 created: "2026-07-23T06:50:32Z"
-updated: "2026-07-27T15:52:13Z"
+updated: "2026-07-27T16:32:19Z"
 description: |-
     Follow-up to t31 (decided in the 2026-07-23 brainstorm, deliberately split out): DESIGN.md accumulated per-task Shipped narrative blocks that are history, not current architecture. Distill them into KB notes (the t31 note set establishes the pattern), keep DESIGN.md (and the RU mirror in sync) as the source of truth for the CURRENT architecture only. Guard: this is curation, not wholesale copy - avoid creating a second desyncing copy (the t53 parallel-occurrences trap). Overlaps t42 (user-docs audit) - coordinate so the two sweeps do not fight. Also owns the four session spec files t31 deferred because live DESIGN Shipped blocks cite them by path (delete or rewrite the citations together with the unload): docs/superpowers/specs/2026-07-09-session-009-dogfood-design.md, 2026-07-11-flow-v2-mechanized-delivery-design.md, 2026-07-09-session-008.7-tags-design.md, 2026-07-09-session-008.9-batch-design.md.
 
     Pre-1.0 polish (2026-07-27): this task also owns the release doc-hygiene. In CLI_REFERENCE separate LIVE vs TARGET vs PARKED/PLANNED surface so a new user is not scared by commands that do not exist yet; sweep BOTH EN and RU; lean on the t42 docs-guard so "what exists" stays honest. Also fold in the one-canonical-transition-form doc: document a single recommended way to move a task (and put it in the agent instructions), leaving the redundant sugar forms in code untouched — they are safe because status and edge namespaces are disjoint by invariant and a miss fails closed; the real grammar consolidation stays in t12. Tagged release.
+
+    Also (2026-07-27, from the gate-engine reflection): present ONE lifecycle-hook mental model in DESIGN — commands attach to lifecycle points as pre-gates and/or post-finalizers. A transition supports BOTH (the gate blocks the move, post finalizes it); a CRUD event supports POST only (the mutation is already durable, so post-only is by design, not a gap). Document that asymmetry honestly instead of papering over it.
