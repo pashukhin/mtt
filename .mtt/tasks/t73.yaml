@@ -1,0 +1,11 @@
+id: t73
+type: task
+title: 'first-run onboarding: author-not-set hint / mtt config author'
+status: tbd
+priority: medium
+tags:
+    - backlog
+    - ux
+created: "2026-07-27T01:40:46Z"
+updated: "2026-07-27T01:40:46Z"
+description: 'Surfaced by the v0.11.0 pilot. The flagship''s `require: {who: true}` makes a fresh clone''s FIRST move fail (exit 2) until `author:` is set in config.local.yaml. The error is clear, but the first five minutes are where adopters churn. Add a first-run hint ("no author set — run mtt config author <you>") or an interactive prompt / a `mtt config author` convenience. Ties to the canonical-author rule (config.local `author` is the source of truth; do not override via MTT_BY).'
