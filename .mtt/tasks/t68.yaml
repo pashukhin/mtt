@@ -1,0 +1,11 @@
+id: t68
+type: task
+title: mtt export — stable-schema export (mirror of import; trust + BI feed)
+status: tbd
+priority: medium
+tags:
+    - backlog
+    - dx
+created: "2026-07-27T01:40:46Z"
+updated: "2026-07-27T01:40:46Z"
+description: 'Mirror of `mtt import` (surfaced by the v0.11.0 pilot). A clean `mtt export` with a stable, documented schema — for trust ("I can leave") and for feeding dashboards/BI. Design-open: format (JSONL/CSV/JSON), which fields, whether it round-trips with `mtt import`, computed fields (ancestors/backlinks) included or not.'
