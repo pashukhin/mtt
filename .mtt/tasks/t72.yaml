@@ -1,0 +1,11 @@
+id: t72
+type: task
+title: 'bulk attribution ergonomics: MTT_WHY / sign-once for --no-run bulk ops'
+status: tbd
+priority: medium
+tags:
+    - backlog
+    - dx
+created: "2026-07-27T01:40:46Z"
+updated: "2026-07-27T01:40:46Z"
+description: 'Surfaced by the v0.11.0 pilot. `--no-run` correctly forces `--who` AND `--why` on every call (a signed bypass), but for scripted bulk ops (import, re-tag) that is boilerplate on all N calls. Add a session/env default (e.g. `MTT_WHY`) or a bulk "sign once" mode — keep the trail guarantee, just stop repeating it per call. Do NOT reintroduce an MTT_BY-overrides-config.local-author path (see KB dont-override-config-local-author): this is about `why`/bulk ergonomics, not overriding the canonical author.'
