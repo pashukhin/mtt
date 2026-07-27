@@ -39,9 +39,14 @@ mtt *owes as code* is only the far extreme (read a tracker's live flow / store t
 4. **Crucially — this is already achievable with mtt's existing primitives.** Gate/`post:` commands are
    shell; they can call `mtt` (self-calls) and `gh`. The pilot already proved gates-call-`mtt` (its
    load-bearing "all children done" gate via `mtt list --parent <id> --json`). Even capturing a freshly
-   created issue number back into the task is a one-line `post:` shell scalar
-   (`u=$(gh issue create …); mtt ref add {{.ID}} url:$u`). So the useful middle of the spectrum needs
-   **near-zero new Go**.
+   created issue **URL** back onto the task is a one-line `post:` shell scalar
+   (`u=$(gh issue create …); mtt ref add {{.ID}} url:$u` — stored as a `url:` ref; a later `gh issue
+   close` parses the number from it). So the useful middle of the spectrum needs **near-zero new Go**.
+   *(Caveat — a known interaction, see below: `mtt ref add` in a `post:` is a **mutation** that fires the
+   `task.update` lifecycle event, so in a repo whose events auto-commit/push, the capture-back one-liner
+   triggers a **nested commit+push inside the outer move's post phase**. Not a deadlock (reads take no
+   lock), but real churn the template must account for — prefer capturing without a mid-move mutation, or
+   scope/accept the nested commit.)*
 5. **Therefore: validate-then-build, not build-an-adapter.** Building a bespoke GitHub adapter (or a
    `mtt tt` command family) up front is premature when the composition already works. Prove it by
    dogfooding; let the evidence decide what, if anything, to build.
@@ -70,11 +75,16 @@ mtt *owes as code* is only the far extreme (read a tracker's live flow / store t
 
 mtt's gate bites only where mtt is the **choke point** for the transition. With local YAML,
 `mtt <status>` is the only mover — the gate always bites. With an external tracker that has its own UI,
-a human/agent can move the issue **in the GitHub UI**, bypassing mtt (no local hook intercepts it). So:
-**mtt gates the AGENT** (it works through mtt); a human closing an issue in the GitHub UI bypasses the
-gates. The honest contract is **detect + complain** ("issue #N closed but its gating task <id> is not
-done — resolve it"), never a claim to *enforce*. Server-side enforcement (a GitHub Action / branch-
-protection-style reject of an ungated transition) is a heavier, separate layer, explicitly out of scope.
+the issue can be moved **directly** (GitHub UI or a raw `gh` call), bypassing mtt (no local hook
+intercepts it). So the honest contract is: **mtt gates `mtt`-mediated moves** — the choke point is
+`mtt <status>`, the interface the agent uses; **any actor, human *or* agent, acting directly via the UI
+or `gh` bypasses the gate.** For drift, mtt does **detect + complain** ("issue #N closed but its gating
+task <id> is not done — resolve it"), never a claim to *enforce*. Two honest limits: detection is
+**polled**, not event-driven (a status/read compares the issue to its gating task — no webhook; it needs
+`gh` + network at read time and can lag arbitrarily), and drift is **symmetric** (issue closed while the
+task is unfinished, *or* reopened while the task is done). Server-side enforcement (a GitHub Action /
+branch-protection-style reject of an ungated transition) is a heavier, separate layer, explicitly out of
+scope.
 
 ## Where the history lives (a non-problem here)
 
@@ -92,13 +102,24 @@ GitHub story is gated on t40's ergonomics, not on a GitHub adapter. t40 is alrea
 
 ## Dogfood plan (intent; mechanics -> planning)
 
-Validate on this repo without disrupting the live dogfood flow: model a real GitHub issue as an mtt
-task carrying a `github-gated` flow whose edges (a) spawn/relate the gated work, (b) block the terminal
-until the gating condition passes (an `mtt` self-call check), (c) `gh issue close` on the terminal, and
-(d) surface drift on a status read. Run at least one real end-to-end pass, record the clunky spots
-(especially any that t40 would fix), and distil the config into the `github-gated` template. The
-planning step details the exact flow config, the `gh` calls, and how the dogfood is scoped so it does
-not perturb `.mtt/`.
+**Correction (spec review):** this repo has exactly **one** shared, committed `.mtt/config.yaml`, and
+its lifecycle-event hooks **auto-commit and push to `main`** on every task create/update. So "run *this
+repo's live flow* over GitHub" is **not** perturbation-free — it would add a `github-gated` type to the
+shared config and push task/config churn to `main`. The dogfood therefore runs in a **dedicated example,
+not the live `.mtt/`**: an out-of-tree throwaway store (via `MTT_DIR`) or a small `demo/`-style project,
+pointed at a scratch GitHub repo/issue. That still exercises mtt's own gates over real GitHub issues
+end-to-end (the "dogfood" intent) while leaving this repo's committed state untouched; the **artifact**
+is the validated `github-gated` template. Planning picks the exact mechanism (out-of-tree store vs demo
+project) and the flow config.
+
+The pattern per edge: (a) relate/create the gated work, (b) block the terminal until the gating
+condition passes (an `mtt` self-call check — read-only, takes no lock, safe), (c) `gh issue close` on the
+terminal, (d) surface drift on a status read. Record the clunky spots (especially any that **t40** would
+fix), plus the two **known interactions** the template must handle: the **mutate-in-`post:`
+re-entrancy** above (a capture-back `mtt ref add` fires the auto-commit event mid-move), and the
+**attribution clunk** (under `require: {who}` an inner `mtt` self-call in a `post:` needs an author —
+an adopter installing the template with `require.who` and no configured `author` hits exit 2 →
+`PostActionError` → exit 5; the template/docs must pre-note setting `author` first).
 
 ## Acceptance
 
@@ -107,7 +128,10 @@ not perturb `.mtt/`.
 - At least one real end-to-end dogfood pass, with the clunk/friction documented — and an explicit,
   evidence-backed decision on whether any bespoke code (`mtt tt`) is warranted (with the finding, either
   way).
-- Docs state the enforcement honesty (gate-the-agent; UI-close bypasses; detect+complain) and point at
-  t40 as the ergonomic enabler.
-- `make check` green; CHANGELOG updated; t9 (true store adapter) and the deferred items recorded as
-  out-of-scope, not silently dropped.
+- Docs state the enforcement honesty (gates `mtt`-mediated moves only; a direct UI/`gh` move by anyone
+  bypasses; detect+complain is polled and symmetric) and point at t40 as the ergonomic enabler. The
+  template/docs also pre-note the two known interactions: mutate-in-`post:` re-entrancy and the
+  `require.who` attribution clunk.
+- `make check` green; CHANGELOG updated. The deferral is **already recorded, not silently dropped**:
+  **t9 was amended (2026-07-27)** to name "GitHub Issues as a true TaskStore (store-of-record)" +
+  the composition-root selection-seam prerequisite; confirm it still reads that way at delivery.
