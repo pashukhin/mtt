@@ -350,3 +350,11 @@ README/.ru + CLI_REFERENCE/.ru + CHANGELOG is a registry command, a shipped-`def
 or an entry in the maintained `knownVerbs()` allowlist (parked/planned/edge-sugar) — catches a phantom like
 `mtt guide`; **FLOW_GUIDE is excluded by design** (it teaches custom flows → arbitrary illustrative verbs).
 `TestDocsNoHardcodedVersion` — no pinned `x.y.z` in a README status blockquote (the version is ldflags-injected).
+
+Task-context env (t40): `taskenv.go` — `taskEnvBuilder(store) func(mtt.Task) map[string]string` is the injected
+env-builder the CLI passes into `core.NewTransitioner` (`status.go`) and `core.NewEventEmitter` (`events.go`).
+Given a task it returns the `MTT_TASK_*` environment a gate/`post:`/task-event command sees: `MTT_TASK_JSON`
+(the lean `toTaskJSON` blob), `MTT_TASK_CHILDREN_JSON` (children with statuses, via a `store.List`), and scalars
+(`ID/TYPE/STATUS/TITLE/PARENT/PRIORITY/TAGS`). Serialization lives here so `core` stays serialization-free;
+NUL is stripped from values. The `{{...}}` template surface is unchanged (shape-safe `ID/Type/From/To`); free
+text rides env as data. Note events get no `MTT_TASK_*`. e2e: `testdata/scripts/gate_task_env.txt`.
