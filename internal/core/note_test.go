@@ -196,7 +196,7 @@ func TestNoteAddFiresCreateEvent(t *testing.T) {
 	var ev mtt.Events
 	ev.Note.Create = mtt.EventHook{Post: strCmds([]string{"echo {{.Slug}} {{.Event}}"})}
 	runner := &fakeRunner{}
-	na := NewNoteAdder(newFakeKB(), testClock, NewEventEmitter(eventCfg(ev), runner, &fakeAudit{}, testClock))
+	na := NewNoteAdder(newFakeKB(), testClock, NewEventEmitter(eventCfg(ev), runner, &fakeAudit{}, testClock, nil))
 	if _, err := na.Add(NoteParams{Slug: "my-note", Title: "x"}); err != nil {
 		t.Fatalf("unexpected: %v", err)
 	}
@@ -236,7 +236,7 @@ func TestNoteEventFailureKeepsNote(t *testing.T) {
 	var ev mtt.Events
 	ev.Note.Create = mtt.EventHook{Post: strCmds([]string{"boom"})}
 	kb := newFakeKB()
-	na := NewNoteAdder(kb, testClock, NewEventEmitter(eventCfg(ev), &fakeRunner{failSubstr: "boom"}, &fakeAudit{}, testClock))
+	na := NewNoteAdder(kb, testClock, NewEventEmitter(eventCfg(ev), &fakeRunner{failSubstr: "boom"}, &fakeAudit{}, testClock, nil))
 	note, err := na.Add(NoteParams{Slug: "kept", Title: "x"})
 	var pe *PostActionError
 	if !errors.As(err, &pe) {

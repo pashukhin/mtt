@@ -31,7 +31,7 @@ func taskHook(kind mtt.EventKind, runs ...string) mtt.Events {
 
 func TestTaskEventRunsExpandedPipeline(t *testing.T) {
 	runner := &fakeRunner{}
-	e := NewEventEmitter(eventCfg(taskHook(mtt.EventUpdate, "echo {{.ID}} {{.Type}} {{.Event}}")), runner, &fakeAudit{}, testClock)
+	e := NewEventEmitter(eventCfg(taskHook(mtt.EventUpdate, "echo {{.ID}} {{.Type}} {{.Event}}")), runner, &fakeAudit{}, testClock, nil)
 	err := e.TaskEvent(mtt.EventUpdate, tbdTask("t1"), "edit", EventOptions{})
 	if err != nil {
 		t.Fatalf("unexpected: %v", err)
@@ -43,12 +43,38 @@ func TestTaskEventRunsExpandedPipeline(t *testing.T) {
 
 func TestTaskEventNoHookNoRun(t *testing.T) {
 	runner := &fakeRunner{}
-	e := NewEventEmitter(eventCfg(mtt.Events{}), runner, &fakeAudit{}, testClock)
+	e := NewEventEmitter(eventCfg(mtt.Events{}), runner, &fakeAudit{}, testClock, nil)
 	if err := e.TaskEvent(mtt.EventUpdate, tbdTask("t1"), "edit", EventOptions{}); err != nil {
 		t.Fatalf("unexpected: %v", err)
 	}
 	if runner.called {
 		t.Fatal("runner must not be called without a hook")
+	}
+}
+
+func TestTaskEventThreadsEnvNoteEventDoesNot(t *testing.T) {
+	envFn := func(tk mtt.Task) map[string]string { return map[string]string{"MTT_TASK_ID": string(tk.ID)} }
+
+	// task event: the injected builder's env reaches the runner
+	tr := &fakeRunner{}
+	et := NewEventEmitter(eventCfg(taskHook(mtt.EventUpdate, "echo x")), tr, &fakeAudit{}, testClock, envFn)
+	if err := et.TaskEvent(mtt.EventUpdate, tbdTask("t7"), "edit", EventOptions{}); err != nil {
+		t.Fatalf("task event: %v", err)
+	}
+	if tr.gotEnv["MTT_TASK_ID"] != "t7" {
+		t.Fatalf("task event env = %+v, want MTT_TASK_ID=t7", tr.gotEnv)
+	}
+
+	// note event: MTT_TASK_* must NOT be applied (a note is not a task)
+	var noteEv mtt.Events
+	noteEv.Note.Update = mtt.EventHook{Post: strCmds([]string{"echo x"})}
+	nr := &fakeRunner{}
+	en := NewEventEmitter(eventCfg(noteEv), nr, &fakeAudit{}, testClock, envFn)
+	if err := en.NoteEvent(mtt.EventUpdate, mtt.Note{Slug: "s"}, "note edit", EventOptions{}); err != nil {
+		t.Fatalf("note event: %v", err)
+	}
+	if nr.gotEnv != nil {
+		t.Fatalf("note event env = %+v, want nil (no MTT_TASK_* for notes)", nr.gotEnv)
 	}
 }
 
@@ -65,7 +91,7 @@ func TestNilEmitterIsInert(t *testing.T) {
 func TestTaskEventTypeDriftIsFinalizationFailure(t *testing.T) {
 	// The c15-class payload: a poisoned on-disk type must NEVER reach the shell.
 	runner := &fakeRunner{}
-	e := NewEventEmitter(eventCfg(taskHook(mtt.EventUpdate, "echo {{.Type}}")), runner, &fakeAudit{}, testClock)
+	e := NewEventEmitter(eventCfg(taskHook(mtt.EventUpdate, "echo {{.Type}}")), runner, &fakeAudit{}, testClock, nil)
 	task := tbdTask("t1")
 	task.Type = mtt.TypeName(`x"; touch pwned; "`)
 	err := e.TaskEvent(mtt.EventUpdate, task, "edit", EventOptions{})
@@ -86,7 +112,7 @@ func TestTaskEventTypeDriftIsFinalizationFailure(t *testing.T) {
 
 func TestTaskEventFromToIsTemplateError(t *testing.T) {
 	runner := &fakeRunner{}
-	e := NewEventEmitter(eventCfg(taskHook(mtt.EventUpdate, "echo {{.From}}")), runner, &fakeAudit{}, testClock)
+	e := NewEventEmitter(eventCfg(taskHook(mtt.EventUpdate, "echo {{.From}}")), runner, &fakeAudit{}, testClock, nil)
 	err := e.TaskEvent(mtt.EventUpdate, tbdTask("t1"), "edit", EventOptions{})
 	var pe *PostActionError
 	if !errors.As(err, &pe) {
@@ -99,7 +125,7 @@ func TestTaskEventFromToIsTemplateError(t *testing.T) {
 
 func TestTaskEventCommandFailure(t *testing.T) {
 	runner := &fakeRunner{failSubstr: "boom"}
-	e := NewEventEmitter(eventCfg(taskHook(mtt.EventDelete, "echo ok", "boom-two", "echo never")), runner, &fakeAudit{}, testClock)
+	e := NewEventEmitter(eventCfg(taskHook(mtt.EventDelete, "echo ok", "boom-two", "echo never")), runner, &fakeAudit{}, testClock, nil)
 	err := e.TaskEvent(mtt.EventDelete, tbdTask("t1"), "rm", EventOptions{})
 	var pe *PostActionError
 	if !errors.As(err, &pe) {
@@ -119,7 +145,7 @@ func TestNoRunSkipsPipelineAndWritesAuditRecord(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			runner := &fakeRunner{}
 			audit := &fakeAudit{}
-			e := NewEventEmitter(eventCfg(events), runner, audit, testClock)
+			e := NewEventEmitter(eventCfg(events), runner, audit, testClock, nil)
 			opts := EventOptions{NoRun: true, By: "me", Why: "because"}
 			if err := e.TaskEvent(mtt.EventUpdate, tbdTask("t1"), "edit", opts); err != nil {
 				t.Fatalf("unexpected: %v", err)
@@ -140,7 +166,7 @@ func TestNoRunSkipsPipelineAndWritesAuditRecord(t *testing.T) {
 
 func TestNoRunAuditAppendFailure(t *testing.T) {
 	audit := &fakeAudit{failOnID: "t1"}
-	e := NewEventEmitter(eventCfg(mtt.Events{}), &fakeRunner{}, audit, testClock)
+	e := NewEventEmitter(eventCfg(mtt.Events{}), &fakeRunner{}, audit, testClock, nil)
 	err := e.TaskEvent(mtt.EventUpdate, tbdTask("t1"), "edit", EventOptions{NoRun: true, By: "a", Why: "b"})
 	var pe *PostActionError
 	if !errors.As(err, &pe) {
@@ -171,7 +197,7 @@ func TestNoteEventContext(t *testing.T) {
 	var ev mtt.Events
 	ev.Note.Create = mtt.EventHook{Post: strCmds([]string{"echo {{.Slug}} {{.Event}}"})}
 	runner := &fakeRunner{}
-	e := NewEventEmitter(eventCfg(ev), runner, &fakeAudit{}, testClock)
+	e := NewEventEmitter(eventCfg(ev), runner, &fakeAudit{}, testClock, nil)
 	if err := e.NoteEvent(mtt.EventCreate, mtt.Note{Slug: "my-note"}, "note add", EventOptions{}); err != nil {
 		t.Fatalf("unexpected: %v", err)
 	}
@@ -180,7 +206,7 @@ func TestNoteEventContext(t *testing.T) {
 	}
 
 	ev.Note.Create = mtt.EventHook{Post: strCmds([]string{"echo {{.ID}}"})} // task-only field in a note hook
-	e2 := NewEventEmitter(eventCfg(ev), &fakeRunner{}, &fakeAudit{}, testClock)
+	e2 := NewEventEmitter(eventCfg(ev), &fakeRunner{}, &fakeAudit{}, testClock, nil)
 	err := e2.NoteEvent(mtt.EventCreate, mtt.Note{Slug: "my-note"}, "note add", EventOptions{})
 	var pe *PostActionError
 	if !errors.As(err, &pe) {

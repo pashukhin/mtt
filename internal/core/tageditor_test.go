@@ -130,7 +130,7 @@ func TestTagAddFiresUpdateEvent(t *testing.T) {
 	cfg := eventCfg(taskHook(mtt.EventUpdate, "echo {{.ID}} {{.Event}}"))
 	store := newMemStore(tbdTask("t1"))
 	runner := &fakeRunner{}
-	te := NewTagEditor(store, testClock, NewEventEmitter(cfg, runner, &fakeAudit{}, testClock))
+	te := NewTagEditor(store, testClock, NewEventEmitter(cfg, runner, &fakeAudit{}, testClock, nil))
 	if _, _, err := te.AddTags("t1", []string{"x"}, EventOptions{}); err != nil {
 		t.Fatalf("unexpected: %v", err)
 	}
@@ -144,7 +144,7 @@ func TestTagAddNoOpFiresNoEvent(t *testing.T) {
 	task := tbdTask("t1")
 	task.Tags = []string{"x"}
 	runner := &fakeRunner{}
-	te := NewTagEditor(newMemStore(task), testClock, NewEventEmitter(cfg, runner, &fakeAudit{}, testClock))
+	te := NewTagEditor(newMemStore(task), testClock, NewEventEmitter(cfg, runner, &fakeAudit{}, testClock, nil))
 	if _, _, err := te.AddTags("t1", []string{"x"}, EventOptions{}); err != nil {
 		t.Fatalf("unexpected: %v", err)
 	}
@@ -157,7 +157,7 @@ func TestTagAddNoOpNoRunWritesNoRecord(t *testing.T) {
 	task := tbdTask("t1")
 	task.Tags = []string{"x"}
 	audit := &fakeAudit{}
-	te := NewTagEditor(newMemStore(task), testClock, NewEventEmitter(eventCfg(mtt.Events{}), &fakeRunner{}, audit, testClock))
+	te := NewTagEditor(newMemStore(task), testClock, NewEventEmitter(eventCfg(mtt.Events{}), &fakeRunner{}, audit, testClock, nil))
 	if _, _, err := te.AddTags("t1", []string{"x"}, EventOptions{NoRun: true, By: "a", Why: "b"}); err != nil {
 		t.Fatalf("unexpected: %v", err)
 	}

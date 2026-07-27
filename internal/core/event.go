@@ -39,11 +39,24 @@ type EventEmitter struct {
 	runner Runner
 	audit  mtt.AuditStore
 	now    func() time.Time
+	envFn  func(mtt.Task) map[string]string // task-context env for TASK event commands (t40); nil = none; never for note events
 }
 
 // NewEventEmitter wires the emitter; audit receives the --no-run skip records.
-func NewEventEmitter(cfg mtt.Config, runner Runner, audit mtt.AuditStore, now func() time.Time) *EventEmitter {
-	return &EventEmitter{cfg: cfg, runner: runner, audit: audit, now: now}
+// envFn builds the MTT_TASK_* env task-event commands see (t40); nil disables it
+// (core stays serialization-free — the CLI supplies the builder). Note events
+// never receive it (a note is not a task).
+func NewEventEmitter(cfg mtt.Config, runner Runner, audit mtt.AuditStore, now func() time.Time, envFn func(mtt.Task) map[string]string) *EventEmitter {
+	return &EventEmitter{cfg: cfg, runner: runner, audit: audit, now: now, envFn: envFn}
+}
+
+// taskEnv builds the task-context environment for t, or nil when no builder is
+// wired. Only task events use it — a note is not a task.
+func (e *EventEmitter) taskEnv(t mtt.Task) map[string]string {
+	if e.envFn == nil {
+		return nil
+	}
+	return e.envFn(t)
 }
 
 // TaskEvent fires the task hook for kind after t was persisted (or deleted).
@@ -75,7 +88,7 @@ func (e *EventEmitter) TaskEvent(kind mtt.EventKind, t mtt.Task, action string, 
 			Cause:     fmt.Sprintf("task type %q not in config — event pipeline not run", t.Type),
 		}
 	}
-	return e.run(hook.Post, taskEventContext{ID: string(t.ID), Type: string(typ.Name), Event: string(kind)})
+	return e.run(hook.Post, taskEventContext{ID: string(t.ID), Type: string(typ.Name), Event: string(kind)}, e.taskEnv(t))
 }
 
 // NoteEvent is TaskEvent's note-store sibling ({{.Slug}}/{{.Event}} context;
@@ -92,18 +105,18 @@ func (e *EventEmitter) NoteEvent(kind mtt.EventKind, n mtt.Note, action string, 
 	if len(hook.Post) == 0 {
 		return nil
 	}
-	return e.run(hook.Post, noteEventContext{Slug: string(n.Slug), Event: string(kind)})
+	return e.run(hook.Post, noteEventContext{Slug: string(n.Slug), Event: string(kind)}, nil)
 }
 
 // run expands and executes one event pipeline. Expansion happens AFTER the
 // persist (for create the ID does not exist earlier — spec §4), so a template
 // error is a finalization failure too, never a lost mutation.
-func (e *EventEmitter) run(post []mtt.Command, data any) error {
+func (e *EventEmitter) run(post []mtt.Command, data any, env map[string]string) error {
 	expanded, err := expandCommands(post, data)
 	if err != nil {
 		return &PostActionError{Remaining: runsOf(post), Cause: fmt.Sprintf("expand event post: %v", err)}
 	}
-	checks, rerr := e.runner.Run(expanded, nil)
+	checks, rerr := e.runner.Run(expanded, env)
 	if rerr != nil {
 		i := len(checks) - 1 // failing command is last (Runner CONTRACT)
 		if i < 0 {
