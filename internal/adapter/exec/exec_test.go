@@ -26,6 +26,37 @@ func TestRunPassesEnvToCommand(t *testing.T) {
 	}
 }
 
+func TestRunEnvOverridesParent(t *testing.T) {
+	// A same-named var in the PARENT env must NOT hijack the gate: the runner
+	// appends ours AFTER os.Environ(), so last-occurrence-wins gives ours.
+	t.Setenv("MTT_TASK_TITLE", "HIJACK-FROM-PARENT")
+	checks, err := NewRunner(t.TempDir(), time.Minute, io.Discard, io.Discard, 0).Run(
+		[]mtt.Command{{Run: `test "$MTT_TASK_TITLE" = "the-real-title"`}},
+		map[string]string{"MTT_TASK_TITLE": "the-real-title"},
+	)
+	if err != nil {
+		t.Fatalf("operational error: %v", err)
+	}
+	if len(checks) != 1 || checks[0].Exit != 0 {
+		t.Fatalf("our env must override the parent's: %+v", checks)
+	}
+}
+
+func TestRunEnvStripsNUL(t *testing.T) {
+	// os/exec refuses an env value containing NUL (a launch failure); the runner
+	// strips it, so a hand-edited poisoned value degrades to plain data, not a crash.
+	checks, err := NewRunner(t.TempDir(), time.Minute, io.Discard, io.Discard, 0).Run(
+		[]mtt.Command{{Run: `test "$MTT_TASK_TITLE" = "ab"`}},
+		map[string]string{"MTT_TASK_TITLE": "a\x00b"},
+	)
+	if err != nil {
+		t.Fatalf("operational error (NUL not stripped?): %v", err)
+	}
+	if len(checks) != 1 || checks[0].Exit != 0 {
+		t.Fatalf("NUL must be stripped (a\\x00b -> ab): %+v", checks)
+	}
+}
+
 func TestRunAllPass(t *testing.T) {
 	checks, err := NewRunner(t.TempDir(), time.Minute, io.Discard, io.Discard, 0).Run([]mtt.Command{{Run: "true"}, {Run: "true"}}, nil)
 	if err != nil {
