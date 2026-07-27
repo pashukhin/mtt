@@ -1,0 +1,11 @@
+id: t70
+type: task
+title: mtt edit --file - / --file <path> — multi-line description parity with add
+status: tbd
+priority: medium
+tags:
+    - backlog
+    - dx
+created: "2026-07-27T01:40:46Z"
+updated: "2026-07-27T01:40:46Z"
+description: 'Surfaced by the v0.11.0 pilot. `mtt edit` takes only `--description <string>` while `mtt add` has `--file -` — so migrating rich multi-line descriptions via `edit` means awkward shell-quoting. Add parity: `mtt edit --file -` (and `--file <path>`), reusing add''s body-input path. Small, high-value for scripted/bulk work.'
