@@ -1,13 +1,13 @@
 id: t76
 type: task
 title: 'GitHub-gated flow: dogfood the compositional mtt+gh gating pattern + ship a github-gated flagship template (store-adapter stays t9)'
-status: plan_human_review
+status: implementing
 priority: high
 tags:
     - adapter
     - release
 created: "2026-07-27T02:13:16Z"
-updated: "2026-07-27T09:26:51Z"
+updated: "2026-07-27T11:17:25Z"
 description: |-
     RESCOPED (brainstorm 2026-07-27): NOT a GitHub TaskStore adapter. The useful middle of the external-tracker spectrum ("GitHub as store + rich mtt flow via dependencies") is already reachable with mtt's EXISTING primitives — per-type flows + gate/post commands that shell out to `mtt` (self-calls) and `gh` (the pilot proved gates-can-call-mtt with its "all children done" gate). So this task is validate-then-build, not build-an-adapter:
     (1) DOGFOOD the compositional GitHub-gating pattern on this repo (existing primitives + `gh`; near-zero new Go) to validate the release story "put executable mtt gates on the close of your GitHub issues";
@@ -75,3 +75,8 @@ history:
       why: 'Adversarial empirical plan_review (fresh subagent) done: it materialized the template and drove mtt init --template + the gates against the t40 binary. Design mechanics CONFIRMED working (YAML installs/validates; quoting of {{.ID}} and $MTT_TASK_TITLE is injection-safe; jq --arg extractor pulls the url ref; approve gate fails-closed and does NOT run gh issue close when the issue is not OPEN; ref add fires task.update). Findings verified against the binary and fixed: (1) dogfood config path was wrong (cp to X/config.yaml, but init writes X/.mtt/config.yaml) -> switched to one-shot mtt init --dir --template; (2) SPEC CORRECTION -> require.who gates transitions, not mutations, so the inner ref add self-call has NO exit-2 attribution clunk (author-first only needed to drive the flow edges); (3) teardown needed delete_repo scope + cd-before-clone hygiene; (4) sync self-loop is one-directional (closed-while-active), reserved SYMMETRIC for the conceptual contract. Ready for human sign-off.'
       from: plan_review
       to: plan_human_review
+    - at: "2026-07-27T11:17:25Z"
+      by: Grigorii Pashukhin
+      why: 'Human sign-off on the t76 plan (owner approved in session), including the empirical correction to the spec''s require.who attribution claim (accepted as-is; correction lives in the plan/template/docs, spec left unamended by owner choice). Proceeding to implement: github-gated flagship template + out-of-tree dogfood + bilingual docs + one adversarial impl_review.'
+      from: plan_human_review
+      to: implementing
