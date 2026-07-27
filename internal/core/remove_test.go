@@ -286,11 +286,11 @@ type orderRunner struct {
 	log *[]string
 }
 
-func (o *orderRunner) Run(commands []mtt.Command) ([]mtt.Check, error) {
+func (o *orderRunner) Run(commands []mtt.Command, env map[string]string) ([]mtt.Check, error) {
 	for _, c := range commands {
 		*o.log = append(*o.log, "run:"+c.Run)
 	}
-	return o.fakeRunner.Run(commands)
+	return o.fakeRunner.Run(commands, env)
 }
 
 // orderStore mirrors the markers on Delete.

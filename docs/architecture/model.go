@@ -684,8 +684,8 @@ var NewRemover func(store TaskStore, audit AuditStore, now func() time.Time) Rem
 // erroring (an operational failure is recorded as Exit -1); core passes the
 // reversed, succeeded-only rollbacks when a gate blocks.
 type Runner interface {
-	Run(commands []Command) ([]Check, error)
-	Compensate(commands []Command) []Check // best-effort intra-pipeline compensation [s008]
+	Run(commands []Command, env map[string]string) ([]Check, error) // env: KEY=VALUE on sh -c; nil = inherit [t40]
+	Compensate(commands []Command, env map[string]string) []Check   // best-effort intra-pipeline compensation [s008]
 }
 
 // AuditEntry records one out-of-flow dangerous action (a --force destruction with

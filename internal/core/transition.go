@@ -91,7 +91,7 @@ func (tr *Transitioner) Transition(id mtt.TaskID, to mtt.StatusName, opts Transi
 		if eerr != nil {
 			return mtt.Task{}, fmt.Errorf("expand commands for %s (%s->%s): %w", id, from, to, eerr)
 		}
-		checks, err = tr.runner.Run(expanded)
+		checks, err = tr.runner.Run(expanded, nil)
 		if err != nil {
 			// operational failure: the failing command is the last recorded check
 			// (Runner CONTRACT); if none was recorded, len(checks)-1 == -1 → no comp.
@@ -127,7 +127,7 @@ func (tr *Transitioner) Transition(id mtt.TaskID, to mtt.StatusName, opts Transi
 			Cause:     fmt.Sprintf("expand post for %s (%s->%s): %v", id, from, to, eerr),
 		}
 	}
-	pchecks, rerr := tr.runner.Run(expanded)
+	pchecks, rerr := tr.runner.Run(expanded, nil)
 	if rerr != nil {
 		i := len(pchecks) - 1 // failing command is last (Runner CONTRACT); guard the empty case
 		if i < 0 {
@@ -203,7 +203,7 @@ func firstFailure(checks []mtt.Check) (int, mtt.Check, bool) {
 // returns before any tr.store.Update.
 func (tr *Transitioner) block(expanded []mtt.Command, failIdx int, cause string) (mtt.Task, error) {
 	if rbs := rollbacksBefore(expanded, failIdx); len(rbs) > 0 {
-		comp := tr.runner.Compensate(rbs)
+		comp := tr.runner.Compensate(rbs, nil)
 		return mtt.Task{}, fmt.Errorf("%w: %s; %s", ErrBlocked, cause, compSummary(comp))
 	}
 	return mtt.Task{}, fmt.Errorf("%w: %s", ErrBlocked, cause)

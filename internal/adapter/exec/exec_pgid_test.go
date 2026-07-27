@@ -34,7 +34,7 @@ func TestRunTimeoutKillsProcessGroup(t *testing.T) {
 	// Background a long sleep, record its PID, then sleep long in the foreground.
 	script := "sleep 30 & echo $! > " + pidFile + "; sleep 30"
 	_, err := NewRunner(dir, 200*time.Millisecond, io.Discard, io.Discard, 0).
-		Run([]mtt.Command{{Run: script}})
+		Run([]mtt.Command{{Run: script}}, nil)
 	if err == nil {
 		t.Fatal("want a timeout error, got nil")
 	}

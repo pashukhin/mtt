@@ -10,8 +10,11 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
 	"os/exec"
 	"runtime"
+	"sort"
+	"strings"
 	"time"
 
 	"github.com/pashukhin/mtt/pkg/mtt"
@@ -50,7 +53,7 @@ func NewRunner(dir string, timeout time.Duration, progress, cmdOut io.Writer, ta
 // When showTail && r.tailLines > 0, it tees the command's own output into a
 // bounded ring buffer and, on FAILURE, echoes the tail under the ✗ line — so a
 // blocked gate surfaces why it failed even when output is otherwise hidden.
-func (r *Runner) runReport(cmd mtt.Command, showTail bool) (mtt.Check, error) {
+func (r *Runner) runReport(cmd mtt.Command, showTail bool, env map[string]string) (mtt.Check, error) {
 	_, _ = fmt.Fprintf(r.progress, "▶ %s\n", cmd.Run)
 	start := time.Now()
 	timeout := cmd.Timeout
@@ -63,7 +66,7 @@ func (r *Runner) runReport(cmd mtt.Command, showTail bool) (mtt.Check, error) {
 		tb = &tailBuffer{max: r.tailLines}
 		out = io.MultiWriter(r.cmdOut, tb)
 	}
-	exit, err := r.runOne(cmd.Run, timeout, out)
+	exit, err := r.runOne(cmd.Run, timeout, out, env)
 	elapsed := time.Since(start).Round(time.Millisecond)
 	mark := "✓"
 	if exit != 0 || err != nil {
@@ -83,10 +86,10 @@ func (r *Runner) runReport(cmd mtt.Command, showTail bool) (mtt.Check, error) {
 // error). An operational failure (launch error or timeout) returns the checks so
 // far — with the failing command's Check as the LAST element — plus a non-nil
 // error (core's compensation relies on this ordering).
-func (r *Runner) Run(commands []mtt.Command) ([]mtt.Check, error) {
+func (r *Runner) Run(commands []mtt.Command, env map[string]string) ([]mtt.Check, error) {
 	checks := make([]mtt.Check, 0, len(commands))
 	for _, cmd := range commands {
-		ck, err := r.runReport(cmd, true)
+		ck, err := r.runReport(cmd, true, env)
 		checks = append(checks, ck)
 		if err != nil {
 			return checks, err
@@ -102,17 +105,35 @@ func (r *Runner) Run(commands []mtt.Command) ([]mtt.Check, error) {
 // stopping and NEVER returning an error (an operational failure is recorded as
 // Exit -1 by runOne). It prints a labeled compensation phase to progress. core
 // passes the reversed, succeeded-only rollbacks.
-func (r *Runner) Compensate(commands []mtt.Command) []mtt.Check {
+func (r *Runner) Compensate(commands []mtt.Command, env map[string]string) []mtt.Check {
 	if len(commands) == 0 {
 		return nil
 	}
 	_, _ = fmt.Fprintf(r.progress, "↩ compensating (%d command%s)\n", len(commands), plural(len(commands)))
 	checks := make([]mtt.Check, 0, len(commands))
 	for _, cmd := range commands {
-		ck, _ := r.runReport(cmd, false) // best-effort: ignore the op error, never stop, never echo a tail
+		ck, _ := r.runReport(cmd, false, env) // best-effort: ignore the op error, never stop, never echo a tail
 		checks = append(checks, ck)
 	}
 	return checks
+}
+
+// envSlice returns os.Environ() with the given vars appended as KEY=VALUE
+// (sorted for determinism). A later occurrence wins in os/exec, so ours override
+// a same-named parent var. NUL bytes are stripped from values (os/exec refuses a
+// value containing NUL, which would fail the launch operationally); the CLI
+// builder strips too — this is defense in depth.
+func envSlice(env map[string]string) []string {
+	keys := make([]string, 0, len(env))
+	for k := range env {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	out := os.Environ()
+	for _, k := range keys {
+		out = append(out, k+"="+strings.ReplaceAll(env[k], "\x00", ""))
+	}
+	return out
 }
 
 // plural returns "s" unless n == 1.
@@ -134,7 +155,7 @@ const waitDelay = 2 * time.Second
 // runOne runs a single command with the given timeout, streaming its output to
 // cmdOut and returning its exit code. A clean non-zero exit yields (code, nil); a
 // timeout or launch failure yields (-1, error).
-func (r *Runner) runOne(cmd string, timeout time.Duration, out io.Writer) (int, error) {
+func (r *Runner) runOne(cmd string, timeout time.Duration, out io.Writer, env map[string]string) (int, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 	name, args := shell(cmd)
@@ -143,6 +164,9 @@ func (r *Runner) runOne(cmd string, timeout time.Duration, out io.Writer) (int, 
 	// killer feature, not an injection sink.
 	c := exec.CommandContext(ctx, name, args...) //nolint:gosec
 	c.Dir = r.dir
+	if len(env) > 0 {
+		c.Env = envSlice(env) // parent env + our KEY=VALUE (ours win: last occurrence); nil = inherit
+	}
 	c.Stdout = out
 	c.Stderr = out
 	configureGroupKill(c) // Unix: own process group + SIGKILL the group on timeout; Windows: no-op

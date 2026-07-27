@@ -14,15 +14,17 @@ import (
 // or timed out). At this boundary each Command's Run is ALREADY EXPANDED by core
 // (see expand.go); the runner only runs and reports.
 type Runner interface {
-	// Run executes the commands in order, stopping at the first non-zero exit.
-	// CONTRACT (compensation relies on it): on an operational failure the returned
-	// checks include a Check for the failing command as the LAST element (Exit -1).
-	Run(commands []mtt.Command) ([]mtt.Check, error)
-	// Compensate runs the given already-expanded commands best-effort: in order,
-	// NEVER stopping, NEVER returning an error (an operational failure is recorded
-	// as Exit -1). It reports a labeled compensation phase. core passes the
-	// reversed, succeeded-only rollbacks.
-	Compensate(commands []mtt.Command) []mtt.Check
+	// Run executes the commands in order with the given environment (each KEY=VALUE
+	// appended to the process env; a nil/empty map inherits the parent env only,
+	// the pre-t40 behavior), stopping at the first non-zero exit. CONTRACT
+	// (compensation relies on it): on an operational failure the returned checks
+	// include a Check for the failing command as the LAST element (Exit -1).
+	Run(commands []mtt.Command, env map[string]string) ([]mtt.Check, error)
+	// Compensate runs the given already-expanded commands best-effort with the same
+	// env: in order, NEVER stopping, NEVER returning an error (an operational failure
+	// is recorded as Exit -1). It reports a labeled compensation phase. core passes
+	// the reversed, succeeded-only rollbacks.
+	Compensate(commands []mtt.Command, env map[string]string) []mtt.Check
 }
 
 // ErrBlocked is returned when a transition's gate does not pass (a command exited

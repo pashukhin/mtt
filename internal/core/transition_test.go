@@ -17,16 +17,18 @@ type fakeRunner struct {
 	err          error
 	called       bool
 	gotCmds      []mtt.Command
-	compCmds     []mtt.Command // commands passed to Compensate (nil = never called)
-	compChecks   []mtt.Check   // canned Compensate result (nil = all succeed)
-	failSubstr   string        // when set (and no canned checks/err): derive one check per command, exit 1 if Run contains it — lets the empty pre-gate pass while the post phase fails (t21)
-	postOpErr    error         // when set, Run returns this operational error ONLY for a non-empty command slice (the post phase; the empty pre-gate passes)
-	postOpChecks []mtt.Check   // checks returned alongside postOpErr (nil = none recorded; lets a test drive the "failing check last" index)
+	gotEnv       map[string]string // env passed to the last Run (t40)
+	compCmds     []mtt.Command     // commands passed to Compensate (nil = never called)
+	compChecks   []mtt.Check       // canned Compensate result (nil = all succeed)
+	failSubstr   string            // when set (and no canned checks/err): derive one check per command, exit 1 if Run contains it — lets the empty pre-gate pass while the post phase fails (t21)
+	postOpErr    error             // when set, Run returns this operational error ONLY for a non-empty command slice (the post phase; the empty pre-gate passes)
+	postOpChecks []mtt.Check       // checks returned alongside postOpErr (nil = none recorded; lets a test drive the "failing check last" index)
 }
 
-func (f *fakeRunner) Run(commands []mtt.Command) ([]mtt.Check, error) {
+func (f *fakeRunner) Run(commands []mtt.Command, env map[string]string) ([]mtt.Check, error) {
 	f.called = true
 	f.gotCmds = commands
+	f.gotEnv = env
 	if f.postOpErr != nil && len(commands) > 0 {
 		return f.postOpChecks, f.postOpErr
 	}
@@ -44,7 +46,7 @@ func (f *fakeRunner) Run(commands []mtt.Command) ([]mtt.Check, error) {
 	return f.checks, f.err
 }
 
-func (f *fakeRunner) Compensate(commands []mtt.Command) []mtt.Check {
+func (f *fakeRunner) Compensate(commands []mtt.Command, _ map[string]string) []mtt.Check {
 	f.compCmds = commands
 	if f.compChecks != nil {
 		return f.compChecks

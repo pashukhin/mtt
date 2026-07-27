@@ -103,7 +103,7 @@ func (e *EventEmitter) run(post []mtt.Command, data any) error {
 	if err != nil {
 		return &PostActionError{Remaining: runsOf(post), Cause: fmt.Sprintf("expand event post: %v", err)}
 	}
-	checks, rerr := e.runner.Run(expanded)
+	checks, rerr := e.runner.Run(expanded, nil)
 	if rerr != nil {
 		i := len(checks) - 1 // failing command is last (Runner CONTRACT)
 		if i < 0 {
