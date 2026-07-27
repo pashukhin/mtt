@@ -21,5 +21,18 @@ depends_on:
     - t40
     - t76
 created: "2026-07-22T08:01:24Z"
-updated: "2026-07-27T04:44:30Z"
-description: 'Definition of done: docs facade truthful (t42 incl. CHANGELOG and DESIGN fixes), the pilot migration delivered and its findings triaged, concurrency lost-update addressed (t10 — minimum acceptable: a write lock around task-file read-modify-write or a documented single-writer contract), init scaffolding for adopters (t46 docs, t52 hooks), integrity and text-hygiene audit fixes landed; then the Medium article and the announced release.'
+updated: "2026-07-27T04:44:34Z"
+description: |-
+    MILESTONE: public release — Medium article + announced release cut.
+
+    RELEASE SCOPE TRIMMED (2026-07-27, post-pilot) to the honest minimum. Blocks only on:
+    - t76 — the github-gated flow: the compelling showcase of the wedge over a popular tracker (GitHub Issues), shipped light (template + dogfood + docs).
+    - t40 — gate/post context: the ergonomic enabler that makes the showcase clean (a gate can see its own task's fields/children instead of re-querying).
+
+    Everything else is FAST-FOLLOW / demand-driven, explicitly NOT release-blocking:
+    - t67 (polished import) — the pilot did it with a bash loop; nice, not a gate.
+    - t2 (comments), t10 (concurrency — the pilot confirmed single-writer works fine).
+    - the true GitHub-as-store-of-record adapter — deferred to t9.
+    - t59 (pilot milestone) is no longer a blocker: its value is captured in the pilot feedback -> backlog; its still-open status is the no-code-terminal gap (t75), not a real release gate.
+
+    Release message drafts from the KB note positioning-vs-beads (consolidation+enforcement; "not a better beads, a different tool"; honest non-goals map). Honest docs (t42) and installability (v0.11.0) are already done.
