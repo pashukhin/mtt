@@ -7,5 +7,8 @@ tags:
     - backlog
     - dx
 created: "2026-07-10T13:53:10Z"
-updated: "2026-07-22T08:01:24Z"
-description: 'Parked grammar generalization: one resolution model for the mtt STATUS / mtt EDGE sugar before more sugar forms are added. Cross-note (audit 2026-07-22): the narrow wrong-status sugar miss — unknown command exit 1 where mtt do exits 6 and lists available actions — is fixed separately in the error-polish chore; this task remains the umbrella for the grammar itself.'
+updated: "2026-07-27T15:52:17Z"
+description: |-
+    Parked grammar generalization: one resolution model for the mtt STATUS / mtt EDGE sugar before more sugar forms are added. Cross-note (audit 2026-07-22): the narrow wrong-status sugar miss — unknown command exit 1 where mtt do exits 6 and lists available actions — is fixed separately in the error-polish chore; this task remains the umbrella for the grammar itself.
+
+    Interim for the pre-1.0 bulk-selector item (2026-07-27, decision (b) — leave the code as is): the bulk-selector wart is that tag add's positional meaning flips on a selector marker (no marker: first positional is an id; with a filter/stdin marker: all positionals are tags). It mostly fails LOUD already (a bogus id exits 4); the only SILENT-misfire window is a tag whose name collides with a real task id. So for the release: document the two tag-add modes clearly and add a loud guard for that narrow collision. The full selector unification (make tag consistent with the rm selector) remains THIS task, deferred.
