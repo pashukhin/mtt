@@ -1,0 +1,11 @@
+id: t71
+type: task
+title: 'harden the git-flow flagship: divergence-aware deliver + foreign-git-hook isolation + louder caveats'
+status: tbd
+priority: high
+tags:
+    - backlog
+    - flow
+created: "2026-07-27T01:40:46Z"
+updated: "2026-07-27T01:40:46Z"
+description: 'Surfaced by the v0.11.0 pilot on the shipped git-flow flagship template (people copy it, so its sharp edges ship to everyone). Two footguns: (1) `deliver` greps main for the squash commit; if the integration/base branch has UNPUSHED local commits when a task branches, the PR squash folds them in and local main diverges from origin after merge -> `deliver` can''t find the commit (recovered via `git reset --hard origin/main`). Make `deliver` divergence-aware (pull-with-strategy, or detect+explain) or make the sample caveat loud ("push the base branch before starting a task"). (2) mtt''s per-move bookkeeping `git commit` fires FOREIGN git hooks (another tool''s `core.hooksPath`) — latency + message noise; the pilot isolated it with `git -c core.hooksPath=/dev/null commit ...` in every config command. The shipped templates should run their own bookkeeping commits hook-free by default (or ship a documented switch). Same family: the `--no-run`-skips-every-command trap on state-moving edges (consider a runtime warning). See KB note flow-v2-deliver-reconcile-midflight-backlog.'
