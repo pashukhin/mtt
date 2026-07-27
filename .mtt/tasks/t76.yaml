@@ -1,13 +1,13 @@
 id: t76
 type: task
 title: 'GitHub-gated flow: dogfood the compositional mtt+gh gating pattern + ship a github-gated flagship template (store-adapter stays t9)'
-status: implementing
+status: impl_review
 priority: high
 tags:
     - adapter
     - release
 created: "2026-07-27T02:13:16Z"
-updated: "2026-07-27T11:17:25Z"
+updated: "2026-07-27T11:34:54Z"
 description: |-
     RESCOPED (brainstorm 2026-07-27): NOT a GitHub TaskStore adapter. The useful middle of the external-tracker spectrum ("GitHub as store + rich mtt flow via dependencies") is already reachable with mtt's EXISTING primitives — per-type flows + gate/post commands that shell out to `mtt` (self-calls) and `gh` (the pilot proved gates-can-call-mtt with its "all children done" gate). So this task is validate-then-build, not build-an-adapter:
     (1) DOGFOOD the compositional GitHub-gating pattern on this repo (existing primitives + `gh`; near-zero new Go) to validate the release story "put executable mtt gates on the close of your GitHub issues";
@@ -80,3 +80,15 @@ history:
       why: 'Human sign-off on the t76 plan (owner approved in session), including the empirical correction to the spec''s require.who attribution claim (accepted as-is; correction lives in the plan/template/docs, spec left unamended by owner choice). Proceeding to implement: github-gated flagship template + out-of-tree dogfood + bilingual docs + one adversarial impl_review.'
       from: plan_human_review
       to: implementing
+    - at: "2026-07-27T11:34:54Z"
+      by: Grigorii Pashukhin
+      why: 'Implementation complete: github-gated flagship template + assumptions test, real out-of-tree dogfood (gate bites + drift proven over a scratch GitHub repo), bilingual docs (FLOW_GUIDE s8b, DESIGN, CLI_REFERENCE, README, CHANGELOG), mtt tt decided NO. make check green. Ready for the adversarial impl review.'
+      from: implementing
+      to: impl_review
+      checks:
+        - cmd: out=$(git status --porcelain -- ":(exclude).mtt") && test -z "$out" || { echo "working tree not clean - commit your code/docs first (.mtt is swept by the move itself)" >&2; false; }
+          exit: 0
+        - cmd: 'git diff --quiet main...HEAD -- cmd internal pkg go.mod go.sum || git diff --name-only main...HEAD -- CHANGELOG.md | grep -q . || { echo "code changed but CHANGELOG.md has no entry - add one under [Unreleased] (pure refactor? bypass: mtt do submit --no-run --who ... --why ...)" >&2; false; }'
+          exit: 0
+        - cmd: make check
+          exit: 0
