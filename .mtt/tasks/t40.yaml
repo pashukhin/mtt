@@ -1,14 +1,14 @@
 id: t40
 type: task
 title: task-context environment (MTT_TASK_*) for gate/post/event commands
-status: spec_review
+status: spec_human_review
 priority: high
 tags:
     - backlog
     - flow
     - think
 created: "2026-07-12T04:05:25Z"
-updated: "2026-07-27T05:11:55Z"
+updated: "2026-07-27T05:12:11Z"
 description: |-
     Spun off from t27 (mechanized gh pr create). t27 mechanizes PR opening config-only, reading the title via read-only mtt show --json and taking the body from an optional artifact file with a generated fallback. It deliberately did NOT add the flag variant (mtt approve --pr-body-file). This task generalizes that: a per-invocation channel to thread caller-supplied values into the gate/post placeholder context, beyond the fixed {ID,Type,From,To} whitelist — e.g. mtt <edge> --arg key=value expanded as {{.Args.key}}, or a typed flag like --pr-body-file. Design-open: naming, whitelist interaction, safety (avoid re-opening the narrow-whitelist SEC surface t5/t21 kept to 4 fields), precedence with existing placeholders. First consumer: t27 PR body. Decide the general mechanism before adding more one-off flags.
 
@@ -51,3 +51,8 @@ history:
           exit: 0
         - cmd: out=$(git status --porcelain -- ":(exclude).mtt") && test -z "$out" || { echo "working tree not clean - commit your code/docs first (.mtt is swept by the move itself)" >&2; false; }
           exit: 0
+    - at: "2026-07-27T05:12:11Z"
+      by: Grigorii Pashukhin
+      why: 'Adversarial spec review addressed: core idea empirically CONFIRMED (env on sh -c; injection-safety proven; no env collisions). Fixes: injected env-builder func(mtt.Task) with the CLI closure owning children-List + serialization (EventEmitter needs no store); MTT_TASK_JSON = lean toTaskJSON; note-events excluded from MTT_TASK_*; ripple includes doc-model Runner; NUL-byte edge documented; Compensate env parity-only. t40 re-titled to facet (b); t77 clarified. Ready for human sign-off.'
+      from: spec_review
+      to: spec_human_review
