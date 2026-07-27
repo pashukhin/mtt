@@ -8,4 +8,8 @@ tags:
     - perf
     - tests
 created: "2026-07-10T13:53:10Z"
-updated: "2026-07-12T01:21:41Z"
+updated: "2026-07-27T01:43:54Z"
+description: |-
+    performance: roadmap heap (replace the per-pop sort) + graph-topology scale stress.
+
+    v0.11.0 pilot addition: file-per-task + a git commit per mutation is elegant at ~55 tasks but untested at 1k-10k (behavior, latency, and commit volume). Add a scale benchmark and a documented ceiling. Relates to the bookkeeping-commit-noise finding (a coalesce/quiet mode for long-lived branches) and to the observed push-per-mutation fragility under rapid bulk mutation (see t72).
