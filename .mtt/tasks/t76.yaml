@@ -2,7 +2,7 @@ id: t76
 type: task
 title: 'external-tracker adapter: flow-authority model + composition-root selection seam + GitHub Issues TaskStore (dogfoodable before t60)'
 status: tbd
-priority: high
+priority: low
 tags:
     - "2"
     - adapter
@@ -10,7 +10,7 @@ tags:
     - "n"
     - release
 created: "2026-07-27T02:13:16Z"
-updated: "2026-07-27T12:06:40Z"
+updated: "2026-07-27T12:16:16Z"
 description: |-
     Bring bet #2 (external tracker as store-of-record) forward: the public release (t60) should let adopters put mtt's executable gates on a free, popular tracker they already use — GitHub Issues first — VALIDATED BY DOGFOODING it on this repo before release ("an mtt that doesn't dogfood itself is a poor one"). Concrete first slice of the t9 umbrella (t9 stays for Jira/Confluence + the indexer hook).
 
