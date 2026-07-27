@@ -1,13 +1,13 @@
 id: t76
 type: task
 title: 'GitHub-gated flow: dogfood the compositional mtt+gh gating pattern + ship a github-gated flagship template (store-adapter stays t9)'
-status: planning
+status: plan_review
 priority: high
 tags:
     - adapter
     - release
 created: "2026-07-27T02:13:16Z"
-updated: "2026-07-27T04:45:08Z"
+updated: "2026-07-27T09:07:13Z"
 description: |-
     RESCOPED (brainstorm 2026-07-27): NOT a GitHub TaskStore adapter. The useful middle of the external-tracker spectrum ("GitHub as store + rich mtt flow via dependencies") is already reachable with mtt's EXISTING primitives — per-type flows + gate/post commands that shell out to `mtt` (self-calls) and `gh` (the pilot proved gates-can-call-mtt with its "all children done" gate). So this task is validate-then-build, not build-an-adapter:
     (1) DOGFOOD the compositional GitHub-gating pattern on this repo (existing primitives + `gh`; near-zero new Go) to validate the release story "put executable mtt gates on the close of your GitHub issues";
@@ -60,3 +60,13 @@ history:
       why: Human sign-off on the t76 spec (owner approved in session). Execution agreed LIGHT (template+dogfood+docs, one review); t60 trimmed to {t40, t76}, rest fast-follow. Order (t40 vs t76 first) to be decided next.
       from: spec_human_review
       to: planning
+    - at: "2026-07-27T09:07:13Z"
+      by: Grigorii Pashukhin
+      why: 'Minimal plan written (superpowers:writing-plans): github-gated flagship template in t40 env-form + out-of-tree dogfood + bilingual docs + one adversarial impl review. Branch reconciled with main to carry t40. Ready for an empirical adversarial plan_review.'
+      from: planning
+      to: plan_review
+      checks:
+        - cmd: ls docs/superpowers/plans/t76-*.md
+          exit: 0
+        - cmd: out=$(git status --porcelain -- ":(exclude).mtt") && test -z "$out" || { echo "working tree not clean - commit your code/docs first (.mtt is swept by the move itself)" >&2; false; }
+          exit: 0
