@@ -7,7 +7,7 @@ tags:
     - adapter
     - release
 created: "2026-07-27T02:13:16Z"
-updated: "2026-07-27T04:20:54Z"
+updated: "2026-07-27T04:45:08Z"
 description: |-
     RESCOPED (brainstorm 2026-07-27): NOT a GitHub TaskStore adapter. The useful middle of the external-tracker spectrum ("GitHub as store + rich mtt flow via dependencies") is already reachable with mtt's EXISTING primitives — per-type flows + gate/post commands that shell out to `mtt` (self-calls) and `gh` (the pilot proved gates-can-call-mtt with its "all children done" gate). So this task is validate-then-build, not build-an-adapter:
     (1) DOGFOOD the compositional GitHub-gating pattern on this repo (existing primitives + `gh`; near-zero new Go) to validate the release story "put executable mtt gates on the close of your GitHub issues";
@@ -16,6 +16,7 @@ description: |-
     Enabler: t40 (gate/post context — the pilot's top workaround-driver; today a gate cannot see its own task's title/tags/children, forcing re-query/shell-out). t40 makes the pattern ergonomic; it is not a hard blocker (the pilot worked around it).
     Deferred (deliberate): true GitHub-as-store-of-record (issues live only in GitHub, `mtt roadmap`/`list` read them live) = the external-store bet, stays t9, demand-driven; likewise the far extreme where the external tracker supplies its own flow (Projects v2 columns). Also out: Trello, bidirectional reconcile, Projects reflection, the universal-graph framing.
     Enforcement honesty: mtt gates the AGENT (it works through mtt); a human closing an issue in the GitHub UI bypasses the gates (mtt is not the choke point there) — detect + complain, never claim to enforce. History with gate-check results lives in the mtt task (YAML) — no store-of-record problem in this model. Blocks a confident public release (t60).
+    Execution weight (agreed 2026-07-27): LIGHT. Deliverable is config (a template) + one out-of-tree dogfood pass + docs, near-zero product Go — so run a minimal plan + ONE adversarial review + the human gate, not the full plan_review/impl_review apparatus meant for product code (see t75: no-code work strains the code-gated flow). t60 now blocks only on t40 + t76; the rest is fast-follow.
 history:
     - at: "2026-07-27T02:13:42Z"
       by: Grigorii Pashukhin
