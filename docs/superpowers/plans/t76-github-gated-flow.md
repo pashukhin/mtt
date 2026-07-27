@@ -30,10 +30,15 @@ none — Task 3 records the evidence-backed decision).
   + network at run time; can lag) and **symmetric** (closed-while-unfinished *or* reopened-while-done).
   Never claim to *enforce*.
 - **Two known interactions must be pre-noted in the template header AND the docs** (spec §"Dogfood plan"):
-  (1) **attribution clunk** — under `require.who`, the inner `mtt ref add` self-call in `start`'s post needs
-  an author too (exit 2 → `PostActionError` → exit 5); set `author:` in `.mtt/config.local.yaml` FIRST.
-  (2) **mutate-in-`post:` re-entrancy** — that same `mtt ref add` fires the `task.update` lifecycle event,
-  so combined with an auto-commit/push events block it triggers a nested commit+push inside the outer move.
+  (1) **attribution** — this template ships no `require:` block (no attribution needed by default). If an
+  adopter enables `require.who`, it gates the flow's TRANSITIONS (`mtt start`/`approve`/…), which exit 2
+  without an actor — set `author:` in `.mtt/config.local.yaml` first. The inner `mtt ref add`/`ref list`
+  self-calls are a mutation/read and are NOT gated by `require.who` (verified empirically this session —
+  this CORRECTS the spec's "the inner self-call needs an author → exit 2→5" claim; mutations require
+  attribution only under `--no-run`). Surface this spec-divergence at plan_human_review.
+  (2) **mutate-in-`post:` re-entrancy** — that same `mtt ref add` fires the `task.update` lifecycle event
+  (verified), so combined with an auto-commit/push events block it triggers a nested commit+push inside the
+  outer move.
 - **Bilingual human docs** (CLAUDE.md): EN primary + RU mirror kept in sync — `README(.ru).md`,
   `DESIGN(.ru).md`, `CLI_REFERENCE(.ru).md`, `FLOW_GUIDE(.ru).md`. Agent docs (AGENTS/CLAUDE) EN-only.
   Grep **all** parallel occurrences (EN+RU + "Shipped" blocks) of any changed flow-fact.
@@ -62,6 +67,12 @@ none — Task 3 records the evidence-backed decision).
   needs an `mtt ref list --json` self-call (read-only, takes no lock, safe). This is a genuine t40 gap and a
   Task-3 friction finding.
 - **Self-loop transitions (`from==to`) are valid** and the named-edge sugar works (`mtt sync <id>`).
+- **`require.who` gates TRANSITIONS, not mutations/reads** — verified: under `require: {who: true}` with no
+  author, `mtt add`/`mtt ref add` → exit 0, but a transition (`mtt status …`) → "missing required
+  attribution: who". So the template's inner `ref add`/`ref list` self-calls need no attribution; only the
+  outer flow edges do. Mutations require who/why only under `--no-run`.
+- **`mtt init --dir X --template <path>`** writes `X/.mtt/config.yaml` (and `X/.mtt/config.local.yaml`) — the
+  store lives UNDER `.mtt/`, so a bare `cp … X/config.yaml` is the wrong path.
 - **t40 env** a gate/post sees: `MTT_TASK_JSON` (lean shape, no refs), `MTT_TASK_CHILDREN_JSON`
   (`[{"id","type","status"}]`, `[]` when none), scalars `MTT_TASK_ID/TYPE/STATUS/TITLE/PARENT/PRIORITY/TAGS`.
   `{{...}}` stays shape-safe (`ID/Type/From/To`); free text (title) rides env as **data**.
@@ -129,16 +140,21 @@ version: 1
 # ENFORCEMENT HONESTY — mtt gates only `mtt`-mediated moves. The choke point is `mtt <edge>`, the interface
 # the agent uses. ANY actor, human OR agent, closing/reopening the issue directly in the GitHub UI or with a
 # raw `gh` call BYPASSES the gate (no local hook intercepts it). Drift is DETECTED and COMPLAINED about, never
-# enforced. The `sync` self-loop is a POLLED, SYMMETRIC drift check (needs `gh`+network at run time; can lag).
+# enforced. The `sync` self-loop is a POLLED drift check: it flags the issue being CLOSED while the task is
+# still active (needs `gh`+network at run time; can lag). The contract is conceptually SYMMETRIC — the
+# reopened-while-done half has no flow edge on the terminal `done`, so catch it with a manual `gh issue view`.
 #
 # REQUIRES on PATH: `gh` (authenticated — `gh auth status`) and `jq`; run inside a git repo whose GitHub
 # remote `gh` can infer (or add `--repo owner/name` to the `gh` calls). ADAPT the commands to your project.
 #
-# TWO KNOWN INTERACTIONS you must handle:
-#   1. ATTRIBUTION — the inner `mtt ref add` self-call in `start`'s post is an `mtt` MUTATION. If you enable
-#      `require.who` (as mtt's own dogfood config does), that self-call needs an author too, or it exits 2
-#      (→ PostActionError → exit 5). Set `author:` in `.mtt/config.local.yaml` FIRST (or pass `--who`).
-#   2. MUTATE-IN-POST — that same `mtt ref add` fires the `task.update` lifecycle event. Combined with an
+# TWO KNOWN INTERACTIONS to be aware of:
+#   1. ATTRIBUTION — this template ships NO `require:` block, so by default no attribution is needed. If you
+#      ADD `require.who`, it gates the FLOW's TRANSITIONS (`mtt start`/`submit`/`approve`/…), which exit 2
+#      without an actor — so set `author:` in `.mtt/config.local.yaml` FIRST to drive the flow at all. The
+#      inner `mtt ref add`/`ref list` self-calls in the posts are a mutation/read and are NOT gated by
+#      `require.who` (only transitions are; mutations need attribution only under `--no-run`) — they need
+#      nothing extra.
+#   2. MUTATE-IN-POST — the inner `mtt ref add` fires the `task.update` lifecycle event. Combined with an
 #      auto-commit/push `events:` block (e.g. alongside git-flow) it triggers a NESTED commit+push inside
 #      `start`'s post phase. Not a deadlock (reads take no lock), but real churn — scope it, or capture the
 #      URL without a mid-move mutation.
@@ -171,7 +187,7 @@ types:
       - from: in_progress
         to: in_progress
         name: sync
-        description: "POLLED, SYMMETRIC drift check (read-only): compare the linked issue's open/closed state to this task and COMPLAIN on a mismatch. A direct UI/`gh` move is caught only here, never blocked."
+        description: "POLLED drift check (read-only): if the linked issue is CLOSED while this task is still active, COMPLAIN (never blocks). A direct UI/`gh` move is caught only here; the reopened-while-done half is a manual `gh` compare."
         commands:
           - "u=$(mtt ref list {{.ID}} --json | jq -r --arg k url '.refs[] | select(.kind==$k) | .id' | head -n1); [ -n \"$u\" ] || { echo \"no linked issue url ref on {{.ID}}\" >&2; exit 1; }; s=$(gh issue view \"$u\" --json state --jq .state); [ \"$s\" = OPEN ] || { echo \"DRIFT: issue $u is $s but task {{.ID}} is not done — reconcile\" >&2; exit 1; }"
       - {from: in_progress, to: review, name: submit, description: "work done; run the agent review before the gated close"}
@@ -239,16 +255,15 @@ is the validated template + a written friction log; no repo state is touched.
 
 ```bash
 SCRATCH=/tmp/claude-1000/-home-gss-projects-mtt/e26272f8-a2db-4f66-a2d6-5e5b62ea6f4d/scratchpad/t76-dogfood
-rm -rf "$SCRATCH"; mkdir -p "$SCRATCH"
-REPO="pashukhin/mtt-t76-dogfood"            # scratch; delete at the end
-gh repo create "$REPO" --private --clone --add-readme
-cd "$SCRATCH" && git clone "https://github.com/$REPO" work && cd work
-export MTT_DIR="$PWD/.mtt-store"            # out-of-tree store, NOT the live .mtt/
-mkdir -p "$MTT_DIR"
-/home/gss/projects/mtt/bin/mtt init --dir "$MTT_DIR" >/dev/null
-cp /home/gss/projects/mtt/templates/github-gated.yaml "$MTT_DIR/config.yaml"
-# author for require-free store is optional; set one to also exercise the attribution note:
-printf 'author: dogfood-bot\n' >> "$MTT_DIR/config.local.yaml" 2>/dev/null || printf 'author: dogfood-bot\n' > "$MTT_DIR/config.local.yaml"
+rm -rf "$SCRATCH"; mkdir -p "$SCRATCH"; cd "$SCRATCH"   # cd FIRST so --clone lands here, not the live repo
+REPO="pashukhin/mtt-t76-dogfood"                        # scratch; delete at the end
+gh repo create "$REPO" --private --add-readme --clone   # -> $SCRATCH/mtt-t76-dogfood
+cd "$SCRATCH/mtt-t76-dogfood"                            # cwd = the repo clone, so `gh` infers it for issue create
+export MTT_DIR="$SCRATCH/store"                          # out-of-tree store, decoupled via --dir (NOT the live .mtt/)
+# ONE-SHOT install of the template — init writes $MTT_DIR/.mtt/config.yaml (store lives UNDER .mtt/):
+/home/gss/projects/mtt/bin/mtt init --dir "$MTT_DIR" --template /home/gss/projects/mtt/templates/github-gated.yaml
+# optional: an author lets you also enable require.who later; config.local lives under .mtt/ too:
+printf 'author: dogfood-bot\n' > "$MTT_DIR/.mtt/config.local.yaml"
 ```
 
 - [ ] **Step 2: Drive the happy path — create issue, work, review, gated close.**
@@ -282,8 +297,9 @@ M submit t2; M approve t2 -v; echo "approve exit=$?"   # EXPECT: nonzero + "alre
   - the **refs-not-in-`MTT_TASK_JSON`** gap → every issue-URL read is an `mtt ref list --json` self-call
     (t40 removed the *title/children* re-query but not the *ref* re-query; candidate follow-up: add refs to
     the env, or a `--arg` channel per t77);
-  - the **attribution clunk** under `require.who` (the store above is require-free by default; note the
-    exit-2 path an adopter hits and the author-first fix);
+  - the **attribution** reality under `require.who` (verified this session): it gates the flow's
+    TRANSITIONS, not the inner `ref add`/`ref list` self-calls, so the posts hit NO exit-2 clunk — the only
+    author-first requirement is to drive the flow edges at all (record this correction to the spec's claim);
   - whether `gh issue create` emits only the URL on stdout (adjust the capture if it prints extra lines);
   - the **`mtt tt` decision:** the config-only pattern is ergonomic enough with t40 → **do NOT build
     `mtt tt`** (record this explicitly, with the one caveat above as the sole residual friction), OR if a
@@ -293,7 +309,10 @@ M submit t2; M approve t2 -v; echo "approve exit=$?"   # EXPECT: nonzero + "alre
 
 ```bash
 cd /home/gss/projects/mtt
-gh repo delete "$REPO" --yes
+# `gh repo delete` needs the `delete_repo` token scope, which the current token LACKS
+# (scopes: admin:public_key, gist, read:org, repo). Grant it once, or delete manually:
+gh auth refresh -h github.com -s delete_repo && gh repo delete "$REPO" --yes \
+  || echo "MANUAL CLEANUP: delete https://github.com/$REPO in the UI (token lacks delete_repo)"
 rm -rf "$SCRATCH"
 unset MTT_DIR
 ```
@@ -332,8 +351,9 @@ Then edit each hit that enumerates the samples to include `github-gated`.
       (gates `mtt`-mediated moves; a direct UI/`gh` move by anyone bypasses; drift is detect+complain, polled
       + symmetric, never enforced); **t40 as the ergonomic enabler** (title/children ride the env, no
       re-query) with the honest residual (refs are NOT in `MTT_TASK_JSON`, so the issue-URL read stays an
-      `mtt ref list --json` self-call); and the **two known interactions** (attribution: set `author` first;
-      mutate-in-post re-entrancy with auto-commit events).
+      `mtt ref list --json` self-call); and the **two known interactions** (attribution: `require.who` gates
+      the flow's transitions — NOT the inner ref self-calls — so set `author` first only to drive the edges;
+      mutate-in-`post:` re-entrancy when combined with auto-commit events).
 
 - [ ] **Step 4: DESIGN (EN+RU)** — add a `> **Shipped (t76): github-gated flagship template.**` block near the
       t62/t40 shipped blocks, summarizing the decision trail in 3–4 sentences (validate-then-build; two linked
