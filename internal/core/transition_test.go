@@ -17,16 +17,18 @@ type fakeRunner struct {
 	err          error
 	called       bool
 	gotCmds      []mtt.Command
-	compCmds     []mtt.Command // commands passed to Compensate (nil = never called)
-	compChecks   []mtt.Check   // canned Compensate result (nil = all succeed)
-	failSubstr   string        // when set (and no canned checks/err): derive one check per command, exit 1 if Run contains it — lets the empty pre-gate pass while the post phase fails (t21)
-	postOpErr    error         // when set, Run returns this operational error ONLY for a non-empty command slice (the post phase; the empty pre-gate passes)
-	postOpChecks []mtt.Check   // checks returned alongside postOpErr (nil = none recorded; lets a test drive the "failing check last" index)
+	gotEnv       map[string]string // env passed to the last Run (t40)
+	compCmds     []mtt.Command     // commands passed to Compensate (nil = never called)
+	compChecks   []mtt.Check       // canned Compensate result (nil = all succeed)
+	failSubstr   string            // when set (and no canned checks/err): derive one check per command, exit 1 if Run contains it — lets the empty pre-gate pass while the post phase fails (t21)
+	postOpErr    error             // when set, Run returns this operational error ONLY for a non-empty command slice (the post phase; the empty pre-gate passes)
+	postOpChecks []mtt.Check       // checks returned alongside postOpErr (nil = none recorded; lets a test drive the "failing check last" index)
 }
 
-func (f *fakeRunner) Run(commands []mtt.Command) ([]mtt.Check, error) {
+func (f *fakeRunner) Run(commands []mtt.Command, env map[string]string) ([]mtt.Check, error) {
 	f.called = true
 	f.gotCmds = commands
+	f.gotEnv = env
 	if f.postOpErr != nil && len(commands) > 0 {
 		return f.postOpChecks, f.postOpErr
 	}
@@ -44,7 +46,7 @@ func (f *fakeRunner) Run(commands []mtt.Command) ([]mtt.Check, error) {
 	return f.checks, f.err
 }
 
-func (f *fakeRunner) Compensate(commands []mtt.Command) []mtt.Check {
+func (f *fakeRunner) Compensate(commands []mtt.Command, _ map[string]string) []mtt.Check {
 	f.compCmds = commands
 	if f.compChecks != nil {
 		return f.compChecks
@@ -115,7 +117,7 @@ func baseTask() mtt.Task {
 func TestTransitionAppliesAndRecordsHistory(t *testing.T) {
 	store := newMemStore(baseTask())
 	runner := &fakeRunner{checks: []mtt.Check{{Cmd: "make lint", Exit: 0}}}
-	tr := NewTransitioner(store, flowCfg([]string{"make lint"}, nil), runner, testClock)
+	tr := NewTransitioner(store, flowCfg([]string{"make lint"}, nil), runner, testClock, nil)
 
 	got, err := tr.Transition("t1", "in_progress", TransitionOptions{Role: "impl", By: "grisha"})
 	if err != nil {
@@ -142,10 +144,24 @@ func TestTransitionAppliesAndRecordsHistory(t *testing.T) {
 	}
 }
 
+func TestTransitionThreadsTaskEnvToGate(t *testing.T) {
+	store := newMemStore(baseTask())
+	runner := &fakeRunner{checks: []mtt.Check{{Cmd: "x", Exit: 0}}}
+	envFn := func(tk mtt.Task) map[string]string { return map[string]string{"MTT_TASK_ID": string(tk.ID)} }
+	tr := NewTransitioner(store, flowCfg([]string{"x"}, nil), runner, testClock, envFn)
+
+	if _, err := tr.Transition("t1", "in_progress", TransitionOptions{By: "g"}); err != nil {
+		t.Fatalf("Transition: %v", err)
+	}
+	if runner.gotEnv["MTT_TASK_ID"] != "t1" {
+		t.Fatalf("gate env = %+v, want MTT_TASK_ID=t1", runner.gotEnv)
+	}
+}
+
 func TestTransitionBlockedOnFailedGate(t *testing.T) {
 	store := newMemStore(baseTask())
 	runner := &fakeRunner{checks: []mtt.Check{{Cmd: "make test", Exit: 1}}}
-	tr := NewTransitioner(store, flowCfg([]string{"make test"}, nil), runner, testClock)
+	tr := NewTransitioner(store, flowCfg([]string{"make test"}, nil), runner, testClock, nil)
 
 	_, err := tr.Transition("t1", "in_progress", TransitionOptions{})
 	if !errors.Is(err, ErrBlocked) {
@@ -162,7 +178,7 @@ func TestTransitionBlockedOnFailedGate(t *testing.T) {
 
 func TestTransitionInvalidEdge(t *testing.T) {
 	store := newMemStore(baseTask())
-	tr := NewTransitioner(store, flowCfg(nil, nil), &fakeRunner{}, testClock)
+	tr := NewTransitioner(store, flowCfg(nil, nil), &fakeRunner{}, testClock, nil)
 
 	_, err := tr.Transition("t1", "done", TransitionOptions{}) // tbd → done not allowed
 	if !errors.Is(err, ErrInvalidTransition) {
@@ -172,7 +188,7 @@ func TestTransitionInvalidEdge(t *testing.T) {
 
 func TestTransitionWritesWhy(t *testing.T) {
 	store := newMemStore(baseTask())
-	tr := NewTransitioner(store, flowCfg(nil, nil), &fakeRunner{}, testClock)
+	tr := NewTransitioner(store, flowCfg(nil, nil), &fakeRunner{}, testClock, nil)
 
 	got, err := tr.Transition("t1", "in_progress", TransitionOptions{By: "alice", Why: "start work"})
 	if err != nil {
@@ -185,7 +201,7 @@ func TestTransitionWritesWhy(t *testing.T) {
 
 func TestTransitionMissingAttributionAggregates(t *testing.T) {
 	store := newMemStore(baseTask())
-	tr := NewTransitioner(store, flowCfg(nil, nil), &fakeRunner{}, testClock)
+	tr := NewTransitioner(store, flowCfg(nil, nil), &fakeRunner{}, testClock, nil)
 
 	_, err := tr.Transition("t1", "in_progress", TransitionOptions{RequireWho: true, RequireWhy: true})
 	if !errors.Is(err, ErrMissingAttribution) {
@@ -199,7 +215,7 @@ func TestTransitionMissingAttributionAggregates(t *testing.T) {
 func TestTransitionMissingAttributionSkipsGate(t *testing.T) {
 	store := newMemStore(baseTask())
 	runner := &fakeRunner{} // gate has commands; must NOT be reached
-	tr := NewTransitioner(store, flowCfg([]string{"make test"}, nil), runner, testClock)
+	tr := NewTransitioner(store, flowCfg([]string{"make test"}, nil), runner, testClock, nil)
 
 	if _, err := tr.Transition("t1", "in_progress", TransitionOptions{RequireWho: true}); !errors.Is(err, ErrMissingAttribution) {
 		t.Fatalf("err = %v, want ErrMissingAttribution", err)
@@ -211,7 +227,7 @@ func TestTransitionMissingAttributionSkipsGate(t *testing.T) {
 
 func TestTransitionNoRunDoesNotBypassAttribution(t *testing.T) {
 	store := newMemStore(baseTask())
-	tr := NewTransitioner(store, flowCfg(nil, nil), &fakeRunner{}, testClock)
+	tr := NewTransitioner(store, flowCfg(nil, nil), &fakeRunner{}, testClock, nil)
 
 	_, err := tr.Transition("t1", "in_progress", TransitionOptions{NoRun: true, RequireWhy: true})
 	if !errors.Is(err, ErrMissingAttribution) {
@@ -222,7 +238,7 @@ func TestTransitionNoRunDoesNotBypassAttribution(t *testing.T) {
 func TestTransitionExpandsPlaceholders(t *testing.T) {
 	store := newMemStore(baseTask()) // t1, type task, status tbd
 	runner := &fakeRunner{checks: []mtt.Check{{Cmd: "git checkout -b task/t1", Exit: 0}}}
-	tr := NewTransitioner(store, flowCfg([]string{"git checkout -b task/{{.ID}}"}, nil), runner, testClock)
+	tr := NewTransitioner(store, flowCfg([]string{"git checkout -b task/{{.ID}}"}, nil), runner, testClock, nil)
 
 	if _, err := tr.Transition("t1", "in_progress", TransitionOptions{}); err != nil {
 		t.Fatalf("Transition: %v", err)
@@ -235,7 +251,7 @@ func TestTransitionExpandsPlaceholders(t *testing.T) {
 func TestTransitionExpandsFromTo(t *testing.T) {
 	store := newMemStore(baseTask())
 	runner := &fakeRunner{}
-	tr := NewTransitioner(store, flowCfg([]string{"echo {{.From}} {{.To}}"}, nil), runner, testClock)
+	tr := NewTransitioner(store, flowCfg([]string{"echo {{.From}} {{.To}}"}, nil), runner, testClock, nil)
 
 	if _, err := tr.Transition("t1", "in_progress", TransitionOptions{}); err != nil {
 		t.Fatalf("Transition: %v", err)
@@ -247,7 +263,7 @@ func TestTransitionExpandsFromTo(t *testing.T) {
 
 func TestTransitionUnknownPlaceholderErrors(t *testing.T) {
 	store := newMemStore(baseTask())
-	tr := NewTransitioner(store, flowCfg([]string{"echo {{.Title}}"}, nil), &fakeRunner{}, testClock)
+	tr := NewTransitioner(store, flowCfg([]string{"echo {{.Title}}"}, nil), &fakeRunner{}, testClock, nil)
 
 	_, err := tr.Transition("t1", "in_progress", TransitionOptions{})
 	if err == nil || errors.Is(err, ErrBlocked) {
@@ -262,7 +278,7 @@ func TestTransitionUnknownPlaceholderErrors(t *testing.T) {
 func TestTransitionNoRunSkipsExpansion(t *testing.T) {
 	store := newMemStore(baseTask())
 	// A template that would fail expansion; --no-run must skip expansion + gate.
-	tr := NewTransitioner(store, flowCfg([]string{"echo {{.Title}}"}, nil), &fakeRunner{}, testClock)
+	tr := NewTransitioner(store, flowCfg([]string{"echo {{.Title}}"}, nil), &fakeRunner{}, testClock, nil)
 
 	// --no-run forces who+why (t5); supply them so this test exercises expansion-skip.
 	got, err := tr.Transition("t1", "in_progress", TransitionOptions{NoRun: true, By: "a", Why: "bypass"})
@@ -277,7 +293,7 @@ func TestTransitionNoRunSkipsExpansion(t *testing.T) {
 func TestTransitionNoRunBypassesRunner(t *testing.T) {
 	store := newMemStore(baseTask())
 	runner := &fakeRunner{err: errors.New("must not be called")}
-	tr := NewTransitioner(store, flowCfg([]string{"make test"}, nil), runner, testClock)
+	tr := NewTransitioner(store, flowCfg([]string{"make test"}, nil), runner, testClock, nil)
 
 	// --no-run forces who+why (t5); supply them so this test exercises runner-bypass.
 	got, err := tr.Transition("t1", "in_progress", TransitionOptions{NoRun: true, By: "a", Why: "bypass"})
@@ -303,7 +319,7 @@ func TestTransitionCompensatesSucceededInReverse(t *testing.T) {
 	// c3 (the FAILING command) also carries a rollback (r3); it must NOT run —
 	// this guards the non-zero-branch failIdx (rollbacksBefore starts at failIdx-1).
 	cfg := flowCfgA([]mtt.Command{rbCmd("c1", "r1"), rbCmd("c2", "r2"), rbCmd("c3", "r3")})
-	tr := NewTransitioner(store, cfg, runner, testClock)
+	tr := NewTransitioner(store, cfg, runner, testClock, nil)
 
 	_, err := tr.Transition("t1", "in_progress", TransitionOptions{})
 	if !errors.Is(err, ErrBlocked) {
@@ -325,7 +341,7 @@ func TestTransitionFirstCommandFailNoCompensation(t *testing.T) {
 	store := newMemStore(baseTask())
 	runner := &fakeRunner{checks: []mtt.Check{{Cmd: "c1", Exit: 1}}}
 	cfg := flowCfgA([]mtt.Command{rbCmd("c1", "r1")})
-	tr := NewTransitioner(store, cfg, runner, testClock)
+	tr := NewTransitioner(store, cfg, runner, testClock, nil)
 
 	if _, err := tr.Transition("t1", "in_progress", TransitionOptions{}); !errors.Is(err, ErrBlocked) {
 		t.Fatalf("err = %v, want ErrBlocked", err)
@@ -343,7 +359,7 @@ func TestTransitionOperationalErrorCompensates(t *testing.T) {
 		err:    errors.New(`command "c2" timed out`),
 	}
 	cfg := flowCfgA([]mtt.Command{rbCmd("c1", "r1"), rbCmd("c2", "r2")})
-	tr := NewTransitioner(store, cfg, runner, testClock)
+	tr := NewTransitioner(store, cfg, runner, testClock, nil)
 
 	_, err := tr.Transition("t1", "in_progress", TransitionOptions{})
 	if !errors.Is(err, ErrBlocked) {
@@ -361,7 +377,7 @@ func TestTransitionBestEffortCompensatorFailureKeepsBlocked(t *testing.T) {
 		compChecks: []mtt.Check{{Cmd: "r1", Exit: 1}}, // the compensator itself fails
 	}
 	cfg := flowCfgA([]mtt.Command{rbCmd("c1", "r1"), {Run: "c2"}})
-	tr := NewTransitioner(store, cfg, runner, testClock)
+	tr := NewTransitioner(store, cfg, runner, testClock, nil)
 
 	_, err := tr.Transition("t1", "in_progress", TransitionOptions{})
 	if !errors.Is(err, ErrBlocked) {
@@ -375,7 +391,7 @@ func TestTransitionBestEffortCompensatorFailureKeepsBlocked(t *testing.T) {
 func TestTransition_NoRunForcesWhoAndWhy(t *testing.T) {
 	store := newMemStore(baseTask()) // t1 @ tbd
 	cfg := flowCfg(nil, nil)         // edge tbd→in_progress: no commands, no require
-	tr := NewTransitioner(store, cfg, &fakeRunner{}, testClock)
+	tr := NewTransitioner(store, cfg, &fakeRunner{}, testClock, nil)
 
 	// (b) missing why (By present) → error mentions why
 	_, err := tr.Transition("t1", "in_progress", TransitionOptions{By: "alice", NoRun: true})
@@ -403,7 +419,7 @@ func TestTransition_PerEdgeRequireUnionsWithGlobal(t *testing.T) {
 	store := newMemStore(baseTask())
 	cfg := flowCfg(nil, nil)
 	cfg.Types[0].Transitions[0].Require = mtt.Require{Why: true} // tbd→in_progress requires why
-	tr := NewTransitioner(store, cfg, &fakeRunner{}, testClock)
+	tr := NewTransitioner(store, cfg, &fakeRunner{}, testClock, nil)
 
 	// global who + edge why → both required; give only who → missing why
 	_, err := tr.Transition("t1", "in_progress", TransitionOptions{By: "alice", RequireWho: true})
@@ -417,7 +433,7 @@ func TestTransition_PostRunsAfterPersist(t *testing.T) {
 	cfg := flowCfg(nil, nil) // edge0 tbd→in_progress, no pre-commands
 	cfg.Types[0].Transitions[0].Post = strCmds([]string{"echo hi"})
 	runner := &fakeRunner{}
-	got, err := NewTransitioner(store, cfg, runner, testClock).Transition("t1", "in_progress", TransitionOptions{})
+	got, err := NewTransitioner(store, cfg, runner, testClock, nil).Transition("t1", "in_progress", TransitionOptions{})
 	if err != nil {
 		t.Fatalf("unexpected: %v", err)
 	}
@@ -437,7 +453,7 @@ func TestTransition_PostFailureKeepsMove(t *testing.T) {
 	cfg := flowCfg(nil, nil)
 	cfg.Types[0].Transitions[0].Post = strCmds([]string{"false"})
 	runner := &fakeRunner{failSubstr: "false"} // empty pre-gate passes; the post "false" fails
-	_, err := NewTransitioner(store, cfg, runner, testClock).Transition("t1", "in_progress", TransitionOptions{})
+	_, err := NewTransitioner(store, cfg, runner, testClock, nil).Transition("t1", "in_progress", TransitionOptions{})
 	if !errors.Is(err, ErrPostAction) {
 		t.Fatalf("want ErrPostAction, got %v", err)
 	}
@@ -455,7 +471,7 @@ func TestTransition_PostExpandsPlaceholders(t *testing.T) {
 	cfg := flowCfg(nil, nil)
 	cfg.Types[0].Transitions[0].Post = strCmds([]string{"echo {{.ID}}"})
 	runner := &fakeRunner{}
-	if _, err := NewTransitioner(store, cfg, runner, testClock).Transition("t1", "in_progress", TransitionOptions{}); err != nil {
+	if _, err := NewTransitioner(store, cfg, runner, testClock, nil).Transition("t1", "in_progress", TransitionOptions{}); err != nil {
 		t.Fatalf("unexpected: %v", err)
 	}
 	if len(runner.gotCmds) != 1 || runner.gotCmds[0].Run != "echo t1" {
@@ -467,7 +483,7 @@ func TestTransition_PostExpandErrorIsPostAction(t *testing.T) {
 	store := newMemStore(baseTask())
 	cfg := flowCfg(nil, nil)
 	cfg.Types[0].Transitions[0].Post = strCmds([]string{"echo {{.Nope}}"}) // unknown field → template error
-	_, err := NewTransitioner(store, cfg, &fakeRunner{}, testClock).Transition("t1", "in_progress", TransitionOptions{})
+	_, err := NewTransitioner(store, cfg, &fakeRunner{}, testClock, nil).Transition("t1", "in_progress", TransitionOptions{})
 	if !errors.Is(err, ErrPostAction) {
 		t.Fatalf("expand error must be ErrPostAction, got %v", err)
 	}
@@ -483,7 +499,7 @@ func TestTransition_PostActionErrorRemaining(t *testing.T) {
 	cfg := flowCfg(nil, nil)
 	cfg.Types[0].Transitions[0].Post = strCmds([]string{"echo one", "boom-two", "echo three"})
 	runner := &fakeRunner{failSubstr: "boom"} // empty pre-gate passes; post "boom-two" fails
-	_, err := NewTransitioner(store, cfg, runner, testClock).Transition("t1", "in_progress", TransitionOptions{})
+	_, err := NewTransitioner(store, cfg, runner, testClock, nil).Transition("t1", "in_progress", TransitionOptions{})
 	var pe *PostActionError
 	if !errors.As(err, &pe) {
 		t.Fatalf("want *PostActionError, got %T (%v)", err, err)
@@ -508,7 +524,7 @@ func TestTransition_PostActionOperationalZeroChecks(t *testing.T) {
 	cfg := flowCfg(nil, nil)
 	cfg.Types[0].Transitions[0].Post = strCmds([]string{"echo a", "echo b"})
 	runner := &fakeRunner{postOpErr: errors.New("boom timeout")}
-	_, err := NewTransitioner(store, cfg, runner, testClock).Transition("t1", "in_progress", TransitionOptions{})
+	_, err := NewTransitioner(store, cfg, runner, testClock, nil).Transition("t1", "in_progress", TransitionOptions{})
 	var pe *PostActionError
 	if !errors.As(err, &pe) {
 		t.Fatalf("want *PostActionError, got %T (%v)", err, err)
@@ -528,7 +544,7 @@ func TestTransition_PostActionOperationalFailingCheckLast(t *testing.T) {
 		postOpErr:    errors.New("boom timeout"),
 		postOpChecks: []mtt.Check{{Cmd: "echo a", Exit: 0}, {Cmd: "echo b", Exit: -1}}, // b failed operationally, last recorded
 	}
-	_, err := NewTransitioner(store, cfg, runner, testClock).Transition("t1", "in_progress", TransitionOptions{})
+	_, err := NewTransitioner(store, cfg, runner, testClock, nil).Transition("t1", "in_progress", TransitionOptions{})
 	var pe *PostActionError
 	if !errors.As(err, &pe) {
 		t.Fatalf("want *PostActionError, got %T (%v)", err, err)
@@ -542,7 +558,7 @@ func TestTransition_InvalidMoveOutOfTerminalReadsCleanly(t *testing.T) {
 	// A move requested out of a terminal status: empty allowedTargets -> no dangling list.
 	store := newMemStore(func() mtt.Task { tk := baseTask(); tk.Status = "done"; return tk }())
 	cfg := flowCfg(nil, nil)
-	_, err := NewTransitioner(store, cfg, &fakeRunner{}, testClock).Transition("t1", "in_progress", TransitionOptions{})
+	_, err := NewTransitioner(store, cfg, &fakeRunner{}, testClock, nil).Transition("t1", "in_progress", TransitionOptions{})
 	if !errors.Is(err, ErrInvalidTransition) {
 		t.Fatalf("want ErrInvalidTransition, got %v", err)
 	}
@@ -559,7 +575,7 @@ func TestTransition_NotInFlowStatusIsNotCalledTerminal(t *testing.T) {
 	// outgoing edges, but calling it "terminal" is a wrong diagnosis (c14).
 	store := newMemStore(func() mtt.Task { tk := baseTask(); tk.Status = "gone"; return tk }())
 	cfg := flowCfg(nil, nil)
-	_, err := NewTransitioner(store, cfg, &fakeRunner{}, testClock).Transition("t1", "in_progress", TransitionOptions{})
+	_, err := NewTransitioner(store, cfg, &fakeRunner{}, testClock, nil).Transition("t1", "in_progress", TransitionOptions{})
 	if !errors.Is(err, ErrInvalidTransition) {
 		t.Fatalf("want ErrInvalidTransition, got %v", err)
 	}
@@ -577,7 +593,7 @@ func TestTransition_NoRunSkipsPost(t *testing.T) {
 	cfg.Types[0].Transitions[0].Post = strCmds([]string{"echo hi"})
 	runner := &fakeRunner{}
 	// --no-run forces who+why (t5); supply them.
-	got, err := NewTransitioner(store, cfg, runner, testClock).Transition("t1", "in_progress",
+	got, err := NewTransitioner(store, cfg, runner, testClock, nil).Transition("t1", "in_progress",
 		TransitionOptions{NoRun: true, By: "a", Why: "b"})
 	if err != nil {
 		t.Fatalf("unexpected: %v", err)
@@ -593,7 +609,7 @@ func TestTransition_NoRunSkipsPost(t *testing.T) {
 func TestTransition_NoPostUnchanged(t *testing.T) {
 	store := newMemStore(baseTask())
 	runner := &fakeRunner{}
-	if _, err := NewTransitioner(store, flowCfg(nil, nil), runner, testClock).Transition("t1", "in_progress", TransitionOptions{}); err != nil {
+	if _, err := NewTransitioner(store, flowCfg(nil, nil), runner, testClock, nil).Transition("t1", "in_progress", TransitionOptions{}); err != nil {
 		t.Fatalf("unexpected: %v", err)
 	}
 	// The pre-gate calls runner.Run(nil) even for a zero-command edge (it sets
@@ -618,7 +634,7 @@ func TestTransitionRunsEffectivePost(t *testing.T) {
 		}
 	}
 	runner := &fakeRunner{}
-	tr := NewTransitioner(store, cfg, runner, testClock)
+	tr := NewTransitioner(store, cfg, runner, testClock, nil)
 	if _, err := tr.Transition("t1", "in_progress", TransitionOptions{}); err != nil {
 		t.Fatalf("move1: %v", err)
 	}

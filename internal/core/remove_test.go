@@ -286,11 +286,11 @@ type orderRunner struct {
 	log *[]string
 }
 
-func (o *orderRunner) Run(commands []mtt.Command) ([]mtt.Check, error) {
+func (o *orderRunner) Run(commands []mtt.Command, env map[string]string) ([]mtt.Check, error) {
 	for _, c := range commands {
 		*o.log = append(*o.log, "run:"+c.Run)
 	}
-	return o.fakeRunner.Run(commands)
+	return o.fakeRunner.Run(commands, env)
 }
 
 // orderStore mirrors the markers on Delete.
@@ -309,7 +309,7 @@ func TestRemoveManyFiresDeletePerEntityInsideLoop(t *testing.T) {
 	store := &orderStore{memStore: newMemStore(tbdTask("t1"), tbdTask("t2")), log: &log}
 	runner := &orderRunner{log: &log}
 	cfg := eventCfg(taskHook(mtt.EventDelete, "{{.ID}}"))
-	r := NewRemover(store, &fakeAudit{}, testClock, NewEventEmitter(cfg, runner, &fakeAudit{}, testClock))
+	r := NewRemover(store, &fakeAudit{}, testClock, NewEventEmitter(cfg, runner, &fakeAudit{}, testClock, nil))
 	res, err := r.RemoveMany([]mtt.TaskID{"t1", "t2"}, true, "me", "why", Backlinks{}, false)
 	if err != nil {
 		t.Fatalf("unexpected: %v", err)
@@ -329,7 +329,7 @@ func TestRemoveManyEventFailureRidesResult(t *testing.T) {
 	cfg := eventCfg(taskHook(mtt.EventDelete, "boom-{{.ID}}"))
 	store := newMemStore(tbdTask("t1"), tbdTask("t2"))
 	runner := &fakeRunner{failSubstr: "boom-t1"}
-	r := NewRemover(store, &fakeAudit{}, testClock, NewEventEmitter(cfg, runner, &fakeAudit{}, testClock))
+	r := NewRemover(store, &fakeAudit{}, testClock, NewEventEmitter(cfg, runner, &fakeAudit{}, testClock, nil))
 	res, err := r.RemoveMany([]mtt.TaskID{"t1", "t2"}, true, "me", "why", Backlinks{}, false)
 	if err != nil {
 		t.Fatalf("unexpected: %v", err)
@@ -350,7 +350,7 @@ func TestRemoveForceNoRunWritesOneRecord(t *testing.T) {
 	audit := &fakeAudit{}
 	runner := &fakeRunner{}
 	cfg := eventCfg(taskHook(mtt.EventDelete, "echo hi"))
-	r := NewRemover(newMemStore(tbdTask("t1")), audit, testClock, NewEventEmitter(cfg, runner, audit, testClock))
+	r := NewRemover(newMemStore(tbdTask("t1")), audit, testClock, NewEventEmitter(cfg, runner, audit, testClock, nil))
 	res, err := r.RemoveMany([]mtt.TaskID{"t1"}, true, "me", "sign", Backlinks{}, true)
 	if err != nil || res[0].Err != nil {
 		t.Fatalf("unexpected: %v / %v", err, res)
@@ -382,7 +382,7 @@ func TestRemoveNoRunSkipRecord(t *testing.T) {
 	audit := &fakeAudit{}
 	cfg := eventCfg(taskHook(mtt.EventDelete, "echo hi"))
 	runner := &fakeRunner{}
-	r := NewRemover(newMemStore(tbdTask("t1")), audit, testClock, NewEventEmitter(cfg, runner, audit, testClock))
+	r := NewRemover(newMemStore(tbdTask("t1")), audit, testClock, NewEventEmitter(cfg, runner, audit, testClock, nil))
 	res, err := r.RemoveMany([]mtt.TaskID{"t1"}, false, "me", "sign", Backlinks{}, true)
 	if err != nil || res[0].Err != nil {
 		t.Fatalf("unexpected: %v / %v", err, res)

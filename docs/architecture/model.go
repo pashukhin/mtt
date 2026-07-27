@@ -684,8 +684,8 @@ var NewRemover func(store TaskStore, audit AuditStore, now func() time.Time) Rem
 // erroring (an operational failure is recorded as Exit -1); core passes the
 // reversed, succeeded-only rollbacks when a gate blocks.
 type Runner interface {
-	Run(commands []Command) ([]Check, error)
-	Compensate(commands []Command) []Check // best-effort intra-pipeline compensation [s008]
+	Run(commands []Command, env map[string]string) ([]Check, error) // env: KEY=VALUE on sh -c; nil = inherit [t40]
+	Compensate(commands []Command, env map[string]string) []Check   // best-effort intra-pipeline compensation [s008]
 }
 
 // AuditEntry records one out-of-flow dangerous action (a --force destruction with
@@ -735,8 +735,10 @@ type TransitionOptions struct {
 }
 
 // NewTransitioner wires the single-edge usecase (store for load/persist, config
-// for the flow, Runner for the gate, injected clock for history). [shipped s006]
-var NewTransitioner func(store TaskStore, cfg Config, runner Runner, now func() time.Time) Transitioner
+// for the flow, Runner for the gate, injected clock for history, and an injected
+// task-context env-builder the runner passes to each command's environment —
+// MTT_TASK_* — the CLI supplies it so core stays serialization-free). [s006; envFn t40]
+var NewTransitioner func(store TaskStore, cfg Config, runner Runner, now func() time.Time, envFn func(Task) map[string]string) Transitioner
 
 // AdvanceMode selects how far a walk proceeds. [T2]
 type AdvanceMode string

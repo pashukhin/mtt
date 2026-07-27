@@ -10,8 +10,55 @@ import (
 	"github.com/pashukhin/mtt/pkg/mtt"
 )
 
+func TestRunPassesEnvToCommand(t *testing.T) {
+	r := NewRunner(t.TempDir(), time.Minute, io.Discard, io.Discard, 0)
+	// The command reads an env var the runner injected. If env is not set,
+	// $MTT_TASK_TITLE is empty and the test fails (exit 1 -> a non-zero Check).
+	checks, err := r.Run(
+		[]mtt.Command{{Run: `test "$MTT_TASK_TITLE" = "hello world"`}},
+		map[string]string{"MTT_TASK_TITLE": "hello world"},
+	)
+	if err != nil {
+		t.Fatalf("operational error: %v", err)
+	}
+	if len(checks) != 1 || checks[0].Exit != 0 {
+		t.Fatalf("gate did not see env: checks=%+v", checks)
+	}
+}
+
+func TestRunEnvOverridesParent(t *testing.T) {
+	// A same-named var in the PARENT env must NOT hijack the gate: the runner
+	// appends ours AFTER os.Environ(), so last-occurrence-wins gives ours.
+	t.Setenv("MTT_TASK_TITLE", "HIJACK-FROM-PARENT")
+	checks, err := NewRunner(t.TempDir(), time.Minute, io.Discard, io.Discard, 0).Run(
+		[]mtt.Command{{Run: `test "$MTT_TASK_TITLE" = "the-real-title"`}},
+		map[string]string{"MTT_TASK_TITLE": "the-real-title"},
+	)
+	if err != nil {
+		t.Fatalf("operational error: %v", err)
+	}
+	if len(checks) != 1 || checks[0].Exit != 0 {
+		t.Fatalf("our env must override the parent's: %+v", checks)
+	}
+}
+
+func TestRunEnvStripsNUL(t *testing.T) {
+	// os/exec refuses an env value containing NUL (a launch failure); the runner
+	// strips it, so a hand-edited poisoned value degrades to plain data, not a crash.
+	checks, err := NewRunner(t.TempDir(), time.Minute, io.Discard, io.Discard, 0).Run(
+		[]mtt.Command{{Run: `test "$MTT_TASK_TITLE" = "ab"`}},
+		map[string]string{"MTT_TASK_TITLE": "a\x00b"},
+	)
+	if err != nil {
+		t.Fatalf("operational error (NUL not stripped?): %v", err)
+	}
+	if len(checks) != 1 || checks[0].Exit != 0 {
+		t.Fatalf("NUL must be stripped (a\\x00b -> ab): %+v", checks)
+	}
+}
+
 func TestRunAllPass(t *testing.T) {
-	checks, err := NewRunner(t.TempDir(), time.Minute, io.Discard, io.Discard, 0).Run([]mtt.Command{{Run: "true"}, {Run: "true"}})
+	checks, err := NewRunner(t.TempDir(), time.Minute, io.Discard, io.Discard, 0).Run([]mtt.Command{{Run: "true"}, {Run: "true"}}, nil)
 	if err != nil {
 		t.Fatalf("Run: %v", err)
 	}
@@ -21,7 +68,7 @@ func TestRunAllPass(t *testing.T) {
 }
 
 func TestRunStopsAtFirstNonZero(t *testing.T) {
-	checks, err := NewRunner(t.TempDir(), time.Minute, io.Discard, io.Discard, 0).Run([]mtt.Command{{Run: "true"}, {Run: "false"}, {Run: "true"}})
+	checks, err := NewRunner(t.TempDir(), time.Minute, io.Discard, io.Discard, 0).Run([]mtt.Command{{Run: "true"}, {Run: "false"}, {Run: "true"}}, nil)
 	if err != nil {
 		t.Fatalf("Run: %v (non-zero exit is data, not an error)", err)
 	}
@@ -37,7 +84,7 @@ func TestRunStopsAtFirstNonZero(t *testing.T) {
 }
 
 func TestRunTimeout(t *testing.T) {
-	_, err := NewRunner(t.TempDir(), time.Millisecond, io.Discard, io.Discard, 0).Run([]mtt.Command{{Run: "sleep 1"}})
+	_, err := NewRunner(t.TempDir(), time.Millisecond, io.Discard, io.Discard, 0).Run([]mtt.Command{{Run: "sleep 1"}}, nil)
 	if err == nil {
 		t.Fatalf("want a timeout error, got nil")
 	}
@@ -48,7 +95,7 @@ func TestRunOperationalFailureRecordsFailingCheckLast(t *testing.T) {
 	// far with the FAILING command's Check as the LAST element (Exit -1). core's
 	// compensation index (len(checks)-1) relies on it — so assert it here.
 	checks, err := NewRunner(t.TempDir(), time.Minute, io.Discard, io.Discard, 0).
-		Run([]mtt.Command{{Run: "true"}, {Run: "sleep 1", Timeout: 20 * time.Millisecond}})
+		Run([]mtt.Command{{Run: "true"}, {Run: "sleep 1", Timeout: 20 * time.Millisecond}}, nil)
 	if err == nil {
 		t.Fatal("want an operational (timeout) error")
 	}
@@ -67,7 +114,7 @@ func TestRunStreamsProgressAndSeparatesOutput(t *testing.T) {
 	// The command text ("echo $((3+4))") deliberately does not contain its output
 	// ("7"), so we can assert the two streams stay separate.
 	var prog, out bytes.Buffer
-	checks, err := NewRunner(t.TempDir(), time.Minute, &prog, &out, 0).Run([]mtt.Command{{Run: "echo $((3+4))"}, {Run: "true"}})
+	checks, err := NewRunner(t.TempDir(), time.Minute, &prog, &out, 0).Run([]mtt.Command{{Run: "echo $((3+4))"}, {Run: "true"}}, nil)
 	if err != nil {
 		t.Fatalf("Run: %v", err)
 	}
@@ -93,7 +140,7 @@ func TestRunStreamsProgressAndSeparatesOutput(t *testing.T) {
 func TestRunPerCommandTimeoutOverridesGlobal(t *testing.T) {
 	// Global is generous; a tight per-command timeout must fire first.
 	_, err := NewRunner(t.TempDir(), time.Minute, io.Discard, io.Discard, 0).
-		Run([]mtt.Command{{Run: "sleep 1", Timeout: 20 * time.Millisecond}})
+		Run([]mtt.Command{{Run: "sleep 1", Timeout: 20 * time.Millisecond}}, nil)
 	if err == nil {
 		t.Fatal("want a per-command timeout error, got nil")
 	}
@@ -102,7 +149,7 @@ func TestRunPerCommandTimeoutOverridesGlobal(t *testing.T) {
 func TestRunFallsBackToGlobalTimeout(t *testing.T) {
 	// No per-command timeout -> the (tight) global applies and fires.
 	_, err := NewRunner(t.TempDir(), 20*time.Millisecond, io.Discard, io.Discard, 0).
-		Run([]mtt.Command{{Run: "sleep 1"}})
+		Run([]mtt.Command{{Run: "sleep 1"}}, nil)
 	if err == nil {
 		t.Fatal("want a global timeout error, got nil")
 	}
@@ -110,7 +157,7 @@ func TestRunFallsBackToGlobalTimeout(t *testing.T) {
 
 func TestRunProgressMarksFailure(t *testing.T) {
 	var prog bytes.Buffer
-	_, err := NewRunner(t.TempDir(), time.Minute, &prog, io.Discard, 0).Run([]mtt.Command{{Run: "false"}})
+	_, err := NewRunner(t.TempDir(), time.Minute, &prog, io.Discard, 0).Run([]mtt.Command{{Run: "false"}}, nil)
 	if err != nil {
 		t.Fatalf("Run: %v", err)
 	}
@@ -123,7 +170,7 @@ func TestCompensateBestEffortRunsAll(t *testing.T) {
 	var prog bytes.Buffer
 	// The middle compensator fails (exit 1); best-effort must still run the last.
 	checks := NewRunner(t.TempDir(), time.Minute, &prog, io.Discard, 0).
-		Compensate([]mtt.Command{{Run: "true"}, {Run: "false"}, {Run: "true"}})
+		Compensate([]mtt.Command{{Run: "true"}, {Run: "false"}, {Run: "true"}}, nil)
 	if len(checks) != 3 {
 		t.Fatalf("ran %d compensators, want all 3 (best-effort)", len(checks))
 	}
@@ -137,7 +184,7 @@ func TestCompensateBestEffortRunsAll(t *testing.T) {
 
 func TestCompensateEmptyIsNoOp(t *testing.T) {
 	var prog bytes.Buffer
-	if checks := NewRunner(t.TempDir(), time.Minute, &prog, io.Discard, 0).Compensate(nil); checks != nil {
+	if checks := NewRunner(t.TempDir(), time.Minute, &prog, io.Discard, 0).Compensate(nil, nil); checks != nil {
 		t.Fatalf("checks = %+v, want nil", checks)
 	}
 	if prog.Len() != 0 {
@@ -148,7 +195,7 @@ func TestCompensateEmptyIsNoOp(t *testing.T) {
 func TestCompensateHonorsPerCommandTimeout(t *testing.T) {
 	// A tight per-command timeout on a compensator fires; best-effort records -1.
 	checks := NewRunner(t.TempDir(), time.Minute, io.Discard, io.Discard, 0).
-		Compensate([]mtt.Command{{Run: "sleep 1", Timeout: 20 * time.Millisecond}})
+		Compensate([]mtt.Command{{Run: "sleep 1", Timeout: 20 * time.Millisecond}}, nil)
 	if len(checks) != 1 || checks[0].Exit != -1 {
 		t.Fatalf("checks = %+v, want a single -1 (timed-out) check", checks)
 	}
@@ -176,7 +223,7 @@ func TestRunEchoesFailingCommandTail(t *testing.T) {
 	// Output is hidden (cmdOut=Discard) but tailLines=10 -> the failing command's
 	// OUTPUT (169, absent from the command text) is echoed under the ✗ line.
 	_, err := NewRunner(t.TempDir(), time.Minute, &prog, io.Discard, 10).
-		Run([]mtt.Command{{Run: "echo $((13*13)); exit 1"}})
+		Run([]mtt.Command{{Run: "echo $((13*13)); exit 1"}}, nil)
 	if err != nil {
 		t.Fatalf("Run: %v (non-zero is data)", err)
 	}
@@ -190,14 +237,14 @@ func TestRunDoesNotEchoTailOnSuccessOrWhenDisabled(t *testing.T) {
 	// A succeeding command never echoes its output (hidden-by-default holds).
 	// 121 = 11*11 appears only in output, so its absence proves no echo.
 	_, _ = NewRunner(t.TempDir(), time.Minute, &prog, io.Discard, 10).
-		Run([]mtt.Command{{Run: "echo $((11*11))"}})
+		Run([]mtt.Command{{Run: "echo $((11*11))"}}, nil)
 	if strings.Contains(prog.String(), "121") {
 		t.Fatalf("a succeeding command must not echo output:\n%s", prog.String())
 	}
 	// tailLines=0 disables the tail even on failure (484 = 22*22, output-only).
 	prog.Reset()
 	_, _ = NewRunner(t.TempDir(), time.Minute, &prog, io.Discard, 0).
-		Run([]mtt.Command{{Run: "echo $((22*22)); exit 1"}})
+		Run([]mtt.Command{{Run: "echo $((22*22)); exit 1"}}, nil)
 	if strings.Contains(prog.String(), "484") {
 		t.Fatalf("tailLines=0 must disable the tail:\n%s", prog.String())
 	}

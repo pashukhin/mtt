@@ -139,15 +139,23 @@ Usecase logic. Depends **only** on the `pkg/mtt` domain contract and its ports �
   the emitter writes the audit skip-record (`action: "<command> --no-run"`) instead of running — whether or
   not a hook is configured; `rm --force --no-run`/`note rm --force --no-run` write ONE combined record at
   the pre-delete moment and skip the emitter call (pin iii); a no-op under bypass writes nothing.
-- `Runner` (driven **port**, defined here — the first beyond storage): `Run(commands []mtt.Command)
-  ([]mtt.Check, error)` **+ `Compensate(commands []mtt.Command) []mtt.Check`** (s008). Implemented by
+- `Runner` (driven **port**, defined here — the first beyond storage): `Run(commands []mtt.Command,
+  env map[string]string) ([]mtt.Check, error)` **+ `Compensate(commands []mtt.Command, env map[string]string)
+  []mtt.Check`** (s008; **`env` t40** — the per-`Run` task-context environment, set on `sh -c` by the adapter;
+  nil = inherit). Implemented by
   `internal/adapter/exec`, **faked** in tests. A non-zero exit is **data** (a `Check`), not a Go error; the
   error is only an operational failure. `Run` CONTRACT: on an operational failure the failing command's `Check`
   is the **last** element (`Exit -1`) — compensation uses it to locate the failure. `Compensate` runs
   already-expanded rollbacks **best-effort** (in order, never stopping, never erroring; operational failure →
   `Exit -1`). No `dir` param — the exec adapter holds `cwd=root`, so `core` stays free of filesystem paths. Each
   `Command.Run`/`Rollback.Run` is **already expanded** at this boundary (see `expandCommands`); the
-  per-command-vs-global timeout resolution lives in the adapter.
+  per-command-vs-global timeout resolution lives in the adapter. **Task-context env (t40):** the `env` passed
+  to `Run`/`Compensate` is built by an **injected `func(mtt.Task) map[string]string`** held by `Transitioner`
+  and `EventEmitter` (`envFn`; nil = none). Core stays **serialization-free** — the builder is a CLI closure
+  (`taskEnvBuilder`) that captures the store, does the children-`List`, and serializes via the CLI's
+  `toTaskJSON`; core only decides *when* to call it (gate/post with the pre-/post-move task; a task event with
+  its task — **never** a note event) and forwards the map. The `{{...}}` whitelist (`cmdContext`) is
+  **unchanged** — env carries free text as data, never the interpolated command string.
 - `expandCommands` (`expand.go`, s007, pure; `expandOne`/`expandTemplate` since s008): renders each
   `Command.Run` **and, recursively, `Rollback.Run`** (`text/template`) against `cmdContext{ID, Type, From, To}`
   — the **only** exposed fields, a self-enforcing shape-safe whitelist (`{{.Title}}` or any free-text/typo is a
