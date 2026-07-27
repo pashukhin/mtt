@@ -1,0 +1,11 @@
+id: t67
+type: task
+title: mtt import — first-class tracker import (JSONL/CSV -> tasks, field map, id preservation)
+status: tbd
+priority: high
+tags:
+    - backlog
+    - dx
+created: "2026-07-27T01:40:46Z"
+updated: "2026-07-27T01:40:46Z"
+description: 'Surfaced by the v0.11.0 pilot (full tracker migration). Replacing an incumbent tracker is a core adoption moment, but today it is DIY — a bash loop over the old tool''s JSON piped into `mtt add`. Ship a first-class `mtt import` (JSONL/CSV -> tasks) with a field map (title/description/type/priority/parent/tags) and id-preservation. Highest-leverage adoption feature per the pilot; pairs with `mtt export`. Design-open: input format(s), field-map syntax, id-preservation vs mint, status/flow mapping (or fields-only), dedup/idempotency on re-run, how `parent` resolves when ids are preserved. Mind the auto-hashtag footgun (importing prose mints spurious tags — see the task-hashtag-policy task).'
