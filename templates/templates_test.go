@@ -55,7 +55,11 @@ func TestGitHubGatedStatesItsAssumptions(t *testing.T) {
 	s := strings.ToLower(string(data))
 	// no silent traps + enforcement honesty: the header/edges must STATE every external
 	// assumption and honesty limit, so a future edit that drops one fails CI.
-	for _, want := range []string{"gh", "jq", "--no-run", "drift", "author", "bypass"} {
+	// `gh` as a word (not the "caught"/"through" bigram — mirrors TestGitFlowStatesItsAssumptions).
+	if !regexp.MustCompile(`\bgh\b`).MatchString(s) {
+		t.Fatal("github-gated.yaml must mention the `gh` tool as a token")
+	}
+	for _, want := range []string{"jq", "--no-run", "drift", "author", "bypass"} {
 		if !strings.Contains(s, want) {
 			t.Fatalf("github-gated.yaml must state %q (no silent traps / enforcement honesty)", want)
 		}
