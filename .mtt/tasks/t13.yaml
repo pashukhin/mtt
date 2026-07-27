@@ -8,8 +8,11 @@ tags:
     - perf
     - tests
 created: "2026-07-10T13:53:10Z"
-updated: "2026-07-27T01:43:54Z"
+updated: "2026-07-27T01:51:30Z"
 description: |-
     performance: roadmap heap (replace the per-pop sort) + graph-topology scale stress.
 
     v0.11.0 pilot addition: file-per-task + a git commit per mutation is elegant at ~55 tasks but untested at 1k-10k (behavior, latency, and commit volume). Add a scale benchmark and a documented ceiling. Relates to the bookkeeping-commit-noise finding (a coalesce/quiet mode for long-lived branches) and to the observed push-per-mutation fragility under rapid bulk mutation (see t72).
+
+
+    --- Pilot Q4 answer (generalized). At ~55 tasks: no perf signal; engine ops (add/move/list/check) sub-100ms. The measurable per-move cost is the `git commit` in post_defaults/events, ~12-80ms each. The visible pressure is COMMIT-VOLUME, not latency: per-move + per-mutation auto-commit is a firehose under bulk/scripted work (a single migrate/enrich/tag session produced 100+ bookkeeping commits). Reinforces the bulk "mutate quietly, commit once" path (t72). 1k-10k tasks (file-per-task read on every list/roadmap; commit-per-mutation volume) remain untested — benchmark needed.
