@@ -1,21 +1,23 @@
 id: t76
 type: task
-title: 'external-tracker adapter: flow-authority model + composition-root selection seam + GitHub Issues TaskStore (dogfoodable before t60)'
+title: 'GitHub-gated flow: dogfood the compositional mtt+gh gating pattern + ship a github-gated flagship template (store-adapter stays t9)'
 status: speccing
 priority: high
 tags:
+    - "1"
     - "2"
     - adapter
-    - "n"
     - release
 created: "2026-07-27T02:13:16Z"
-updated: "2026-07-27T02:13:42Z"
+updated: "2026-07-27T04:06:44Z"
 description: |-
-    Bring bet #2 (external tracker as store-of-record) forward: the public release (t60) should let adopters put mtt's executable gates on a free, popular tracker they already use — GitHub Issues first — VALIDATED BY DOGFOODING it on this repo before release ("an mtt that doesn't dogfood itself is a poor one"). Concrete first slice of the t9 umbrella (t9 stays for Jira/Confluence + the indexer hook).
-
-    CRUX to resolve in the spec (brainstorm first): WHERE mtt's executable gates live when the task store is an external tracker whose transitions are its own. Two models — (a) mtt is the gating LAYER that OWNS the flow+gates, the external tracker is task data-of-record; (b) map mtt's flow onto the tracker's native workflow (GitHub Issues has ~none — a label/Projects convention?). This is the DESIGN open question ("which flow is authoritative") and it decides whether an external adapter preserves the wedge at all.
-
-    Scope (the spec will decompose, possibly into follow-ups): (1) flow-authority decision-record; (2) composition-root adapter-SELECTION seam — today every CLI site hardwires yaml.NewTaskStore/NewKnowledgeStore inline (~20 sites; no factory, no backend config, no `mtt connect`); a per-port selection seam is the prerequisite (overlaps t61); (3) a GitHub Issues TaskStore adapter (auth; id mapping #N <-> TaskID; status <-> flow per the chosen model; dep/parent mapping; Capabilities()/ErrUnsupported for what Issues cannot do); (4) backend-selection config (credentials in config.local, never committed); (5) DOGFOOD on this repo before t60. KB stays YAML — GitHub Issues has no knowledge base, so the pairing is tasks-from-GitHub + KB-YAML (the independent-ports design already anticipates this mixed pairing). Positioning guardrail (KB positioning-vs-beads): frame as "executable gates on your existing GitHub board" — the adapter as the wedge's adoption vehicle, NOT "another GitHub sync tool" (a crowded slot).
+    RESCOPED (brainstorm 2026-07-27): NOT a GitHub TaskStore adapter. The useful middle of the external-tracker spectrum ("GitHub as store + rich mtt flow via dependencies") is already reachable with mtt's EXISTING primitives — per-type flows + gate/post commands that shell out to `mtt` (self-calls) and `gh` (the pilot proved gates-can-call-mtt with its "all children done" gate). So this task is validate-then-build, not build-an-adapter:
+    (1) DOGFOOD the compositional GitHub-gating pattern on this repo (existing primitives + `gh`; ~zero new Go) to validate the release story "put executable mtt gates on the close of your GitHub issues";
+    (2) package the proven pattern as a `github-gated` flagship init template (like the git-flow flagship packaged git integration);
+    (3) let the dogfood evidence decide whether any bespoke code (a `mtt tt` sugar family) is warranted — do NOT build it up front.
+    Enabler: t40 (gate/post context — the pilot's #1 workaround-driver; today a gate cannot see its own task's title/tags/children, forcing re-query/shell-out). t40 makes the pattern ergonomic; it is not a hard blocker (the pilot worked around it).
+    Deferred (deliberate): true GitHub-as-store-of-record (issues live only in GitHub, `mtt roadmap`/`list` read them live) = bet #2, stays t9, demand-driven; likewise the far extreme where the external tracker supplies its own flow (Projects v2 columns). Also out: Trello, bidirectional reconcile, Projects reflection, the universal-graph framing.
+    Enforcement honesty: mtt gates the AGENT (it works through mtt); a human closing an issue in the GitHub UI bypasses the gates (mtt is not the choke point there) — detect + complain, never claim to enforce. History with gate-check results lives in the mtt task (YAML) — no store-of-record problem in this model. Blocks a confident public release (t60).
 history:
     - at: "2026-07-27T02:13:42Z"
       by: Grigorii Pashukhin
