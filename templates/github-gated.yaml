@@ -1,0 +1,78 @@
+version: 1
+# github-gated — the GitHub-integration flagship (a generalized, adaptable SAMPLE, not a mandate).
+#
+# TWO LINKED ENTITIES, not a status mirror: a GitHub issue keeps its native open/closed model; a rich
+# mtt task (this flow, local YAML) GATES it. The issue's CLOSE is the TERMINAL ACTION of the task — the
+# `approve → done` post runs `gh issue close`, reachable only after the flow's gates pass. This is the
+# release story: "put executable mtt gates on the close of your GitHub issues."
+#
+# ENFORCEMENT HONESTY — mtt gates only `mtt`-mediated moves. The choke point is `mtt <edge>`, the interface
+# the agent uses. ANY actor, human OR agent, closing/reopening the issue directly in the GitHub UI or with a
+# raw `gh` call BYPASSES the gate (no local hook intercepts it). Drift is DETECTED and COMPLAINED about, never
+# enforced. The `sync` self-loop is a POLLED drift check: it flags the issue being CLOSED while the task is
+# still active (needs `gh`+network at run time; can lag). The contract is conceptually SYMMETRIC — the
+# reopened-while-done half has no flow edge on the terminal `done`, so catch it with a manual `gh issue view`.
+#
+# REQUIRES on PATH: `gh` (authenticated — `gh auth status`) and `jq`; run inside a git repo whose GitHub
+# remote `gh` can infer (or add `--repo owner/name` to the `gh` calls). ADAPT the commands to your project.
+#
+# TWO KNOWN INTERACTIONS to be aware of:
+#   1. ATTRIBUTION — this template ships NO `require:` block, so by default no attribution is needed. If you
+#      ADD `require.who`, it gates the FLOW's TRANSITIONS (`mtt start`/`submit`/`approve`/…), which exit 2
+#      without an actor — so set `author:` in `.mtt/config.local.yaml` FIRST to drive the flow at all. The
+#      inner `mtt ref add`/`ref list` self-calls in the posts are a mutation/read and are NOT gated by
+#      `require.who` (only transitions are; mutations need attribution only under `--no-run`) — they need
+#      nothing extra.
+#   2. MUTATE-IN-POST — the inner `mtt ref add` fires the `task.update` lifecycle event. Combined with an
+#      auto-commit/push `events:` block (e.g. alongside git-flow) it triggers a NESTED commit+push inside
+#      `start`'s post phase. Not a deadlock (reads take no lock), but real churn — scope it, or capture the
+#      URL without a mid-move mutation.
+#
+# state-moving `cancel` edges carry the `--no-run` caveat: a bypass skips ALL commands (including the issue
+# close), so you own the GitHub side by hand then.
+project:
+  name: my-project
+command_timeout: 5m
+types:
+  - name: task
+    prefix: t
+    parents: []
+    default: true
+    description: "A unit of work that GATES a GitHub issue's close: mtt runs the flow; `gh` moves the issue only at the gated edges."
+    statuses:
+      - {name: tbd, kind: initial, description: "queued; `mtt start` creates the linked GitHub issue and takes the task into work"}
+      - {name: in_progress, kind: active, description: "the linked issue is open; do the work, `mtt sync` to poll for drift, then `mtt submit`"}
+      - {name: review, kind: active, description: "agent gate: run an adversarial review; `mtt approve` closes the issue (the gated terminal action), `mtt decline` sends it back"}
+      - {name: done, kind: terminal, description: "the gated close ran (`gh issue close --reason completed`): the issue is closed BECAUSE the task passed its flow"}
+      - {name: cancelled, kind: terminal, description: "abandoned; any linked issue is closed as not planned"}
+    transitions:
+      - from: tbd
+        to: in_progress
+        name: start
+        description: "create the GitHub issue for this task and capture its URL back as a url: ref (set author FIRST if require.who is on — see the header)"
+        post:
+          - "u=$(gh issue create --title \"$MTT_TASK_TITLE\" --body \"Gated by mtt task {{.ID}} — closed only when its mtt flow reaches done.\") && mtt ref add {{.ID}} \"url:$u\""
+      - {from: tbd, to: cancelled, name: cancel, description: "abandon before any issue exists"}
+      - from: in_progress
+        to: in_progress
+        name: sync
+        description: "POLLED drift check (read-only): if the linked issue is CLOSED while this task is still active, COMPLAIN (never blocks). A direct UI/`gh` move is caught only here; the reopened-while-done half is a manual `gh` compare."
+        commands:
+          - "u=$(mtt ref list {{.ID}} --json | jq -r --arg k url '.refs[] | select(.kind==$k) | .id' | head -n1); [ -n \"$u\" ] || { echo \"no linked issue url ref on {{.ID}}\" >&2; exit 1; }; s=$(gh issue view \"$u\" --json state --jq .state); [ \"$s\" = OPEN ] || { echo \"DRIFT: issue $u is $s but task {{.ID}} is not done — reconcile\" >&2; exit 1; }"
+      - {from: in_progress, to: review, name: submit, description: "work done; run the agent review before the gated close"}
+      - from: review
+        to: done
+        name: approve
+        description: "agent review passed → TERMINAL ACTION: close the linked issue. Drift guard: refuses if the issue was already closed out of band."
+        commands:
+          - "u=$(mtt ref list {{.ID}} --json | jq -r --arg k url '.refs[] | select(.kind==$k) | .id' | head -n1); [ -n \"$u\" ] || { echo \"no linked issue url ref on {{.ID}}\" >&2; exit 1; }; s=$(gh issue view \"$u\" --json state --jq .state); [ \"$s\" = OPEN ] || { echo \"DRIFT: issue $u already $s (closed out of band?) — reconcile before mtt closes it\" >&2; exit 1; }"
+        post:
+          - "u=$(mtt ref list {{.ID}} --json | jq -r --arg k url '.refs[] | select(.kind==$k) | .id' | head -n1); gh issue close \"$u\" --reason completed"
+      - {from: review, to: in_progress, name: decline, description: "review found issues; address them, then `mtt submit`"}
+      - from: in_progress
+        to: cancelled
+        name: cancel
+        description: "abandon; close the linked issue as not planned. --no-run skips this — you own the close by hand then."
+        post:
+          - "u=$(mtt ref list {{.ID}} --json | jq -r --arg k url '.refs[] | select(.kind==$k) | .id' | head -n1); [ -z \"$u\" ] || gh issue close \"$u\" --reason \"not planned\""
+      - {from: review, to: cancelled, name: cancel, description: "abandon from review; close the issue as not planned by hand (or mirror the in_progress cancel post:)"}

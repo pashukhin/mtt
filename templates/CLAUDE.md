@@ -9,9 +9,12 @@ URL-fetchable: `raw.githubusercontent.com/…/templates/<name>.yaml`).
   `BuiltinNames()` (`{"default"}`). It lives at the repo root because `//go:embed` cannot reach a parent dir
   (`..`), so the embed must sit beside the file; `internal/adapter/yaml` imports it for the sole built-in.
 - The other files are **hosted examples, NOT embedded** and NOT built-in names: `coding.yaml`,
-  `hierarchy.yaml`, and the **`git-flow.yaml` flagship** (a generalized, self-documenting derivative of the
+  `hierarchy.yaml`, the **`git-flow.yaml` flagship** (a generalized, self-documenting derivative of the
   repo's dogfood flow — branch → agent review → human sign-off → PR → deliver, with every external assumption
-  gated or stated in its edge descriptions). Install them with `mtt init --template <path|url>`.
+  gated or stated in its edge descriptions), and the **`github-gated.yaml` flagship** (t76: puts executable
+  mtt gates on a GitHub issue's close — two linked entities; the issue's close is the task's terminal action
+  `gh issue close`; drift is detect+complain via a `sync` self-loop, never enforced; needs `gh`+`jq`).
+  Install them with `mtt init --template <path|url>`.
 
 ## Invariants
 
@@ -24,6 +27,9 @@ URL-fetchable: `raw.githubusercontent.com/…/templates/<name>.yaml`).
 ## Tests
 
 `templates_test.go` (external test package `templates_test`): `TestExamplesLoadAndValidate` runs every hosted
-example through `yaml.ValidateTemplateBytes` (NOT `default.yaml` — it carries `{{.Name}}`, valid only after
-render); `TestGitFlowStatesItsAssumptions` asserts the flagship's descriptions mention `push`/`jq`/`--no-run`
-+ the `gh` token + the "after the agent" ordering — so a future edit that drops a safety statement fails CI.
+example (now four: `coding`/`hierarchy`/`git-flow`/`github-gated`) through `yaml.ValidateTemplateBytes` (NOT
+`default.yaml` — it carries `{{.Name}}`, valid only after render); `TestGitFlowStatesItsAssumptions` asserts
+the flagship's descriptions mention `push`/`jq`/`--no-run` + the `gh` token + the "after the agent" ordering;
+`TestGitHubGatedStatesItsAssumptions` asserts the github-gated flagship states `gh`/`jq`/`--no-run`/`drift`/
+`author`/`bypass` (enforcement honesty + no silent traps) — so a future edit that drops a safety statement
+fails CI.

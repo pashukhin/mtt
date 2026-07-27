@@ -117,6 +117,7 @@ mtt list                    # all tasks
 mtt tree                    # the task tree
 mtt roadmap                 # dependency + priority execution order
 # For an epic > task > subtask hierarchy: mtt init --template templates/hierarchy.yaml
+# To gate a GitHub issue's close on an mtt task's flow: mtt init --template templates/github-gated.yaml
 ```
 
 See [CLI_REFERENCE.md](CLI_REFERENCE.md) for the full command surface and exit codes.

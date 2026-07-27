@@ -7,6 +7,15 @@ All notable changes to mtt are documented here. The format follows
 ## [Unreleased]
 
 ### Added
+- **`github-gated` flagship init template (t76).** Puts executable mtt gates on a GitHub issue's close using
+  only existing primitives (`mtt` self-calls + the t40 task-context env + `gh`) — no new Go. Two linked
+  entities (a native GitHub issue + a rich gating mtt task); the issue's close is the task's terminal action
+  (`gh issue close`); drift (a direct UI/`gh` move by any actor) is detect+complain (polled, symmetric),
+  never enforced — a `sync` self-loop surfaces it. Install by path/URL like the other flagship samples. Docs
+  state the enforcement honesty and the two known interactions (`require.who` gates transitions, not the inner
+  `ref` self-calls; mutate-in-`post:` re-entrancy under auto-commit events). A real out-of-tree dogfood
+  confirmed the gate bites and drift is detected, so no bespoke sugar command (a `tt` family) was warranted.
+  True GitHub-as-store-of-record stays deferred (t9).
 - **Task-context env for gate/post/event commands (t40).** Gate `commands:`, edge `post:`, and task
   lifecycle-event pipelines now run with the task's read-only context in the environment: `MTT_TASK_JSON`
   (the whole task), `MTT_TASK_CHILDREN_JSON` (children with statuses — for a roll-up "all children done"

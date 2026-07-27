@@ -1,18 +1,102 @@
 id: t76
 type: task
-title: 'external-tracker adapter: flow-authority model + composition-root selection seam + GitHub Issues TaskStore (dogfoodable before t60)'
-status: tbd
+title: 'GitHub-gated flow: dogfood the compositional mtt+gh gating pattern + ship a github-gated flagship template (store-adapter stays t9)'
+status: approved
 priority: high
 tags:
-    - "2"
     - adapter
-    - "n"
     - release
 created: "2026-07-27T02:13:16Z"
-updated: "2026-07-27T02:13:16Z"
+updated: "2026-07-27T11:47:05Z"
 description: |-
-    Bring bet #2 (external tracker as store-of-record) forward: the public release (t60) should let adopters put mtt's executable gates on a free, popular tracker they already use — GitHub Issues first — VALIDATED BY DOGFOODING it on this repo before release ("an mtt that doesn't dogfood itself is a poor one"). Concrete first slice of the t9 umbrella (t9 stays for Jira/Confluence + the indexer hook).
-
-    CRUX to resolve in the spec (brainstorm first): WHERE mtt's executable gates live when the task store is an external tracker whose transitions are its own. Two models — (a) mtt is the gating LAYER that OWNS the flow+gates, the external tracker is task data-of-record; (b) map mtt's flow onto the tracker's native workflow (GitHub Issues has ~none — a label/Projects convention?). This is the DESIGN open question ("which flow is authoritative") and it decides whether an external adapter preserves the wedge at all.
-
-    Scope (the spec will decompose, possibly into follow-ups): (1) flow-authority decision-record; (2) composition-root adapter-SELECTION seam — today every CLI site hardwires yaml.NewTaskStore/NewKnowledgeStore inline (~20 sites; no factory, no backend config, no `mtt connect`); a per-port selection seam is the prerequisite (overlaps t61); (3) a GitHub Issues TaskStore adapter (auth; id mapping #N <-> TaskID; status <-> flow per the chosen model; dep/parent mapping; Capabilities()/ErrUnsupported for what Issues cannot do); (4) backend-selection config (credentials in config.local, never committed); (5) DOGFOOD on this repo before t60. KB stays YAML — GitHub Issues has no knowledge base, so the pairing is tasks-from-GitHub + KB-YAML (the independent-ports design already anticipates this mixed pairing). Positioning guardrail (KB positioning-vs-beads): frame as "executable gates on your existing GitHub board" — the adapter as the wedge's adoption vehicle, NOT "another GitHub sync tool" (a crowded slot).
+    RESCOPED (brainstorm 2026-07-27): NOT a GitHub TaskStore adapter. The useful middle of the external-tracker spectrum ("GitHub as store + rich mtt flow via dependencies") is already reachable with mtt's EXISTING primitives — per-type flows + gate/post commands that shell out to `mtt` (self-calls) and `gh` (the pilot proved gates-can-call-mtt with its "all children done" gate). So this task is validate-then-build, not build-an-adapter:
+    (1) DOGFOOD the compositional GitHub-gating pattern on this repo (existing primitives + `gh`; near-zero new Go) to validate the release story "put executable mtt gates on the close of your GitHub issues";
+    (2) package the proven pattern as a `github-gated` flagship init template (like the git-flow flagship packaged git integration);
+    (3) let the dogfood evidence decide whether any bespoke code (a `mtt tt` sugar family) is warranted — do NOT build it up front.
+    Enabler: t40 (gate/post context — the pilot's top workaround-driver; today a gate cannot see its own task's title/tags/children, forcing re-query/shell-out). t40 makes the pattern ergonomic; it is not a hard blocker (the pilot worked around it).
+    Deferred (deliberate): true GitHub-as-store-of-record (issues live only in GitHub, `mtt roadmap`/`list` read them live) = the external-store bet, stays t9, demand-driven; likewise the far extreme where the external tracker supplies its own flow (Projects v2 columns). Also out: Trello, bidirectional reconcile, Projects reflection, the universal-graph framing.
+    Enforcement honesty: mtt gates the AGENT (it works through mtt); a human closing an issue in the GitHub UI bypasses the gates (mtt is not the choke point there) — detect + complain, never claim to enforce. History with gate-check results lives in the mtt task (YAML) — no store-of-record problem in this model. Blocks a confident public release (t60).
+    Execution weight (agreed 2026-07-27): LIGHT. Deliverable is config (a template) + one out-of-tree dogfood pass + docs, near-zero product Go — so run a minimal plan + ONE adversarial review + the human gate, not the full plan_review/impl_review apparatus meant for product code (see t75: no-code work strains the code-gated flow). t60 now blocks only on t40 + t76; the rest is fast-follow.
+history:
+    - at: "2026-07-27T02:13:42Z"
+      by: Grigorii Pashukhin
+      from: tbd
+      to: speccing
+      checks:
+        - cmd: git switch task/t76 || (git switch main && git switch -c task/t76)
+          exit: 0
+        - cmd: test -f .mtt/tasks/t76.yaml || { echo "task file absent on this branch — its add has not reached main (merge/commit the branch that created it first)" >&2; false; }
+          exit: 0
+    - at: "2026-07-27T04:08:50Z"
+      by: Grigorii Pashukhin
+      from: speccing
+      to: spec_review
+      checks:
+        - cmd: ls docs/superpowers/specs/t76-*.md
+          exit: 0
+        - cmd: out=$(git status --porcelain -- ":(exclude).mtt") && test -z "$out" || { echo "working tree not clean - commit your code/docs first (.mtt is swept by the move itself)" >&2; false; }
+          exit: 0
+    - at: "2026-07-27T04:18:16Z"
+      by: Grigorii Pashukhin
+      why: 'Adversarial spec review (fresh subagent, empirical - materialized a github-gated config and ran the binary): engineering thesis CONFIRMED (gate-calls-mtt, post-calls-gh, capture-back one-liner valid, red gate blocks exit 3, t40 enabler-not-blocker via mtt show --json self-query; git-flow flagship already does this). FIX-THEN-SHIP on three scope/honesty items: (1) dogfood "does not perturb .mtt/" contradicts the single-shared-config mechanism - state the real approach (out-of-tree/dedicated example) and drop the impossible claim; (2) undocumented re-entrancy - a mutate-in-post (mtt ref add in the capture-back one-liner) fires the task.update auto-commit event mid-move (nested commit+push); (3) deferral target t9 is titled Jira/Confluence with empty desc - amend it to name GitHub-store-of-record or it is a silent drop. Plus nits: url-not-number, gates-mtt-mediated-moves not just agent, polled-detect, symmetric drift, template require.who attribution clunk.'
+      from: spec_review
+      to: spec_fix
+    - at: "2026-07-27T04:20:41Z"
+      by: Grigorii Pashukhin
+      from: spec_fix
+      to: spec_review
+      checks:
+        - cmd: ls docs/superpowers/specs/t76-*.md
+          exit: 0
+        - cmd: out=$(git status --porcelain -- ":(exclude).mtt") && test -z "$out" || { echo "working tree not clean - commit your code/docs first (.mtt is swept by the move itself)" >&2; false; }
+          exit: 0
+    - at: "2026-07-27T04:20:54Z"
+      by: Grigorii Pashukhin
+      why: 'Adversarial spec review addressed: engineering thesis empirically CONFIRMED by the reviewer (gate-calls-mtt, post-calls-gh, capture-back one-liner, red-gate-blocks, t40 enabler-not-blocker; git-flow flagship already does gh+mtt-self-call). Three scope/honesty fixes applied: dogfood reframed to a dedicated out-of-tree example (single-shared-config cannot be perturbation-free); mutate-in-post re-entrancy + require.who attribution clunk documented; t9 amended to name GitHub-store-of-record (deferral no longer a silent drop). Ready for human sign-off.'
+      from: spec_review
+      to: spec_human_review
+    - at: "2026-07-27T04:45:08Z"
+      by: Grigorii Pashukhin
+      why: Human sign-off on the t76 spec (owner approved in session). Execution agreed LIGHT (template+dogfood+docs, one review); t60 trimmed to {t40, t76}, rest fast-follow. Order (t40 vs t76 first) to be decided next.
+      from: spec_human_review
+      to: planning
+    - at: "2026-07-27T09:07:13Z"
+      by: Grigorii Pashukhin
+      why: 'Minimal plan written (superpowers:writing-plans): github-gated flagship template in t40 env-form + out-of-tree dogfood + bilingual docs + one adversarial impl review. Branch reconciled with main to carry t40. Ready for an empirical adversarial plan_review.'
+      from: planning
+      to: plan_review
+      checks:
+        - cmd: ls docs/superpowers/plans/t76-*.md
+          exit: 0
+        - cmd: out=$(git status --porcelain -- ":(exclude).mtt") && test -z "$out" || { echo "working tree not clean - commit your code/docs first (.mtt is swept by the move itself)" >&2; false; }
+          exit: 0
+    - at: "2026-07-27T09:26:51Z"
+      by: Grigorii Pashukhin
+      why: 'Adversarial empirical plan_review (fresh subagent) done: it materialized the template and drove mtt init --template + the gates against the t40 binary. Design mechanics CONFIRMED working (YAML installs/validates; quoting of {{.ID}} and $MTT_TASK_TITLE is injection-safe; jq --arg extractor pulls the url ref; approve gate fails-closed and does NOT run gh issue close when the issue is not OPEN; ref add fires task.update). Findings verified against the binary and fixed: (1) dogfood config path was wrong (cp to X/config.yaml, but init writes X/.mtt/config.yaml) -> switched to one-shot mtt init --dir --template; (2) SPEC CORRECTION -> require.who gates transitions, not mutations, so the inner ref add self-call has NO exit-2 attribution clunk (author-first only needed to drive the flow edges); (3) teardown needed delete_repo scope + cd-before-clone hygiene; (4) sync self-loop is one-directional (closed-while-active), reserved SYMMETRIC for the conceptual contract. Ready for human sign-off.'
+      from: plan_review
+      to: plan_human_review
+    - at: "2026-07-27T11:17:25Z"
+      by: Grigorii Pashukhin
+      why: 'Human sign-off on the t76 plan (owner approved in session), including the empirical correction to the spec''s require.who attribution claim (accepted as-is; correction lives in the plan/template/docs, spec left unamended by owner choice). Proceeding to implement: github-gated flagship template + out-of-tree dogfood + bilingual docs + one adversarial impl_review.'
+      from: plan_human_review
+      to: implementing
+    - at: "2026-07-27T11:34:54Z"
+      by: Grigorii Pashukhin
+      why: 'Implementation complete: github-gated flagship template + assumptions test, real out-of-tree dogfood (gate bites + drift proven over a scratch GitHub repo), bilingual docs (FLOW_GUIDE s8b, DESIGN, CLI_REFERENCE, README, CHANGELOG), mtt tt decided NO. make check green. Ready for the adversarial impl review.'
+      from: implementing
+      to: impl_review
+      checks:
+        - cmd: out=$(git status --porcelain -- ":(exclude).mtt") && test -z "$out" || { echo "working tree not clean - commit your code/docs first (.mtt is swept by the move itself)" >&2; false; }
+          exit: 0
+        - cmd: 'git diff --quiet main...HEAD -- cmd internal pkg go.mod go.sum || git diff --name-only main...HEAD -- CHANGELOG.md | grep -q . || { echo "code changed but CHANGELOG.md has no entry - add one under [Unreleased] (pure refactor? bypass: mtt do submit --no-run --who ... --why ...)" >&2; false; }'
+          exit: 0
+        - cmd: make check
+          exit: 0
+    - at: "2026-07-27T11:47:05Z"
+      by: Grigorii Pashukhin
+      why: 'Adversarial impl_review (fresh subagent, empirical) verdict SHIP: independently reproduced every load-bearing claim against the branch binary — injection boundary airtight (a malicious title did not execute), the approve/sync gates fail closed (issue not OPEN -> move refused, gh issue close never runs, status unchanged), drift detected, EN/RU docs faithful mirrors, the require.who-gates-transitions-not-mutations attribution claim empirically TRUE, mutate-in-post task.update fires, make check green, all 4 spec-acceptance items satisfied and corroborated by the real dogfood repo (issue #1 CLOSED/COMPLETED, #2 CLOSED/NOT_PLANNED). Two nits: fixed the weak gh-token test assertion; the private scratch dogfood repo needs manual deletion (token lacks delete_repo).'
+      from: impl_review
+      to: approved
+      checks:
+        - cmd: out=$(git status --porcelain -- ":(exclude).mtt") && test -z "$out" || { echo "working tree not clean - commit your code/docs first (.mtt is swept by the move itself)" >&2; false; }
+          exit: 0
