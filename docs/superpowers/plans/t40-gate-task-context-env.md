@@ -294,12 +294,14 @@ func (tr *Transitioner) env(t mtt.Task) map[string]string {
 	return tr.envFn(t)
 }
 ```
-- Gate call (line ~94): `checks, err = tr.runner.Run(expanded, tr.env(t))` — `t` is pre-move (Status = from). ✓
-- Post call (line ~130): `pchecks, rerr := tr.runner.Run(expanded, tr.env(t))` — here `t.Status` is already `to` (post-move context). ✓
+- Gate call (line ~94): build env only when there ARE commands (avoid a `List` on a no-gate edge): `var genv map[string]string; if len(expanded) > 0 { genv = tr.env(t) }; checks, err = tr.runner.Run(expanded, genv)` — `t` is pre-move (Status = from). ✓
+- Post call (line ~130): the post phase is already guarded by the `if opts.NoRun || len(post) == 0 { return }` early return above it, so env here is only built when a post exists: `pchecks, rerr := tr.runner.Run(expanded, tr.env(t))` — `t.Status` is already `to` (post-move context). ✓ (Optional micro-comment: post uses `t` not the `updated` returned by `Update`; identical fields, YAML adapter doesn't normalize on write.)
 - Compensate (line ~206, inside `block`): thread the task in. `block` currently takes `(expanded, failIdx, cause)`; add the task or the env. Simplest: pass the built env into `block` — change to `block(expanded []mtt.Command, failIdx int, cause string, env map[string]string)` and call `tr.runner.Compensate(rbs, env)`; the two `block(...)` call sites (lines ~98, ~101) pass `tr.env(t)`.
 
-- [ ] **Step 6: Update the core fakes + fix `NewTransitioner` callers**
+- [ ] **Step 6: Update the core fakes + ALL `NewTransitioner` callers (~35 sites)**
+- `NewTransitioner` has **~35 call sites** (nearly all in `internal/core/transition_test.go`, plus `internal/cli/status.go`). Add the `envFn` arg everywhere (`nil` in tests that don't assert env); `go build ./...` to catch every one — a missed site is a build break.
 - `internal/core/transition_test.go`: `fakeRunner` — capture env (`gotEnv map[string]string`) for assertions; update `NewTransitioner(...)` calls to pass an `envFn` (a stub returning a known map, or `nil`).
+- **`docs/architecture/model.go`:** update the doc-model `var NewTransitioner func(store TaskStore, cfg Config, runner Runner, now func() time.Time) Transitioner` (line ~739) to the new 5-arg signature (add the `envFn` param); leave `var NewAdvancer` (parked/design-only) but note in its comment that a real impl would take the same env-builder.
 - Add a core test asserting the gate env is threaded: a `fakeRunner` records the `env` arg; `NewTransitioner(store, cfg, fake, now, func(t mtt.Task) map[string]string { return map[string]string{"MTT_TASK_ID": string(t.ID)} })`; after a move, assert `fake.gotEnv["MTT_TASK_ID"] == "<id>"`.
 - `internal/cli/status.go` `runTransition`: build the store once and thread it:
 
@@ -310,13 +312,13 @@ func (tr *Transitioner) env(t mtt.Task) map[string]string {
 
 - [ ] **Step 7: e2e — a gate reads task env**
 
-Add an `testscript` case (`internal/cli/testdata/script/gate_task_env.txt` or extend an existing gate script): a config whose `tbd -> in_progress` gate is `test "$MTT_TASK_TITLE" = "Ship auth"`, and a roll-up gate over `$MTT_TASK_CHILDREN_JSON`. Assert the move passes only when the env matches (mirror the existing gate e2e style; stub nothing — this is pure mtt + `sh`). Confirm a `{{.Title}}` in a command is still a template error (reuse/keep the existing assertion).
+Add a `testscript` case (`internal/cli/testdata/scripts/gate_task_env.txt` — the dir is **`scripts/`**, plural; mirror `scripts/status.txt`): author a config in the txtar whose `tbd -> in_progress` gate is `test "$MTT_TASK_TITLE" = "Ship auth"`, and a roll-up gate that checks `$MTT_TASK_CHILDREN_JSON` **with POSIX `sh` only (NO `jq` — CI may lack it)**, e.g. `case "$MTT_TASK_CHILDREN_JSON" in *'"status":"tbd"'*) exit 1 ;; esac` (block while any child is still `tbd`). Set up a parent + `mtt add --parent` child. Assert the move passes only when the env matches (pure mtt + `sh`, no stubs). Keep the existing assertion that a `{{.Title}}` in a command is still a template error.
 
 - [ ] **Step 8: gate + commit**
 
 Run: `make check` (green). Then:
 ```bash
-git add internal/cli/taskenv.go internal/cli/taskenv_test.go internal/core/transition.go internal/core/transition_test.go internal/cli/status.go internal/cli/testdata/script/
+git add internal/cli/taskenv.go internal/cli/taskenv_test.go internal/core/transition.go internal/core/transition_test.go internal/cli/status.go internal/cli/testdata/scripts/
 git commit -m "t40: task-context env for gate/post commands via injected builder
 
 Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
@@ -326,7 +328,7 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 
 ## Task 3: task-context env for lifecycle events; note events excluded
 
-**Files:** Modify `internal/core/event.go`, `internal/cli/events.go`. Test: `internal/core/event_test.go` (or wherever `EventEmitter` is tested), e2e event scripts.
+**Files:** Modify `internal/core/event.go`, `internal/cli/events.go`. **`NewEventEmitter` gains a 5th param → EVERY call site must update or the build breaks (26 sites across 7 files).** Test/caller files: `internal/core/event_test.go`, `internal/core/add_test.go`, `internal/core/edit_test.go`, `internal/core/tageditor_test.go`, `internal/core/remove_test.go`, `internal/core/noteremove_test.go`, `internal/core/note_test.go`. e2e event scripts.
 
 **Interfaces:**
 - Consumes: `envFn` from Task 2; `Runner.Run(_, env)`.
@@ -342,8 +344,9 @@ In `internal/core/event.go`:
 - Add field `envFn func(mtt.Task) map[string]string` to `EventEmitter`.
 - `func NewEventEmitter(cfg mtt.Config, runner Runner, audit mtt.AuditStore, now func() time.Time, envFn func(mtt.Task) map[string]string) *EventEmitter`.
 - `run(post, ctx, env)` — add an `env map[string]string` param; `e.runner.Run(expanded, env)` (line ~106).
-- `TaskEvent(...)`: compute `env := map[string]string(nil); if e.envFn != nil { env = e.envFn(t) }` and pass to `run(hook.Post, taskEventContext{...}, env)`.
+- `TaskEvent(...)`: build env only **after** the existing no-hook early return (so a mutation with no configured event pays no `List`): `var env map[string]string; if e.envFn != nil { env = e.envFn(t) }`, then `run(hook.Post, taskEventContext{...}, env)`.
 - `NoteEvent(...)`: pass `nil` env to `run(...)` (note events get NO `MTT_TASK_*`).
+- **Note (delete events):** `envFn`'s `List()` runs *after* the entity is deleted (Remover fires per-id post-delete), so `MTT_TASK_CHILDREN_JSON` on a delete event reflects post-deletion state; the scalars come from the passed `t` (intact). Harmless — document it in the CLAUDE.md note (Task 4), not a bug.
 
 - [ ] **Step 3: Wire the builder in the CLI**
 
@@ -353,13 +356,13 @@ In `internal/cli/events.go` `newEventEmitter`, build the store once and pass the
 	return core.NewEventEmitter(cfg, runner, yaml.NewAuditStore(root), time.Now, taskEnvBuilder(store)), closeOut, nil
 ```
 
-- [ ] **Step 4: Update EventEmitter fakes/callers** — any test constructing `NewEventEmitter` gets the extra `envFn` arg (nil or a stub). Nil-emitter paths (tests passing a nil `*EventEmitter`) are unaffected.
+- [ ] **Step 4: Update ALL `NewEventEmitter` callers (else the build breaks)** — add the `envFn` arg to every one of the **26 sites** (`nil` in tests that don't assert env): `add_test.go` (261,277,294), `edit_test.go` (135,147), `tageditor_test.go` (133,147,160), `remove_test.go` (312,332,353,385), `noteremove_test.go` (67), `note_test.go` (199,239), plus `event_test.go`. Fastest: after editing `event.go`, run `go build ./internal/core/ 2>&1` and fix each reported site (or a targeted sed for the `NewEventEmitter(cfg, …, time.Now)` → `…, time.Now, nil)` pattern). Nil-emitter paths (tests passing a nil `*EventEmitter`) are unaffected.
 
-- [ ] **Step 5: run tests + `make check`** — task-event env present, note-event env absent; existing event tests green.
+- [ ] **Step 5: run tests + `make check`** — task-event env present, note-event env absent; existing event tests green. `go build ./...` must be clean (proves no missed call site).
 
-- [ ] **Step 6: Commit**
+- [ ] **Step 6: Commit** (add the whole `internal/core/` so no updated caller is left out)
 ```bash
-git add internal/core/event.go internal/cli/events.go internal/core/event_test.go
+git add internal/core/ internal/cli/events.go
 git commit -m "t40: task-context env for task lifecycle events (note events excluded)
 
 Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
@@ -374,7 +377,8 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 - [ ] **Step 1: Update the package CLAUDE.md files**
 - `internal/core/CLAUDE.md`: the `Runner` port note — `Run`/`Compensate` now take `env map[string]string`; `Transitioner`/`EventEmitter` hold an injected `envFn func(mtt.Task) map[string]string` (core stays serialization-free; the CLI closure owns children-`List` + `toTaskJSON`).
 - `internal/adapter/exec/CLAUDE.md`: `Run`/`Compensate` set the given env on `sh -c` (`cmd.Env = os.Environ() + KEY=VALUE`, ours win, NUL stripped); nil env = inherit only.
-- `internal/cli/CLAUDE.md`: `taskenv.go` — `taskEnvBuilder(store)` builds the `MTT_TASK_*` env (blob `toTaskJSON` + `MTT_TASK_CHILDREN_JSON` + scalars) injected into `Transitioner`/`EventEmitter`; `{{}}` whitelist unchanged; note events get none.
+- `internal/cli/CLAUDE.md`: `taskenv.go` — `taskEnvBuilder(store)` builds the `MTT_TASK_*` env (blob `toTaskJSON` + `MTT_TASK_CHILDREN_JSON` + scalars) injected into `Transitioner`/`EventEmitter`; `{{}}` whitelist unchanged; note events get none; delete-event children reflect post-deletion state.
+- **DESIGN/AGENTS parallel-occurrences sweep** (memory: `design-docs-parallel-occurrences`): grep `DESIGN.md`/`DESIGN.ru.md`/`AGENTS.md` for any restatement of the gate/`{{}}`-placeholder surface or the Transitioner/Runner dependency story (e.g. the "structured commands / placeholder whitelist" and "executable transitions" blocks). If a block describes the command context, add the env facet there too — EN **and** RU in sync. If none needs it, record "grepped, no DESIGN/AGENTS occurrence needed updating" in the commit body (no silent skip).
 
 - [ ] **Step 2: CHANGELOG [Unreleased] → ### Added**
 
@@ -393,6 +397,7 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 Run: `make check` (green). Then:
 ```bash
 git add internal/core/CLAUDE.md internal/adapter/exec/CLAUDE.md internal/cli/CLAUDE.md CHANGELOG.md
+# add DESIGN.md DESIGN.ru.md AGENTS.md too IF the parallel-occurrences sweep edited them
 git commit -m "t40: docs + CHANGELOG for task-context env
 
 Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
@@ -406,3 +411,4 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 - **Placeholder scan:** every code step has real Go; the two "verify the exact field names" notes point at `pkg/mtt/task.go`/`internal/cli/json.go` to confirm before writing (not a placeholder — a pre-flight check).
 - **Type consistency:** `taskEnvBuilder(store) func(mtt.Task) map[string]string`, `Run(cmds, env)`, `Compensate(cmds, env)`, `NewTransitioner(store,cfg,runner,now,envFn)`, `NewEventEmitter(cfg,runner,audit,now,envFn)` used consistently across tasks.
 - **Green-gate honesty:** Task 1 is a pure refactor (env threaded, callers pass nil) + one new adapter test — green at commit; Tasks 2/3 add behavior with tests; no red commit.
+- **Ripple completeness (plan-review fix):** `NewTransitioner` (~35 sites) and `NewEventEmitter` (26 sites / 7 files) each gain a param — the plan lists them and prescribes `go build ./...` + `git add internal/core/` so no updated caller is left out of a commit (the incomplete-commit → red-CI trap). testdata dir is `scripts/` (plural); the children roll-up e2e uses POSIX `sh` (no `jq`). Doc-model `var NewTransitioner` + a DESIGN/AGENTS parallel-occurrences sweep are in scope (Task 2 §6 / Task 4).
