@@ -1,0 +1,11 @@
+id: t74
+type: task
+title: monotonic ids — never reuse a consumed id after rm (audit integrity; split from t10)
+status: tbd
+priority: medium
+tags:
+    - backlog
+    - core
+created: "2026-07-27T01:40:46Z"
+updated: "2026-07-27T01:40:46Z"
+description: 'Split out of t10 (the multi-agent concurrency cluster) as a standalone — it is an audit-integrity issue independent of concurrency. Surfaced by the v0.11.0 pilot: `mtt rm t1` then the next `add` re-mints `t1`, so a cross-reference to "t1" can silently point at two different things over time — risky for an audit-first tool. Make ids monotonic by default (never reuse a consumed id, even after `rm`), or at least a config switch. The reserve-window zero-byte artifact already keeps a consumed id alive; extend that so `rm` also retires the id. t10 keeps concurrency + subagent identity + roles.'
