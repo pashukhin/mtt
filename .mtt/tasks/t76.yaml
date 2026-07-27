@@ -1,13 +1,13 @@
 id: t76
 type: task
 title: 'GitHub-gated flow: dogfood the compositional mtt+gh gating pattern + ship a github-gated flagship template (store-adapter stays t9)'
-status: spec_review
+status: spec_fix
 priority: high
 tags:
     - adapter
     - release
 created: "2026-07-27T02:13:16Z"
-updated: "2026-07-27T04:08:50Z"
+updated: "2026-07-27T04:18:16Z"
 description: |-
     RESCOPED (brainstorm 2026-07-27): NOT a GitHub TaskStore adapter. The useful middle of the external-tracker spectrum ("GitHub as store + rich mtt flow via dependencies") is already reachable with mtt's EXISTING primitives — per-type flows + gate/post commands that shell out to `mtt` (self-calls) and `gh` (the pilot proved gates-can-call-mtt with its "all children done" gate). So this task is validate-then-build, not build-an-adapter:
     (1) DOGFOOD the compositional GitHub-gating pattern on this repo (existing primitives + `gh`; near-zero new Go) to validate the release story "put executable mtt gates on the close of your GitHub issues";
@@ -35,3 +35,8 @@ history:
           exit: 0
         - cmd: out=$(git status --porcelain -- ":(exclude).mtt") && test -z "$out" || { echo "working tree not clean - commit your code/docs first (.mtt is swept by the move itself)" >&2; false; }
           exit: 0
+    - at: "2026-07-27T04:18:16Z"
+      by: Grigorii Pashukhin
+      why: 'Adversarial spec review (fresh subagent, empirical - materialized a github-gated config and ran the binary): engineering thesis CONFIRMED (gate-calls-mtt, post-calls-gh, capture-back one-liner valid, red gate blocks exit 3, t40 enabler-not-blocker via mtt show --json self-query; git-flow flagship already does this). FIX-THEN-SHIP on three scope/honesty items: (1) dogfood "does not perturb .mtt/" contradicts the single-shared-config mechanism - state the real approach (out-of-tree/dedicated example) and drop the impossible claim; (2) undocumented re-entrancy - a mutate-in-post (mtt ref add in the capture-back one-liner) fires the task.update auto-commit event mid-move (nested commit+push); (3) deferral target t9 is titled Jira/Confluence with empty desc - amend it to name GitHub-store-of-record or it is a silent drop. Plus nits: url-not-number, gates-mtt-mediated-moves not just agent, polled-detect, symmetric drift, template require.who attribution clunk.'
+      from: spec_review
+      to: spec_fix
