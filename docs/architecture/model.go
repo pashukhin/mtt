@@ -735,8 +735,10 @@ type TransitionOptions struct {
 }
 
 // NewTransitioner wires the single-edge usecase (store for load/persist, config
-// for the flow, Runner for the gate, injected clock for history). [shipped s006]
-var NewTransitioner func(store TaskStore, cfg Config, runner Runner, now func() time.Time) Transitioner
+// for the flow, Runner for the gate, injected clock for history, and an injected
+// task-context env-builder the runner passes to each command's environment —
+// MTT_TASK_* — the CLI supplies it so core stays serialization-free). [s006; envFn t40]
+var NewTransitioner func(store TaskStore, cfg Config, runner Runner, now func() time.Time, envFn func(Task) map[string]string) Transitioner
 
 // AdvanceMode selects how far a walk proceeds. [T2]
 type AdvanceMode string

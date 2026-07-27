@@ -1,0 +1,60 @@
+# t40: gate commands see the task's context via MTT_TASK_* env (no {{}} change)
+exec mtt init
+cp envcfg.yaml .mtt/config.yaml
+exec mtt add 'Ship auth' --type epic
+stdout 'created e1'
+exec mtt add 'sub' --parent e1
+stdout 'created t1'
+
+# tbd -> in_progress gate echoes $MTT_TASK_TITLE (proves the title env reached the
+# gate); output is captured with --log-file, then grepped.
+exec mtt status e1 in_progress --log-file e1.log
+stdout 'e1: tbd → in_progress'
+grep 'TITLE=\[Ship auth\]' e1.log
+
+# in_progress -> done gate is a roll-up over $MTT_TASK_CHILDREN_JSON (POSIX sh, no
+# jq): while any child is still tbd the move is BLOCKED. Child t1 is tbd here.
+! exec mtt status e1 done
+stderr 'blocked'
+exec mtt show e1
+stdout '\[in_progress\]'
+
+# drive the child to done (task flow, no gates), then the parent's roll-up passes.
+exec mtt status t1 in_progress
+exec mtt status t1 done
+exec mtt status e1 done
+stdout 'e1: in_progress → done'
+
+-- envcfg.yaml --
+version: 1
+project:
+  name: demo
+command_timeout: 5m
+types:
+  - name: epic
+    prefix: e
+    parents: []
+    statuses:
+      - {name: tbd, kind: initial}
+      - {name: in_progress, kind: active}
+      - {name: done, kind: terminal}
+      - {name: cancelled, kind: terminal}
+    transitions:
+      - {from: tbd, to: in_progress, commands: ['echo "TITLE=[$MTT_TASK_TITLE]"']}
+      - {from: tbd, to: cancelled}
+      - {from: in_progress, to: done, commands: ['case "$MTT_TASK_CHILDREN_JSON" in *tbd*) echo "a child is not done" >&2; exit 1 ;; esac']}
+      - {from: in_progress, to: cancelled}
+  - name: task
+    prefix: t
+    default: true
+    parents: [epic]
+    statuses:
+      - {name: tbd, kind: initial}
+      - {name: in_progress, kind: active}
+      - {name: done, kind: terminal}
+      - {name: cancelled, kind: terminal}
+    transitions:
+      - {from: tbd, to: in_progress}
+      - {from: tbd, to: cancelled}
+      - {from: in_progress, to: done}
+      - {from: in_progress, to: cancelled}

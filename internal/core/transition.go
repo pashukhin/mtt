@@ -32,11 +32,23 @@ type Transitioner struct {
 	cfg    mtt.Config
 	runner Runner
 	now    func() time.Time
+	envFn  func(mtt.Task) map[string]string // task-context env for gate/post/compensate commands (t40); nil = none
 }
 
 // NewTransitioner wires the usecase; now is injected for deterministic tests.
-func NewTransitioner(store mtt.TaskStore, cfg mtt.Config, runner Runner, now func() time.Time) *Transitioner {
-	return &Transitioner{store: store, cfg: cfg, runner: runner, now: now}
+// envFn builds the per-move task-context env (MTT_TASK_*) the runner passes to
+// each command's environment (t40); nil disables it (core stays serialization-
+// free — the CLI supplies the builder).
+func NewTransitioner(store mtt.TaskStore, cfg mtt.Config, runner Runner, now func() time.Time, envFn func(mtt.Task) map[string]string) *Transitioner {
+	return &Transitioner{store: store, cfg: cfg, runner: runner, now: now, envFn: envFn}
+}
+
+// env builds the task-context environment for t, or nil when no builder is wired.
+func (tr *Transitioner) env(t mtt.Task) map[string]string {
+	if tr.envFn == nil {
+		return nil
+	}
+	return tr.envFn(t)
 }
 
 // Transition moves id across one edge to `to`. Errors: task not found; unknown
@@ -91,14 +103,20 @@ func (tr *Transitioner) Transition(id mtt.TaskID, to mtt.StatusName, opts Transi
 		if eerr != nil {
 			return mtt.Task{}, fmt.Errorf("expand commands for %s (%s->%s): %w", id, from, to, eerr)
 		}
-		checks, err = tr.runner.Run(expanded, nil)
+		// Build the task-context env only when there ARE commands (a no-gate edge
+		// pays no store List). t is pre-move here (Status = from).
+		var genv map[string]string
+		if len(expanded) > 0 {
+			genv = tr.env(t)
+		}
+		checks, err = tr.runner.Run(expanded, genv)
 		if err != nil {
 			// operational failure: the failing command is the last recorded check
 			// (Runner CONTRACT); if none was recorded, len(checks)-1 == -1 → no comp.
-			return tr.block(expanded, len(checks)-1, err.Error())
+			return tr.block(expanded, len(checks)-1, err.Error(), genv)
 		}
 		if i, c, failed := firstFailure(checks); failed {
-			return tr.block(expanded, i, fmt.Sprintf("command %q exited %d", c.Cmd, c.Exit))
+			return tr.block(expanded, i, fmt.Sprintf("command %q exited %d", c.Cmd, c.Exit), genv)
 		}
 	}
 	ts := tr.now().UTC().Truncate(time.Second)
@@ -127,7 +145,7 @@ func (tr *Transitioner) Transition(id mtt.TaskID, to mtt.StatusName, opts Transi
 			Cause:     fmt.Sprintf("expand post for %s (%s->%s): %v", id, from, to, eerr),
 		}
 	}
-	pchecks, rerr := tr.runner.Run(expanded, nil)
+	pchecks, rerr := tr.runner.Run(expanded, tr.env(t))
 	if rerr != nil {
 		i := len(pchecks) - 1 // failing command is last (Runner CONTRACT); guard the empty case
 		if i < 0 {
@@ -201,9 +219,9 @@ func firstFailure(checks []mtt.Check) (int, mtt.Check, bool) {
 // failIdx (their rollbacks, in reverse) and returns ErrBlocked with a summary.
 // The task is left unchanged and no history is written (s006 invariant): block
 // returns before any tr.store.Update.
-func (tr *Transitioner) block(expanded []mtt.Command, failIdx int, cause string) (mtt.Task, error) {
+func (tr *Transitioner) block(expanded []mtt.Command, failIdx int, cause string, env map[string]string) (mtt.Task, error) {
 	if rbs := rollbacksBefore(expanded, failIdx); len(rbs) > 0 {
-		comp := tr.runner.Compensate(rbs, nil)
+		comp := tr.runner.Compensate(rbs, env)
 		return mtt.Task{}, fmt.Errorf("%w: %s; %s", ErrBlocked, cause, compSummary(comp))
 	}
 	return mtt.Task{}, fmt.Errorf("%w: %s", ErrBlocked, cause)

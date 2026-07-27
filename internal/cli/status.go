@@ -82,7 +82,8 @@ func runTransition(cmd *cobra.Command, root string, cfg mtt.Config, settings yam
 	}
 	defer closeOut()
 
-	tr := core.NewTransitioner(yaml.NewTaskStore(root), cfg, runner, time.Now)
+	store := yaml.NewTaskStore(root)
+	tr := core.NewTransitioner(store, cfg, runner, time.Now, taskEnvBuilder(store))
 	task, txErr := tr.Transition(id, to, core.TransitionOptions{
 		Role: role, By: by, Why: why, NoRun: noRun,
 		RequireWho: settings.Require.Who, RequireWhy: settings.Require.Why,
