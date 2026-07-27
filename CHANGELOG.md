@@ -6,6 +6,15 @@ All notable changes to mtt are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+- **Task-context env for gate/post/event commands (t40).** Gate `commands:`, edge `post:`, and task
+  lifecycle-event pipelines now run with the task's read-only context in the environment: `MTT_TASK_JSON`
+  (the whole task), `MTT_TASK_CHILDREN_JSON` (children with statuses — for a roll-up "all children done"
+  gate), and scalars `MTT_TASK_ID/TYPE/STATUS/TITLE/PARENT/PRIORITY/TAGS`. The `{{...}}` template surface is
+  unchanged and still shape-safe (`ID/Type/From/To` only) — free text rides the environment as data, never
+  interpolated into the command string, so the injection boundary is preserved. Note events get no
+  `MTT_TASK_*`. The per-invocation caller `--arg` value channel is tracked separately (t77).
+
 ## [0.11.0] — 2026-07-26
 
 ### Added

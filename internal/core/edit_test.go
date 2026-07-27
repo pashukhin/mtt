@@ -132,7 +132,7 @@ func TestEditFiresUpdateEvent(t *testing.T) {
 	cfg := eventCfg(taskHook(mtt.EventUpdate, "echo {{.ID}} {{.Event}}"))
 	store := newMemStore(tbdTask("t1"))
 	runner := &fakeRunner{}
-	ed := NewEditor(store, testClock, NewEventEmitter(cfg, runner, &fakeAudit{}, testClock))
+	ed := NewEditor(store, testClock, NewEventEmitter(cfg, runner, &fakeAudit{}, testClock, nil))
 	title := "renamed"
 	if _, err := ed.Edit("t1", EditParams{Title: &title}); err != nil {
 		t.Fatalf("unexpected: %v", err)
@@ -144,7 +144,7 @@ func TestEditFiresUpdateEvent(t *testing.T) {
 
 func TestEditNoRunPreflight(t *testing.T) {
 	store := newMemStore(tbdTask("t1"))
-	ed := NewEditor(store, testClock, NewEventEmitter(eventCfg(mtt.Events{}), &fakeRunner{}, &fakeAudit{}, testClock))
+	ed := NewEditor(store, testClock, NewEventEmitter(eventCfg(mtt.Events{}), &fakeRunner{}, &fakeAudit{}, testClock, nil))
 	title := "renamed"
 	_, err := ed.Edit("t1", EditParams{Title: &title, Events: EventOptions{NoRun: true}})
 	if !errors.Is(err, ErrMissingAttribution) {

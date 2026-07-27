@@ -561,6 +561,20 @@ Commands come from config (trusted, like a Makefile/git hooks), not from the net
 > own name` (a status is not an edge). So flow authors can write `task/{{.ID}}` in a description and guidance
 > names the concrete task (`task/t17`), not `task/<id>`.
 
+> **Shipped (t40): task-context environment for gate/post/event commands.** The `{{...}}` template whitelist
+> stays the four shape-safe fields (**unchanged**) — free text is still never interpolated into a command
+> string. Instead a command's **environment** carries the task's read-only context: `MTT_TASK_JSON` (the whole
+> task, the lean `toTaskJSON` shape), `MTT_TASK_CHILDREN_JSON` (children with statuses — the "all children
+> done" roll-up gate), and scalars `MTT_TASK_ID/TYPE/STATUS/TITLE/PARENT/PRIORITY/TAGS`. Env values are
+> **data** (`sh` does not re-evaluate a parameter expansion as code), so free text rides the environment
+> safely — the concrete answer to s007's "if a free-text field is ever exposed it MUST be quoted" seam:
+> expose it as **env**, not as a `{{...}}` placeholder. `core` stays serialization-free — an **injected
+> `func(mtt.Task) map[string]string`** (a CLI closure capturing the store) does the children-`List` +
+> `toTaskJSON`, and `Transitioner`/`EventEmitter` forward the map to the `Runner` (which gained a per-`Run`
+> `env`; the exec adapter sets it on `sh -c`, ours overriding a same-named parent var, NUL stripped). **Task**
+> events receive it; **note** events do not (a note is not a task). The per-invocation caller `--arg` value
+> channel is a separate, deferred facet (t77).
+
 > **Seam (deferred, think): node-level status actions.** Today executable pipelines hang only on **edges**
 > (transitions — they change status and gate). But "commit intermediate work / build / run checks **while
 > staying** in a status" is a node operation with no home (a self-loop transition is a hack — false history,

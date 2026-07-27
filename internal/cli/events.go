@@ -40,7 +40,8 @@ func newEventEmitter(cmd *cobra.Command, root string, cfg mtt.Config, settings y
 	if err != nil {
 		return nil, nil, err
 	}
-	return core.NewEventEmitter(cfg, runner, yaml.NewAuditStore(root), time.Now), closeOut, nil
+	store := yaml.NewTaskStore(root)
+	return core.NewEventEmitter(cfg, runner, yaml.NewAuditStore(root), time.Now, taskEnvBuilder(store)), closeOut, nil
 }
 
 // eventOptions resolves a mutating command's --no-run bypass + attribution into

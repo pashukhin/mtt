@@ -1,14 +1,14 @@
 id: t40
 type: task
-title: Generalized argument-passing into the gate/post placeholder pipeline — a per-invocation value channel beyond {ID,Type,From,To}; first consumer mtt approve --pr-body-file
-status: tbd
+title: task-context environment (MTT_TASK_*) for gate/post/event commands
+status: done
 priority: high
 tags:
     - backlog
     - flow
     - think
 created: "2026-07-12T04:05:25Z"
-updated: "2026-07-27T01:51:26Z"
+updated: "2026-07-27T07:31:05Z"
 description: |-
     Spun off from t27 (mechanized gh pr create). t27 mechanizes PR opening config-only, reading the title via read-only mtt show --json and taking the body from an optional artifact file with a generated fallback. It deliberately did NOT add the flag variant (mtt approve --pr-body-file). This task generalizes that: a per-invocation channel to thread caller-supplied values into the gate/post placeholder context, beyond the fixed {ID,Type,From,To} whitelist — e.g. mtt <edge> --arg key=value expanded as {{.Args.key}}, or a typed flag like --pr-body-file. Design-open: naming, whitelist interaction, safety (avoid re-opening the narrow-whitelist SEC surface t5/t21 kept to 4 fields), precedence with existing placeholders. First consumer: t27 PR body. Decide the general mechanism before adding more one-off flags.
 
@@ -16,3 +16,126 @@ description: |-
 
 
     --- Pilot Q3 answer (generalized; sharpens scope + prevents over-build). Whole-task JSON in the env covers ~80% (the shell-out triggers were specifically title/tags/parent). The ONE computed/relational field genuinely needed: CHILDREN WITH THEIR STATUSES (e.g. $MTT_TASK_CHILDREN_JSON) — the load-bearing "all children done" roll-up gate, and exactly what an HTTP/deploy "is-this-aggregate-complete" gate needs. Ancestors and ref-backlinks were YAGNI — do NOT build them into the env. Attribution (by/why) is wanted in notification/deploy payloads. Target env surface = whole task JSON + by/why + children-with-statuses. Design guardrail: "task context" and "VCS context" are SEPARATE axes — some gates need a diff/merge-base ("diff vs main"), which no task JSON provides; carry VCS context as its own thing rather than cramming it into task-context (a possible sibling feature, not part of this task).
+
+    --- SCOPED (brainstorm 2026-07-27): t40 delivers ONLY facet (b) — the ambient read-only TASK-CONTEXT ENV for gate/post/event commands (MTT_TASK_JSON + MTT_TASK_CHILDREN_JSON + convenience scalars; {{}} stays shape-safe; free text rides env as data). Facet (a) — the per-invocation caller --arg/--pr-body-file value channel — is SPLIT OUT to t77 (distinct mechanism, not release-critical). by/why-in-env deferred (add on demand). VCS-context is a separate axis, not here.
+history:
+    - at: "2026-07-27T04:54:35Z"
+      by: Grigorii Pashukhin
+      from: tbd
+      to: speccing
+      checks:
+        - cmd: git switch task/t40 || (git switch main && git switch -c task/t40)
+          exit: 0
+        - cmd: test -f .mtt/tasks/t40.yaml || { echo "task file absent on this branch — its add has not reached main (merge/commit the branch that created it first)" >&2; false; }
+          exit: 0
+    - at: "2026-07-27T05:03:23Z"
+      by: Grigorii Pashukhin
+      from: speccing
+      to: spec_review
+      checks:
+        - cmd: ls docs/superpowers/specs/t40-*.md
+          exit: 0
+        - cmd: out=$(git status --porcelain -- ":(exclude).mtt") && test -z "$out" || { echo "working tree not clean - commit your code/docs first (.mtt is swept by the move itself)" >&2; false; }
+          exit: 0
+    - at: "2026-07-27T05:10:31Z"
+      by: Grigorii Pashukhin
+      why: 'Adversarial spec review (fresh subagent, empirical - prototyped sh -c env + proved injection-safety): core idea CONFIRMED (env on sh -c works, {{}} boundary untouched, no env collisions, children-json shape adequate). FIX-THEN-SHIP: (1) EventEmitter has NO store - adopt injected func(mtt.Task) map[string]string where the CLI closure owns the children List + serialization (core stays serialization-free, event needs no store); (2) MTT_TASK_JSON = lean toTaskJSON, not rich show --json; (3) note-events get no MTT_TASK_* - state it; (4) re-title t40 to facet (b) (title still says facet a); (5) add docs/architecture/model.go to the Runner ripple; nits: NUL-byte (not newline) is the real env edge, Compensate env is parity-only.'
+      from: spec_review
+      to: spec_fix
+    - at: "2026-07-27T05:11:55Z"
+      by: Grigorii Pashukhin
+      from: spec_fix
+      to: spec_review
+      checks:
+        - cmd: ls docs/superpowers/specs/t40-*.md
+          exit: 0
+        - cmd: out=$(git status --porcelain -- ":(exclude).mtt") && test -z "$out" || { echo "working tree not clean - commit your code/docs first (.mtt is swept by the move itself)" >&2; false; }
+          exit: 0
+    - at: "2026-07-27T05:12:11Z"
+      by: Grigorii Pashukhin
+      why: 'Adversarial spec review addressed: core idea empirically CONFIRMED (env on sh -c; injection-safety proven; no env collisions). Fixes: injected env-builder func(mtt.Task) with the CLI closure owning children-List + serialization (EventEmitter needs no store); MTT_TASK_JSON = lean toTaskJSON; note-events excluded from MTT_TASK_*; ripple includes doc-model Runner; NUL-byte edge documented; Compensate env parity-only. t40 re-titled to facet (b); t77 clarified. Ready for human sign-off.'
+      from: spec_review
+      to: spec_human_review
+    - at: "2026-07-27T05:26:19Z"
+      by: Grigorii Pashukhin
+      why: Human sign-off on the t40 spec (owner approved in session).
+      from: spec_human_review
+      to: planning
+    - at: "2026-07-27T05:30:51Z"
+      by: Grigorii Pashukhin
+      from: planning
+      to: plan_review
+      checks:
+        - cmd: ls docs/superpowers/plans/t40-*.md
+          exit: 0
+        - cmd: out=$(git status --porcelain -- ":(exclude).mtt") && test -z "$out" || { echo "working tree not clean - commit your code/docs first (.mtt is swept by the move itself)" >&2; false; }
+          exit: 0
+    - at: "2026-07-27T05:41:34Z"
+      by: Grigorii Pashukhin
+      why: 'Adversarial plan review (fresh subagent, empirical - materialized Task 1 in a scratch copy, go build/vet/test all green; field names all correct no casts; block/env-at-post wiring correct). FIX-THEN-SHIP: (1) Task 3 undercounts the NewEventEmitter ripple - 7 files/26 sites, plan lists 3; missing add_test/edit_test/note_test/noteremove_test/remove_test/tageditor_test -> incomplete commit -> red CI (fix: git add internal/core/); (2) testdata path is scripts/ (plural) not script/; (3) e2e must avoid jq (CI lacks it) - use POSIX sh case-glob on MTT_TASK_CHILDREN_JSON; (4) doc-model var NewTransitioner (model.go:739, 4-arg) + DESIGN/AGENTS dependency restatements left stale (parallel-occurrences); nice: guard env-build to len(commands)>0 (avoid a List per no-command move/event), note children-json reflects post-deletion state on delete events.'
+      from: plan_review
+      to: plan_fix
+    - at: "2026-07-27T05:44:47Z"
+      by: Grigorii Pashukhin
+      from: plan_fix
+      to: plan_review
+      checks:
+        - cmd: ls docs/superpowers/plans/t40-*.md
+          exit: 0
+        - cmd: out=$(git status --porcelain -- ":(exclude).mtt") && test -z "$out" || { echo "working tree not clean - commit your code/docs first (.mtt is swept by the move itself)" >&2; false; }
+          exit: 0
+    - at: "2026-07-27T05:45:02Z"
+      by: Grigorii Pashukhin
+      why: 'Adversarial plan review addressed: reviewer materialized Task 1 (go build/vet/test all green), field names all correct, block/env-at-post wiring correct. Fixes: complete NewEventEmitter ripple (26 sites/7 files, git add internal/core/) + NewTransitioner ~35 sites (go build catches all); testdata dir scripts/ (plural); e2e roll-up via POSIX sh not jq; env built only when commands present; doc-model var NewTransitioner + DESIGN/AGENTS sweep; children-json post-deletion note. Ready for human sign-off.'
+      from: plan_review
+      to: plan_human_review
+    - at: "2026-07-27T05:45:58Z"
+      by: Grigorii Pashukhin
+      why: Human sign-off on the t40 plan (owner approved in session).
+      from: plan_human_review
+      to: implementing
+    - at: "2026-07-27T06:13:03Z"
+      by: Grigorii Pashukhin
+      from: implementing
+      to: impl_review
+      checks:
+        - cmd: out=$(git status --porcelain -- ":(exclude).mtt") && test -z "$out" || { echo "working tree not clean - commit your code/docs first (.mtt is swept by the move itself)" >&2; false; }
+          exit: 0
+        - cmd: 'git diff --quiet main...HEAD -- cmd internal pkg go.mod go.sum || git diff --name-only main...HEAD -- CHANGELOG.md | grep -q . || { echo "code changed but CHANGELOG.md has no entry - add one under [Unreleased] (pure refactor? bypass: mtt do submit --no-run --who ... --why ...)" >&2; false; }'
+          exit: 0
+        - cmd: make check
+          exit: 0
+    - at: "2026-07-27T06:21:27Z"
+      by: Grigorii Pashukhin
+      why: 'Adversarial code review: SHIP (injection boundary held under live payloads - title $(touch /tmp/PWNED) echoed literally not executed, quoted AND unquoted; {{.Title}} still a template error; NUL rejected at YAML load; make check/lint/-race all green; core serialization-free; docs synced). Folding two cheap security-adjacent regression tests the reviewer verified only empirically: env-overrides-parent (last-occurrence-wins prevents a parent MTT_TASK_* hijacking a gate) and NUL-strip. The DRY nit (two identical nil-guard helpers) left as-is (marginal, clearer per-type).'
+      from: impl_review
+      to: impl_fix
+    - at: "2026-07-27T06:22:16Z"
+      by: Grigorii Pashukhin
+      from: impl_fix
+      to: impl_review
+      checks:
+        - cmd: out=$(git status --porcelain -- ":(exclude).mtt") && test -z "$out" || { echo "working tree not clean - commit your code/docs first (.mtt is swept by the move itself)" >&2; false; }
+          exit: 0
+        - cmd: 'git diff --quiet main...HEAD -- cmd internal pkg go.mod go.sum || git diff --name-only main...HEAD -- CHANGELOG.md | grep -q . || { echo "code changed but CHANGELOG.md has no entry - add one under [Unreleased] (pure refactor? bypass: mtt do submit --no-run --who ... --why ...)" >&2; false; }'
+          exit: 0
+        - cmd: make check
+          exit: 0
+    - at: "2026-07-27T06:23:04Z"
+      by: Grigorii Pashukhin
+      why: 'Adversarial code review: SHIP (injection boundary held under live payloads; {{}} whitelist untouched; make check/-race/lint green; core serialization-free; docs EN+RU synced). Folded the two suggested security-adjacent regression tests (env-overrides-parent, NUL-strip). Ready to open PR.'
+      from: impl_review
+      to: approved
+      checks:
+        - cmd: out=$(git status --porcelain -- ":(exclude).mtt") && test -z "$out" || { echo "working tree not clean - commit your code/docs first (.mtt is swept by the move itself)" >&2; false; }
+          exit: 0
+    - at: "2026-07-27T07:31:05Z"
+      by: Grigorii Pashukhin
+      why: 'Squash-merged via PR #68; task-context env (t40) landed on main.'
+      from: approved
+      to: done
+      checks:
+        - cmd: git switch main
+          exit: 0
+        - cmd: 'git log -n 1000 --format=%s | grep -v "^mtt: " | head -200 | grep "^t40: " || { echo "no squash commit \"t40: …\" on local main: git pull first, and check the PR/merge title started with \"t40: \"" >&2; false; }'
+          exit: 0

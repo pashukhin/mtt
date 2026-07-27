@@ -258,7 +258,7 @@ func TestAddFiresCreateEvent(t *testing.T) {
 	cfg := eventCfg(taskHook(mtt.EventCreate, "echo {{.ID}} {{.Event}}"))
 	store := &mintStore{memStore: newMemStore(), mint: "t9"}
 	runner := &fakeRunner{}
-	adder := NewAdder(store, cfg, testClock, NewEventEmitter(cfg, runner, &fakeAudit{}, testClock))
+	adder := NewAdder(store, cfg, testClock, NewEventEmitter(cfg, runner, &fakeAudit{}, testClock, nil))
 	task, err := adder.Add(AddParams{Title: "x"})
 	if err != nil {
 		t.Fatalf("unexpected: %v", err)
@@ -274,7 +274,7 @@ func TestAddFiresCreateEvent(t *testing.T) {
 func TestAddEventFailureKeepsTask(t *testing.T) {
 	cfg := eventCfg(taskHook(mtt.EventCreate, "boom"))
 	store := &mintStore{memStore: newMemStore(), mint: "t9"}
-	adder := NewAdder(store, cfg, testClock, NewEventEmitter(cfg, &fakeRunner{failSubstr: "boom"}, &fakeAudit{}, testClock))
+	adder := NewAdder(store, cfg, testClock, NewEventEmitter(cfg, &fakeRunner{failSubstr: "boom"}, &fakeAudit{}, testClock, nil))
 	task, err := adder.Add(AddParams{Title: "x"})
 	var pe *PostActionError
 	if !errors.As(err, &pe) {
@@ -291,7 +291,7 @@ func TestAddEventFailureKeepsTask(t *testing.T) {
 func TestAddNoRunPreflight(t *testing.T) {
 	cfg := eventCfg(mtt.Events{})
 	store := newMemStore()
-	adder := NewAdder(store, cfg, testClock, NewEventEmitter(cfg, &fakeRunner{}, &fakeAudit{}, testClock))
+	adder := NewAdder(store, cfg, testClock, NewEventEmitter(cfg, &fakeRunner{}, &fakeAudit{}, testClock, nil))
 	_, err := adder.Add(AddParams{Title: "x", Events: EventOptions{NoRun: true}})
 	if !errors.Is(err, ErrMissingAttribution) {
 		t.Fatalf("want ErrMissingAttribution, got %v", err)

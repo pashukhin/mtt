@@ -5,8 +5,12 @@ transition's `commands` as gates.
 
 ## Responsibilities
 
-- `NewRunner(dir, timeout, progress, cmdOut, tailLines)` / `Run(commands []mtt.Command)` — run each command with
-  `cwd=dir`, in order, **stopping at the first non-zero exit**. The effective timeout per command is
+- `NewRunner(dir, timeout, progress, cmdOut, tailLines)` / `Run(commands []mtt.Command, env map[string]string)`
+  — run each command with `cwd=dir`, in order, **stopping at the first non-zero exit**. **`env` (t40)** is set
+  on the `sh -c` process (`c.Env = os.Environ()` + `KEY=VALUE`, sorted; ours **override** a same-named parent
+  var — last occurrence wins; **NUL stripped** from values, which `os/exec` refuses; a nil/empty map inherits
+  the parent env only, the pre-t40 behavior). `Compensate` takes `env` too (parity). `core` builds the map
+  (the `MTT_TASK_*` task-context, t40); this adapter only sets it. The effective timeout per command is
   `cmd.Timeout` when set, else the constructor `timeout` (the adapter global `command_timeout`) as a
   **fallback** (`context.WithTimeout`) — so a tight per-command timeout fails fast independent of the global
   (s007). Each `mtt.Command.Run` is **already expanded** by `core` (this adapter does not template); records a

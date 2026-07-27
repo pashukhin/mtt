@@ -64,7 +64,7 @@ func TestNoteRemoveForceNoRunOneRecord(t *testing.T) {
 	var ev mtt.Events
 	ev.Note.Delete = mtt.EventHook{Post: strCmds([]string{"echo hi"})}
 	runner := &fakeRunner{}
-	r := NewNoteRemover(kb, audit, testClock, NewEventEmitter(eventCfg(ev), runner, audit, testClock))
+	r := NewNoteRemover(kb, audit, testClock, NewEventEmitter(eventCfg(ev), runner, audit, testClock, nil))
 	if err := r.Remove("a", nil, true, "me", "sign", true); err != nil {
 		t.Fatalf("unexpected: %v", err)
 	}
