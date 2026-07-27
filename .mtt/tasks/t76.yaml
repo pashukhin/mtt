@@ -1,7 +1,7 @@
 id: t76
 type: task
 title: 'GitHub-gated flow: dogfood the compositional mtt+gh gating pattern + ship a github-gated flagship template (store-adapter stays t9)'
-status: spec_human_review
+status: planning
 priority: high
 tags:
     - adapter
@@ -55,3 +55,8 @@ history:
       why: 'Adversarial spec review addressed: engineering thesis empirically CONFIRMED by the reviewer (gate-calls-mtt, post-calls-gh, capture-back one-liner, red-gate-blocks, t40 enabler-not-blocker; git-flow flagship already does gh+mtt-self-call). Three scope/honesty fixes applied: dogfood reframed to a dedicated out-of-tree example (single-shared-config cannot be perturbation-free); mutate-in-post re-entrancy + require.who attribution clunk documented; t9 amended to name GitHub-store-of-record (deferral no longer a silent drop). Ready for human sign-off.'
       from: spec_review
       to: spec_human_review
+    - at: "2026-07-27T04:45:08Z"
+      by: Grigorii Pashukhin
+      why: Human sign-off on the t76 spec (owner approved in session). Execution agreed LIGHT (template+dogfood+docs, one review); t60 trimmed to {t40, t76}, rest fast-follow. Order (t40 vs t76 first) to be decided next.
+      from: spec_human_review
+      to: planning
