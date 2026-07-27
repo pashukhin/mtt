@@ -15,6 +15,10 @@ path or URL:
   its gate/post commands before use: it assumes a pushable `main`, `gh`+`jq`, and
   the repo's squash-merge title = PR title, and its state-moving edges carry the
   `--no-run` bypass caveat.
+- `github-gated.yaml` — the GitHub-integration flagship. Puts executable mtt gates
+  on a GitHub issue's close: two linked entities (a native issue + a rich gating
+  mtt task), the issue's close is the task's terminal action, drift is
+  detect+complain (never enforced). Needs `gh`+`jq`; read its header before use.
 
 An installed external template is written **verbatim** (no `{{.Name}}`
 substitution) and mtt's gate/post commands run via `sh -c` on your transitions —
