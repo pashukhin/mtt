@@ -4,19 +4,17 @@ title: 'GitHub-gated flow: dogfood the compositional mtt+gh gating pattern + shi
 status: speccing
 priority: high
 tags:
-    - "1"
-    - "2"
     - adapter
     - release
 created: "2026-07-27T02:13:16Z"
-updated: "2026-07-27T04:06:44Z"
+updated: "2026-07-27T04:07:24Z"
 description: |-
     RESCOPED (brainstorm 2026-07-27): NOT a GitHub TaskStore adapter. The useful middle of the external-tracker spectrum ("GitHub as store + rich mtt flow via dependencies") is already reachable with mtt's EXISTING primitives — per-type flows + gate/post commands that shell out to `mtt` (self-calls) and `gh` (the pilot proved gates-can-call-mtt with its "all children done" gate). So this task is validate-then-build, not build-an-adapter:
-    (1) DOGFOOD the compositional GitHub-gating pattern on this repo (existing primitives + `gh`; ~zero new Go) to validate the release story "put executable mtt gates on the close of your GitHub issues";
+    (1) DOGFOOD the compositional GitHub-gating pattern on this repo (existing primitives + `gh`; near-zero new Go) to validate the release story "put executable mtt gates on the close of your GitHub issues";
     (2) package the proven pattern as a `github-gated` flagship init template (like the git-flow flagship packaged git integration);
     (3) let the dogfood evidence decide whether any bespoke code (a `mtt tt` sugar family) is warranted — do NOT build it up front.
-    Enabler: t40 (gate/post context — the pilot's #1 workaround-driver; today a gate cannot see its own task's title/tags/children, forcing re-query/shell-out). t40 makes the pattern ergonomic; it is not a hard blocker (the pilot worked around it).
-    Deferred (deliberate): true GitHub-as-store-of-record (issues live only in GitHub, `mtt roadmap`/`list` read them live) = bet #2, stays t9, demand-driven; likewise the far extreme where the external tracker supplies its own flow (Projects v2 columns). Also out: Trello, bidirectional reconcile, Projects reflection, the universal-graph framing.
+    Enabler: t40 (gate/post context — the pilot's top workaround-driver; today a gate cannot see its own task's title/tags/children, forcing re-query/shell-out). t40 makes the pattern ergonomic; it is not a hard blocker (the pilot worked around it).
+    Deferred (deliberate): true GitHub-as-store-of-record (issues live only in GitHub, `mtt roadmap`/`list` read them live) = the external-store bet, stays t9, demand-driven; likewise the far extreme where the external tracker supplies its own flow (Projects v2 columns). Also out: Trello, bidirectional reconcile, Projects reflection, the universal-graph framing.
     Enforcement honesty: mtt gates the AGENT (it works through mtt); a human closing an issue in the GitHub UI bypasses the gates (mtt is not the choke point there) — detect + complain, never claim to enforce. History with gate-check results lives in the mtt task (YAML) — no store-of-record problem in this model. Blocks a confident public release (t60).
 history:
     - at: "2026-07-27T02:13:42Z"
