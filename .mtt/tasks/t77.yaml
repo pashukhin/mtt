@@ -1,0 +1,11 @@
+id: t77
+type: task
+title: per-invocation --arg value channel into gate/post placeholders (split from t40; --pr-body-file)
+status: tbd
+priority: low
+tags:
+    - backlog
+    - dx
+created: "2026-07-27T05:00:18Z"
+updated: "2026-07-27T05:00:18Z"
+description: 'Split from t40 (2026-07-27), which took the task-context-ENV facet (b). This is the ORIGINAL t40 facet (a): a per-invocation, caller-supplied value channel into the gate/post placeholder context — e.g. `mtt <edge> --arg key=value` expanded as `{{.Args.key}}`, or a typed flag like `mtt approve --pr-body-file`. Distinct mechanism from t40''s ambient task-context env: this threads CALLER-supplied values into the template surface. Design-open: naming, precedence/interaction with the shape-safe placeholders, injection safety (must NOT re-open the free-text-into-shell surface that t5/t21/s007 kept to 4 shape-safe fields — likely the arg values ride env as data, or are shell-quoted, rather than raw {{}} interpolation). First consumer: t27 PR body (mtt approve --pr-body-file). Not release-critical (fast-follow).'
