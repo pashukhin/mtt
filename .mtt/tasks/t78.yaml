@@ -1,0 +1,11 @@
+id: t78
+type: task
+title: example-flow gallery — 2-3 sanitized common flows; keep init default minimal
+status: tbd
+priority: medium
+tags:
+    - flow
+    - release
+created: "2026-07-27T15:51:02Z"
+updated: "2026-07-27T15:51:02Z"
+description: Pre-1.0 polish (Variant A). Curate 2-3 sanitized example flows for common cases (e.g. a simple 3-state with a test gate on done; a bugfix repro-first flow; a docs / no-code flow). Keep the zero-config init default minimal (task + chore). Our own dogfood flow is a good ADVANCED example but is wired to this repo toolchain (make/git/PR) - sanitize or relabel before showcasing so it does not read as mandatory. Ship as documented examples, not necessarily embedded builtins. Relates to t62 (templates).
