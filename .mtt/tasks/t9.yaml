@@ -7,4 +7,5 @@ tags:
     - adapter
     - backlog
 created: "2026-07-10T13:53:10Z"
-updated: "2026-07-10T13:53:10Z"
+updated: "2026-07-27T04:18:47Z"
+description: 'The external-adapter phase (the external-store bet: an external tracker as store-of-record, tasks living in the backend). Covers Jira/Confluence + the indexer hook AND GitHub Issues as a TRUE TaskStore — issues live only in GitHub, mtt reads them live via `mtt roadmap`/`list`, and the tracker may supply its own flow (e.g. Projects v2 columns). Deferred here from t76 (2026-07-27), which shipped only the lighter compositional GitHub-GATING pattern (mtt tasks in YAML + gate/post shelling to `gh`), NOT GitHub-as-store. Prerequisite: the composition-root adapter-SELECTION seam — every CLI site hardwires yaml.NewTaskStore/NewKnowledgeStore inline (~20 sites; no factory/backend-config/`mtt connect`); overlaps t61. Demand-driven; not in the initial public release.'
