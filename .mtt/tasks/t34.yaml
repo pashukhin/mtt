@@ -7,4 +7,8 @@ tags:
     - backlog
     - core
 created: "2026-07-11T14:07:18Z"
-updated: "2026-07-12T01:21:41Z"
+updated: "2026-07-27T01:43:50Z"
+description: |-
+    epics / hierarchy return — product-valid containers (+ re-parenting; the corrected fail-closed self-ref phase gate returns with them).
+
+    v0.11.0 pilot addition: self-referential hierarchy is unexpressible — a type cannot be its own parent, so epic->epic, story->story, folder->folder recursive containment is rejected flat. Consider allowing self-parent with a `max_depth` guard rather than a flat rejection.
