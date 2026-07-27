@@ -8,7 +8,7 @@ tags:
     - flow
     - think
 created: "2026-07-12T04:05:25Z"
-updated: "2026-07-27T04:54:35Z"
+updated: "2026-07-27T05:00:51Z"
 description: |-
     Spun off from t27 (mechanized gh pr create). t27 mechanizes PR opening config-only, reading the title via read-only mtt show --json and taking the body from an optional artifact file with a generated fallback. It deliberately did NOT add the flag variant (mtt approve --pr-body-file). This task generalizes that: a per-invocation channel to thread caller-supplied values into the gate/post placeholder context, beyond the fixed {ID,Type,From,To} whitelist — e.g. mtt <edge> --arg key=value expanded as {{.Args.key}}, or a typed flag like --pr-body-file. Design-open: naming, whitelist interaction, safety (avoid re-opening the narrow-whitelist SEC surface t5/t21 kept to 4 fields), precedence with existing placeholders. First consumer: t27 PR body. Decide the general mechanism before adding more one-off flags.
 
@@ -16,6 +16,8 @@ description: |-
 
 
     --- Pilot Q3 answer (generalized; sharpens scope + prevents over-build). Whole-task JSON in the env covers ~80% (the shell-out triggers were specifically title/tags/parent). The ONE computed/relational field genuinely needed: CHILDREN WITH THEIR STATUSES (e.g. $MTT_TASK_CHILDREN_JSON) — the load-bearing "all children done" roll-up gate, and exactly what an HTTP/deploy "is-this-aggregate-complete" gate needs. Ancestors and ref-backlinks were YAGNI — do NOT build them into the env. Attribution (by/why) is wanted in notification/deploy payloads. Target env surface = whole task JSON + by/why + children-with-statuses. Design guardrail: "task context" and "VCS context" are SEPARATE axes — some gates need a diff/merge-base ("diff vs main"), which no task JSON provides; carry VCS context as its own thing rather than cramming it into task-context (a possible sibling feature, not part of this task).
+
+    --- SCOPED (brainstorm 2026-07-27): t40 delivers ONLY facet (b) — the ambient read-only TASK-CONTEXT ENV for gate/post/event commands (MTT_TASK_JSON + MTT_TASK_CHILDREN_JSON + convenience scalars; {{}} stays shape-safe; free text rides env as data). Facet (a) — the per-invocation caller --arg/--pr-body-file value channel — is SPLIT OUT to t77 (distinct mechanism, not release-critical). by/why-in-env deferred (add on demand). VCS-context is a separate axis, not here.
 history:
     - at: "2026-07-27T04:54:35Z"
       by: Grigorii Pashukhin
