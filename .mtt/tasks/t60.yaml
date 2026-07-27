@@ -19,9 +19,8 @@ depends_on:
     - t62
     - c19
     - t40
-    - t76
 created: "2026-07-22T08:01:24Z"
-updated: "2026-07-27T04:44:34Z"
+updated: "2026-07-27T12:06:36Z"
 description: |-
     MILESTONE: public release — Medium article + announced release cut.
 
