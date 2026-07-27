@@ -8,7 +8,7 @@ refs:
     - kind: note
       id: positioning-vs-beads
 created: "2026-07-27T15:50:27Z"
-updated: "2026-07-27T15:50:27Z"
+updated: "2026-07-27T16:32:27Z"
 ---
 # Release scope 1.0 — Variant A: the sharp fuse, polish-only
 
@@ -25,5 +25,7 @@ Decided 2026-07-27 in the pre-t60 "did we build a monster?" reflection.
 **Not in 1.0 at all:** remote / URL templates, external-tracker adapters (GitHub Issues etc.), any storage-engine change (a separate think-item records that storage stays plain YAML — a wedge asset — and the only real gap, multi-writer concurrency, is fixed behind the port, never by swapping YAML).
 
 **The release is POLISH-ONLY.** Pre-release work set (tag `release`): pitch to README, an example-flow gallery, the hashtag toggle (t69), doc-hygiene (t63). Acceptance: a new user lives the two-paragraph pitch in ~10 minutes via a cold start (init -> add -> a blocked transition -> roadmap). Only then write the Medium article — a polished-surface article on a still-sprawling surface would sell the wrong product.
+
+**Gate/post-action unification (considered 2026-07-27):** bounded to (a) — one lifecycle-hook mental model plus extracting the shared post-pipeline (folded into t63 docs + t61 code). DECLINED: (b) a symmetric blocking pre-gate on CRUD events — post-only is by design (the mutation is already durable; a pre-gate would be a NEW capability and the Variant-B hook-system drift); and (c) merging the Transitioner and EventEmitter orchestrators — they differ in flow resolution / history / rollback, so a merge would over-abstract, not simplify. The real duplication (the post-pipeline) is extractable without a merge.
 
 See the complexity-budget and pitch notes.
