@@ -29,8 +29,9 @@ Three layers, all name-agnostic (the engine has no hard-coded status or type nam
   pass or the move is blocked) and **`post:`** actions (run after the move is saved).
 
 Start from the built-in `default` (`mtt init`) or install a richer sample by path/url (`mtt init --template
-templates/coding.yaml`, `templates/hierarchy.yaml`, or the `git-flow` flagship — see §8), then inspect any
-flow with **`mtt types`**, which renders the graph, the gate commands, and the named edge verbs.
+templates/coding.yaml`, `templates/hierarchy.yaml`, the `git-flow` flagship — see §8, or the `github-gated`
+flagship — see §8b), then inspect any flow with **`mtt types`**, which renders the graph, the gate commands,
+and the named edge verbs.
 
 ## 2. A minimal flow from scratch
 
@@ -236,6 +237,51 @@ flow); change the branch name; change or remove the main push if you protect `ma
 the direct `deliver` push). The shared auto-commit line is declared **once per type** (`post_defaults:`, with
 the main-landing edges opting out via `inherit_post: false` to keep their narrowed commit); a one-command
 `mtt init` template for this flow is tracked separately (see Neighbours).
+
+## 8b. The GitHub-issue-gating pattern (a sample)
+
+The `github-gated` flagship (`mtt init --template …/templates/github-gated.yaml`) puts executable mtt gates on
+the **close of a GitHub issue** — using only existing primitives (`mtt` self-calls + the t40 task-context env
++ `gh`), no bespoke Go. It is **two linked entities**, not a status mirror: a GitHub issue keeps its native
+`open⇄closed` model; a rich mtt task (a normal gated flow, local YAML) references it, and the issue's **close
+is the task's terminal action** — `approve → done` runs `gh issue close`, reachable only after the flow's
+gates pass. The moving parts:
+
+- **`start` creates the issue** (`u=$(gh issue create --title "$MTT_TASK_TITLE" …)`) and captures its URL back
+  as a `url:` ref (`mtt ref add {{.ID}} "url:$u"`). The title rides the **t40 env** (`$MTT_TASK_TITLE`) as
+  data — never interpolated into the command string, so the injection boundary holds.
+- **`approve` (review → done)** gates on the issue still being **OPEN** (a drift guard), then its `post:` runs
+  `gh issue close --reason completed`. The gate **fails closed**: if the issue was already closed out of band,
+  the move is refused and the task stays in `review` — the `gh issue close` never runs.
+- **`sync` (a self-loop)** is a **polled** drift check: it complains if the linked issue is CLOSED while the
+  task is still active.
+
+**Enforcement honesty — state this to adopters.** mtt gates only **`mtt`-mediated moves**: the choke point is
+`mtt <edge>`, the interface the agent uses. **Any** actor — human *or* agent — closing or reopening the issue
+directly in the GitHub UI or with a raw `gh` call **bypasses** the gate (no local hook intercepts it). Drift
+is **detect + complain, never enforce**, and detection is **polled** (no webhook; it needs `gh` + network at
+run time and can lag) and **symmetric** in principle (closed-while-unfinished *or* reopened-while-done). The
+`sync` self-loop covers the closed-while-active direction from inside the flow; the reopened-while-done half
+has no edge on the terminal `done`, so catch it with a manual `gh issue view` compare. Server-side enforcement
+(a GitHub Action rejecting an ungated transition) is a separate, heavier layer, out of scope.
+
+**t40 is the ergonomic enabler, with one honest residual.** The task's title/tags/children ride the gate/post
+**environment** (`MTT_TASK_*`), so the template needs no `mtt show` re-query for them. The one thing t40 does
+*not* expose is a task's **refs**, so reading the linked issue URL back stays an `mtt ref list {{.ID}} --json`
+self-call (read-only, safe). Folding refs into the env — or a per-invocation value channel — is a natural
+follow-up (t77's `--arg` direction); it is the pattern's only residual friction, not a blocker. (This is why
+the task ships the template, not a bespoke `mtt tt` command family: the composition already works.)
+
+**Two known interactions.** (1) **Attribution** — the template ships no `require:` block, so no attribution is
+needed by default; if you add `require.who`, it gates the flow's **transitions** (`mtt start`/`approve`/…),
+which exit 2 without an actor, so set `author:` in `.mtt/config.local.yaml` first. The inner `mtt ref add`/
+`ref list` self-calls are a mutation/read and are **not** gated by `require.who` (only transitions are), so
+they need nothing extra. (2) **Mutate-in-`post:`** — the inner `mtt ref add` fires the `task.update` lifecycle
+event, so combined with an auto-commit/push `events:` block (e.g. alongside git-flow) it triggers a nested
+commit+push inside `start`'s post; scope it, or capture the URL without a mid-move mutation.
+
+**True GitHub-as-store-of-record** (issues live only in GitHub; `mtt roadmap`/`list` read them live) is a
+different, heavier bet — deferred (t9), demand-driven.
 
 ## 9. Adaptation checklist
 

@@ -765,6 +765,22 @@ gated Definition of Done (branch + lint/test; `bugfix` also requires a failing t
 requires no public-API diff), as a ready-made demo of the enforcement value. See `demo/` for a runnable,
 tested end-to-end walkthrough of this template.
 
+> **Shipped (t76): the `github-gated` flagship template — executable mtt gates on a GitHub issue's close.**
+> The external-tracker question ("which flow is authoritative?") resolves not to a status mapping but to **two
+> linked entities**: a GitHub issue keeps its native `open⇄closed` model, and a rich mtt task (a full gated
+> flow in local YAML) *gates* it — the issue's **close is the task's terminal action** (`approve → done` runs
+> `gh issue close`). Crucially this needs **near-zero new Go**: gate/`post:` commands already shell out to
+> `mtt` self-calls + the t40 task-context env + `gh`, so the useful middle of the external-tracker spectrum is
+> reachable by **composition**, packaged as a hosted flagship template (the way t62's git-flow packaged git).
+> **Enforcement is honest:** mtt gates only `mtt`-mediated moves (the choke point is `mtt <edge>`); a direct
+> UI/`gh` move by any actor bypasses, and drift is **detect + complain** (polled, symmetric), never enforced —
+> a `sync` self-loop surfaces it. **Validate-then-build:** a real out-of-tree dogfood over a scratch GitHub
+> repo proved the gate bites (a premature/out-of-band close is refused, the task stays in `review`) and drift
+> is detected, so **no bespoke `mtt tt` code was warranted** — the template is the deliverable, the only
+> residual friction being that t40's env does not carry refs (the issue-URL read stays an `mtt ref list
+> --json` self-call; a follow-up, t77). True **GitHub-as-store-of-record** (issues live only in GitHub;
+> `mtt roadmap`/`list` read them live) is a heavier, separate bet — deferred (t9), demand-driven.
+
 > **Shipped (t62): runnable templates — minimal built-in + bring-your-own.** `mtt init --template` resolves
 > three source kinds by shape (a pure classifier): a **bare name** → the sole embedded built-in `default`; a
 > **file path** or an **`https://` URL** → an external config installed **verbatim** (no `{{.Name}}` render —

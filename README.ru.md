@@ -117,6 +117,7 @@ mtt list                    # все задачи
 mtt tree                    # дерево задач
 mtt roadmap                 # порядок исполнения по зависимостям + приоритетам
 # Для иерархии epic > task > subtask: mtt init --template templates/hierarchy.yaml
+# Чтобы гейтить закрытие GitHub-issue флоу mtt-задачи: mtt init --template templates/github-gated.yaml
 ```
 
 Полный список команд и коды выхода — в [CLI_REFERENCE.ru.md](CLI_REFERENCE.ru.md).
