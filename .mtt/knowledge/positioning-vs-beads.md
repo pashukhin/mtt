@@ -5,7 +5,7 @@ tags:
     - release
 priority: high
 created: "2026-07-23T07:58:37Z"
-updated: "2026-07-23T07:58:37Z"
+updated: "2026-07-27T01:57:37Z"
 ---
 Wedge (bet #1, verified un-copied as of 2026-07-09): config-driven PER-TYPE flows + BLOCKING
 shell-command transition gates in a local zero-footprint CLI. Nobody else combines them: beads has
@@ -23,3 +23,12 @@ global hook, home-dir state, Claude-only, gates only "done".
   punishes bloat and confusing errors - zero-footprint and crisp errors are RETENTION features.
 - Bet #2 (external tracker as store-of-record) stays roadmap material, never headline; adapters follow
   demand (GitHub Issues first, only on real asks).
+
+
+## Pilot verdict (2026-07, first real beads -> mtt migration; treat as directional — one session, one project, migrator has investment bias)
+
+- **Wedge confirmed in the field, and reframed honestly.** The adopter moved a real polyglot repo off beads specifically for executable-enforced DoD, and it paid off. Crucial nuance for the pitch: mtt did NOT invent their gates — they already had them (Make/CI/AGENTS.md prose). mtt RELOCATED the enforcement into the tracker so gates can't be skipped and status reflects them. **The value is consolidation + enforcement, not a new capability.** Lead with that framing.
+- **"Not a better beads — a different tool."** mtt wins DECISIVELY iff you want the process itself enforced — especially with agents, who silently skip anything not mechanically gated. If you only want to track issues, beads -> mtt is a lateral move + a maturity regression + an authoring tax, not worth it. Position as a gated control plane, NOT a tracker replacement.
+- **Say the maturity regression out loud (don't hide it).** vs a mature tracker you LOSE today: batteries-included time-to-value; a hygiene layer (stale/orphans/preflight/lint/doctor, workflow templates, a human-decision flag, defer/supersede, acceptance/design fields); free-text search; import/export; multi-writer concurrency; bulk commit-hygiene. MOST are DELIBERATE non-goals per our positioning (we don't chase beads' richness). The few REAL gaps are already tracked: search (t6), import/export (t67/t68), onboarding time-to-value (t73), commit-firehose under bulk (t72/t13), concurrency (t10/t33).
+- **Authoring tax is the sharpest adoption barrier / retention risk on the AGENTS.md-snippet channel.** mtt is useless until you author a flow; the built-in default is trivial and the flagship is a starting point to adapt. Levers: better starter templates (t62 shipped) + guided onboarding (t73). Never sell it as drop-in.
+- **Store trade, honestly:** plain-YAML-as-truth (inspectable, diffable, no DB/export dance) is a genuine win over beads' embedded Dolt DB + sync — but it is merge-conflict-prone under concurrent writers (single-writer story; t10/t33).
