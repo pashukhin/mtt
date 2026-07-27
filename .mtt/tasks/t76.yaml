@@ -1,13 +1,13 @@
 id: t76
 type: task
 title: 'GitHub-gated flow: dogfood the compositional mtt+gh gating pattern + ship a github-gated flagship template (store-adapter stays t9)'
-status: impl_review
+status: approved
 priority: high
 tags:
     - adapter
     - release
 created: "2026-07-27T02:13:16Z"
-updated: "2026-07-27T11:34:54Z"
+updated: "2026-07-27T11:47:05Z"
 description: |-
     RESCOPED (brainstorm 2026-07-27): NOT a GitHub TaskStore adapter. The useful middle of the external-tracker spectrum ("GitHub as store + rich mtt flow via dependencies") is already reachable with mtt's EXISTING primitives — per-type flows + gate/post commands that shell out to `mtt` (self-calls) and `gh` (the pilot proved gates-can-call-mtt with its "all children done" gate). So this task is validate-then-build, not build-an-adapter:
     (1) DOGFOOD the compositional GitHub-gating pattern on this repo (existing primitives + `gh`; near-zero new Go) to validate the release story "put executable mtt gates on the close of your GitHub issues";
@@ -91,4 +91,12 @@ history:
         - cmd: 'git diff --quiet main...HEAD -- cmd internal pkg go.mod go.sum || git diff --name-only main...HEAD -- CHANGELOG.md | grep -q . || { echo "code changed but CHANGELOG.md has no entry - add one under [Unreleased] (pure refactor? bypass: mtt do submit --no-run --who ... --why ...)" >&2; false; }'
           exit: 0
         - cmd: make check
+          exit: 0
+    - at: "2026-07-27T11:47:05Z"
+      by: Grigorii Pashukhin
+      why: 'Adversarial impl_review (fresh subagent, empirical) verdict SHIP: independently reproduced every load-bearing claim against the branch binary — injection boundary airtight (a malicious title did not execute), the approve/sync gates fail closed (issue not OPEN -> move refused, gh issue close never runs, status unchanged), drift detected, EN/RU docs faithful mirrors, the require.who-gates-transitions-not-mutations attribution claim empirically TRUE, mutate-in-post task.update fires, make check green, all 4 spec-acceptance items satisfied and corroborated by the real dogfood repo (issue #1 CLOSED/COMPLETED, #2 CLOSED/NOT_PLANNED). Two nits: fixed the weak gh-token test assertion; the private scratch dogfood repo needs manual deletion (token lacks delete_repo).'
+      from: impl_review
+      to: approved
+      checks:
+        - cmd: out=$(git status --porcelain -- ":(exclude).mtt") && test -z "$out" || { echo "working tree not clean - commit your code/docs first (.mtt is swept by the move itself)" >&2; false; }
           exit: 0
