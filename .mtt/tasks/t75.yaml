@@ -1,0 +1,11 @@
+id: t75
+type: task
+title: honest terminal for no-code / milestone tasks (flow requires code+PR to reach done)
+status: tbd
+priority: medium
+tags:
+    - backlog
+    - flow
+created: "2026-07-27T01:47:51Z"
+updated: "2026-07-27T01:47:51Z"
+description: 'Surfaced while closing the t59 pilot milestone. The code-gated task flow can only reach `done` via `approved`, whose edge auto-opens a PR (`gh pr create`) and pushes a `task/<id>` branch. A milestone / no-code task (e.g. t59: the pilot migration — work is external, the deliverable is feedback->backlog) therefore cannot be closed as `done` honestly: forcing it yields an empty PR + a spurious branch, and `cancel` mislabels a success as "abandoned". Design-open: a lightweight terminal path for no-code work — a `milestone`/`chore`-like type whose flow has a direct tbd->done (or a done edge whose post omits the PR/branch push), a per-edge opt-out of the PR/branch post, or an explicit `mtt close --as done --why <supersession>` verb. Keep the who/why audit trail. Blocks honestly closing t59 and any future milestone; t59 stays tbd until this lands.'
