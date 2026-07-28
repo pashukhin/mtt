@@ -1,13 +1,13 @@
 id: c20
 type: chore
 title: pitch to README (EN+RU) — the two-paragraph why + who it is not for
-status: approved
+status: done
 priority: high
 tags:
     - docs
     - release
 created: "2026-07-27T15:50:58Z"
-updated: "2026-07-27T17:21:12Z"
+updated: "2026-07-28T01:53:36Z"
 description: 'Pre-1.0 polish (Variant A). Put the two-paragraph pitch into README (EN and RU): the pain (an agent silently skips unenforced checks and lies about done) and what mtt does (per-type flow whose transitions run your shell checks as blocking gates; the status cannot lie). Include who it is NOT for (just want a to-do list -> use something lighter) and both faces of the wedge: agent-cannot-lie AND human-sees-true-state via show/list/roadmap. Align with the existing root tagline. Source text: KB note pitch.'
 history:
     - at: "2026-07-27T17:14:49Z"
@@ -36,4 +36,13 @@ history:
       to: approved
       checks:
         - cmd: out=$(git status --porcelain -- ":(exclude).mtt") && test -z "$out" || { echo "working tree not clean - commit your code/docs first (.mtt is swept by the move itself)" >&2; false; }
+          exit: 0
+    - at: "2026-07-28T01:53:36Z"
+      by: Grigorii Pashukhin
+      from: approved
+      to: done
+      checks:
+        - cmd: git switch main
+          exit: 0
+        - cmd: 'git log -n 1000 --format=%s | grep -v "^mtt: " | head -200 | grep "^c20: " || { echo "no squash commit \"c20: …\" on local main: git pull first, and check the PR/merge title started with \"c20: \"" >&2; false; }'
           exit: 0
