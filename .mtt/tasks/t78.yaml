@@ -1,13 +1,13 @@
 id: t78
 type: task
 title: example-flow gallery — 2-3 sanitized common flows; keep init default minimal
-status: spec_review
+status: spec_fix
 priority: medium
 tags:
     - flow
     - release
 created: "2026-07-27T15:51:02Z"
-updated: "2026-07-28T09:42:09Z"
+updated: "2026-07-28T09:53:54Z"
 description: Pre-1.0 polish (Variant A). Curate 2-3 sanitized example flows for common cases (e.g. a simple 3-state with a test gate on done; a bugfix repro-first flow; a docs / no-code flow). Keep the zero-config init default minimal (task + chore). Our own dogfood flow is a good ADVANCED example but is wired to this repo toolchain (make/git/PR) - sanitize or relabel before showcasing so it does not read as mandatory. Ship as documented examples, not necessarily embedded builtins. Relates to t62 (templates).
 history:
     - at: "2026-07-28T09:36:56Z"
@@ -28,3 +28,8 @@ history:
           exit: 0
         - cmd: out=$(git status --porcelain -- ":(exclude).mtt") && test -z "$out" || { echo "working tree not clean - commit your code/docs first (.mtt is swept by the move itself)" >&2; false; }
           exit: 0
+    - at: "2026-07-28T09:53:54Z"
+      by: Grigorii Pashukhin
+      why: 'adversarial spec review DECLINE (verified against code): (MAJOR1) undercounted sync surface — CLI_REFERENCE.md:228 + CLI_REFERENCE.ru.md:229 present-tense enumerate the hosted set (coding/hierarchy/git-flow); missed by D5/§5. (MAJOR2) docs.yaml not a distinct shape — topologically = default''s task type (renamed) and duplicates §7 content-review which the gallery ALSO points to; ''no-code'' axis doesn''t distinguish it from the gate-less minimal row. MINORs: minimal row falsely implies mtt init ships a gate-on-done (default has none); TestDocsIsNoCode git/gh-only is a narrow proxy (false-negative: push/branch/pr or non-git deploy gate slips through); templates.go:4 + load_test.go:13 doc-comments also enumerate the set. Fix plan: add CLI_REFERENCE EN+RU (+ reword the 2 comments generically); DELIBERATELY exclude DESIGN.md:781/.ru:788 (t62 Shipped block = historical, and c23 is unloading Shipped blocks); reshape docs.yaml to a review<->revision loop (2 active states, a cycle no shipped template/§7 has) for genuine distinct teaching; make TestDocsIsNoCode STRUCTURAL (assert no commands/post/post_defaults/events); reword the minimal row honestly.'
+      from: spec_review
+      to: spec_fix
