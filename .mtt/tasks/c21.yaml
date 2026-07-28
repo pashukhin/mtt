@@ -1,13 +1,13 @@
 id: c21
 type: chore
 title: hashtag extraction toggle — committed-config setting, default off (title+body)
-status: impl_fix
+status: impl_review
 priority: high
 tags:
     - release
     - ux
 created: "2026-07-28T02:01:04Z"
-updated: "2026-07-28T02:38:11Z"
+updated: "2026-07-28T02:40:32Z"
 description: |-
     Make task-text hashtag extraction (hash-prefixed words in text becoming tags) a setting in the COMMITTED project config, default OFF, governing BOTH title and description. Design is fixed (Variant-A reflection; see KB notes release-scope / pitch / positioning-vs-beads) — this is impl-only. Recreated from t69 (was a task; design now fixed).
 
@@ -43,3 +43,14 @@ history:
       why: 'adversarial review: EN CLI_REFERENCE --tag flag still claims unconditional extraction (EN/RU divergence); tag rm guard bullet (EN+RU) claims unconditional guard — both now off-by-default'
       from: impl_review
       to: impl_fix
+    - at: "2026-07-28T02:40:32Z"
+      by: Grigorii Pashukhin
+      from: impl_fix
+      to: impl_review
+      checks:
+        - cmd: out=$(git status --porcelain -- ":(exclude).mtt") && test -z "$out" || { echo "working tree not clean - commit your code/docs first (.mtt is swept by the move itself)" >&2; false; }
+          exit: 0
+        - cmd: 'git diff --quiet main...HEAD -- cmd internal pkg go.mod go.sum || git diff --name-only main...HEAD -- CHANGELOG.md | grep -q . || { echo "code changed but CHANGELOG.md has no entry - add one under [Unreleased] (pure refactor? bypass: mtt do submit --no-run --who ... --why ...)" >&2; false; }'
+          exit: 0
+        - cmd: make check
+          exit: 0
