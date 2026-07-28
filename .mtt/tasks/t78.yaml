@@ -1,13 +1,13 @@
 id: t78
 type: task
 title: example-flow gallery — 2-3 sanitized common flows; keep init default minimal
-status: planning
+status: plan_review
 priority: medium
 tags:
     - flow
     - release
 created: "2026-07-27T15:51:02Z"
-updated: "2026-07-28T15:33:11Z"
+updated: "2026-07-28T15:38:00Z"
 description: Pre-1.0 polish (Variant A). Curate 2-3 sanitized example flows for common cases (e.g. a simple 3-state with a test gate on done; a bugfix repro-first flow; a docs / no-code flow). Keep the zero-config init default minimal (task + chore). Our own dogfood flow is a good ADVANCED example but is wired to this repo toolchain (make/git/PR) - sanitize or relabel before showcasing so it does not read as mandatory. Ship as documented examples, not necessarily embedded builtins. Relates to t62 (templates).
 history:
     - at: "2026-07-28T09:36:56Z"
@@ -66,3 +66,12 @@ history:
       why: 'human sign-off: spec accepted (rev3) after 3-round adversarial review (2 MAJOR rev1, 1 prose MAJOR rev2, APPROVE rev3)'
       from: spec_human_review
       to: planning
+    - at: "2026-07-28T15:38:00Z"
+      by: Grigorii Pashukhin
+      from: planning
+      to: plan_review
+      checks:
+        - cmd: ls docs/superpowers/plans/t78-*.md
+          exit: 0
+        - cmd: out=$(git status --porcelain -- ":(exclude).mtt") && test -z "$out" || { echo "working tree not clean - commit your code/docs first (.mtt is swept by the move itself)" >&2; false; }
+          exit: 0
