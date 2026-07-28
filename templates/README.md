@@ -10,6 +10,7 @@ path or URL:
 
 - `default.yaml`   — minimal flat flow (task + chore). The sole built-in.
 - `coding.yaml`    — a dev flow (feature / bugfix / refactor).
+- `docs.yaml`      — a docs / no-code flow: a gate-less `review ⇄ revision` loop (no branch, no PR).
 - `hierarchy.yaml` — epics + tasks + subtasks.
 - `git-flow.yaml`  — the git-integration flagship (branch → PR → deliver). Review
   its gate/post commands before use: it assumes a pushable `main`, `gh`+`jq`, and
@@ -19,3 +20,6 @@ path or URL:
 An installed external template is written **verbatim** (no `{{.Name}}`
 substitution) and mtt's gate/post commands run via `sh -c` on your transitions —
 review `.mtt/config.yaml` before your first move (config is code).
+
+For **which to pick**, see the example-flow gallery in
+[../FLOW_GUIDE.md §2b](../FLOW_GUIDE.md#2b-example-flow-gallery-pick-a-shape).

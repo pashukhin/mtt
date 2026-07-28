@@ -6,8 +6,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/pashukhin/mtt/internal/adapter/yaml"
 	yamlv3 "gopkg.in/yaml.v3"
+
+	"github.com/pashukhin/mtt/internal/adapter/yaml"
 )
 
 func TestExamplesLoadAndValidate(t *testing.T) {

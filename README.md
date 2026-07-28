@@ -129,6 +129,10 @@ mtt roadmap                 # dependency + priority execution order
 # For an epic > task > subtask hierarchy: mtt init --template templates/hierarchy.yaml
 ```
 
+> **Which flow?** `default` is minimal (task + chore). For a per-type coding DoD, a docs/no-code loop, an
+> epic→task→subtask hierarchy, or the full git branch→PR→deliver flow, browse the **example-flow gallery**
+> in [FLOW_GUIDE.md §2b](FLOW_GUIDE.md#2b-example-flow-gallery-pick-a-shape).
+
 See [CLI_REFERENCE.md](CLI_REFERENCE.md) for the full command surface and exit codes.
 
 > **Existing projects:** `mtt init` now also writes a `.mtt/.gitignore` that keeps the personal

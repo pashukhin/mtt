@@ -7,6 +7,11 @@ All notable changes to mtt are documented here. The format follows
 ## [Unreleased]
 
 ### Added
+- **Example-flow gallery + a docs/no-code starter (t78).** A new `docs.yaml` hosted template — a gate-less
+  `review ⇄ revision` no-code flow (no branch, no PR) — and an **example-flow gallery** in FLOW_GUIDE (§2b)
+  that indexes every shipped shape (`default`/`coding`/`docs`/`hierarchy`/`git-flow`) with a one-line
+  "use when" and a copy-paste install; README and CLI_REFERENCE point to it. Docs-only; `mtt init`'s
+  minimal built-in default is unchanged.
 - **Task-context env for gate/post/event commands (t40).** Gate `commands:`, edge `post:`, and task
   lifecycle-event pipelines now run with the task's read-only context in the environment: `MTT_TASK_JSON`
   (the whole task), `MTT_TASK_CHILDREN_JSON` (children with statuses — for a roll-up "all children done"
