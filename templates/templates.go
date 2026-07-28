@@ -1,7 +1,7 @@
 // Package templates holds mtt's init config templates as plain files so they are
 // URL-fetchable (raw.githubusercontent.com/…/templates/<name>.yaml). Only the
 // minimal built-in `default` is embedded in the binary; the rest are hosted
-// examples (the hosted templates/*.yaml) — de-embedded per the t62 minimal-
+// examples (the templates/*.yaml files) — de-embedded per the t62 minimal-
 // built-in strategy.
 package templates
 
