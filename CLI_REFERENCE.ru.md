@@ -12,10 +12,11 @@
 список — `mtt --help`, сборка — `mtt version`.
 
 Всё ниже отгружено и работает сегодня, **кроме** этого (целевая/проектная поверхность — на первом чтении можно
-пропустить): `mtt caps` (PLANNED); семейство `advance` — `mtt advance` / `start` / `done` / `cancel`
-(**PARKED**, хотя `mtt done <id>` и `mtt cancel <id>` уже работают как verb-сахар); `--force` у `mtt status` и
-stdin `--description -` (PLANNED); `mtt reparent` / `move` (PLANNED). Норма — одно-рёберные `mtt status` /
-`mtt do` / verb-сахар; мета-обход `advance` остаётся припаркован (см. «Flow»).
+пропустить): `mtt caps`, `mtt comment`, `mtt search`, `mtt gantt` (PLANNED / отложено); семейство `advance` —
+`mtt advance` / `start` / `done` / `cancel` (**PARKED**, хотя `mtt done <id>` и `mtt cancelled <id>` уже
+работают как verb-сахар в default-флоу); `--force` у `mtt status` и stdin `--description -` (PLANNED);
+`mtt reparent` / `move` (PLANNED). Норма — одно-рёберные `mtt status` / `mtt do` / verb-сахар; мета-обход
+`advance` остаётся припаркован (см. «Flow»).
 
 **Обозначения:** `<обязательно>`, `[опционально]`, `…` повторяемо. `<id>` — идентификатор задачи вида
 `t17` — плоский, per-prefix (в YAML-адаптере). `<status>` — имя статуса из flow типа (напр. `tbd`,

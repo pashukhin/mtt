@@ -12,10 +12,11 @@ session that shipped it (`implemented`), or with **PARKED** / **PLANNED** when i
 `mtt --help` is the authoritative live list and `mtt version` the build.
 
 Everything below is shipped and works today **except** these (target/design surface — safe to skip on a first
-read): `mtt caps` (PLANNED); the `advance` family — `mtt advance` / `start` / `done` / `cancel` (**PARKED**,
-though `mtt done <id>` and `mtt cancel <id>` already work as verb sugar); `--force` on `mtt status` and stdin
-`--description -` (PLANNED); `mtt reparent` / `move` (PLANNED). The single-edge `mtt status` / `mtt do` / verb
-sugar is the norm; the `advance` meta-walk stays parked (see "Flow").
+read): `mtt caps`, `mtt comment`, `mtt search`, `mtt gantt` (PLANNED / deferred); the `advance` family —
+`mtt advance` / `start` / `done` / `cancel` (**PARKED**, though `mtt done <id>` and `mtt cancelled <id>` already
+work as verb sugar in the default flow); `--force` on `mtt status` and stdin `--description -` (PLANNED);
+`mtt reparent` / `move` (PLANNED). The single-edge `mtt status` / `mtt do` / verb sugar is the norm; the
+`advance` meta-walk stays parked (see "Flow").
 
 **Notation:** `<required>`, `[optional]`, `…` repeatable. `<id>` is a task ID such as `t17` — flat,
 per-prefix (in the YAML adapter). `<status>` is a status name from the type's flow (e.g. `tbd`,
