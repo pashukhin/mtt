@@ -1,13 +1,13 @@
 id: t78
 type: task
 title: example-flow gallery — 2-3 sanitized common flows; keep init default minimal
-status: plan_review
+status: plan_fix
 priority: medium
 tags:
     - flow
     - release
 created: "2026-07-27T15:51:02Z"
-updated: "2026-07-28T15:38:00Z"
+updated: "2026-07-28T15:44:59Z"
 description: Pre-1.0 polish (Variant A). Curate 2-3 sanitized example flows for common cases (e.g. a simple 3-state with a test gate on done; a bugfix repro-first flow; a docs / no-code flow). Keep the zero-config init default minimal (task + chore). Our own dogfood flow is a good ADVANCED example but is wired to this repo toolchain (make/git/PR) - sanitize or relabel before showcasing so it does not read as mandatory. Ship as documented examples, not necessarily embedded builtins. Relates to t62 (templates).
 history:
     - at: "2026-07-28T09:36:56Z"
@@ -75,3 +75,8 @@ history:
           exit: 0
         - cmd: out=$(git status --porcelain -- ":(exclude).mtt") && test -z "$out" || { echo "working tree not clean - commit your code/docs first (.mtt is swept by the move itself)" >&2; false; }
           exit: 0
+    - at: "2026-07-28T15:44:59Z"
+      by: Grigorii Pashukhin
+      why: 'adversarial plan review DECLINE (verified vs files): all literal before-texts, Task-1 code (yamlv3 alias, structural no-code test, RED reason), both section-2b anchors (EN + RU Cyrillic), spec coverage D1-D5 (DESIGN untouched, no Go logic), TDD ordering — all CONFIRMED correct. One MAJOR: RU section-12 edit (Task2 Step4) quotes only FLOW_GUIDE.ru.md:289 as before-text but the block is 3 lines (289-291); the replacement subsumes 290-291, so a literal edit leaves 290-291 dangling = garbled RU doc (EN section-12 correctly quotes its full 3-line block). Fix: quote 289-291 and end the replacement with the galley pointer + the preserved trekaetsya/otdelno continuation. MINORs: (a) templates/CLAUDE.md:11-12 before-text straddles a line break -> repin as a multiline match inserting docs.yaml after coding.yaml on line 11; (b) README.ru pointer lacks a line anchor -> pin it after the closing fence (line 132) before line 134. Heading parens-vs-emdash divergence from signed spec is deliberate + disclosed for a clean anchor.'
+      from: plan_review
+      to: plan_fix
