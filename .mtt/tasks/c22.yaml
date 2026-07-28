@@ -1,0 +1,17 @@
+id: c22
+type: chore
+title: CLI_REFERENCE hygiene — separate live/target/parked (EN+RU) + one canonical transition
+status: tbd
+priority: high
+tags:
+    - docs
+    - release
+created: "2026-07-28T03:36:51Z"
+updated: "2026-07-28T03:36:51Z"
+description: |-
+    Pre-1.0 release doc-hygiene (chore; split from t63; approach fixed in the 2026-07-23 brainstorm + the Variant-A reflection). Make CLI_REFERENCE safe for a new user:
+    - Separate LIVE vs TARGET vs PARKED/PLANNED command surface so a newcomer is not scared by commands that do not exist yet — EN and RU, kept in sync (mind the parallel-occurrences trap).
+    - Lean on the t42 docs-guard so "what exists" stays honest.
+    - Document a single canonical way to move a task through the flow, and put it in the agent instructions (AGENTS.md); leave the redundant sugar forms in code untouched (safe: status and edge namespaces are disjoint by invariant, a miss fails closed; the real grammar consolidation stays in t12).
+
+    This is the RELEASE-CRITICAL slice of the old t63 — it protects the "first 10 minutes" (a new user reads README + CLI_REFERENCE + quickstart). Out of scope here: the DESIGN Shipped-block unload (that is t63-design). Coordinate with t42.
