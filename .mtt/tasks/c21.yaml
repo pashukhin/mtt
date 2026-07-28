@@ -1,13 +1,13 @@
 id: c21
 type: chore
 title: hashtag extraction toggle — committed-config setting, default off (title+body)
-status: tbd
+status: implementing
 priority: high
 tags:
     - release
     - ux
 created: "2026-07-28T02:01:04Z"
-updated: "2026-07-28T02:01:04Z"
+updated: "2026-07-28T02:01:20Z"
 description: |-
     Make task-text hashtag extraction (hash-prefixed words in text becoming tags) a setting in the COMMITTED project config, default OFF, governing BOTH title and description. Design is fixed (Variant-A reflection; see KB notes release-scope / pitch / positioning-vs-beads) — this is impl-only. Recreated from t69 (was a task; design now fixed).
 
@@ -17,3 +17,13 @@ description: |-
     - Back-compat: NON-destructive — already-stored tags stay in the yaml; only FUTURE extraction stops. Record the default flip under CHANGELOG [Unreleased].
     - Update the `add` / `edit` command help (it currently promises extraction) to reflect the toggle.
     - Out of scope (do NOT touch here): note-side extraction (t49, explicit-only), broader README/DESIGN cleanup (t63), config.local author rules. Supersedes the earlier opt-in / title-only framing.
+history:
+    - at: "2026-07-28T02:01:20Z"
+      by: Grigorii Pashukhin
+      from: tbd
+      to: implementing
+      checks:
+        - cmd: git switch task/c21 || (git switch main && git switch -c task/c21)
+          exit: 0
+        - cmd: test -f .mtt/tasks/c21.yaml || { echo "task file absent on this branch — its add has not reached main (merge/commit the branch that created it first)" >&2; false; }
+          exit: 0
