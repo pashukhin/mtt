@@ -1,13 +1,13 @@
 id: t78
 type: task
 title: example-flow gallery — 2-3 sanitized common flows; keep init default minimal
-status: spec_human_review
+status: planning
 priority: medium
 tags:
     - flow
     - release
 created: "2026-07-27T15:51:02Z"
-updated: "2026-07-28T10:07:46Z"
+updated: "2026-07-28T15:33:11Z"
 description: Pre-1.0 polish (Variant A). Curate 2-3 sanitized example flows for common cases (e.g. a simple 3-state with a test gate on done; a bugfix repro-first flow; a docs / no-code flow). Keep the zero-config init default minimal (task + chore). Our own dogfood flow is a good ADVANCED example but is wired to this repo toolchain (make/git/PR) - sanitize or relabel before showcasing so it does not read as mandatory. Ship as documented examples, not necessarily embedded builtins. Relates to t62 (templates).
 history:
     - at: "2026-07-28T09:36:56Z"
@@ -61,3 +61,8 @@ history:
       why: 'adversarial spec review APPROVE (rev3): rev1 2 MAJORs (CLI_REFERENCE surface undercount; docs.yaml not distinct) + rev2 1 prose MAJOR (false ''only cyclic'' claim vs git-flow) all resolved and verified; artifact validated (docs.yaml passes ValidateTemplateBytes, reachable), structural no-code test sound, sync surface complete, DESIGN-exclusion sound. One non-blocking MINOR folded on approve (git-flow gate mischaracterized as make check -> git-hygiene gates).'
       from: spec_review
       to: spec_human_review
+    - at: "2026-07-28T15:33:11Z"
+      by: Grigorii Pashukhin
+      why: 'human sign-off: spec accepted (rev3) after 3-round adversarial review (2 MAJOR rev1, 1 prose MAJOR rev2, APPROVE rev3)'
+      from: spec_human_review
+      to: planning
