@@ -1,0 +1,17 @@
+id: c23
+type: chore
+title: DESIGN unload — distill ~18 Shipped blocks into KB notes; slim DESIGN (EN+RU) + gate/post model
+status: tbd
+priority: medium
+tags:
+    - docs
+    - kb
+created: "2026-07-28T03:36:54Z"
+updated: "2026-07-28T03:36:54Z"
+description: |-
+    Internal doc-hygiene (chore; split from t63; NOT release-blocking — a new user does not read DESIGN's history blocks). Approach fixed (2026-07-23 brainstorm, t31 note-set pattern):
+    - Distill DESIGN.md's ~18 per-task "Shipped" narrative blocks (history, not current architecture) into KB notes (t31 established the pattern); slim DESIGN.md and keep DESIGN.ru.md in sync — DESIGN becomes the source of truth for the CURRENT architecture only. Guard: curation, NOT wholesale copy (avoid a second desyncing copy — the t53 parallel-occurrences trap).
+    - Present ONE lifecycle-hook mental model in DESIGN: commands attach to lifecycle points as pre-gates and/or post-finalizers; a transition supports both (the gate blocks the move, post finalizes it), a CRUD event supports POST only (post-only is by design, not a gap) — document the asymmetry honestly.
+    - Own the four session spec files t31 deferred (live DESIGN Shipped blocks cite them by path; delete or rewrite the citations together with the unload): docs/superpowers/specs/2026-07-09-session-009-dogfood-design.md, 2026-07-11-flow-v2-mechanized-delivery-design.md, 2026-07-09-session-008.7-tags-design.md, 2026-07-09-session-008.9-batch-design.md.
+
+    ~18 blocks x EN+RU is large — decompose further if it does not fit one session. Coordinate with t42 / t63-cli so the sweeps do not fight.
