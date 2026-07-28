@@ -1,13 +1,13 @@
 id: t78
 type: task
 title: example-flow gallery — 2-3 sanitized common flows; keep init default minimal
-status: spec_review
+status: spec_human_review
 priority: medium
 tags:
     - flow
     - release
 created: "2026-07-27T15:51:02Z"
-updated: "2026-07-28T10:04:45Z"
+updated: "2026-07-28T10:07:46Z"
 description: Pre-1.0 polish (Variant A). Curate 2-3 sanitized example flows for common cases (e.g. a simple 3-state with a test gate on done; a bugfix repro-first flow; a docs / no-code flow). Keep the zero-config init default minimal (task + chore). Our own dogfood flow is a good ADVANCED example but is wired to this repo toolchain (make/git/PR) - sanitize or relabel before showcasing so it does not read as mandatory. Ship as documented examples, not necessarily embedded builtins. Relates to t62 (templates).
 history:
     - at: "2026-07-28T09:36:56Z"
@@ -56,3 +56,8 @@ history:
           exit: 0
         - cmd: out=$(git status --porcelain -- ":(exclude).mtt") && test -z "$out" || { echo "working tree not clean - commit your code/docs first (.mtt is swept by the move itself)" >&2; false; }
           exit: 0
+    - at: "2026-07-28T10:07:46Z"
+      by: Grigorii Pashukhin
+      why: 'adversarial spec review APPROVE (rev3): rev1 2 MAJORs (CLI_REFERENCE surface undercount; docs.yaml not distinct) + rev2 1 prose MAJOR (false ''only cyclic'' claim vs git-flow) all resolved and verified; artifact validated (docs.yaml passes ValidateTemplateBytes, reachable), structural no-code test sound, sync surface complete, DESIGN-exclusion sound. One non-blocking MINOR folded on approve (git-flow gate mischaracterized as make check -> git-hygiene gates).'
+      from: spec_review
+      to: spec_human_review
