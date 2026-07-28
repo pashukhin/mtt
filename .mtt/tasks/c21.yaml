@@ -1,13 +1,13 @@
 id: c21
 type: chore
 title: hashtag extraction toggle — committed-config setting, default off (title+body)
-status: impl_review
+status: impl_fix
 priority: high
 tags:
     - release
     - ux
 created: "2026-07-28T02:01:04Z"
-updated: "2026-07-28T02:30:18Z"
+updated: "2026-07-28T02:38:11Z"
 description: |-
     Make task-text hashtag extraction (hash-prefixed words in text becoming tags) a setting in the COMMITTED project config, default OFF, governing BOTH title and description. Design is fixed (Variant-A reflection; see KB notes release-scope / pitch / positioning-vs-beads) — this is impl-only. Recreated from t69 (was a task; design now fixed).
 
@@ -38,3 +38,8 @@ history:
           exit: 0
         - cmd: make check
           exit: 0
+    - at: "2026-07-28T02:38:11Z"
+      by: Grigorii Pashukhin
+      why: 'adversarial review: EN CLI_REFERENCE --tag flag still claims unconditional extraction (EN/RU divergence); tag rm guard bullet (EN+RU) claims unconditional guard — both now off-by-default'
+      from: impl_review
+      to: impl_fix
