@@ -1,0 +1,29 @@
+version: 1
+project:
+  name: my-project
+command_timeout: 5m
+types:
+  - name: doc
+    description: A document or no-code deliverable (RFC, spec, article). DoD — reviewed and published; iterate via revision. No branch, no PR, no build gate.
+    prefix: d
+    parents: []
+    default: true
+    statuses:
+      - {name: draft,     kind: initial}
+      - {name: review,    kind: active}
+      - {name: revision,  kind: active}
+      - {name: published, kind: terminal}
+      - {name: cancelled, kind: terminal}
+    # A docs / no-code flow gates on human review, not on a build: no branch is
+    # created, no PR is opened, nothing runs. The review<->revision loop is the
+    # point — a reviewer can send a doc back any number of times. Want an
+    # automated non-code check (a link checker, a markdown linter)? Hang a
+    # `commands:` list on `publish` (see FLOW_GUIDE §4).
+    transitions:
+      - {from: draft,    to: review,    name: submit,          description: "hand the draft to a reviewer", current: set}
+      - {from: draft,    to: cancelled, description: "drop the draft"}
+      - {from: review,   to: published, name: publish,         description: "accepted — publish", current: clear}
+      - {from: review,   to: revision,  name: request_changes, description: "send back for edits"}
+      - {from: review,   to: cancelled, description: "reject the doc"}
+      - {from: revision, to: review,    name: resubmit,        description: "edits done — re-review"}
+      - {from: revision, to: cancelled, description: "abandon the doc"}
