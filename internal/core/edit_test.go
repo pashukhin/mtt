@@ -128,6 +128,29 @@ func TestEditNothingIncludesPriorityGuard(t *testing.T) {
 	}
 }
 
+func TestEditReconcileOffLeavesTagsUnchanged(t *testing.T) {
+	orig := mtt.Task{ID: "t1", Type: "task", Title: "old", Status: "tbd", Tags: []string{"keep"}, Created: fixed(), Updated: fixed()}
+	// Extraction off (default): a text edit adding a #hashtag changes no tags.
+	got, err := NewEditor(&editStore{get: orig}, later, nil).Edit("t1", EditParams{Description: strptr("now #shiny")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got.Tags) != 1 || got.Tags[0] != "keep" {
+		t.Fatalf("tags = %v; want unchanged [keep] when extraction off", got.Tags)
+	}
+}
+
+func TestEditReconcileOnAddsTextTag(t *testing.T) {
+	orig := mtt.Task{ID: "t1", Type: "task", Title: "old", Status: "tbd", Tags: []string{"keep"}, Created: fixed(), Updated: fixed()}
+	got, err := NewEditor(&editStore{get: orig}, later, nil).Edit("t1", EditParams{Description: strptr("now #shiny"), ExtractHashtags: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !contains(got.Tags, "shiny") {
+		t.Fatalf("tags = %v; want 'shiny' reconciled in when on", got.Tags)
+	}
+}
+
 func TestEditFiresUpdateEvent(t *testing.T) {
 	cfg := eventCfg(taskHook(mtt.EventUpdate, "echo {{.ID}} {{.Event}}"))
 	store := newMemStore(tbdTask("t1"))

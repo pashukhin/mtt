@@ -31,10 +31,10 @@ func newAddCmd() *cobra.Command {
 		Long: `Create a task. Provide a title (positional) and/or --description; at least one is
 required.
 
-#hashtags in the title or description are extracted into the task's tags, and --tag
-adds explicit tags — both merged into one normalized, deduplicated, sorted set. Edit
-the text later ('mtt edit') to change text-derived tags, or 'mtt tag add/rm' for
-explicit ones.`,
+Tags come from --tag (explicit). #hashtags in the title/description are extracted into
+tags only when the project opts in (extract_hashtags: true in .mtt/config.yaml — OFF by
+default); tags are merged into one normalized, deduplicated, sorted set. Use 'mtt tag
+add/rm' to change tags later.`,
 		Args: func(_ *cobra.Command, args []string) error {
 			if len(args) > 1 {
 				return fmt.Errorf("too many arguments (got %d): wrap a multi-word title in quotes (mtt add \"fix login\"), and pass multiple --tag/--depends-on values comma-separated (--tag a,b) or by repeating the flag (--tag a --tag b) — not space-separated", len(args))
@@ -83,7 +83,7 @@ explicit ones.`,
 			}
 			defer closeOut()
 			adder := core.NewAdder(yaml.NewTaskStore(root), cfg, time.Now, ev)
-			task, err := adder.Add(core.AddParams{Title: title, TypeName: mtt.TypeName(typeName), Parent: mtt.TaskID(parent), NoParent: noParent, Description: desc, Priority: prio, DependsOn: depIDs, Tags: tagVals, Refs: refs, Events: evOpts})
+			task, err := adder.Add(core.AddParams{Title: title, TypeName: mtt.TypeName(typeName), Parent: mtt.TaskID(parent), NoParent: noParent, Description: desc, Priority: prio, DependsOn: depIDs, Tags: tagVals, Refs: refs, Events: evOpts, ExtractHashtags: settings.ExtractHashtags})
 			if err != nil && !errors.As(err, new(*core.PostActionError)) {
 				return err
 			}
@@ -108,7 +108,7 @@ explicit ones.`,
 	cmd.Flags().StringVar(&desc, "description", "", "task description")
 	cmd.Flags().StringVar(&priority, "priority", "", "task priority: high|medium|low (default: unset)")
 	cmd.Flags().StringSliceVar(&dependsOn, "depends-on", nil, "ids this task depends on (repeatable, comma-separated)")
-	cmd.Flags().StringSliceVar(&tags, "tag", nil, "add a tag (repeatable, comma-separated; #hashtags in the title/description are also picked up)")
+	cmd.Flags().StringSliceVar(&tags, "tag", nil, "add a tag (repeatable, comma-separated; #hashtags in text are picked up only when extract_hashtags is enabled)")
 	cmd.Flags().StringArrayVar(&refVals, "ref", nil, "add a reference <kind>:<target> (repeatable)")
 	addNoRunFlag(cmd, &noRun)
 	cmd.MarkFlagsMutuallyExclusive("parent", "no-parent")

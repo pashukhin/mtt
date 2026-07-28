@@ -15,6 +15,13 @@ All notable changes to mtt are documented here. The format follows
   interpolated into the command string, so the injection boundary is preserved. Note events get no
   `MTT_TASK_*`. The per-invocation caller `--arg` value channel is tracked separately (t77).
 
+### Changed
+- **`#hashtag`→tag extraction is now opt-in (t69).** Extracting `#hashtags` from a task's title/description
+  into tags is governed by `extract_hashtags` in the committed `.mtt/config.yaml` and defaults to **off** —
+  explicit `--tag` / `mtt tag add` is the only tag source unless you opt in. With extraction off, editing
+  text reconciles no tags and `mtt tag rm` drops its text-anchor guard. (On by default through 0.11.0; the
+  flip stops imported prose from minting spurious tags.)
+
 ## [0.11.0] — 2026-07-26
 
 ### Added

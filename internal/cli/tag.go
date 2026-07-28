@@ -125,7 +125,7 @@ func runTagEdit(cmd *cobra.Command, args []string, add bool) error {
 		return err
 	}
 	defer closeOut()
-	ed := core.NewTagEditor(yaml.NewTaskStore(root), time.Now, ev)
+	ed := core.NewTagEditor(yaml.NewTaskStore(root), time.Now, ev, settings.ExtractHashtags)
 
 	if !hasDash(args) && !filterActive(cmd) {
 		// single (back-compat)

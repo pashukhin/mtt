@@ -15,11 +15,17 @@ type TagEditor struct {
 	store mtt.TaskStore
 	now   func() time.Time
 	ev    *EventEmitter
+	// extractHashtags mirrors the project policy (from committed config, resolved by
+	// the CLI). When false, RemoveTags drops its text-anchor guard: with extraction
+	// off, text is never re-derived into tags, so removing a "#tag still in the text"
+	// tag is safe. (TagEditor carries it on the struct — its mutators are positional,
+	// unlike Add/Edit whose params structs carry it.)
+	extractHashtags bool
 }
 
 // NewTagEditor wires the usecase; ev fires the update event (nil = none).
-func NewTagEditor(store mtt.TaskStore, now func() time.Time, ev *EventEmitter) *TagEditor {
-	return &TagEditor{store: store, now: now, ev: ev}
+func NewTagEditor(store mtt.TaskStore, now func() time.Time, ev *EventEmitter, extractHashtags bool) *TagEditor {
+	return &TagEditor{store: store, now: now, ev: ev, extractHashtags: extractHashtags}
 }
 
 // AddTags unions the (already-normalized) tags into the task's canonical set.
@@ -63,16 +69,18 @@ func (e *TagEditor) RemoveTags(id mtt.TaskID, tags []string, opts EventOptions) 
 	if err != nil {
 		return mtt.Task{}, nil, err
 	}
-	titleTags := mtt.ExtractTags(t.Title)
-	descTags := mtt.ExtractTags(t.Description)
-	anchored := tagSet(titleTags, descTags)
-	for _, tag := range tags {
-		if anchored[tag] {
-			field := "description"
-			if contains(titleTags, tag) {
-				field = "title"
+	if e.extractHashtags {
+		titleTags := mtt.ExtractTags(t.Title)
+		descTags := mtt.ExtractTags(t.Description)
+		anchored := tagSet(titleTags, descTags)
+		for _, tag := range tags {
+			if anchored[tag] {
+				field := "description"
+				if contains(titleTags, tag) {
+					field = "title"
+				}
+				return mtt.Task{}, nil, fmt.Errorf("cannot remove tag %q: #%s is present in the %s (edit the text to remove it)", tag, tag, field)
 			}
-			return mtt.Task{}, nil, fmt.Errorf("cannot remove tag %q: #%s is present in the %s (edit the text to remove it)", tag, tag, field)
 		}
 	}
 	remove := tagSet(tags)

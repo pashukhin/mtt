@@ -346,9 +346,10 @@ in the YAML adapter — see Notes).
 - `--description <text>` — new description (`-` for stdin still later).
 - `--priority <high|medium|low>` — new priority (session 008.6). `--priority ""` **clears** it back to unset.
   An unknown value is a usage error. *(implemented)*
-- **Tags reconcile on a text edit** (session 008.7): editing `--title`/`--description` re-derives the
-  `#hashtags` — a tag whose `#hashtag` left the text is dropped, a newly-typed one is added, and manual tags
-  (from `mtt tag add`) survive. There is no `--tag` on `edit`; surgical tag changes go through `mtt tag add/rm`.
+- **Tags reconcile on a text edit** (session 008.7; only when `extract_hashtags` is on — off by default):
+  editing `--title`/`--description` re-derives the `#hashtags` — a tag whose `#hashtag` left the text is
+  dropped, a newly-typed one is added, and manual tags (from `mtt tag add`) survive. With extraction off a text
+  edit changes no tags. There is no `--tag` on `edit`; surgical tag changes go through `mtt tag add/rm`.
 
 ### `mtt rm [<id>...] [-] [--force]` — delete tasks (hard delete)  *(session 008.5; bulk + selector in 008.9)*
 Permanently removes tasks (distinct from `cancel`, which is a terminal *status*, not removal). `rm` is for
@@ -407,8 +408,9 @@ surfaced as a root, never dropped.
   array (`[]` when empty, never `null`); leaf `children` are omitted.
 
 ### `mtt tag add|rm <id> <tag>... | <tag>... (- | --filter)` — manage tags  *(session 008.7; bulk in 008.9)*
-Tags are cross-cutting labels. The **primary** way to tag is a `#hashtag` in the title/description (extracted
-on `add`/`edit`; a `#fragment` inside a `scheme://` URL is skipped — c13); `mtt tag add/rm` is the secondary, pointed path. Both take **one or more** tags (variadic),
+Tags are cross-cutting labels. Tag via explicit `--tag` / `mtt tag add/rm` (the default source). `#hashtag`
+extraction from the title/description is **opt-in** — the committed `extract_hashtags` policy (default **off**);
+when on, hashtags are extracted on `add`/`edit` (a `#fragment` inside a `scheme://` URL is skipped — c13). `mtt tag add/rm` take **one or more** tags (variadic),
 so a whole set changes in one write. Tags are stored as a normalized, deduplicated, **sorted** set and ride
 `Task.Tags` (no new port — like `depends_on`).
 

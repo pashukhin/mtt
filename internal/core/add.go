@@ -47,9 +47,13 @@ type AddParams struct {
 	Description string
 	Priority    mtt.Priority // unset by default (not medium)
 	DependsOn   []mtt.TaskID // blocking edges set at creation (targets validated)
-	Tags        []string     // explicit tags; unioned with #hashtags from title/description
+	Tags        []string     // explicit tags; unioned with #hashtags from title/description only when ExtractHashtags
 	Refs        []mtt.Ref    // informational references set at creation (canonicalized; not verified here)
 	Events      EventOptions // lifecycle-event bypass + attribution (t66)
+	// ExtractHashtags turns on the extraction of #hashtags from the title/description
+	// into tags. It is a project policy resolved from the committed config by the CLI
+	// (default OFF — explicit --tag/tag add is then the only tag source).
+	ExtractHashtags bool
 }
 
 // Add creates one task and returns it with the adapter-minted ID. A
@@ -102,7 +106,10 @@ func (a *Adder) Add(p AddParams) (mtt.Task, error) {
 		return mtt.Task{}, fmt.Errorf("type %q has no initial status", typ.Name)
 	}
 	now := a.now().UTC().Truncate(time.Second)
-	tags := canonicalTags(p.Tags, mtt.ExtractTags(p.Title), mtt.ExtractTags(p.Description))
+	tags := canonicalTags(p.Tags)
+	if p.ExtractHashtags {
+		tags = canonicalTags(p.Tags, mtt.ExtractTags(p.Title), mtt.ExtractTags(p.Description))
+	}
 	var refs []mtt.Ref
 	if len(p.Refs) > 0 {
 		refs = canonicalRefs(p.Refs)

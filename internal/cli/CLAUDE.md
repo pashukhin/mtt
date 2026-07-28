@@ -155,7 +155,9 @@ repeatable — `--tag a,b` or `--tag a --tag b`, tool-wide incl. the `selector.g
 `GetStringSlice` reader; the non-tag filter flags stay `StringArray`) on `add` (→ `AddParams.Tags`),
 `list`, `tree`, and `ready` (→ `ListFilter.Tags`; `ready` in c10); the shared `toTags` normalizes/validates each value at the boundary
 (`mtt.NormalizeTag`; invalid → usage error) so no bare string leaks into `core`. Text `#hashtags` are handled
-in `core` (Adder/Editor), not parsed in the CLI. `mtt show` prints a `tags:` line (`formatTask`, after
+in `core` (Adder/Editor), not parsed in the CLI, and **only when the committed `extract_hashtags` policy is
+on** (default off, t69): `add`/`edit`/`tag` thread `settings.ExtractHashtags` into
+`AddParams`/`EditParams.ExtractHashtags` and `NewTagEditor(…, extractHashtags)`. `mtt show` prints a `tags:` line (`formatTask`, after
 `priority`); `taskJSON` gains `tags` (`omitempty`), readable via `show`/`list`/`edit`/`tag …` `--json`. Tags
 are NOT shown in the `taskLine` row (list/tree) — visible via `show`/`--json`/the `--tag` filter. **`--exclude-tag`**
 (c8, repeatable) on `list`, `ready`, **and** `tree` (`tree` in c10; → `ListFilter.ExcludeTags`, same `toTags`
