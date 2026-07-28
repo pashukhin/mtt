@@ -1,13 +1,13 @@
 id: t78
 type: task
 title: example-flow gallery — 2-3 sanitized common flows; keep init default minimal
-status: impl_review
+status: approved
 priority: medium
 tags:
     - flow
     - release
 created: "2026-07-27T15:51:02Z"
-updated: "2026-07-28T15:56:26Z"
+updated: "2026-07-28T16:01:30Z"
 description: Pre-1.0 polish (Variant A). Curate 2-3 sanitized example flows for common cases (e.g. a simple 3-state with a test gate on done; a bugfix repro-first flow; a docs / no-code flow). Keep the zero-config init default minimal (task + chore). Our own dogfood flow is a good ADVANCED example but is wired to this repo toolchain (make/git/PR) - sanitize or relabel before showcasing so it does not read as mandatory. Ship as documented examples, not necessarily embedded builtins. Relates to t62 (templates).
 history:
     - at: "2026-07-28T09:36:56Z"
@@ -109,4 +109,12 @@ history:
         - cmd: 'git diff --quiet main...HEAD -- cmd internal pkg go.mod go.sum || git diff --name-only main...HEAD -- CHANGELOG.md | grep -q . || { echo "code changed but CHANGELOG.md has no entry - add one under [Unreleased] (pure refactor? bypass: mtt do submit --no-run --who ... --why ...)" >&2; false; }'
           exit: 0
         - cmd: make check
+          exit: 0
+    - at: "2026-07-28T16:01:30Z"
+      by: Grigorii Pashukhin
+      why: 'adversarial code review APPROVE: implementation matches the approved plan edit-for-edit and the signed spec; make check green; reviewer''s independent checks passed — negative test (injected commands on publish edge -> TestDocsIsNoCode fails as intended), end-to-end review<->revision loop drive, docs.yaml byte-identical to spec D3, EN/RU parity + both section-2b anchors resolve, scope clean (DESIGN untouched, embed/BuiltinNames unchanged). One cosmetic MINOR folded (redundant ''hosted'' in templates.go comment).'
+      from: impl_review
+      to: approved
+      checks:
+        - cmd: out=$(git status --porcelain -- ":(exclude).mtt") && test -z "$out" || { echo "working tree not clean - commit your code/docs first (.mtt is swept by the move itself)" >&2; false; }
           exit: 0
