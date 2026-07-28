@@ -1,13 +1,13 @@
 id: c22
 type: chore
 title: CLI_REFERENCE hygiene — separate live/target/parked (EN+RU) + one canonical transition
-status: tbd
+status: approved
 priority: high
 tags:
     - docs
     - release
 created: "2026-07-28T03:36:51Z"
-updated: "2026-07-28T03:36:51Z"
+updated: "2026-07-28T04:20:50Z"
 description: |-
     Pre-1.0 release doc-hygiene (chore; split from t63; approach fixed in the 2026-07-23 brainstorm + the Variant-A reflection). Make CLI_REFERENCE safe for a new user:
     - Separate LIVE vs TARGET vs PARKED/PLANNED command surface so a newcomer is not scared by commands that do not exist yet — EN and RU, kept in sync (mind the parallel-occurrences trap).
@@ -15,3 +15,47 @@ description: |-
     - Document a single canonical way to move a task through the flow, and put it in the agent instructions (AGENTS.md); leave the redundant sugar forms in code untouched (safe: status and edge namespaces are disjoint by invariant, a miss fails closed; the real grammar consolidation stays in t12).
 
     This is the RELEASE-CRITICAL slice of the old t63 — it protects the "first 10 minutes" (a new user reads README + CLI_REFERENCE + quickstart). Out of scope here: the DESIGN Shipped-block unload (that is t63-design). Coordinate with t42.
+history:
+    - at: "2026-07-28T04:03:11Z"
+      by: Grigorii Pashukhin
+      from: tbd
+      to: implementing
+      checks:
+        - cmd: git switch task/c22 || (git switch main && git switch -c task/c22)
+          exit: 0
+        - cmd: test -f .mtt/tasks/c22.yaml || { echo "task file absent on this branch — its add has not reached main (merge/commit the branch that created it first)" >&2; false; }
+          exit: 0
+    - at: "2026-07-28T04:09:48Z"
+      by: Grigorii Pashukhin
+      from: implementing
+      to: impl_review
+      checks:
+        - cmd: out=$(git status --porcelain -- ":(exclude).mtt") && test -z "$out" || { echo "working tree not clean - commit your code/docs first (.mtt is swept by the move itself)" >&2; false; }
+          exit: 0
+        - cmd: 'git diff --quiet main...HEAD -- cmd internal pkg go.mod go.sum || git diff --name-only main...HEAD -- CHANGELOG.md | grep -q . || { echo "code changed but CHANGELOG.md has no entry - add one under [Unreleased] (pure refactor? bypass: mtt do submit --no-run --who ... --why ...)" >&2; false; }'
+          exit: 0
+        - cmd: make check
+          exit: 0
+    - at: "2026-07-28T04:18:20Z"
+      by: Grigorii Pashukhin
+      why: 'adversarial review: index said ''mtt cancel <id>'' works as sugar (false — default terminal is ''cancelled'', unnamed edges; self-contradicts line 563); and the closed ''except these'' list omitted mtt comment/search/gantt (also not shipped)'
+      from: impl_review
+      to: impl_fix
+    - at: "2026-07-28T04:19:46Z"
+      by: Grigorii Pashukhin
+      from: impl_fix
+      to: impl_review
+      checks:
+        - cmd: out=$(git status --porcelain -- ":(exclude).mtt") && test -z "$out" || { echo "working tree not clean - commit your code/docs first (.mtt is swept by the move itself)" >&2; false; }
+          exit: 0
+        - cmd: 'git diff --quiet main...HEAD -- cmd internal pkg go.mod go.sum || git diff --name-only main...HEAD -- CHANGELOG.md | grep -q . || { echo "code changed but CHANGELOG.md has no entry - add one under [Unreleased] (pure refactor? bypass: mtt do submit --no-run --who ... --why ...)" >&2; false; }'
+          exit: 0
+        - cmd: make check
+          exit: 0
+    - at: "2026-07-28T04:20:50Z"
+      by: Grigorii Pashukhin
+      from: impl_review
+      to: approved
+      checks:
+        - cmd: out=$(git status --porcelain -- ":(exclude).mtt") && test -z "$out" || { echo "working tree not clean - commit your code/docs first (.mtt is swept by the move itself)" >&2; false; }
+          exit: 0

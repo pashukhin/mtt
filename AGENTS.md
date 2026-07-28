@@ -153,6 +153,10 @@ mtt. Practical rules:
   `cancel --why`. `mtt rm` is NOT closure — it erases the record (mistakes/duplicates only). "Done
   directly" (landing work on main and rm-ing the task) is forbidden: work whose design is already
   decided becomes a `chore` and rides the chore flow.
+- **Move a task by its flow edge — one grammar.** Run the edge verb the flow prints in `next:` (`mtt <edge>
+  <id>`, e.g. `mtt submit <id>`) or the explicit `mtt do <id> <edge>`; the printed `next:` / `mtt show` is
+  authoritative over memory. `mtt status <id> <status>` is plumbing (move-by-target-status); prefer the edge
+  verb so the process reads as one consistent grammar.
 - **Knowledge goes to the KB.** Durable lessons and decisions → `mtt note add` (session start reads
   `mtt prime`); markdown files are neither a task-state nor a knowledge channel, and the only
   "what's next" source is `mtt roadmap`. No parallel state docs.

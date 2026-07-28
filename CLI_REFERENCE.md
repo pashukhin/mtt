@@ -7,11 +7,16 @@ two purposes: a reference for humans and agents, and a way to sanity-check the d
 (man/usage) rather than from requirements. To **author a flow** (types/statuses/transitions + gates/`post:`),
 see [FLOW_GUIDE.md](FLOW_GUIDE.md).
 
-**Status:** this is the target command surface. Each command below is tagged with the phase/session that
-introduced it, or with `PARKED`/a later phase when it is not yet shipped; run `mtt --help` for the live list
-and `mtt version` for the build. Everything not tagged as shipped is design surface (see the plan in
-[DESIGN.md](DESIGN.md#implementation-order)). The `advance`/`start`/`done`/`cancel` meta-walk is **PARKED**
-(single-edge `status` is the norm — see the note in "Flow" below).
+**Status — what's live vs not.** This is the **target** surface. Each command heading is tagged with the
+session that shipped it (`implemented`), or with **PARKED** / **PLANNED** when it is not yet shipped;
+`mtt --help` is the authoritative live list and `mtt version` the build.
+
+Everything below is shipped and works today **except** these (target/design surface — safe to skip on a first
+read): `mtt caps`, `mtt comment`, `mtt search`, `mtt gantt` (PLANNED / deferred); the `advance` family —
+`mtt advance` / `start` / `done` / `cancel` (**PARKED**, though `mtt done <id>` and `mtt cancelled <id>` already
+work as verb sugar in the default flow); `--force` on `mtt status` and stdin `--description -` (PLANNED);
+`mtt reparent` / `move` (PLANNED). The single-edge `mtt status` / `mtt do` / verb sugar is the norm; the
+`advance` meta-walk stays parked (see "Flow").
 
 **Notation:** `<required>`, `[optional]`, `…` repeatable. `<id>` is a task ID such as `t17` — flat,
 per-prefix (in the YAML adapter). `<status>` is a status name from the type's flow (e.g. `tbd`,
@@ -450,6 +455,12 @@ done` reaches terminal tasks). The other `list` filters (`--type`/`--priority`/`
 ---
 
 ## Flow (status changes)
+
+> **Canonical move: the flow's edge verb.** Advance a task with the edge verb the flow prints in its `next:`
+> guidance — either `mtt <edge> <id>` or the explicit `mtt do <id> <edge>` (the `next:` line, also in
+> `mtt show`, names it). `mtt status <id> <status>` moves by **target status** instead (plumbing); a
+> `mtt <status> <id>` sugar exists too, but prefer one grammar — the edge verb. Status and edge names are
+> disjoint by config invariant, so the sugar never misfires (an unknown verb fails closed).
 
 ### `mtt status [<id>] <status> [flags]` — single transition  *(session 006, implemented; omitted id in 006.7)*
 Moves the task across **one** edge to `<status>`, validating it against the type's `transitions` and
