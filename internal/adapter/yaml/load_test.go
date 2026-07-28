@@ -9,8 +9,8 @@ import (
 )
 
 func TestInitLoadValidate(t *testing.T) {
-	// t62: only `default` is a built-in; the hosted examples (coding/hierarchy/
-	// git-flow) are load+validated by templates/templates_test.go.
+	// t62: only `default` is a built-in; the hosted templates/*.yaml examples
+	// are load+validated by templates/templates_test.go.
 	for _, name := range []string{"default"} {
 		root := t.TempDir()
 		if err := Init(root, name, "demo", false); err != nil {

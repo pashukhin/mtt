@@ -131,6 +131,10 @@ mtt roadmap                 # порядок исполнения по зави�
 # Для иерархии epic > task > subtask: mtt init --template templates/hierarchy.yaml
 ```
 
+> **Какой флоу?** `default` минимален (task + chore). Для per-type coding-DoD, docs/no-code-петли, иерархии
+> epic→task→subtask или полного git-флоу branch→PR→deliver — смотри **галерею примеров** в
+> [FLOW_GUIDE.ru.md §2b](FLOW_GUIDE.ru.md#2b-галерея-примеров-флоу-выбери-форму).
+
 Полный список команд и коды выхода — в [CLI_REFERENCE.ru.md](CLI_REFERENCE.ru.md).
 
 > **Существующим проектам:** `mtt init` теперь также пишет `.mtt/.gitignore`, который не пускает
