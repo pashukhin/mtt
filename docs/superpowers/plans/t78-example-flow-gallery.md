@@ -260,19 +260,24 @@ with:
 (`mtt init --template templates/coding.yaml`, `templates/docs.yaml`, `templates/hierarchy.yaml` или флагман `git-flow` — см. галерею в §2b),
 ```
 
-§12 Соседи (line 289) — replace:
+§12 Соседи — the RU block spans **three** lines (289-291); quote all three as the before-text (mirroring the EN 3-line quote), replace:
 
 ```
 Выпущено (t62): **флагман git-flow** и образцы `coding`/`hierarchy` лежат в каталоге репо `templates/`,
+ставятся по пути или `--template <url>` (в бинарь вкомпилирован только `default`). Всё ещё трекается
+отдельно:
 ```
 
-with:
+with (the last clause stays split across a line break exactly as in the file — "трекается" then "отдельно:"):
 
 ```
-Каталог репо `templates/` поставляет устанавливаемые образцы — флоу `coding`, `docs`, `hierarchy` и **флагман git-flow** (по пути или `--template <url>`; в бинарник встроен только `default`; механизм шаблонов появился в t62), их можно листать в галерее (§2b). Всё ещё отслеживается
+Каталог репо `templates/` поставляет устанавливаемые образцы — флоу `coding`, `docs`, `hierarchy` и
+**флагман git-flow** (по пути или `--template <url>`; в бинарь вкомпилирован только `default`; механизм
+шаблонов появился в t62) — их можно листать в галерее (§2b). Всё ещё трекается
+отдельно:
 ```
 
-(Keep the trailing "separately:"/"отдельно:" continuation intact in each — only the lead sentence changes.)
+(EN Step 3 already quotes its full 3-line block `FLOW_GUIDE.md:287-289`; this makes RU mirror it, so neither edit leaves a dangling continuation.)
 
 - [ ] **Step 5: Verify build/render, then commit**
 
@@ -309,7 +314,7 @@ In `README.md`, immediately after the Quickstart code block's closing ``` (line 
 > in [FLOW_GUIDE.md §2b](FLOW_GUIDE.md#2b-example-flow-gallery-pick-a-shape).
 ```
 
-In `README.ru.md`, at the mirror location (after its Quickstart block):
+In `README.ru.md`, at the mirror location — after the Quickstart code block's closing ``` (line 132) and before `Полный список команд…` (line 134):
 
 ```markdown
 > **Какой флоу?** `default` минимален (task + chore). Для per-type coding-DoD, docs/no-code-петли, иерархии
@@ -340,7 +345,19 @@ For **which to pick**, see the example-flow gallery in
 
 - [ ] **Step 4: `templates/CLAUDE.md` — add `docs.yaml` to the enumerations + note its invariant**
 
-Line 11-12: change `…NOT built-in names: `coding.yaml`, `hierarchy.yaml`, and the **`git-flow.yaml` flagship**…` to include `docs.yaml`: `…NOT built-in names: `coding.yaml`, `docs.yaml`, `hierarchy.yaml`, and the **`git-flow.yaml` flagship**…`.
+Lines 11-12: the enumeration straddles a line break (`` `coding.yaml`, `` ends line 11, `` `hierarchy.yaml`, `` starts line 12), so match across the newline. Replace the two-line fragment:
+
+```
+built-in names: `coding.yaml`,
+  `hierarchy.yaml`, and the **`git-flow.yaml` flagship**
+```
+
+with:
+
+```
+built-in names: `coding.yaml`,
+  `docs.yaml`, `hierarchy.yaml`, and the **`git-flow.yaml` flagship**
+```
 Line 19: change `the file examples (`coding`/`hierarchy`/`git-flow`) are installed **verbatim**` to `the file examples (`coding`/`docs`/`hierarchy`/`git-flow`) are installed **verbatim**`.
 In the Tests section, add one line after the `TestExamplesLoadAndValidate` description:
 
