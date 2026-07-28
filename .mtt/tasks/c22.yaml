@@ -1,13 +1,13 @@
 id: c22
 type: chore
 title: CLI_REFERENCE hygiene — separate live/target/parked (EN+RU) + one canonical transition
-status: approved
+status: done
 priority: high
 tags:
     - docs
     - release
 created: "2026-07-28T03:36:51Z"
-updated: "2026-07-28T04:20:50Z"
+updated: "2026-07-28T04:28:22Z"
 description: |-
     Pre-1.0 release doc-hygiene (chore; split from t63; approach fixed in the 2026-07-23 brainstorm + the Variant-A reflection). Make CLI_REFERENCE safe for a new user:
     - Separate LIVE vs TARGET vs PARKED/PLANNED command surface so a newcomer is not scared by commands that do not exist yet — EN and RU, kept in sync (mind the parallel-occurrences trap).
@@ -58,4 +58,13 @@ history:
       to: approved
       checks:
         - cmd: out=$(git status --porcelain -- ":(exclude).mtt") && test -z "$out" || { echo "working tree not clean - commit your code/docs first (.mtt is swept by the move itself)" >&2; false; }
+          exit: 0
+    - at: "2026-07-28T04:28:22Z"
+      by: Grigorii Pashukhin
+      from: approved
+      to: done
+      checks:
+        - cmd: git switch main
+          exit: 0
+        - cmd: 'git log -n 1000 --format=%s | grep -v "^mtt: " | head -200 | grep "^c22: " || { echo "no squash commit \"c22: …\" on local main: git pull first, and check the PR/merge title started with \"c22: \"" >&2; false; }'
           exit: 0
