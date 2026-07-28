@@ -29,7 +29,7 @@ Three layers, all name-agnostic (the engine has no hard-coded status or type nam
   pass or the move is blocked) and **`post:`** actions (run after the move is saved).
 
 Start from the built-in `default` (`mtt init`) or install a richer sample by path/url (`mtt init --template
-templates/coding.yaml`, `templates/hierarchy.yaml`, or the `git-flow` flagship — see §8), then inspect any
+templates/coding.yaml`, `templates/docs.yaml`, `templates/hierarchy.yaml`, or the `git-flow` flagship — see the gallery in §2b), then inspect any
 flow with **`mtt types`**, which renders the graph, the gate commands, and the named edge verbs.
 
 ## 2. A minimal flow from scratch
@@ -56,6 +56,25 @@ types:
 
 Write that to `.mtt/config.yaml`, and `mtt add "first item"` creates `i1` at `todo`; `mtt doing i1` moves it to
 `doing`; `mtt done i1` runs `./gate.sh` and moves to `done` only if it exits 0.
+
+## 2b. Example flow gallery (pick a shape)
+
+Don't start from a blank config — start from the nearest shape and adapt it. Only `default` is built into
+the binary; the rest install from the repo's `templates/` dir by path or URL (e.g.
+`mtt init --template templates/coding.yaml`, or the
+`https://raw.githubusercontent.com/pashukhin/mtt/main/templates/coding.yaml` form). Each is a **sample you
+adapt**, never a mandate — inspect any with `mtt types` after install.
+
+| Shape | Use when | Try |
+|---|---|---|
+| **minimal** | solo, zero-config; one linear flow you add your own gate to | `mtt init` (built-in `default`, gate-less — §2 shows adding a gate) |
+| **coding** | a software project; per-type DoD (feature / bugfix / refactor) | `mtt init --template templates/coding.yaml` (walkthrough: `demo/`, §4) |
+| **docs / no-code** | an iterative **review ⇄ revision** cycle with no code gate — docs, RFCs, specs, articles | `mtt init --template templates/docs.yaml` |
+| **hierarchy** | epic → task → subtask nesting | `mtt init --template templates/hierarchy.yaml` |
+| **git-flow** ⚠ **advanced** | branch → agent review → PR → deliver (this repo's own shape); needs `gh`+`jq` — review before use | `mtt init --template templates/git-flow.yaml` (§8) |
+
+For **non-code domains with a gate or post** — a blog post gated by a review script, a purchase request
+validated at the approve edge — see the content-review and approval samples in §7.
 
 ## 3. The graph
 
@@ -284,9 +303,9 @@ cycles via `mtt check` — is a separate concern, strengthened in a later task; 
 
 ## 12. Neighbours
 
-Shipped (t62): the **git-flow flagship** and the `coding`/`hierarchy` samples live in the repo's `templates/`
-dir, installable by path or `--template <url>` (only `default` is built into the binary). Still tracked
-separately:
+The repo's `templates/` dir ships installable samples — the `coding`, `docs`, and `hierarchy` flows and the
+**git-flow flagship** (by path or `--template <url>`; only `default` is built into the binary; the templates
+mechanism landed in t62) — browsable in the gallery (§2b). Still tracked separately:
 
 - **Agent-usage docs** — *shipped (t46)*: `mtt agent docs` (and `mtt init` by default) scaffold a generic
   tool-level runbook into `AGENTS.md` + pointer blocks into `CLAUDE.md`/`GEMINI.md` (marked-block, regenerable;

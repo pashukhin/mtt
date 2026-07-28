@@ -28,7 +28,7 @@ HTTP-вызов, нотификация. **Прогон тестов — лиш�
   должны пройти, иначе переход заблокирован) и **`post:`**-действия (запускаются после сохранения перехода).
 
 Начните со встроенного `default` (`mtt init`) или поставьте более богатый образец по пути/url
-(`mtt init --template templates/coding.yaml`, `templates/hierarchy.yaml` или флагман `git-flow` — см. §8),
+(`mtt init --template templates/coding.yaml`, `templates/docs.yaml`, `templates/hierarchy.yaml` или флагман `git-flow` — см. галерею в §2b),
 затем осмотрите любой флоу через **`mtt types`** — он рендерит граф, gate-команды и именованные ребра-вербы.
 
 ## 2. Минимальный флоу с нуля
@@ -55,6 +55,25 @@ types:
 
 Запишите это в `.mtt/config.yaml`, и `mtt add "first item"` создаст `i1` в `todo`; `mtt doing i1` переведёт в
 `doing`; `mtt done i1` запустит `./gate.sh` и перейдёт в `done`, только если тот вернул 0.
+
+## 2b. Галерея примеров флоу (выбери форму)
+
+Не начинай с пустого конфига — возьми ближайшую форму и адаптируй. В бинарник встроен только `default`;
+остальные ставятся из каталога `templates/` по пути или URL (например,
+`mtt init --template templates/coding.yaml` или форма
+`https://raw.githubusercontent.com/pashukhin/mtt/main/templates/coding.yaml`). Каждая — **образец для
+адаптации**, а не мандат; после установки смотри любую через `mtt types`.
+
+| Форма | Когда брать | Попробовать |
+|---|---|---|
+| **minimal** | solo, zero-config; один линейный флоу, гейт добавляешь сам | `mtt init` (встроенный `default`, без гейта — §2 показывает, как добавить) |
+| **coding** | софт-проект; per-type DoD (feature / bugfix / refactor) | `mtt init --template templates/coding.yaml` (разбор: `demo/`, §4) |
+| **docs / no-code** | итеративный цикл **review ⇄ revision** без кодового гейта — доки, RFC, спеки, статьи | `mtt init --template templates/docs.yaml` |
+| **hierarchy** | вложенность epic → task → subtask | `mtt init --template templates/hierarchy.yaml` |
+| **git-flow** ⚠ **advanced** | branch → agent review → PR → deliver (форма этого репо); нужны `gh`+`jq` — читай перед use | `mtt init --template templates/git-flow.yaml` (§8) |
+
+Для **не-кодовых доменов с гейтом или post** — пост в блоге, проверяемый скриптом-ревью, или заявка,
+валидируемая на ребре approve — см. образцы content-review и approval в §7.
 
 ## 3. Граф
 
@@ -286,8 +305,9 @@ mtt status i1 done --no-run --who me --why "skip"   # bypass the gate: --no-run 
 
 ## 12. Соседи
 
-Выпущено (t62): **флагман git-flow** и образцы `coding`/`hierarchy` лежат в каталоге репо `templates/`,
-ставятся по пути или `--template <url>` (в бинарь вкомпилирован только `default`). Всё ещё трекается
+Каталог репо `templates/` поставляет устанавливаемые образцы — флоу `coding`, `docs`, `hierarchy` и
+**флагман git-flow** (по пути или `--template <url>`; в бинарь вкомпилирован только `default`; механизм
+шаблонов появился в t62) — их можно листать в галерее (§2b). Всё ещё трекается
 отдельно:
 
 - **Agent-usage доки** — *реализовано (t46)*: `mtt agent docs` (и `mtt init` по умолчанию) скаффолдят
