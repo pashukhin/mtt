@@ -1,13 +1,13 @@
 id: t78
 type: task
 title: example-flow gallery — 2-3 sanitized common flows; keep init default minimal
-status: approved
+status: done
 priority: medium
 tags:
     - flow
     - release
 created: "2026-07-27T15:51:02Z"
-updated: "2026-07-28T16:01:30Z"
+updated: "2026-07-28T16:07:10Z"
 description: Pre-1.0 polish (Variant A). Curate 2-3 sanitized example flows for common cases (e.g. a simple 3-state with a test gate on done; a bugfix repro-first flow; a docs / no-code flow). Keep the zero-config init default minimal (task + chore). Our own dogfood flow is a good ADVANCED example but is wired to this repo toolchain (make/git/PR) - sanitize or relabel before showcasing so it does not read as mandatory. Ship as documented examples, not necessarily embedded builtins. Relates to t62 (templates).
 history:
     - at: "2026-07-28T09:36:56Z"
@@ -117,4 +117,13 @@ history:
       to: approved
       checks:
         - cmd: out=$(git status --porcelain -- ":(exclude).mtt") && test -z "$out" || { echo "working tree not clean - commit your code/docs first (.mtt is swept by the move itself)" >&2; false; }
+          exit: 0
+    - at: "2026-07-28T16:07:10Z"
+      by: Grigorii Pashukhin
+      from: approved
+      to: done
+      checks:
+        - cmd: git switch main
+          exit: 0
+        - cmd: 'git log -n 1000 --format=%s | grep -v "^mtt: " | head -200 | grep "^t78: " || { echo "no squash commit \"t78: …\" on local main: git pull first, and check the PR/merge title started with \"t78: \"" >&2; false; }'
           exit: 0
