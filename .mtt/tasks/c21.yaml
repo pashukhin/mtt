@@ -1,0 +1,19 @@
+id: c21
+type: chore
+title: hashtag extraction toggle — committed-config setting, default off (title+body)
+status: tbd
+priority: high
+tags:
+    - release
+    - ux
+created: "2026-07-28T02:01:04Z"
+updated: "2026-07-28T02:01:04Z"
+description: |-
+    Make task-text hashtag extraction (hash-prefixed words in text becoming tags) a setting in the COMMITTED project config, default OFF, governing BOTH title and description. Design is fixed (Variant-A reflection; see KB notes release-scope / pitch / positioning-vs-beads) — this is impl-only. Recreated from t69 (was a task; design now fixed).
+
+    - OFF (the new default): explicit `--tag` / `mtt tag add` is the ONLY tag source. `core.Adder` does not extract tags from text; `core.Editor` does not reconcile tags on a text change (editing title/description changes no tags); `core.TagEditor.RemoveTags` drops the guard that refuses removing a tag still present as a hash-word in the text.
+    - ON: today's behavior (extract from title+description; edit reconciles via the text-delta; remove-guard active).
+    - Threading: a committed-config policy value reaches `core` (Adder/Editor/TagEditor) — mirror an existing config-threading pattern (cfg / Require / envFn); `pkg/mtt` stays serialization-free, the yaml adapter parses the field. Exact struct placement is an impl choice, not a product decision.
+    - Back-compat: NON-destructive — already-stored tags stay in the yaml; only FUTURE extraction stops. Record the default flip under CHANGELOG [Unreleased].
+    - Update the `add` / `edit` command help (it currently promises extraction) to reflect the toggle.
+    - Out of scope (do NOT touch here): note-side extraction (t49, explicit-only), broader README/DESIGN cleanup (t63), config.local author rules. Supersedes the earlier opt-in / title-only framing.
