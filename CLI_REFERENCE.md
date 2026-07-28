@@ -280,8 +280,8 @@ usage error (c13); put multi-line text in `--description`.
   008.5)**.
 - `--ref <kind>:<target>` — attach an informational reference at creation (repeatable; `note:auth-design`/
   `task:t2`/`url:https://…`). Warn-not-block: a dangling target is stored with a warning (exit 0). **t1.**
-- `--tag <tag>…` — add a tag (repeatable or comma-separated `--tag a,b`, session 008.7). `#hashtags` in the title/description are also
-  extracted and merged into the same set (a `#fragment` inside a `scheme://` URL is skipped — a pasted link
+- `--tag <tag>…` — add a tag (repeatable or comma-separated `--tag a,b`, session 008.7). `#hashtags` in the title/description are
+  extracted into the same set **only when `extract_hashtags` is on** (default off; a `#fragment` inside a `scheme://` URL is skipped — a pasted link
   mints no tags, c13). Values are normalized (Unicode-lowercased over letters/digits plus
   `. _ -`, any script; an optional leading `#` is allowed); an out-of-charset value is a usage error.
   **Implemented (session 008.7)**.
@@ -426,9 +426,10 @@ carrying a tag — distinct from the positional tags being added/removed.
 - `mtt tag add <id> <tag>...` — add tags (idempotent: re-adding an existing tag writes nothing). Prints
   `tagged <id>: <added>` (only the tags actually added; adding a tag already present prints
   `<id>: already tagged <tags> (no change)`), or the task object with `--json`.
-- `mtt tag rm <id> <tag>...` — remove tags. **Guarded:** a tag whose `#hashtag` is still in the title or
-  description is **refused** (`cannot remove tag "x": #x is present in the title …`) — edit the text to remove
-  it (the guard is faithful to "the text is authoritative", and has no bypass). The guard is checked for
+- `mtt tag rm <id> <tag>...` — remove tags. **Guarded (only when `extract_hashtags` is on — off by default):**
+  a tag whose `#hashtag` is still in the title or description is **refused** (`cannot remove tag "x": #x is
+  present in the title …`) — edit the text to remove it (faithful to "the text is authoritative"). With
+  extraction off the guard is inactive and such a tag is removable. When active, the guard is checked for
   **all** targets before any change, so a multi-tag call is atomic; removing an absent tag is a no-op. Prints
   `untagged <id>: <removed>` (only the tags actually removed; a no-op prints `<id>: no such tag <tags> (no
   change)`), or the task object with `--json`.
