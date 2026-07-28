@@ -13,6 +13,13 @@ artifact, before the plan and the code.
 > shape — not `default` renamed, not a §7 duplicate (D3). (MINORs) the `minimal` row no longer implies a
 > shipped gate (D2); `TestDocsIsNoCode` is now **structural** — asserts the template executes nothing —
 > closing the git/gh-token false-negative (D4).
+>
+> **rev3 — response to rev2 DECLINE (one prose MAJOR).** The rev2 distinctness argument over-claimed:
+> `git-flow.yaml` is *also* cyclic (a `review ⇄ fix` loop, five active states — git-flow.yaml:27-31,49),
+> so "every other shipped flow is linear / docs is the only cyclic shape" was false. D3 is reworded to the
+> true differentiator — docs is the only **gate-less / no-code** rework loop (git-flow is the ADVANCED,
+> git/PR-gated one). No YAML/test/surface change. Also folded: D5's DESIGN-exclusion now turns on
+> *archival-record vs live-catalog* (not "Shipped(t62) block"), plus two anchor/test nits.
 
 ## 1. Problem
 
@@ -103,13 +110,15 @@ A `doc` type with a **review ⇄ revision loop**: `draft → review`, `review �
 non-terminal state. **Nothing is executed** — no branch, no PR, no gate; a doc reaches a terminal on human
 review, not a build.
 
-**Why this is a distinct shape (resolves rev1 MAJOR2).** Every other shipped flow is **linear**: the
-built-in `default` (`todo→in_progress→done`), `coding`, and §7's content-review (`draft→review→published`)
-all reach their terminal in one forward pass. `docs.yaml` is the only shape with **two active states and a
-cycle** (`review ⇄ revision`) — its lesson is exactly that: *an active status can loop, and a terminal need
-not be one hop away*. It does not restate `default` (which is generic and one-active) nor §7's content-review
-(which is linear **and** carries a `commands:` gate + a `post:` — a different lesson). The gate-less,
-side-effect-free body is the "no-code" half; the loop is the "iterative" half.
+**Why this is a distinct shape (resolves rev1 MAJOR2).** Its niche is the intersection nothing else
+occupies: **a gate-less / no-code flow that still models a rework loop.** Among the gate-less shapes it is
+the only cyclic one — `default` and `hierarchy` are gate-less but **linear** (one active state, one forward
+pass); `coding` and §7's content-review/approval are linear **and** carry a `commands:` gate (a different
+lesson). The one *other* shipped shape that also has a review-rework cycle is **`git-flow`** — but that is
+the **ADVANCED**, git-and-PR-bound flagship (five active states, `make check`, branch/PR machinery), not a
+starter. So `docs.yaml` teaches *an active status can loop, and a terminal need not be one hop away* with
+**zero executed steps** — the loop without the git. The gate-less, side-effect-free body is the "no-code"
+half; the `review ⇄ revision` loop is the "iterative" half.
 
 ```yaml
 version: 1
@@ -179,6 +188,12 @@ graph:
   uncomments a `commands:` gate in their own copy is unaffected (the test reads `templates/docs.yaml`, not
   the user's install).
 
+  *Plan-execution note:* capture `events:` **as a whole** (decode into a single `map[string]any` or an
+  `Events any` field and assert it is empty/nil), **not** as a hand-listed subset of store×kind slots — a
+  command hidden in e.g. `events.note.delete.post` must not be able to slip past. `commands`/`post` per
+  transition already cover every edge surface (a `rollback:` only nests under a `command`, so empty
+  `commands` ⇒ no rollback).
+
 ### D5 — Docs sync surface (bilingual where required)
 
 A repo-wide sweep for the example-set enumeration (`grep -rn 'coding.yaml\|hierarchy.yaml\|git-flow'`)
@@ -198,22 +213,24 @@ set-enumeration and the "pick a flow" surfaces are updated together:
   docs are not in CLAUDE.md's bilingual pair list.)
 - `templates/CLAUDE.md` — add `docs.yaml` to the hosted-examples enumeration (lines 11–12, 19) and note its
   invariants (verbatim / literal name / the structural no-code guard).
-- `templates/templates.go` (doc comment, line 4) and `internal/adapter/yaml/load_test.go` (comment, line
-  13) both enumerate `(coding, hierarchy, git-flow)`. **Reword generically** ("the hosted examples") rather
+- `templates/templates.go` (doc comment, line 4) and `internal/adapter/yaml/load_test.go` (comment, lines
+  12–13) both enumerate `(coding, hierarchy, git-flow)`. **Reword generically** ("the hosted examples") rather
   than appending `docs`, so these comments never drift again as the set grows. This is a comment-only touch;
   it does not violate the "no Go core change" non-goal (no logic, no exported surface). **(rev1 MINOR.)**
 - `CHANGELOG.md` — one line under `[Unreleased]` (a new shipped template + a gallery is user-facing). Note:
   the impl-submit gate's "code changed → needs CHANGELOG" check inspects only `cmd internal pkg go.mod
   go.sum`; `templates/` is outside it, so this entry is **hygiene, not gate-forced** — we add it anyway.
 
-**Deliberately NOT touched — `DESIGN.md:781` / `DESIGN.ru.md:788`** (rev1 MAJOR2 hunt turned this up too).
-That sentence — "`coding`/`hierarchy` and the **git-flow flagship** … are hosted files" — lives inside the
-**"Shipped (t62)"** narrative block: it is a *historical record of what t62 delivered*, not a live index of
-the current set. Retrofitting `docs` (a t78 artifact) into a t62 Shipped block would be revisionist, and it
-runs directly against **c23** (queued: "DESIGN unload — distill the Shipped blocks into KB notes; slim
-DESIGN"). t78 adds no new DESIGN Shipped block either (a doc-only gallery + one sample does not earn one;
-if anything it is c23's material). The other DESIGN/README hits (DESIGN.md:699/:763, README.md:56, the
-`demo/` READMEs, the `internal/cli/testdata/scripts/*.txt` and `*_test.go` fixtures) are
+**Deliberately NOT touched — `DESIGN.md:781` / `DESIGN.ru.md:788`.** That sentence ("`coding`/`hierarchy`
+and the **git-flow flagship** … are hosted files") sits in a **design-rationale record** — the archival,
+per-increment prose that DESIGN is made of and that **c23** is queued to distill/unload. The distinguishing
+test is **not** "is it a `Shipped (t62)` block?" — `FLOW_GUIDE.md:287` is *also* a "Shipped (t62):" block and
+we **do** edit it. The real line is **archival design-record (DESIGN) vs live user-facing catalog** that a
+reader consults to find the *current* installable set (FLOW_GUIDE §12 "Neighbours", CLI_REFERENCE). Two more
+reasons it is safe to leave: the DESIGN sentence stays **true** after t78 — those three *are* hosted files,
+it is merely non-exhaustive, so no false claim is created — and editing it is c23's territory, of no reader
+benefit. t78 adds no new DESIGN block either. The other DESIGN/README hits (DESIGN.md:699/:763, README.md:56,
+the `demo/` READMEs, the `internal/cli/testdata/scripts/*.txt` and `*_test.go` fixtures) are
 **specific-template references**, not set-enumerations — left alone.
 
 ## 4. Test plan (red → green)
