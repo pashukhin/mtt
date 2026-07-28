@@ -115,8 +115,8 @@ occupies: **a gate-less / no-code flow that still models a rework loop.** Among 
 the only cyclic one — `default` and `hierarchy` are gate-less but **linear** (one active state, one forward
 pass); `coding` and §7's content-review/approval are linear **and** carry a `commands:` gate (a different
 lesson). The one *other* shipped shape that also has a review-rework cycle is **`git-flow`** — but that is
-the **ADVANCED**, git-and-PR-bound flagship (five active states, `make check`, branch/PR machinery), not a
-starter. So `docs.yaml` teaches *an active status can loop, and a terminal need not be one hop away* with
+the **ADVANCED**, git-and-PR-bound flagship (five active states; git-hygiene gates — working-tree-clean,
+squash-commit-present — plus branch/PR machinery), not a starter. So `docs.yaml` teaches *an active status can loop, and a terminal need not be one hop away* with
 **zero executed steps** — the loop without the git. The gate-less, side-effect-free body is the "no-code"
 half; the `review ⇄ revision` loop is the "iterative" half.
 
