@@ -22,9 +22,11 @@ func newEditCmd() *cobra.Command {
 		Long: `Edit a task's title, description, and/or priority (the current task when the id is
 omitted). Status is not editable here — it moves through the flow ('mtt status').
 
-Editing the title or description re-derives #hashtags: a tag whose #hashtag leaves
-the text is dropped, a newly-typed one is added, and tags set via 'mtt tag add'
-survive. There is no --tag here; use 'mtt tag add/rm' for tags not in the text.`,
+When the project opts into #hashtag extraction (extract_hashtags: true — OFF by
+default), editing the title or description re-derives text tags: one whose #hashtag
+leaves the text is dropped and a newly-typed one is added, while 'mtt tag add' tags
+survive. With extraction off, a text edit changes no tags. There is no --tag here;
+use 'mtt tag add/rm'.`,
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var p core.EditParams
@@ -57,6 +59,7 @@ survive. There is no --tag here; use 'mtt tag add/rm' for tags not in the text.`
 				return err
 			}
 			defer closeOut()
+			p.ExtractHashtags = settings.ExtractHashtags
 			editor := core.NewEditor(yaml.NewTaskStore(root), time.Now, ev)
 			id, err := resolveTaskID(root, argOrEmpty(args))
 			if err != nil {

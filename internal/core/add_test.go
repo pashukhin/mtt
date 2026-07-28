@@ -288,6 +288,34 @@ func TestAddEventFailureKeepsTask(t *testing.T) {
 	}
 }
 
+func TestAddExtractHashtagsOffByDefault(t *testing.T) {
+	fs := &fakeStore{retID: "e1"}
+	// #hashtags in the text must NOT become tags when extraction is off (the default);
+	// only the explicit tag survives.
+	got, err := NewAdder(fs, cfg(), fixed, nil).Add(AddParams{
+		Title: "ship #auth", Description: "see #login", TypeName: "epic", Tags: []string{"explicit"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got.Tags) != 1 || got.Tags[0] != "explicit" {
+		t.Fatalf("tags = %v; want only [explicit] (no text extraction when off)", got.Tags)
+	}
+}
+
+func TestAddExtractHashtagsOn(t *testing.T) {
+	fs := &fakeStore{retID: "e1"}
+	got, err := NewAdder(fs, cfg(), fixed, nil).Add(AddParams{
+		Title: "ship #auth", TypeName: "epic", ExtractHashtags: true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !contains(got.Tags, "auth") {
+		t.Fatalf("tags = %v; want 'auth' extracted when on", got.Tags)
+	}
+}
+
 func TestAddNoRunPreflight(t *testing.T) {
 	cfg := eventCfg(mtt.Events{})
 	store := newMemStore()

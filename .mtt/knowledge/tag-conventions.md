@@ -14,5 +14,6 @@ updated: "2026-07-23T07:58:05Z"
 - Thematic tags are a deliberately SMALL vocabulary - currently core, flow, sec, tests, perf, dx, ux,
   kb, adapter, demo, multiagent, release, docs. Pick from the existing set before inventing; discover
   the live set with mtt tags (--all for every task, --json for {tag,count}).
-- Caveat: #hashtags in titles/descriptions auto-become tags - never put # in a title unless you mean
-  it (a "#2" in a migration title once minted a spurious "2" tag).
+- Caveat: when the committed extract_hashtags policy is ON (default OFF since t69), #hashtags in
+  titles/descriptions auto-become tags - never put # in a title unless you mean it (a "#2" in a migration
+  title once minted a spurious "2" tag). With the default OFF, text # is inert and tags are explicit only.

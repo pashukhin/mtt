@@ -16,11 +16,11 @@ func TestEditorsNoRunPreflight(t *testing.T) {
 		call func(store mtt.TaskStore) error
 	}{
 		{"tag add", func(s mtt.TaskStore) error {
-			_, _, err := NewTagEditor(s, testClock, nil).AddTags("t1", []string{"x"}, bare)
+			_, _, err := NewTagEditor(s, testClock, nil, false).AddTags("t1", []string{"x"}, bare)
 			return err
 		}},
 		{"tag rm", func(s mtt.TaskStore) error {
-			_, _, err := NewTagEditor(s, testClock, nil).RemoveTags("t1", []string{"x"}, bare)
+			_, _, err := NewTagEditor(s, testClock, nil, false).RemoveTags("t1", []string{"x"}, bare)
 			return err
 		}},
 		{"dep add", func(s mtt.TaskStore) error {

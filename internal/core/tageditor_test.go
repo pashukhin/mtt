@@ -13,7 +13,7 @@ func TestTagAddUnionsAndBumps(t *testing.T) {
 	orig := mtt.Task{ID: "t1", Type: "task", Title: "a", Status: "tbd",
 		Tags: []string{"auth"}, Created: fixed(), Updated: fixed()}
 	fs := &editStore{get: orig}
-	got, added, err := NewTagEditor(fs, later, nil).AddTags("t1", []string{"backend", "urgent"}, EventOptions{})
+	got, added, err := NewTagEditor(fs, later, nil, false).AddTags("t1", []string{"backend", "urgent"}, EventOptions{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -32,7 +32,7 @@ func TestTagAddIdempotentNoWrite(t *testing.T) {
 	orig := mtt.Task{ID: "t1", Type: "task", Title: "a", Status: "tbd",
 		Tags: []string{"auth", "urgent"}, Created: fixed(), Updated: fixed()}
 	fs := &editStore{get: orig}
-	got, added, err := NewTagEditor(fs, later, nil).AddTags("t1", []string{"auth"}, EventOptions{})
+	got, added, err := NewTagEditor(fs, later, nil, false).AddTags("t1", []string{"auth"}, EventOptions{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -50,7 +50,7 @@ func TestTagAddIdempotentNoWrite(t *testing.T) {
 func TestTagRemoveManualTag(t *testing.T) {
 	orig := mtt.Task{ID: "t1", Type: "task", Title: "a", Status: "tbd",
 		Tags: []string{"auth", "urgent"}, Created: fixed(), Updated: fixed()}
-	got, removed, err := NewTagEditor(&editStore{get: orig}, later, nil).RemoveTags("t1", []string{"urgent"}, EventOptions{})
+	got, removed, err := NewTagEditor(&editStore{get: orig}, later, nil, false).RemoveTags("t1", []string{"urgent"}, EventOptions{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -66,7 +66,7 @@ func TestTagRemoveGuardTitle(t *testing.T) {
 	orig := mtt.Task{ID: "t1", Type: "task", Title: "fix #auth", Status: "tbd",
 		Tags: []string{"auth"}, Created: fixed(), Updated: fixed()}
 	fs := &editStore{get: orig}
-	_, _, err := NewTagEditor(fs, later, nil).RemoveTags("t1", []string{"auth"}, EventOptions{})
+	_, _, err := NewTagEditor(fs, later, nil, true).RemoveTags("t1", []string{"auth"}, EventOptions{})
 	if err == nil || !strings.Contains(err.Error(), "#auth is present in the title") {
 		t.Fatalf("want title guard, got %v", err)
 	}
@@ -78,9 +78,26 @@ func TestTagRemoveGuardTitle(t *testing.T) {
 func TestTagRemoveGuardDescription(t *testing.T) {
 	orig := mtt.Task{ID: "t1", Type: "task", Title: "a", Description: "see #auth", Status: "tbd",
 		Tags: []string{"auth"}, Created: fixed(), Updated: fixed()}
-	_, _, err := NewTagEditor(&editStore{get: orig}, later, nil).RemoveTags("t1", []string{"auth"}, EventOptions{})
+	_, _, err := NewTagEditor(&editStore{get: orig}, later, nil, true).RemoveTags("t1", []string{"auth"}, EventOptions{})
 	if err == nil || !strings.Contains(err.Error(), "#auth is present in the description") {
 		t.Fatalf("want description guard, got %v", err)
+	}
+}
+
+func TestTagRemoveGuardDroppedWhenExtractionOff(t *testing.T) {
+	// Extraction off: the text-anchor guard is dropped — a tag whose #hashtag is still
+	// in the text can be removed (text is never re-derived into tags when off).
+	orig := mtt.Task{ID: "t1", Type: "task", Title: "fix #auth", Status: "tbd",
+		Tags: []string{"auth"}, Created: fixed(), Updated: fixed()}
+	got, removed, err := NewTagEditor(&editStore{get: orig}, later, nil, false).RemoveTags("t1", []string{"auth"}, EventOptions{})
+	if err != nil {
+		t.Fatalf("guard must be dropped when extraction off: %v", err)
+	}
+	if !reflect.DeepEqual(removed, []string{"auth"}) {
+		t.Fatalf("removed = %v; want [auth]", removed)
+	}
+	if len(got.Tags) != 0 {
+		t.Fatalf("Tags = %v; want empty after removal", got.Tags)
 	}
 }
 
@@ -89,7 +106,7 @@ func TestTagRemoveMultiAtomic(t *testing.T) {
 	orig := mtt.Task{ID: "t1", Type: "task", Title: "fix #auth", Status: "tbd",
 		Tags: []string{"auth", "urgent"}, Created: fixed(), Updated: fixed()}
 	fs := &editStore{get: orig}
-	if _, _, err := NewTagEditor(fs, later, nil).RemoveTags("t1", []string{"urgent", "auth"}, EventOptions{}); err == nil {
+	if _, _, err := NewTagEditor(fs, later, nil, true).RemoveTags("t1", []string{"urgent", "auth"}, EventOptions{}); err == nil {
 		t.Fatal("want guard error")
 	}
 	if fs.updated.ID != "" {
@@ -101,7 +118,7 @@ func TestTagRemoveAbsentIsNoOp(t *testing.T) {
 	orig := mtt.Task{ID: "t1", Type: "task", Title: "a", Status: "tbd",
 		Tags: []string{"auth"}, Created: fixed(), Updated: fixed()}
 	fs := &editStore{get: orig}
-	got, removed, err := NewTagEditor(fs, later, nil).RemoveTags("t1", []string{"ghost"}, EventOptions{})
+	got, removed, err := NewTagEditor(fs, later, nil, false).RemoveTags("t1", []string{"ghost"}, EventOptions{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -118,10 +135,10 @@ func TestTagRemoveAbsentIsNoOp(t *testing.T) {
 
 func TestTagEditorNotFoundWrapped(t *testing.T) {
 	fs := &editStore{getErr: mtt.ErrNotFound}
-	if _, _, err := NewTagEditor(fs, later, nil).AddTags("ghost", []string{"x"}, EventOptions{}); !errors.Is(err, mtt.ErrNotFound) {
+	if _, _, err := NewTagEditor(fs, later, nil, false).AddTags("ghost", []string{"x"}, EventOptions{}); !errors.Is(err, mtt.ErrNotFound) {
 		t.Fatalf("AddTags want ErrNotFound, got %v", err)
 	}
-	if _, _, err := NewTagEditor(fs, later, nil).RemoveTags("ghost", []string{"x"}, EventOptions{}); !errors.Is(err, mtt.ErrNotFound) {
+	if _, _, err := NewTagEditor(fs, later, nil, false).RemoveTags("ghost", []string{"x"}, EventOptions{}); !errors.Is(err, mtt.ErrNotFound) {
 		t.Fatalf("RemoveTags want ErrNotFound, got %v", err)
 	}
 }
@@ -130,7 +147,7 @@ func TestTagAddFiresUpdateEvent(t *testing.T) {
 	cfg := eventCfg(taskHook(mtt.EventUpdate, "echo {{.ID}} {{.Event}}"))
 	store := newMemStore(tbdTask("t1"))
 	runner := &fakeRunner{}
-	te := NewTagEditor(store, testClock, NewEventEmitter(cfg, runner, &fakeAudit{}, testClock, nil))
+	te := NewTagEditor(store, testClock, NewEventEmitter(cfg, runner, &fakeAudit{}, testClock, nil), false)
 	if _, _, err := te.AddTags("t1", []string{"x"}, EventOptions{}); err != nil {
 		t.Fatalf("unexpected: %v", err)
 	}
@@ -144,7 +161,7 @@ func TestTagAddNoOpFiresNoEvent(t *testing.T) {
 	task := tbdTask("t1")
 	task.Tags = []string{"x"}
 	runner := &fakeRunner{}
-	te := NewTagEditor(newMemStore(task), testClock, NewEventEmitter(cfg, runner, &fakeAudit{}, testClock, nil))
+	te := NewTagEditor(newMemStore(task), testClock, NewEventEmitter(cfg, runner, &fakeAudit{}, testClock, nil), false)
 	if _, _, err := te.AddTags("t1", []string{"x"}, EventOptions{}); err != nil {
 		t.Fatalf("unexpected: %v", err)
 	}
@@ -157,7 +174,7 @@ func TestTagAddNoOpNoRunWritesNoRecord(t *testing.T) {
 	task := tbdTask("t1")
 	task.Tags = []string{"x"}
 	audit := &fakeAudit{}
-	te := NewTagEditor(newMemStore(task), testClock, NewEventEmitter(eventCfg(mtt.Events{}), &fakeRunner{}, audit, testClock, nil))
+	te := NewTagEditor(newMemStore(task), testClock, NewEventEmitter(eventCfg(mtt.Events{}), &fakeRunner{}, audit, testClock, nil), false)
 	if _, _, err := te.AddTags("t1", []string{"x"}, EventOptions{NoRun: true, By: "a", Why: "b"}); err != nil {
 		t.Fatalf("unexpected: %v", err)
 	}

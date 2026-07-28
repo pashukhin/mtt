@@ -1098,12 +1098,14 @@ after dogfood we move mtt's development onto mtt itself (done — s009).
 
 - later — **re-parenting** (`mtt reparent`/`move`): change a task's `parent`; enabled by flat, position-free IDs.
 - **tags — shipped s008.7** (backlog management): a cross-cutting label set on `Task.Tags` (rides the field +
-  `Update`, **no new port** — GAP #1, like `depends_on`). Authored two ways: **`#hashtags` in title/description
-  are the primary path** (extracted + merged into the canonical set on `add`/`edit`, the text left intact), and
-  explicit `--tag` / `mtt tag add/rm` are secondary/pointed. Reconciliation is **write-time** — a text-delta on
-  `edit` drops a tag when its `#hashtag` leaves the text and keeps manual tags (no provenance stored, so a
-  text+manual collision drops with the text); `tag rm` is **guarded** (refuses a tag whose `#hashtag` is still
-  in the text — edit the text instead). `list`/`ready`/`tree` filter by `--tag` (OR-within include) and
+  `Update`, **no new port** — GAP #1, like `depends_on`). Authored via explicit `--tag` / `mtt tag add/rm`
+  (the default source); **`#hashtag` extraction from title/description is opt-in** — the committed
+  `extract_hashtags` policy, default **off** (t69) — and when on, hashtags are extracted + merged into the
+  canonical set on `add`/`edit` (text left intact). When extraction is on, reconciliation is **write-time** — a
+  text-delta on `edit` drops a tag when its `#hashtag` leaves the text and keeps manual tags (no provenance
+  stored, so a text+manual collision drops with the text); `tag rm` is **guarded** (refuses a tag whose
+  `#hashtag` is still in the text — edit the text instead). With extraction **off**, a text edit reconciles no
+  tags and `tag rm` has no such guard. `list`/`ready`/`tree` filter by `--tag` (OR-within include) and
   `--exclude-tag` (negative) — slice-valued `ListFilter` dimensions over `Match`. The tag vocabulary is a pure `pkg/mtt` pair (`NormalizeTag`/`ExtractTags`) over a
   **Unicode** charset (`\pL\pN._-`, Unicode `ToLower`, no NFC folding); a `#fragment` inside a `scheme://` URL
   is skipped so a pasted link mints no tags (c13). Tags are a normalized+sorted **set**

@@ -280,8 +280,8 @@ usage error (c13); put multi-line text in `--description`.
   008.5)**.
 - `--ref <kind>:<target>` — attach an informational reference at creation (repeatable; `note:auth-design`/
   `task:t2`/`url:https://…`). Warn-not-block: a dangling target is stored with a warning (exit 0). **t1.**
-- `--tag <tag>…` — add a tag (repeatable or comma-separated `--tag a,b`, session 008.7). `#hashtags` in the title/description are also
-  extracted and merged into the same set (a `#fragment` inside a `scheme://` URL is skipped — a pasted link
+- `--tag <tag>…` — add a tag (repeatable or comma-separated `--tag a,b`, session 008.7). `#hashtags` in the title/description are
+  extracted into the same set **only when `extract_hashtags` is on** (default off; a `#fragment` inside a `scheme://` URL is skipped — a pasted link
   mints no tags, c13). Values are normalized (Unicode-lowercased over letters/digits plus
   `. _ -`, any script; an optional leading `#` is allowed); an out-of-charset value is a usage error.
   **Implemented (session 008.7)**.
@@ -346,9 +346,10 @@ in the YAML adapter — see Notes).
 - `--description <text>` — new description (`-` for stdin still later).
 - `--priority <high|medium|low>` — new priority (session 008.6). `--priority ""` **clears** it back to unset.
   An unknown value is a usage error. *(implemented)*
-- **Tags reconcile on a text edit** (session 008.7): editing `--title`/`--description` re-derives the
-  `#hashtags` — a tag whose `#hashtag` left the text is dropped, a newly-typed one is added, and manual tags
-  (from `mtt tag add`) survive. There is no `--tag` on `edit`; surgical tag changes go through `mtt tag add/rm`.
+- **Tags reconcile on a text edit** (session 008.7; only when `extract_hashtags` is on — off by default):
+  editing `--title`/`--description` re-derives the `#hashtags` — a tag whose `#hashtag` left the text is
+  dropped, a newly-typed one is added, and manual tags (from `mtt tag add`) survive. With extraction off a text
+  edit changes no tags. There is no `--tag` on `edit`; surgical tag changes go through `mtt tag add/rm`.
 
 ### `mtt rm [<id>...] [-] [--force]` — delete tasks (hard delete)  *(session 008.5; bulk + selector in 008.9)*
 Permanently removes tasks (distinct from `cancel`, which is a terminal *status*, not removal). `rm` is for
@@ -407,8 +408,9 @@ surfaced as a root, never dropped.
   array (`[]` when empty, never `null`); leaf `children` are omitted.
 
 ### `mtt tag add|rm <id> <tag>... | <tag>... (- | --filter)` — manage tags  *(session 008.7; bulk in 008.9)*
-Tags are cross-cutting labels. The **primary** way to tag is a `#hashtag` in the title/description (extracted
-on `add`/`edit`; a `#fragment` inside a `scheme://` URL is skipped — c13); `mtt tag add/rm` is the secondary, pointed path. Both take **one or more** tags (variadic),
+Tags are cross-cutting labels. Tag via explicit `--tag` / `mtt tag add/rm` (the default source). `#hashtag`
+extraction from the title/description is **opt-in** — the committed `extract_hashtags` policy (default **off**);
+when on, hashtags are extracted on `add`/`edit` (a `#fragment` inside a `scheme://` URL is skipped — c13). `mtt tag add/rm` take **one or more** tags (variadic),
 so a whole set changes in one write. Tags are stored as a normalized, deduplicated, **sorted** set and ride
 `Task.Tags` (no new port — like `depends_on`).
 
@@ -424,9 +426,10 @@ carrying a tag — distinct from the positional tags being added/removed.
 - `mtt tag add <id> <tag>...` — add tags (idempotent: re-adding an existing tag writes nothing). Prints
   `tagged <id>: <added>` (only the tags actually added; adding a tag already present prints
   `<id>: already tagged <tags> (no change)`), or the task object with `--json`.
-- `mtt tag rm <id> <tag>...` — remove tags. **Guarded:** a tag whose `#hashtag` is still in the title or
-  description is **refused** (`cannot remove tag "x": #x is present in the title …`) — edit the text to remove
-  it (the guard is faithful to "the text is authoritative", and has no bypass). The guard is checked for
+- `mtt tag rm <id> <tag>...` — remove tags. **Guarded (only when `extract_hashtags` is on — off by default):**
+  a tag whose `#hashtag` is still in the title or description is **refused** (`cannot remove tag "x": #x is
+  present in the title …`) — edit the text to remove it (faithful to "the text is authoritative"). With
+  extraction off the guard is inactive and such a tag is removable. When active, the guard is checked for
   **all** targets before any change, so a multi-tag call is atomic; removing an absent tag is a no-op. Prints
   `untagged <id>: <removed>` (only the tags actually removed; a no-op prints `<id>: no such tag <tags> (no
   change)`), or the task object with `--json`.

@@ -64,7 +64,15 @@ func TestScripts(t *testing.T) {
 					return err
 				}
 			}
-			return nil
+			// #hashtag→tag extraction is opt-in (default off), so the tags e2e installs
+			// an extraction-ENABLED variant of hierarchy — without changing the shipped
+			// template (which stays off by default).
+			hx, err := os.ReadFile(filepath.Join(repoRoot(), "templates", "hierarchy.yaml"))
+			if err != nil {
+				return err
+			}
+			hx = append(hx, []byte("\nextract_hashtags: true\n")...)
+			return os.WriteFile(filepath.Join(env.WorkDir, "hierarchy_hashtags.yaml"), hx, 0o644)
 		},
 	})
 }

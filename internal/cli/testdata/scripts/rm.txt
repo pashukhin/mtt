@@ -51,7 +51,7 @@ stdout '"status"'
 
 # bulk selector --exclude-tag (c16): de-noise while sparing tagged tasks
 # (the freed max id is re-minted after the deletes above, so these are t1..t3)
-exec mtt add --no-parent 'keep me #keep'
+exec mtt add --no-parent --tag keep 'keep me'
 stdout 'created t1'
 exec mtt add --no-parent 'noise one'
 stdout 'created t2'

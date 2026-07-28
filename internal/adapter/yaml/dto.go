@@ -30,7 +30,10 @@ type ymlConfig struct {
 	Author         string     `yaml:"author,omitempty"`
 	Require        ymlRequire `yaml:"require,omitempty"`
 	Events         ymlEvents  `yaml:"events,omitempty"`
-	Types          []ymlType  `yaml:"types"`
+	// ExtractHashtags (extract_hashtags:) is the committed tag-extraction policy;
+	// absent → false (off). Read post-overlay like author/command_timeout.
+	ExtractHashtags bool      `yaml:"extract_hashtags,omitempty"`
+	Types           []ymlType `yaml:"types"`
 }
 
 // ymlEvents / ymlEventHooks / ymlEventHook mirror the domain Events section on

@@ -142,6 +142,36 @@ func TestLoadRequireTightenOnly(t *testing.T) {
 	}
 }
 
+func TestLoadExtractHashtagsDefaultOff(t *testing.T) {
+	root := t.TempDir()
+	if err := Init(root, "default", "demo", false); err != nil {
+		t.Fatalf("init: %v", err)
+	}
+	// the default template omits extract_hashtags → off.
+	_, s, err := Load(root)
+	if err != nil {
+		t.Fatalf("load: %v", err)
+	}
+	if s.ExtractHashtags {
+		t.Fatal("ExtractHashtags must default to false (off) when the config omits it")
+	}
+}
+
+func TestLoadExtractHashtagsFromConfig(t *testing.T) {
+	root := t.TempDir()
+	if err := Init(root, "default", "demo", false); err != nil {
+		t.Fatalf("init: %v", err)
+	}
+	appendToConfig(t, root, "extract_hashtags: true\n")
+	_, s, err := Load(root)
+	if err != nil {
+		t.Fatalf("load: %v", err)
+	}
+	if !s.ExtractHashtags {
+		t.Fatal("ExtractHashtags must be true when the committed config sets it")
+	}
+}
+
 // appendToConfig appends raw YAML to .mtt/config.yaml (a new top-level block).
 func appendToConfig(t *testing.T, root, block string) {
 	t.Helper()

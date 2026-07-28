@@ -60,8 +60,10 @@ Usecase logic. Depends **only** on the `pkg/mtt` domain contract and its ports �
   unextracted). **Cycle-safe** across both axes (memoized `effectivePriority` DFS; a node in — or downstream of
   — a cycle, including a cross-axis one, is appended best-effort so the function always terminates and returns
   every node). **Not** `list --sort priority` (that sorts by own priority; roadmap propagates).
-- `Adder`/`Editor` **tags** (s008.7): `Adder` unions explicit `--tag` (`AddParams.Tags`) with
-  `ExtractTags(title/description)` into a canonical set; `Editor` reconciles tags on a text change via a
+- `Adder`/`Editor` **tags** (s008.7; extract gated t69): `Adder` unions explicit `--tag` (`AddParams.Tags`)
+  with `ExtractTags(title/description)` **only when `AddParams.ExtractHashtags`** (the committed
+  `extract_hashtags` policy, default off — else explicit tags only); `Editor` reconciles tags on a text change
+  **only when `EditParams.ExtractHashtags`**, via a
   **text-delta** (`reconcileTags` — drop tags whose `#hashtag` left the text, add new ones, keep manual tags;
   no provenance, so a text+manual collision drops with the text). `canonicalTags` (normalize+dedup+**sort**,
   `tags.go`) is the single home for the canonical form. The `#hashtag` text is never rewritten.
@@ -71,8 +73,10 @@ Usecase logic. Depends **only** on the `pkg/mtt` domain contract and its ports �
   the requested set (`subtractTags` computes the added set; `removed` is collected during the filter). `RemoveTags`
   is **guarded** — it refuses a
   tag whose `#hashtag` is still in the title/description (all targets validated before any write — atomic), and
-  its `load` wraps `ErrNotFound` (`%w`) so a missing id maps to exit 4. `#hashtags` in title/description are the
-  **primary** authoring path; `tag add/rm` is secondary/pointed.
+  its `load` wraps `ErrNotFound` (`%w`) so a missing id maps to exit 4. The guard runs **only when the
+  `extract_hashtags` policy is on** (`TagEditor.extractHashtags`, threaded from committed config, default off —
+  t69): with it off, text is never re-derived into tags, so a text-anchored tag is removable. Explicit `--tag` /
+  `tag add/rm` is the default tag source; `#hashtag` extraction is opt-in.
 - `DependencyEditor` (mutation): `AddDependency`/`RemoveDependency` edit `Task.DependsOn` and persist via
   `TaskStore.Update` (**no new port** — the edge rides the field, like `parent` in s004). Rejects a
   self-edge and, via `DepGraph.Reaches`, any edge that would create a **cycle**; a duplicate add is an

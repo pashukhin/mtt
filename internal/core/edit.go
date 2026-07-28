@@ -31,6 +31,11 @@ type EditParams struct {
 	Description *string
 	Priority    *mtt.Priority
 	Events      EventOptions // lifecycle-event bypass + attribution (t66)
+	// ExtractHashtags: when true, a title/description edit reconciles #hashtag-derived
+	// tags (drop those whose #hashtag left the text, add newly-typed ones). Project
+	// policy resolved from the committed config by the CLI (default OFF — a text edit
+	// then changes no tags).
+	ExtractHashtags bool
 }
 
 // Edit applies p to task id, bumps Updated, persists, and returns the task. A
@@ -63,7 +68,7 @@ func (e *Editor) Edit(id mtt.TaskID, p EditParams) (mtt.Task, error) {
 	if t.Title == "" && t.Description == "" {
 		return mtt.Task{}, fmt.Errorf("a task needs a title or a description")
 	}
-	if p.Title != nil || p.Description != nil {
+	if p.ExtractHashtags && (p.Title != nil || p.Description != nil) {
 		t.Tags = reconcileTags(t.Tags, oldTitle, oldDesc, t.Title, t.Description)
 	}
 	t.Updated = e.now().UTC().Truncate(time.Second)

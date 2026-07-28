@@ -1,0 +1,24 @@
+# tags off-default: extract_hashtags omitted (off) — #hashtags in the text are NOT
+# extracted into tags; explicit --tag is the only source; tag rm has no text-anchor
+# guard when off. (The opt-in ON path is covered by tags.txt.)
+mkdir proj
+cd proj
+exec mtt init
+stdout 'initialized'
+
+# a #hashtag in the title is NOT extracted; only the explicit tag lands
+exec mtt add --no-parent 'fix #login' --tag urgent
+stdout 'created t1'
+exec mtt show t1
+stdout 'tags:     urgent'
+
+# editing text to add a #hashtag changes no tags
+exec mtt edit t1 --description 'see #backend'
+exec mtt show t1
+stdout 'tags:     urgent'
+
+# tag rm has no text-anchor guard when off: a tag can be removed even though a
+# matching #hashtag sits in the title (ON would refuse this)
+exec mtt tag add t1 login
+exec mtt tag rm t1 login
+stdout 'untagged t1: login'

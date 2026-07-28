@@ -1,7 +1,9 @@
-# tags: #hashtags-primary + explicit; filter; rm-guard; edit-delta reconciliation
+# tags: #hashtags (opt-in extract_hashtags) + explicit; filter; rm-guard; edit-delta reconciliation
+# This script runs with extraction ENABLED (the hierarchy_hashtags variant); the
+# off-by-default behavior is covered by unit tests + tags_offdefault.txt.
 mkdir proj
 cd proj
-exec mtt init --template $WORK/hierarchy.yaml
+exec mtt init --template $WORK/hierarchy_hashtags.yaml
 stdout 'initialized'
 
 # add: a #hashtag in the title + an explicit --tag; both land, canonical (sorted)

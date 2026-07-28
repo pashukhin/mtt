@@ -26,6 +26,11 @@ type Settings struct {
 	CommandTimeout time.Duration
 	Author         string
 	Require        RequireAttribution
+	// ExtractHashtags is the committed-config policy for turning #hashtags in a task's
+	// title/description into tags. Default OFF (absent in config.yaml → false): explicit
+	// --tag / tag add is then the only tag source. The CLI threads it into the core
+	// add/edit/tag usecases.
+	ExtractHashtags bool
 }
 
 // RequireAttribution is the project's required-attribution policy (who/why must
@@ -60,7 +65,7 @@ func Load(root string) (mtt.Config, Settings, error) {
 		Who: committedRequire.Who || yc.Require.Who,
 		Why: committedRequire.Why || yc.Require.Why,
 	}
-	return cfg, Settings{Prefixes: prefixes, CommandTimeout: timeout, Author: yc.Author, Require: require}, nil
+	return cfg, Settings{Prefixes: prefixes, CommandTimeout: timeout, Author: yc.Author, Require: require, ExtractHashtags: yc.ExtractHashtags}, nil
 }
 
 // checkDecoded runs the YAML provider's post-decode checks — exactly what Load
