@@ -11,12 +11,22 @@
 > The `advance`/`start`/`done` meta-walk is **parked** (single-edge `status` is the norm); comment threads,
 > text search, `mtt-ui`, and external adapters are later phases. Full plan in [DESIGN.md](DESIGN.md).
 
-> **Pitch.** Coding agents write code well but respect a task's lifecycle poorly — "done" is often just a
-> text label. mtt turns a task into an executable state machine: a status transition passes through gates
-> — create the branch, run lint/test, check artifacts — and if a gate is red, `mtt done` doesn't pass.
-> The Definition of Done is **per task type** (bugfix, refactor, feature each differ). It's not a commit
-> hook or CI — it's a gate on the *task lifecycle*, in the agent's own vocabulary, over your storage:
-> zero-footprint YAML for solo, or a thin enforcement layer over Jira/GitHub for a team.
+> **Pitch — why you need mtt.** You already have a Definition of Done: tests, lint, review, "spec before
+> code". It lives as prose in AGENTS.md, in Make targets, in CI. Prose doesn't stop an agent — it hopes.
+> An agent silently skips whatever isn't mechanically checked and writes "done" where done isn't. The
+> problem isn't that you lack a Definition of Done — it's that nothing enforces it inside the tracker itself.
+>
+> mtt turns a task's lifecycle into a small state machine you define **per task type** (a bugfix isn't a
+> refactor), and **every transition runs your own shell commands as blocking gates**: checks fail, the
+> transition doesn't happen, and the status can't lie. The flow is committed repo data, not personal
+> settings; it works with any CLI agent; every move is written to append-only history with its check
+> results. And because the status can't lie, when *you* look — `mtt show` / `mtt list` / `mtt roadmap` — you
+> see a true map: what's still an idea, what's blocked, what's two steps from release. In one line:
+> **"done" isn't what the agent declares — it's what the tool refuses to record until it's earned.**
+>
+> **Not for everyone.** mtt is useless until you author a flow — that authoring step is the price, not a
+> flaw. If you just want a to-do list, use something lighter. mtt wins decisively only when you want the
+> *process itself* enforced — especially under agents, which skip anything not mechanically gated.
 
 ## What it is
 
