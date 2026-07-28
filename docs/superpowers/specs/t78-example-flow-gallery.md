@@ -6,6 +6,14 @@
 This is a **decision record**. It fixes the scope, the deliverables, and the design of the one new
 artifact, before the plan and the code.
 
+> **rev2 — response to adversarial spec review (rev1 DECLINE).** Changes: (MAJOR1) added the
+> `CLI_REFERENCE.md`/`.ru` enumeration to the sync surface, plus the `templates.go`/`load_test.go` doc
+> comments — and **deliberately excluded** `DESIGN.md`/`.ru` with a stated reason (D5). (MAJOR2) **reshaped
+> `docs.yaml`** to a `review ⇄ revision` loop (two active states, a cycle) so it is a genuinely distinct
+> shape — not `default` renamed, not a §7 duplicate (D3). (MINORs) the `minimal` row no longer implies a
+> shipped gate (D2); `TestDocsIsNoCode` is now **structural** — asserts the template executes nothing —
+> closing the git/gh-token false-negative (D4).
+
 ## 1. Problem
 
 t78's card asks for "2-3 sanitized example flows for common cases … keep the zero-config init default
@@ -72,23 +80,36 @@ caveats (so it never reads as mandatory — the card's "sanitize or relabel" req
 
 | Shape | Use when | Try |
 |---|---|---|
-| **minimal** | one gate on `done`; solo; zero-config | `mtt init` (the built-in `default`) — see §2 |
+| **minimal** | solo, zero-config; one linear flow you add your own gate to | `mtt init` (the built-in `default` — gate-less; §2 shows adding a gate) |
 | **coding** | a software project; per-type DoD (feature / bugfix / refactor) | `mtt init --template templates/coding.yaml` — see `demo/`, §4 |
-| **docs / no-code** | docs, research, decisions — reach done **without** a code/branch/PR gate | `mtt init --template templates/docs.yaml` **(new)** |
+| **docs / no-code** | an iterative **review ⇄ revision** cycle with no code gate — docs, RFCs, specs, articles | `mtt init --template templates/docs.yaml` **(new)** |
 | **hierarchy** | epic → task → subtask nesting | `mtt init --template templates/hierarchy.yaml` |
 | **git-flow** ⚠ **ADVANCED** | branch → agent review → PR → deliver (this repo's own shape) | `mtt init --template templates/git-flow.yaml` — needs `gh`+`jq`; review before use; see §8 |
 
-Plus one pointer line: **non-code domains** (content-review, approval/sign-off) — inline examples in **§7**.
+Plus one pointer line: **non-code domains with gates/posts** (content-review's publish gate, approval's
+validate gate) — inline examples in **§7**.
+
+The rows are deliberately non-overlapping on their *teaching* axis: `minimal` = a linear generic flow;
+`docs` = a **cyclic** no-code flow (the loop is the lesson); §7 = non-code flows that **carry a gate/post**.
+None restates another's YAML.
 
 Each "Try" also notes the `raw.githubusercontent.com/pashukhin/mtt/main/templates/<name>.yaml` URL form once
 (as §7/README already do), not per row.
 
 ### D3 — New runnable `templates/docs.yaml` (hosted, verbatim-installed)
 
-A `doc` type: `draft → review → published`, plus a `cancelled` terminal (house style, matching every other
-template). Its teaching contrast with `git-flow`: **no branch, no PR, no executed gate** — a doc reaches a
-terminal on human review, not on a build. The `publish` edge is **gate-less**; a YAML comment shows how to
-add an optional non-code check.
+A `doc` type with a **review ⇄ revision loop**: `draft → review`, `review → published` (accepted) or
+`review → revision` (send back), `revision → review` (re-review), plus a `cancelled` terminal from every
+non-terminal state. **Nothing is executed** — no branch, no PR, no gate; a doc reaches a terminal on human
+review, not a build.
+
+**Why this is a distinct shape (resolves rev1 MAJOR2).** Every other shipped flow is **linear**: the
+built-in `default` (`todo→in_progress→done`), `coding`, and §7's content-review (`draft→review→published`)
+all reach their terminal in one forward pass. `docs.yaml` is the only shape with **two active states and a
+cycle** (`review ⇄ revision`) — its lesson is exactly that: *an active status can loop, and a terminal need
+not be one hop away*. It does not restate `default` (which is generic and one-active) nor §7's content-review
+(which is linear **and** carries a `commands:` gate + a `post:` — a different lesson). The gate-less,
+side-effect-free body is the "no-code" half; the loop is the "iterative" half.
 
 ```yaml
 version: 1
@@ -97,33 +118,45 @@ project:
 command_timeout: 5m
 types:
   - name: doc
-    description: A document or no-code deliverable. DoD — drafted, reviewed, published. No branch, no PR.
+    description: A document or no-code deliverable (RFC, spec, article). DoD — reviewed and published; iterate via revision. No branch, no PR, no build gate.
     prefix: d
     parents: []
     default: true
     statuses:
       - {name: draft,     kind: initial}
       - {name: review,    kind: active}
+      - {name: revision,  kind: active}
       - {name: published, kind: terminal}
       - {name: cancelled, kind: terminal}
     # A docs / no-code flow gates on human review, not on a build: no branch is
-    # created, no PR is opened, and `publish` runs nothing. Want an automated
-    # non-code check? Hang a `commands:` list on `publish` (see FLOW_GUIDE §4),
-    # e.g. a markdown linter or a link checker.
+    # created, no PR is opened, nothing runs. The review<->revision loop is the
+    # point — a reviewer can send a doc back any number of times. Want an
+    # automated non-code check (a link checker, a markdown linter)? Hang a
+    # `commands:` list on `publish` (see FLOW_GUIDE §4).
     transitions:
-      - {from: draft,  to: review,     name: submit,  description: "hand the draft to a reviewer", current: set}
-      - {from: draft,  to: cancelled,  description: "drop the draft"}
-      - {from: review, to: published,  name: publish, description: "reviewed — publish the doc", current: clear}
-      - {from: review, to: cancelled,  description: "reject the doc"}
+      - {from: draft,    to: review,    name: submit,          description: "hand the draft to a reviewer", current: set}
+      - {from: draft,    to: cancelled, description: "drop the draft"}
+      - {from: review,   to: published, name: publish,         description: "accepted — publish", current: clear}
+      - {from: review,   to: revision,  name: request_changes, description: "send back for edits"}
+      - {from: review,   to: cancelled, description: "reject the doc"}
+      - {from: revision, to: review,    name: resubmit,        description: "edits done — re-review"}
+      - {from: revision, to: cancelled, description: "abandon the doc"}
 ```
 
-Contract details this must honour (from `templates/CLAUDE.md` invariants):
+Contract details this must honour (from `templates/CLAUDE.md` invariants), all re-checked for the reshaped
+graph:
 
 - **Verbatim install** → **literal** `project.name: my-project` (never `{{.Name}}`; an unquoted `{{.Name}}`
   in a verbatim file is invalid standalone YAML — this is why only `default.yaml` keeps the placeholder).
-- **Structurally valid** per FLOW_GUIDE §11: one `initial` (`draft`), one `active` (`review`), two
-  `terminal` (`published`, `cancelled`); `kind` matches topology; single `default` type; edge names
-  (`submit`, `publish`) unique per source status and disjoint from status names; `prefix` letters-only.
+- **Structurally valid** per FLOW_GUIDE §11: one `initial` (`draft`, no incoming); two `active`
+  (`review` in←{draft,revision} out→{published,revision,cancelled}; `revision` in←review out→{review,
+  cancelled}); two `terminal` (`published`, `cancelled`, no outgoing). `kind` matches topology; single
+  `default` type; edge names `submit`/`publish`/`request_changes`/`resubmit` are unique **per source
+  status** and disjoint from status names; `prefix` letters-only. (The `review↔revision` cycle is legal:
+  both endpoints are `active`, which requires in **and** out edges — the cycle supplies both.)
+- **`current`** is `set` when entering the active cycle (`submit`) and `clear` when leaving it to a terminal
+  (`publish`); the intra-cycle edges (`request_changes`, `resubmit`) and the `cancelled` edges carry no
+  `current` directive (matching `coding.yaml`, which never touches `current` on its cancel edges).
 - `command_timeout` is kept for template-family consistency even though there are no commands (a user who
   later adds a gate benefits); it is inert otherwise.
 
@@ -131,28 +164,57 @@ Contract details this must honour (from `templates/CLAUDE.md` invariants):
 
 - Add `"docs.yaml"` to the explicit list in `TestExamplesLoadAndValidate` (`templates/templates_test.go`),
   so the new example is loaded and validated exactly like the others.
-- Add a small **`TestDocsIsNoCode`** guard: assert `docs.yaml` contains **no `git` and no `gh` tokens**
-  (case-insensitive, **word-boundary** regex — mirroring the existing `ghToken` trick in
-  `TestGitFlowStatesItsAssumptions`, which already avoids the `through`/`high` bigram). This makes the
-  gallery's "no branch/PR" promise **machine-true** and stops a future edit from sneaking VCS/PR automation
-  into the no-code starter. The template's prose deliberately says "no branch, no PR" (words `branch`/`PR`),
-  **not** "git"/"gh", so it passes — and the test intentionally forbids only the two tool tokens, not the
-  descriptive words.
+- Add a **`TestDocsIsNoCode`** guard that is **structural, not textual** (rev1 MINOR: a git/gh-token grep
+  has a false-negative — a `push`/`branch`/`pr`/`merge` reference or a non-git deploy gate like
+  `make deploy`/`curl …/pipelines` carries none of those tokens). The test unmarshals `docs.yaml` (via
+  `gopkg.in/yaml.v3`, already a dependency) into a minimal struct that captures only the executable
+  surfaces, and asserts every one is empty:
+  - top-level `events:` is empty;
+  - no type carries `post_defaults:`;
+  - every transition has empty `commands:` **and** empty `post:`.
+
+  This proves the shipped no-code starter **executes nothing at all** — the honest form of "no branch, no
+  PR, no gate," immune to prose wording and catching *any* side-effecting step, not just git/gh. It is a
+  tripwire, not a promise the template can never gain a gate: it guards the *shipped* file; a user who
+  uncomments a `commands:` gate in their own copy is unaffected (the test reads `templates/docs.yaml`, not
+  the user's install).
 
 ### D5 — Docs sync surface (bilingual where required)
 
-Every place that enumerates the example set or teaches "pick a flow" is updated together:
+A repo-wide sweep for the example-set enumeration (`grep -rn 'coding.yaml\|hierarchy.yaml\|git-flow'`)
+classified every hit as **set-enumeration** (must gain `docs`) vs **specific-template reference** (leave
+alone — those name `hierarchy`/`coding` for a specific example or fixture, not "the set"). Every
+set-enumeration and the "pick a flow" surfaces are updated together:
 
 - `FLOW_GUIDE.md` + `FLOW_GUIDE.ru.md` — the new §2b gallery; and the §1 install line (FLOW_GUIDE.md:32 /
-  .ru:31) and §12 "Neighbours" (:285 / :287) mention `docs` alongside `coding`/`hierarchy`/`git-flow`.
-- `README.md` + `README.ru.md` — the Quickstart pointer to §2b.
-- `templates/README.md` — add the `docs.yaml` row; point to the gallery as canonical chooser. (EN-only: the
-  `templates/` docs are not in CLAUDE.md's bilingual pair list.)
-- `templates/CLAUDE.md` — add `docs.yaml` to the hosted-examples enumeration (lines 11–12, 19) and its
-  invariants (verbatim / literal name / no-code guard test).
+  .ru:31) and §12 "Neighbours" (:287 / :289) mention `docs` alongside `coding`/`hierarchy`/`git-flow`.
+- `README.md` + `README.ru.md` — the Quickstart pointer to §2b (near README.md:129 / .ru:131; exact anchor
+  pinned in the plan).
+- `CLI_REFERENCE.md` + `CLI_REFERENCE.ru.md` — the `mtt init --template` prose enumerates the hosted set
+  (CLI_REFERENCE.md:228 / .ru:229 "…(`coding`, `hierarchy`, and the `git-flow` flagship)…"); add `docs`.
+  **(rev1 MAJOR1.)**
+- `templates/README.md` — add the `docs.yaml` row; demote it to a terse file list that points to the §2b
+  gallery as the canonical "which to pick" chooser (removes the two-index drift). (EN-only: `templates/`
+  docs are not in CLAUDE.md's bilingual pair list.)
+- `templates/CLAUDE.md` — add `docs.yaml` to the hosted-examples enumeration (lines 11–12, 19) and note its
+  invariants (verbatim / literal name / the structural no-code guard).
+- `templates/templates.go` (doc comment, line 4) and `internal/adapter/yaml/load_test.go` (comment, line
+  13) both enumerate `(coding, hierarchy, git-flow)`. **Reword generically** ("the hosted examples") rather
+  than appending `docs`, so these comments never drift again as the set grows. This is a comment-only touch;
+  it does not violate the "no Go core change" non-goal (no logic, no exported surface). **(rev1 MINOR.)**
 - `CHANGELOG.md` — one line under `[Unreleased]` (a new shipped template + a gallery is user-facing). Note:
   the impl-submit gate's "code changed → needs CHANGELOG" check inspects only `cmd internal pkg go.mod
   go.sum`; `templates/` is outside it, so this entry is **hygiene, not gate-forced** — we add it anyway.
+
+**Deliberately NOT touched — `DESIGN.md:781` / `DESIGN.ru.md:788`** (rev1 MAJOR2 hunt turned this up too).
+That sentence — "`coding`/`hierarchy` and the **git-flow flagship** … are hosted files" — lives inside the
+**"Shipped (t62)"** narrative block: it is a *historical record of what t62 delivered*, not a live index of
+the current set. Retrofitting `docs` (a t78 artifact) into a t62 Shipped block would be revisionist, and it
+runs directly against **c23** (queued: "DESIGN unload — distill the Shipped blocks into KB notes; slim
+DESIGN"). t78 adds no new DESIGN Shipped block either (a doc-only gallery + one sample does not earn one;
+if anything it is c23's material). The other DESIGN/README hits (DESIGN.md:699/:763, README.md:56, the
+`demo/` READMEs, the `internal/cli/testdata/scripts/*.txt` and `*_test.go` fixtures) are
+**specific-template references**, not set-enumerations — left alone.
 
 ## 4. Test plan (red → green)
 
@@ -167,8 +229,11 @@ Order matters (TDD):
 
 New: `templates/docs.yaml`, `docs/superpowers/specs/t78-example-flow-gallery.md` (this file), later
 `docs/superpowers/plans/t78-*.md`.
-Edited: `templates/templates_test.go`, `templates/README.md`, `templates/CLAUDE.md`, `FLOW_GUIDE.md`,
-`FLOW_GUIDE.ru.md`, `README.md`, `README.ru.md`, `CHANGELOG.md`.
+Edited: `templates/templates_test.go`, `templates/templates.go` (comment), `templates/README.md`,
+`templates/CLAUDE.md`, `internal/adapter/yaml/load_test.go` (comment), `FLOW_GUIDE.md`, `FLOW_GUIDE.ru.md`,
+`README.md`, `README.ru.md`, `CLI_REFERENCE.md`, `CLI_REFERENCE.ru.md`, `CHANGELOG.md`.
+Deliberately **unchanged**: `DESIGN.md` / `DESIGN.ru.md` (see D5 — the enumeration there is a t62 Shipped
+record, and is c23's territory).
 
 ## 6. Risks & mitigations
 
@@ -177,9 +242,12 @@ Edited: `templates/templates_test.go`, `templates/README.md`, `templates/CLAUDE.
 - **Renumber cascade in FLOW_GUIDE** → D1 uses a lettered §2b (existing §5b precedent); zero renumbering.
 - **docs.yaml over-promises vs t75** → D2/D3 label it a generic starter; the gallery text never claims it
   closes the repo's own milestone tasks.
-- **`TestDocsIsNoCode` false positives** (`prefix`/`project`/`approve` contain "pr"; "through"/"high"
-  contain "gh") → forbid only word-boundary `git`/`gh`, not `pr`/`branch`; prose avoids `git`/`gh`.
-- **Bilingual desync** → D5 lists the full EN+RU surface; the plan pins exact anchors.
+- **docs.yaml not distinct** (rev1 MAJOR2) → D3 reshapes it to a `review ⇄ revision` cycle — the only
+  shipped shape with a loop/two active states — with the distinctness argument stated inline.
+- **No-code guard is theatre** (rev1 MINOR) → D4's `TestDocsIsNoCode` is structural (no `commands`/`post`/
+  `post_defaults`/`events`), catching any executed step, not just git/gh tokens.
+- **Bilingual / multi-file desync** → D5 lists the full EN+RU surface *including CLI_REFERENCE* and states
+  which enumerations are deliberately excluded (DESIGN) and why; the plan pins exact anchors.
 
 ## 7. Out of scope
 
