@@ -1,11 +1,92 @@
 id: t83
 type: task
 title: 'config schema reference: one authoritative .mtt/config.yaml doc (events/require/post/post_defaults/hooks/placeholders)'
-status: tbd
+status: approved
 priority: high
 tags:
     - docs
     - pilot
 created: "2026-07-29T05:19:48Z"
-updated: "2026-07-29T05:19:48Z"
+updated: "2026-07-29T06:38:05Z"
 description: 'Pilot evidence (tessera): to author a mature config (events/require/post for cross-session state + attribution), the builder agent could NOT rely on FLOW_GUIDE/CLI_REFERENCE — it grepped them, then reverse-engineered the schema from Go struct tags (pkg/mtt/config.go, internal/adapter/yaml/dto.go, event.go, identity.go, current.go, cli/events.go). Ship one authoritative config-schema reference so an agent or human authors any config from docs, not source: every top-level key, per-type/status/transition field, the events store x kind x post shape, post_defaults/inherit_post, require tighten-only semantics, and the placeholder set (.ID/.Type/.From/.To on edges; .Slug/.Event on events). Gates a clean next pilot, which asks the agent to author a flow from scratch. Relates FLOW_GUIDE, CLI_REFERENCE.'
+history:
+    - at: "2026-07-29T05:36:17Z"
+      by: Grigorii Pashukhin
+      from: tbd
+      to: speccing
+      checks:
+        - cmd: git switch task/t83 || (git switch main && git switch -c task/t83)
+          exit: 0
+        - cmd: test -f .mtt/tasks/t83.yaml || { echo "task file absent on this branch — its add has not reached main (merge/commit the branch that created it first)" >&2; false; }
+          exit: 0
+    - at: "2026-07-29T05:39:16Z"
+      by: Grigorii Pashukhin
+      from: speccing
+      to: spec_review
+      checks:
+        - cmd: ls docs/superpowers/specs/t83-*.md
+          exit: 0
+        - cmd: out=$(git status --porcelain -- ":(exclude).mtt") && test -z "$out" || { echo "working tree not clean - commit your code/docs first (.mtt is swept by the move itself)" >&2; false; }
+          exit: 0
+    - at: "2026-07-29T05:47:22Z"
+      by: Grigorii Pashukhin
+      why: 'adversarial spec review DECLINE (verified): field-completeness 33-list EXACT, config.go zero yaml tags, dto.go config-exclusive, test feasibility sound (FindRoot reusable; backtick beats substring false-fails) — all CONFIRMED. One MAJOR: D4 sync surface misses AGENTS.md:119-122, a second NORMATIVE bilingual-pairs enumeration identical to CLAUDE.md:31-32 (parallel-occurrence trap) — add the new pair to BOTH. MINOR1 (important): the config DTO is decode-only, so omitempty is inert — required/optional is a VALIDATION property, not a tag property (prefix/name have no omitempty yet are required; commands/description have no omitempty yet optional). And D2 is necessary-but-insufficient for authorable-from-docs: must also document the validity rules the pilot went to source for — prefix letters-only + unique + exactly-one-default; kind in initial/active/terminal with at least one of each + topology; edge-name unique-per-source + disjoint-from-status-names; default status must be initial; command_timeout/timeout Go ParseDuration format; version is 1. MINOR2: D3 root mechanism is FindRoot(.) + go.mod sanity check, not a go.mod walk. Fixes: add AGENTS.md to D4 + files; rewrite required/optional as validation-driven and add a validity-rules content block to D2; keep the test as name-coverage (semantic completeness guarded by review + FLOW_GUIDE 11 cross-ref); correct D3 wording.'
+      from: spec_review
+      to: spec_fix
+    - at: "2026-07-29T05:49:59Z"
+      by: Grigorii Pashukhin
+      from: spec_fix
+      to: spec_review
+      checks:
+        - cmd: ls docs/superpowers/specs/t83-*.md
+          exit: 0
+        - cmd: out=$(git status --porcelain -- ":(exclude).mtt") && test -z "$out" || { echo "working tree not clean - commit your code/docs first (.mtt is swept by the move itself)" >&2; false; }
+          exit: 0
+    - at: "2026-07-29T05:52:23Z"
+      by: Grigorii Pashukhin
+      why: 'adversarial spec review APPROVE (rev2): rev1 MAJOR (AGENTS.md:119-122 second bilingual-pairs enumeration missed) + 2 MINORs (omitempty-inert/validity-rules gap; FindRoot wording) resolved and verified — reviewer cross-checked every validity fact against checkPrefixes/validate.go/current.go/load.go and confirmed accurate; field-completeness 33-list exact, test feasible. One trivial nit folded on approve (dropped omitempty-behaviour phrasing in the problem statement).'
+      from: spec_review
+      to: spec_human_review
+    - at: "2026-07-29T06:11:21Z"
+      by: Grigorii Pashukhin
+      why: 'human sign-off: spec accepted (rev2) after 2-round adversarial review (1 MAJOR + 2 MINOR resolved, validity facts verified against code)'
+      from: spec_human_review
+      to: planning
+    - at: "2026-07-29T06:15:25Z"
+      by: Grigorii Pashukhin
+      from: planning
+      to: plan_review
+      checks:
+        - cmd: ls docs/superpowers/plans/t83-*.md
+          exit: 0
+        - cmd: out=$(git status --porcelain -- ":(exclude).mtt") && test -z "$out" || { echo "working tree not clean - commit your code/docs first (.mtt is swept by the move itself)" >&2; false; }
+          exit: 0
+    - at: "2026-07-29T06:19:59Z"
+      by: Grigorii Pashukhin
+      why: 'adversarial plan review APPROVE: reviewer materialized the test + doc and confirmed gofmt/vet clean + test PASSES; all 33 fields backticked (test green), FindRoot/package/CWD correct, extractor yields exactly 33, backtick regex avoids false-fails (post vs post_defaults, timeout vs command_timeout), validity facts + exit codes + all Task-3 anchors verified, TDD order + CHANGELOG gate + no-scope-creep confirmed. One trivial anchor nit folded (CLI_REFERENCE.ru ~:226); regex-in-loop + descriptive-docs-edits left (correct/accepted).'
+      from: plan_review
+      to: plan_human_review
+    - at: "2026-07-29T06:27:55Z"
+      by: Grigorii Pashukhin
+      why: 'human sign-off: plan accepted after adversarial plan review (APPROVE first round; reviewer materialized the test + doc and confirmed it passes)'
+      from: plan_human_review
+      to: implementing
+    - at: "2026-07-29T06:33:37Z"
+      by: Grigorii Pashukhin
+      from: implementing
+      to: impl_review
+      checks:
+        - cmd: out=$(git status --porcelain -- ":(exclude).mtt") && test -z "$out" || { echo "working tree not clean - commit your code/docs first (.mtt is swept by the move itself)" >&2; false; }
+          exit: 0
+        - cmd: 'git diff --quiet main...HEAD -- cmd internal pkg go.mod go.sum || git diff --name-only main...HEAD -- CHANGELOG.md | grep -q . || { echo "code changed but CHANGELOG.md has no entry - add one under [Unreleased] (pure refactor? bypass: mtt do submit --no-run --who ... --why ...)" >&2; false; }'
+          exit: 0
+        - cmd: make check
+          exit: 0
+    - at: "2026-07-29T06:38:05Z"
+      by: Grigorii Pashukhin
+      why: 'adversarial code review APPROVE: implementation matches the approved plan (test verbatim, CONFIG_REFERENCE.md byte-identical); drift test GREEN, extractor yields all 33; EN/RU parity faithful (33/33 backticked, 10 sections + 8 tables each, column-consistent, reciprocal links correct); sync edits landed in BOTH CLAUDE.md and AGENTS.md + README/FLOW_GUIDE/CLI_REFERENCE (EN+RU) + CHANGELOG, no garble; scope clean (one new test + docs, no Go logic, embed/BuiltinNames untouched); make check green. One non-blocking MINOR (file-level vs section-anchor cross-refs) deliberately left — a disclosed reference-doc convention; anchoring would risk fragile GitHub slugs.'
+      from: impl_review
+      to: approved
+      checks:
+        - cmd: out=$(git status --porcelain -- ":(exclude).mtt") && test -z "$out" || { echo "working tree not clean - commit your code/docs first (.mtt is swept by the move itself)" >&2; false; }
+          exit: 0

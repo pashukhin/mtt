@@ -30,7 +30,8 @@ Three layers, all name-agnostic (the engine has no hard-coded status or type nam
 
 Start from the built-in `default` (`mtt init`) or install a richer sample by path/url (`mtt init --template
 templates/coding.yaml`, `templates/docs.yaml`, `templates/hierarchy.yaml`, or the `git-flow` flagship — see the gallery in §2b), then inspect any
-flow with **`mtt types`**, which renders the graph, the gate commands, and the named edge verbs.
+flow with **`mtt types`**, which renders the graph, the gate commands, and the named edge verbs. Every field
+is catalogued in [CONFIG_REFERENCE.md](CONFIG_REFERENCE.md).
 
 ## 2. A minimal flow from scratch
 
@@ -291,7 +292,8 @@ your commands; they are yours, under execution and under bypass alike. Write edg
 
 ## 11. Validate your flow (structure)
 
-`mtt add` and `mtt types` run `Config.Validate`, which rejects a structurally broken flow **before** runtime:
+`mtt add` and `mtt types` run `Config.Validate`, which rejects a structurally broken flow **before** runtime
+(each field's type and constraints are in [CONFIG_REFERENCE.md](CONFIG_REFERENCE.md)):
 
 - every flow has ≥1 `initial`, ≥1 `active`, ≥1 `terminal` status, and `kind` matches topology;
 - type and status names are unique; every transition `from`/`to` resolves to a real status;

@@ -7,6 +7,10 @@ All notable changes to mtt are documented here. The format follows
 ## [Unreleased]
 
 ### Added
+- **Config schema reference (t83).** A new `CONFIG_REFERENCE.md` (+ RU mirror) documents every
+  `.mtt/config.yaml` field — type, required/optional, validity rules, semantics, and a FLOW_GUIDE cross-ref —
+  so a config is authorable from docs, not source. A drift-guard test fails if a config DTO field goes
+  undocumented. Surfaced by the greenfield pilot.
 - **Example-flow gallery + a docs/no-code starter (t78).** A new `docs.yaml` hosted template — a gate-less
   `review ⇄ revision` no-code flow (no branch, no PR) — and an **example-flow gallery** in FLOW_GUIDE (§2b)
   that indexes every shipped shape (`default`/`coding`/`docs`/`hierarchy`/`git-flow`) with a one-line
