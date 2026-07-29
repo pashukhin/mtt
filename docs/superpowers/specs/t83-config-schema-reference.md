@@ -7,6 +7,14 @@ adopter agent could not rely on the docs and reverse-engineered the schema from 
 
 A **decision record**. It fixes scope, deliverable, and the anti-drift mechanism before the plan and code.
 
+> **rev2 — response to adversarial spec review (rev1 DECLINE).** (MAJOR) sync surface now includes
+> `AGENTS.md:119–122`, the second normative bilingual-pairs enumeration alongside `CLAUDE.md:31–32` (D4/§5).
+> (MINOR) the DTO is **decode-only** → `omitempty` is inert; required/optional is reframed as a *validation*
+> property, and D2 now **mandates** the validity rules an author needs (prefix charset, `kind` values,
+> edge-name uniqueness, default-must-be-initial, duration format, `version`) — the semantic half the
+> name-only test does not cover (Goal, D2). (MINOR) D3 root discovery corrected to `FindRoot(".")` + go.mod
+> check.
+
 ## 1. Problem
 
 The engine's config is code-as-config, authored by hand — but there is **no exhaustive field reference**.
@@ -23,9 +31,11 @@ mtt as a flow guide** — impossible today without reading source.
 ## 2. Goal / non-goals
 
 **Goal.** One authoritative, exhaustive, **reference-style** doc for `.mtt/config.yaml` (+ the
-`config.local.yaml` overlay keys) — every key, its type, required/optional status, default, one-line
-semantics, and a cross-reference to the FLOW_GUIDE section that teaches the concept — plus a **test that
-keeps it from silently going stale-incomplete** (the exact sin that caused this task).
+`config.local.yaml` overlay keys) — every key: its **type**, whether it is **required or optional** (a
+*validation* property — the config DTO is **decode-only**, so `omitempty` is inert and does **not**
+determine this), its **validity constraints** (charset / allowed values / formats — the very things the
+pilot went to source for), a one-line **semantics**, and a **§-cross-ref** to the FLOW_GUIDE concept — plus
+a **test that keeps it from silently going stale-incomplete** (the exact sin that caused this task).
 
 **Non-goals (YAGNI):**
 - **Not a tutorial.** It does not re-teach *how to author* a flow (that is FLOW_GUIDE) — it is a lookup
@@ -48,8 +58,10 @@ keeps it from silently going stale-incomplete** (the exact sin that caused this 
 
 ### D2 — Content: every field, grouped by nesting, reference-style
 
-Each field documented as a **backticked** entry with: **type** · **required / optional (default)** · a
-one-line **semantics** · a **§-cross-ref** to FLOW_GUIDE. Layout (a table or a definition list per level):
+Each field documented as a **backticked** entry with: **type** · **required / optional** (from *validation*,
+not `omitempty` — the DTO is decode-only, so `omitempty` is inert) · its **validity constraint** where one
+applies · a one-line **semantics** · a **§-cross-ref** to FLOW_GUIDE. Layout (a table or a definition list
+per level):
 
 - **Top level** (`ymlConfig`): `version`, `project` (→ `name`), `command_timeout`, `author`,
   `extract_hashtags`, `require`, `events`, `types`.
@@ -68,6 +80,23 @@ one-line **semantics** · a **§-cross-ref** to FLOW_GUIDE. Layout (a table or a
   `{{.From}}` `{{.To}}` (a whitelist — free text like `{{.Title}}` is a template error, never interpolated);
   **task events** expand `{{.ID}}` `{{.Type}}` `{{.Event}}`, **note events** `{{.Slug}}` `{{.Event}}`.
 
+**Validity rules the reference MUST state** (this is the semantic half — what the pilot actually went to
+source for; a doc that only backticks the 33 names passes D3 but is *not* "authorable from docs alone").
+These are `Config.Validate` / `checkPrefixes` rules, restated at the field level (with a §11 cross-ref):
+
+- `version`: currently `1`.
+- `prefix`: **letters-only** `[a-zA-Z]+`, **unique** across types; **exactly one** type is `default: true`.
+- `kind` ∈ {`initial`, `active`, `terminal`}; **≥1 of each**; `kind` must **match the graph topology**
+  (`initial` = no incoming edge, `terminal` = no outgoing, `active` = both).
+- transition `name`: **unique per source status** and **disjoint from status names** (it is the `mtt <verb>`
+  edge sugar).
+- status `default`: **at most one**, and it **must be `initial`**.
+- `command_timeout` (adapter) and command `timeout`: **Go `time.ParseDuration` format** (e.g. `5m`,
+  `10m0s`); a bad value fails at `Load`.
+- `current` ∈ {`set`, `clear`}.
+- `commands` is **optional** despite no `omitempty` (decode-only); `require` is **tighten-only**
+  (`config.local`/per-edge may add, never relax).
+
 The **complete field-name set** the reference must cover (the test's target, from `dto.go`), 33 distinct
 names: `version, project, command_timeout, author, extract_hashtags, require, events, types, name, prefix,
 parents, default, description, post_defaults, statuses, transitions, kind, from, to, commands, current,
@@ -75,8 +104,8 @@ post, inherit_post, who, why, task, note, create, update, delete, run, timeout, 
 
 ### D3 — Anti-drift guard: `TestConfigReferenceCoversSchema`
 
-A **non-hermetic** test (in `internal/adapter/yaml/`, reusing `dogfood_test.go`'s repo-root discovery —
-walk to the `go.mod` beside `.mtt`) that:
+A **non-hermetic** test (in `internal/adapter/yaml/`, locating the repo root via the package's exported
+`FindRoot(".")` then a `go.mod` sanity check — the pattern `dogfood_test.go:60,64` already uses) that:
 
 1. reads `internal/adapter/yaml/dto.go`, extracts **every distinct `yaml:"…"` tag name** (strip
    `,omitempty` and any options — take the token before the first comma);
@@ -98,11 +127,17 @@ repeating the drift that created the task. (Mirrors the existing `TestGitFlowSta
   table-cell/heading anchor if desired.
 - **EN-only assertion:** the test guards the canonical EN doc; RU parity stays a review concern (as with the
   other bilingual pairs — the test does not read `.ru.md`).
+- **Scope of the guard — names, not semantics:** the test asserts the field *enumeration* stays complete
+  (no silently-added DTO field goes undocumented). It does **not** assert the D2 *validity rules* are
+  present — that semantic completeness is guarded by review + the FLOW_GUIDE §11 cross-ref. Stated so the
+  test's green is not mistaken for "authorable-from-docs" on its own.
 
 ### D4 — Sync surface
 
 - New: `CONFIG_REFERENCE.md`, `CONFIG_REFERENCE.ru.md`.
-- `CLAUDE.md:31–32` — add `` `CONFIG_REFERENCE.md` ↔ `CONFIG_REFERENCE.ru.md` `` to the bilingual pairs.
+- `CLAUDE.md:31–32` **and** `AGENTS.md:119–122` — the bilingual-pairs list is enumerated in **both**
+  agent rulebooks (identical four pairs); add `` `CONFIG_REFERENCE.md` ↔ `CONFIG_REFERENCE.ru.md` `` to
+  **both**, or the two authoritative rulebooks disagree on what needs bilingual sync. **(rev1 MAJOR.)**
 - `README.md` + `README.ru.md` Docs list (README.md:144–146) — add a `CONFIG_REFERENCE` line.
 - `FLOW_GUIDE.md` + `.ru.md` — a pointer in §1 (Mental model) and §11 (Validate) to the full field
   reference.
@@ -122,8 +157,8 @@ repeating the drift that created the task. (Mirrors the existing `TestGitFlowSta
 
 New: `CONFIG_REFERENCE.md`, `CONFIG_REFERENCE.ru.md`, `internal/adapter/yaml/config_reference_test.go`,
 `docs/superpowers/specs/t83-config-schema-reference.md` (this), later the plan.
-Edited: `CLAUDE.md`, `README.md`, `README.ru.md`, `FLOW_GUIDE.md`, `FLOW_GUIDE.ru.md`, `CLI_REFERENCE.md`,
-`CLI_REFERENCE.ru.md`, `CHANGELOG.md`.
+Edited: `CLAUDE.md`, `AGENTS.md`, `README.md`, `README.ru.md`, `FLOW_GUIDE.md`, `FLOW_GUIDE.ru.md`,
+`CLI_REFERENCE.md`, `CLI_REFERENCE.ru.md`, `CHANGELOG.md`.
 
 ## 6. Risks & mitigations
 
