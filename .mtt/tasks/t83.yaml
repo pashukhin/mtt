@@ -1,13 +1,13 @@
 id: t83
 type: task
 title: 'config schema reference: one authoritative .mtt/config.yaml doc (events/require/post/post_defaults/hooks/placeholders)'
-status: spec_review
+status: spec_human_review
 priority: high
 tags:
     - docs
     - pilot
 created: "2026-07-29T05:19:48Z"
-updated: "2026-07-29T05:49:59Z"
+updated: "2026-07-29T05:52:23Z"
 description: 'Pilot evidence (tessera): to author a mature config (events/require/post for cross-session state + attribution), the builder agent could NOT rely on FLOW_GUIDE/CLI_REFERENCE — it grepped them, then reverse-engineered the schema from Go struct tags (pkg/mtt/config.go, internal/adapter/yaml/dto.go, event.go, identity.go, current.go, cli/events.go). Ship one authoritative config-schema reference so an agent or human authors any config from docs, not source: every top-level key, per-type/status/transition field, the events store x kind x post shape, post_defaults/inherit_post, require tighten-only semantics, and the placeholder set (.ID/.Type/.From/.To on edges; .Slug/.Event on events). Gates a clean next pilot, which asks the agent to author a flow from scratch. Relates FLOW_GUIDE, CLI_REFERENCE.'
 history:
     - at: "2026-07-29T05:36:17Z"
@@ -42,3 +42,8 @@ history:
           exit: 0
         - cmd: out=$(git status --porcelain -- ":(exclude).mtt") && test -z "$out" || { echo "working tree not clean - commit your code/docs first (.mtt is swept by the move itself)" >&2; false; }
           exit: 0
+    - at: "2026-07-29T05:52:23Z"
+      by: Grigorii Pashukhin
+      why: 'adversarial spec review APPROVE (rev2): rev1 MAJOR (AGENTS.md:119-122 second bilingual-pairs enumeration missed) + 2 MINORs (omitempty-inert/validity-rules gap; FindRoot wording) resolved and verified — reviewer cross-checked every validity fact against checkPrefixes/validate.go/current.go/load.go and confirmed accurate; field-completeness 33-list exact, test feasible. One trivial nit folded on approve (dropped omitempty-behaviour phrasing in the problem statement).'
+      from: spec_review
+      to: spec_human_review
