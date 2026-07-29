@@ -1,0 +1,20 @@
+id: t86
+type: task
+title: 'FLOW_GUIDE: flow-authoring gotchas from pilot-2 (red-gate exit-code contract, strawman-backlog ownership, verified-vs-assumed handoffs)'
+status: tbd
+priority: medium
+tags:
+    - docs
+    - pilot
+created: "2026-07-29T16:04:11Z"
+updated: "2026-07-29T16:04:11Z"
+description: |-
+    Second greenfield pilot (contact_energy, a Python/pygame 4-role multi-session build, 2026-07-29) surfaced three FLOW_GUIDE-worthy authoring lessons that no existing task covers. Write all guidance GENERALIZED (tool/language-agnostic), not tied to the pilot project; the pilot is only the evidence.
+
+    (1) RED-GATE EXIT-CODE CONTRACT. A test-first `start` gate that insists on the runner's "tests ran and failed" code (e.g. pytest exit 1) REJECTS a brand-new slice whose test fails at collection/import (pytest exit 2) — the module under test does not exist yet. The pilot implementer had to drop stub module files BEFORE `mtt start`, eight times, to make the suite fail "the right way"; the letter of TDD held but the spirit bent, and it was the single most frequent friction of the session. Guidance: a red gate should ask "is there a failing test?", not "is it failing for the right reason" — accept a collection/build error as red (or document the stub-first workaround explicitly). Also a candidate hardening for the coding starter's reference red-gate. Relates t79 (coding starter/reference gates), t80 (bare-sh gate env).
+
+    (2) STRAWMAN-BACKLOG + EXPLICIT OWNERSHIP. An early role (bootstrap) over-seeded the backlog, creating downstream roles' tasks. This did NOT become role-bleed/redundancy because the seed's owner task said, in its own description, "this task OWNS the seeded tasks — re-scope/split/merge/cancel them, do not treat them as fixed." The later planner then materially re-scoped them and even caught a real ordering bug in the seed. Guidance: when an early role seeds a guess-backlog, mark it explicitly as a strawman owned by a named later re-scoping task, rather than as fixed work — the ownership hand-off turns over-seeding from a bug into a useful head start.
+
+    (3) VERIFIED-vs-ASSUMED IN HANDOFF DOCS. Design/plan docs written in one even confident voice made spec-derived invariants read identically to unrun guesses ("the first failing test is X"). Some guesses were wrong and were caught only by running. Lessons to document: (a) mark unverified claims as such (e.g. "first failing test (unverified)") so the reader knows where to be suspicious; (b) acceptance criteria proved more reliable than prescriptive steps — where the prescription was wrong but the criterion right, the implementer resolved it alone; prefer writing hand-offs as criteria, not recipes; (c) recording culture: the most FREQUENT friction went UNRECORDED because the note mental-model is "decisions", not "recurring frictions" — invite recording recurring frictions, not only decisions; (d) durable reasoning that lands only in a commit message is practically lost (session start reads the KB/prime, never `git log`) — put durable reasoning in a note, not only a commit.
+
+    Deliverable: generalized additions to FLOW_GUIDE (EN + RU mirror). Evidence base: pilot-2 findings journal + implementer retro. Sibling pilot tasks: t79-t85.
