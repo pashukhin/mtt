@@ -1,0 +1,11 @@
+id: t83
+type: task
+title: 'config schema reference: one authoritative .mtt/config.yaml doc (events/require/post/post_defaults/hooks/placeholders)'
+status: tbd
+priority: high
+tags:
+    - docs
+    - pilot
+created: "2026-07-29T05:19:48Z"
+updated: "2026-07-29T05:19:48Z"
+description: 'Pilot evidence (tessera): to author a mature config (events/require/post for cross-session state + attribution), the builder agent could NOT rely on FLOW_GUIDE/CLI_REFERENCE — it grepped them, then reverse-engineered the schema from Go struct tags (pkg/mtt/config.go, internal/adapter/yaml/dto.go, event.go, identity.go, current.go, cli/events.go). Ship one authoritative config-schema reference so an agent or human authors any config from docs, not source: every top-level key, per-type/status/transition field, the events store x kind x post shape, post_defaults/inherit_post, require tighten-only semantics, and the placeholder set (.ID/.Type/.From/.To on edges; .Slug/.Event on events). Gates a clean next pilot, which asks the agent to author a flow from scratch. Relates FLOW_GUIDE, CLI_REFERENCE.'
