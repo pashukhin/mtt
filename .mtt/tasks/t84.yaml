@@ -1,0 +1,11 @@
+id: t84
+type: task
+title: 'agents attributed as human by default: scaffold env {MTT_BY, MTT_ROLE} in .claude/settings.json (require:{who} does not catch it)'
+status: tbd
+priority: medium
+tags:
+    - dx
+    - pilot
+created: "2026-07-29T05:19:52Z"
+updated: "2026-07-29T05:19:52Z"
+description: 'Sharp pilot finding: an agent that forgets --who is silently recorded as the HUMAN, because attribution resolves --who > MTT_BY > config.local author, and a shared checkout config.local carries the human author. require {who true} does NOT fix this (it is satisfied by the config.local author). Real fix: mtt agent hooks / mtt init should scaffold env {MTT_BY: agent, MTT_ROLE: agent} into .claude/settings.json so agent invocations attribute correctly out of the box, while a human in the same checkout stays themselves via author. Verified the write mechanics work (mtt show showed by claude, role agent). Relates t52 (hooks scaffold), t73/t82 (author/config surface). Keep the canonical-author rule: config.local author is the human source of truth; agents via MTT_BY env, not by hand-overriding config.local.'
