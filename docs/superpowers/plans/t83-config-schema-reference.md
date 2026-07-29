@@ -264,7 +264,7 @@ In `FLOW_GUIDE.md` §1 (near the `mtt types` line ~:32) and §11 (structural val
 
 - [ ] **Step 4: CLI_REFERENCE pointer (EN + RU)**
 
-`CLI_REFERENCE.md` — near the `mtt init --template` "Untrusted config-as-code" note (~:227), add: `The full config schema is in [CONFIG_REFERENCE.md](CONFIG_REFERENCE.md).` Mirror into `CLI_REFERENCE.ru.md` (~:228) with the `.ru` target.
+`CLI_REFERENCE.md` — near the `mtt init --template` "Untrusted config-as-code" note (~:227), add: `The full config schema is in [CONFIG_REFERENCE.md](CONFIG_REFERENCE.md).` Mirror into `CLI_REFERENCE.ru.md` (the «Недоверенный config-as-code» note, ~:226) with the `.ru` target.
 
 - [ ] **Step 5: CHANGELOG**
 
