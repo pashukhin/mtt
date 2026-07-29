@@ -19,8 +19,8 @@ A **decision record**. It fixes scope, deliverable, and the anti-drift mechanism
 
 The engine's config is code-as-config, authored by hand — but there is **no exhaustive field reference**.
 FLOW_GUIDE is a **tutorial** (how to author a flow, worked examples, §1–§12); it teaches the *concepts*
-(gates, `post:`, events, `require`) in prose but does not list **every field** with its type, default, and
-`omitempty` behaviour. In the pilot the adopter agent grepped FLOW_GUIDE *and* CLI_REFERENCE, found the
+(gates, `post:`, events, `require`) in prose but does not list **every field** with its type, its
+required/optional status, and its validity constraints. In the pilot the adopter agent grepped FLOW_GUIDE *and* CLI_REFERENCE, found the
 concepts but not an exhaustive schema, and went to `dto.go` to confirm the shape of `events:`,
 `post_defaults:`, `inherit_post:`, and the `require:` semantics. An adopter who reads the source to write a
 config is a documentation failure: the schema must be authorable **from docs alone**.
