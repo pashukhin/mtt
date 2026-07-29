@@ -1,13 +1,13 @@
 id: t83
 type: task
 title: 'config schema reference: one authoritative .mtt/config.yaml doc (events/require/post/post_defaults/hooks/placeholders)'
-status: impl_review
+status: approved
 priority: high
 tags:
     - docs
     - pilot
 created: "2026-07-29T05:19:48Z"
-updated: "2026-07-29T06:33:37Z"
+updated: "2026-07-29T06:38:05Z"
 description: 'Pilot evidence (tessera): to author a mature config (events/require/post for cross-session state + attribution), the builder agent could NOT rely on FLOW_GUIDE/CLI_REFERENCE — it grepped them, then reverse-engineered the schema from Go struct tags (pkg/mtt/config.go, internal/adapter/yaml/dto.go, event.go, identity.go, current.go, cli/events.go). Ship one authoritative config-schema reference so an agent or human authors any config from docs, not source: every top-level key, per-type/status/transition field, the events store x kind x post shape, post_defaults/inherit_post, require tighten-only semantics, and the placeholder set (.ID/.Type/.From/.To on edges; .Slug/.Event on events). Gates a clean next pilot, which asks the agent to author a flow from scratch. Relates FLOW_GUIDE, CLI_REFERENCE.'
 history:
     - at: "2026-07-29T05:36:17Z"
@@ -81,4 +81,12 @@ history:
         - cmd: 'git diff --quiet main...HEAD -- cmd internal pkg go.mod go.sum || git diff --name-only main...HEAD -- CHANGELOG.md | grep -q . || { echo "code changed but CHANGELOG.md has no entry - add one under [Unreleased] (pure refactor? bypass: mtt do submit --no-run --who ... --why ...)" >&2; false; }'
           exit: 0
         - cmd: make check
+          exit: 0
+    - at: "2026-07-29T06:38:05Z"
+      by: Grigorii Pashukhin
+      why: 'adversarial code review APPROVE: implementation matches the approved plan (test verbatim, CONFIG_REFERENCE.md byte-identical); drift test GREEN, extractor yields all 33; EN/RU parity faithful (33/33 backticked, 10 sections + 8 tables each, column-consistent, reciprocal links correct); sync edits landed in BOTH CLAUDE.md and AGENTS.md + README/FLOW_GUIDE/CLI_REFERENCE (EN+RU) + CHANGELOG, no garble; scope clean (one new test + docs, no Go logic, embed/BuiltinNames untouched); make check green. One non-blocking MINOR (file-level vs section-anchor cross-refs) deliberately left — a disclosed reference-doc convention; anchoring would risk fragile GitHub slugs.'
+      from: impl_review
+      to: approved
+      checks:
+        - cmd: out=$(git status --porcelain -- ":(exclude).mtt") && test -z "$out" || { echo "working tree not clean - commit your code/docs first (.mtt is swept by the move itself)" >&2; false; }
           exit: 0
