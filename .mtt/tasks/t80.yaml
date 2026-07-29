@@ -7,5 +7,8 @@ tags:
     - docs
     - pilot
 created: "2026-07-29T03:43:07Z"
-updated: "2026-07-29T03:43:07Z"
-description: 'Pilot friction: Python gates ''pytest''/''ruff'' were not found — gates run via sh -c without the project venv activated, so tools on the venv PATH are invisible. Had to use ''.venv/bin/pytest''/''.venv/bin/ruff''. Add a FLOW_GUIDE note: gate/post run in a bare shell; use absolute tool paths or activate your env inside the command. A common first-hour gotcha for venv/nvm/rbenv adopters.'
+updated: "2026-07-29T16:03:42Z"
+description: |-
+    Pilot friction: Python gates 'pytest'/'ruff' were not found — gates run via sh -c without the project venv activated, so tools on the venv PATH are invisible. Had to use '.venv/bin/pytest'/'.venv/bin/ruff'. Add a FLOW_GUIDE note: gate/post run in a bare shell; use absolute tool paths or activate your env inside the command. A common first-hour gotcha for venv/nvm/rbenv adopters.
+
+    Pilot-2 (contact_energy) confirms the bare-sh gate env, and surfaces a clean mitigation to document alongside the note: the bootstrap made each gate script SELF-CONTAINED — a sourced scripts/_env.sh resolves PY="$ROOT/.venv/bin/python" (fallback python3), cd's to repo-root, and exports the headless env — so gates never depend on an activated venv or inherited PATH and run identically by hand and under mtt. Recommended FLOW_GUIDE framing: "a gate/post command runs in a bare sh -c; either use absolute tool paths, or (better) have the gate script resolve its own interpreter/env from repo-root."
