@@ -1,0 +1,11 @@
+id: t82
+type: task
+title: design the 'mtt config' command surface (config author, ...) — first-run author friction
+status: tbd
+priority: medium
+tags:
+    - pilot
+    - ux
+created: "2026-07-29T03:43:15Z"
+updated: "2026-07-29T03:43:15Z"
+description: 'Pilot first-run friction (confirms/extends t73): there is no ''mtt config author <you>'' — the author had to be set by hand-creating .mtt/config.local.yaml. Beyond a one-off hint (t73), the pilot suggests a small ''mtt config'' surface (get/set author, maybe command_timeout/extract_hashtags overrides in config.local) with the canonical-author rule intact (config.local author is source of truth; never MTT_BY). Fold t73 into this or keep t73 as the hint sub-case.'
