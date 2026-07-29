@@ -146,6 +146,7 @@ mtt roadmap                 # порядок исполнения по зави�
 - [DESIGN.ru.md](DESIGN.ru.md) — архитектура и решения (источник правды)
 - [FLOW_GUIDE.ru.md](FLOW_GUIDE.ru.md) — как собрать свой флоу (гейты/`post:`/git-интеграция) на движке mtt
 - [CLI_REFERENCE.ru.md](CLI_REFERENCE.ru.md) — полная поверхность команд CLI (целевой дизайн)
+- [CONFIG_REFERENCE.ru.md](CONFIG_REFERENCE.ru.md) — полный справочник полей `.mtt/config.yaml`
 - [AGENTS.md](AGENTS.md) — как вести работу в репо (правила, гейт, принципы) — на английском
 - Бэклог — догфуд: репозиторий ведёт свои задачи в mtt — запустите `mtt roadmap` в чекауте
 - [Демо coding-шаблона](demo/README.ru.md) — запускаемый проход по потоку `coding`

@@ -224,7 +224,8 @@ Projects initialized before this shipped should add it by hand: `echo config.loc
     a **non-TTY without `--yes` is refused** (no silent remote fetch).
   - **Untrusted config-as-code:** an external template's gate/post commands run via `sh -c` on your
     transitions — after an external install `mtt init` prints a ⚠ notice to **review `.mtt/config.yaml`
-    before your first move** (init itself runs nothing). More adaptable samples ship in the repo's
+    before your first move** (init itself runs nothing). The full config schema is in
+    [CONFIG_REFERENCE.md](CONFIG_REFERENCE.md). More adaptable samples ship in the repo's
     `templates/` dir (`coding`, `docs`, `hierarchy`, and the `git-flow` flagship) — install by path or URL.
 - `--yes` — skip the confirmation prompt for a remote (`https://`) `--template`. *(t62)*
 - `--no-agent-hooks` *(t52)* — skip scaffolding agent settings + hooks. By default `mtt init` also runs

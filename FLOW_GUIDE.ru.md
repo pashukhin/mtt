@@ -30,6 +30,7 @@ HTTP-вызов, нотификация. **Прогон тестов — лиш�
 Начните со встроенного `default` (`mtt init`) или поставьте более богатый образец по пути/url
 (`mtt init --template templates/coding.yaml`, `templates/docs.yaml`, `templates/hierarchy.yaml` или флагман `git-flow` — см. галерею в §2b),
 затем осмотрите любой флоу через **`mtt types`** — он рендерит граф, gate-команды и именованные ребра-вербы.
+Каждое поле — в справочнике [CONFIG_REFERENCE.ru.md](CONFIG_REFERENCE.ru.md).
 
 ## 2. Минимальный флоу с нуля
 
@@ -293,7 +294,8 @@ mtt status i1 done --no-run --who me --why "skip"   # bypass the gate: --no-run 
 
 ## 11. Валидация флоу (структура)
 
-`mtt add` и `mtt types` запускают `Config.Validate`, отвергающий структурно сломанный флоу **до** рантайма:
+`mtt add` и `mtt types` запускают `Config.Validate`, отвергающий структурно сломанный флоу **до** рантайма
+(тип и ограничения каждого поля — в [CONFIG_REFERENCE.ru.md](CONFIG_REFERENCE.ru.md)):
 
 - у каждого флоу ≥1 `initial`, ≥1 `active`, ≥1 `terminal`, и `kind` совпадает с топологией;
 - имена типов и статусов уникальны; каждый `from`/`to` перехода резолвится в реальный статус;
