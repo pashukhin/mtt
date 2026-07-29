@@ -1,0 +1,11 @@
+id: t85
+type: task
+title: roadmap/ready print nothing (exit 0) on an empty backlog — add an explicit empty-state message
+status: tbd
+priority: low
+tags:
+    - pilot
+    - ux
+created: "2026-07-29T05:19:56Z"
+updated: "2026-07-29T05:19:56Z"
+description: 'Pilot first-hour friction (tessera greenfield): mtt roadmap on an empty backlog printed nothing with exit 0, so the agent could not tell all-done from broken/wrong-filter and fell back to mtt list. AGENTS.md points the agent at roadmap as the entry point, so a silent empty result is a dead end. Print an explicit empty-state hint, e.g. no ready tasks — run mtt add to create one (and similarly for mtt ready and filtered mtt list).'
