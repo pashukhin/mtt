@@ -1,13 +1,13 @@
 id: t83
 type: task
 title: 'config schema reference: one authoritative .mtt/config.yaml doc (events/require/post/post_defaults/hooks/placeholders)'
-status: approved
+status: done
 priority: high
 tags:
     - docs
     - pilot
 created: "2026-07-29T05:19:48Z"
-updated: "2026-07-29T06:38:05Z"
+updated: "2026-07-29T06:45:15Z"
 description: 'Pilot evidence (tessera): to author a mature config (events/require/post for cross-session state + attribution), the builder agent could NOT rely on FLOW_GUIDE/CLI_REFERENCE — it grepped them, then reverse-engineered the schema from Go struct tags (pkg/mtt/config.go, internal/adapter/yaml/dto.go, event.go, identity.go, current.go, cli/events.go). Ship one authoritative config-schema reference so an agent or human authors any config from docs, not source: every top-level key, per-type/status/transition field, the events store x kind x post shape, post_defaults/inherit_post, require tighten-only semantics, and the placeholder set (.ID/.Type/.From/.To on edges; .Slug/.Event on events). Gates a clean next pilot, which asks the agent to author a flow from scratch. Relates FLOW_GUIDE, CLI_REFERENCE.'
 history:
     - at: "2026-07-29T05:36:17Z"
@@ -89,4 +89,13 @@ history:
       to: approved
       checks:
         - cmd: out=$(git status --porcelain -- ":(exclude).mtt") && test -z "$out" || { echo "working tree not clean - commit your code/docs first (.mtt is swept by the move itself)" >&2; false; }
+          exit: 0
+    - at: "2026-07-29T06:45:15Z"
+      by: Grigorii Pashukhin
+      from: approved
+      to: done
+      checks:
+        - cmd: git switch main
+          exit: 0
+        - cmd: 'git log -n 1000 --format=%s | grep -v "^mtt: " | head -200 | grep "^t83: " || { echo "no squash commit \"t83: …\" on local main: git pull first, and check the PR/merge title started with \"t83: \"" >&2; false; }'
           exit: 0
