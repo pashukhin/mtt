@@ -1,0 +1,11 @@
+id: t81
+type: task
+title: version stamping for 'go install' builds (reports 'dev')
+status: tbd
+priority: low
+tags:
+    - dx
+    - pilot
+created: "2026-07-29T03:43:11Z"
+updated: "2026-07-29T03:43:11Z"
+description: The adopter's installed binary (go install github.com/pashukhin/mtt/cmd/mtt@latest, on PATH) reports version 'dev' because ldflags -X are only applied by 'make build'/goreleaser, not by 'go install'. An adopter can't tell what build they run (no way to correlate with a release/changelog). Consider embedding version via runtime/debug.ReadBuildInfo (module version) as a fallback when ldflags are absent.
