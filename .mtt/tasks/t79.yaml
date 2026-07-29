@@ -1,0 +1,12 @@
+id: t79
+type: task
+title: 'coding starter: a no-code companion type + toolchain-neutral gates (or a combined ''project'' template)'
+status: tbd
+priority: medium
+tags:
+    - dx
+    - flow
+    - pilot
+created: "2026-07-29T03:43:03Z"
+updated: "2026-07-29T03:43:03Z"
+description: 'Greenfield pilot (tessera, Python) evidence: (1) the very FIRST real task was no-code design — coding.yaml has only feature/bugfix/refactor (all code-gated), so a ''design'' type had to be authored by hand. (2) Every gate is Makefile-shaped (''make lint''/''make test'') — a Python/JS adopter rewrites all of them. Options: ship a combined ''project'' template (code types + a no-code design type with a doc-exists gate) and/or make coding''s gates toolchain-neutral or per-language variants. This is the evidence base for the ''near-industrial sample'' idea; let the pilot''s matured config seed it. Relates t78 (gallery), t62 (templates).'
