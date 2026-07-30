@@ -10,7 +10,7 @@ refs:
     - kind: note
       id: positioning-vs-beads
 created: "2026-07-30T04:33:13Z"
-updated: "2026-07-30T05:03:44Z"
+updated: "2026-07-30T06:17:34Z"
 ---
 CORRECTED 2026-07-30 against the INSTALLED binary — now **bd 1.1.2** (local updated from 1.0.2 and re-verified; the 1.0.2→1.1.2 changelog is entirely Dolt storage/migration hardening, no task-lifecycle change, so every conclusion below holds). This SUPERSEDES this note's original doc-based version, which was WRONG in several places — verifying against docs alone materially oversold mtt vs beads. (positioning-vs-beads was actually more accurate: "custom-but-global statuses; bd gate = async wait, not command-gated" — both confirmed against the binary.)
 
@@ -40,3 +40,10 @@ PITCH (corrected, verified against 1.1.2; final wording TBD by maintainer):
 - Targeting unchanged: ROI scales with the number of context-breaks.
 
 LESSON (process): verify competitor claims against the INSTALLED, CURRENT tool, never docs or a stale local build. The empirical beads arm (EXPERIMENT-contact-energy-beads.md, now run against bd 1.1.2) matters MORE now: beads is a serious, feature-matched competitor, so the head-to-head is a real test of the one surviving wedge — measure whether test-first is actually ENFORCED+VERIFIABLE in mtt and merely hoped-for in beads.
+
+
+SECOND FACET OF THE WEDGE — post-actions / orchestration (added 2026-07-30):
+"Commands on transitions" has TWO halves, both absent in beads:
+- GATE commands (pre) = enforcement / status-can't-lie — the order gate (covered above).
+- POST commands = orchestration — the transition ITSELF runs the infrastructure (git commit/push, gh pr create), so the agent drives the whole lifecycle through ONE typed verb per task (mtt approve -> push + PR; mtt deliver -> push main) instead of operating git by hand AND syncing the tracker separately. The flow also NARRATES the next verb ("next: submit -> ..."), so mtt is a process-scaffold; beads (fixed statuses, no flow) leaves the agent to invent process and thus work in INFRASTRUCTURE terms (git commit conventions, hooks, Dolt-rebuild). Arm B shows it: the beads agent was pushed straight into git (RED: commit convention, --no-verify escape, bd hooks/bootstrap/role management).
+CAVEAT (honest, keep it): this facet is a CAPABILITY the flow author wires, not automatic. The PILOT arm C did NOT wire git into post — its bootstrap dropped events:/post: auto-commit because it "fights the agent's staging" — so in the pilot the agents ran git by hand and this facet was UNDER-realized; the mtt REPO's own flow (approve/deliver) is what fully demonstrates it. And auto-git trades control for convenience: a failed post-action leaves a half-done state (mtt exits 5, finish by hand) — the exact staging-conflict the pilot bootstrap avoided. Frame it as "the transition edge is a scriptable hook (gate + finalize)", noting the wiring cost.
