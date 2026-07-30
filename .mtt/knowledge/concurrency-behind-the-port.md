@@ -12,10 +12,8 @@ refs:
       id: complexity-budget
     - kind: note
       id: positioning-mechanism-not-methodology
-    - kind: note
-      id: storage-engine-behind-port-think
 created: "2026-07-30T12:47:43Z"
-updated: "2026-07-30T12:47:43Z"
+updated: "2026-07-30T12:49:14Z"
 ---
 Decided 2026-07-30 (post beads head-to-head + concurrency design discussion). Refines storage-engine-behind-port-think. Prevents the "just build mtt-server" temptation from resurfacing every time the ID-race / lost-update problem is hit.
 
