@@ -1,0 +1,28 @@
+id: t87
+type: task
+title: 'git-native concurrency (monorepo): per-writer namespace IDs + assignee field + claim-via-gate recipe'
+status: tbd
+priority: medium
+tags:
+    - core
+    - flow
+    - multiagent
+created: "2026-07-30T13:39:29Z"
+updated: "2026-07-30T13:39:29Z"
+description: |-
+    Realize the git-native, monorepo concurrency MVP decided in note `concurrency-behind-the-port` (post beads head-to-head). Design-open: needs a spec + plan.
+
+    RESOLVED SHAPE (the (b) decision): mtt owns the claim STATE (an `assignee` field — legibility + `ready`/`list` filter, resurrecting the t3 idea as core), but NOT the claim MECHANISM (atomicity is a git-CAS gate command on the `start` edge — a documented FLOW_GUIDE recipe, mtt stays git-agnostic). This mirrors the whole design: mtt knows the flow/state; commands do the infrastructure.
+
+    SCOPE (default store, plain-YAML-in-git, one shared git store = monorepo):
+    - Per-writer namespace IDs so concurrent creation across clones cannot collide (single-writer default keeps flat `t1`, zero cost; multi-writer mints in a per-writer namespace). Realizes the DESIGN.md "namespace prefix per branch/agent" trade-off note and audit-monotonicity (t74).
+    - `assignee` field: optional, sets on claim; `mtt ready`/`list` exclude/filter assigned; `mtt show` displays it. (t3 as the claim primitive.)
+    - Claim = git-CAS gate command on `start` (recipe in FLOW_GUIDE), + `ready`-excludes-assigned closes the race window. The claim SERIALIZES same-entity writes, so we never need cell-merge (this is how we stay light where beads went to Dolt).
+    - Lost-update: mostly gone via the claim; append-only audit merge=union; optimistic path for rare grooming of an unclaimed task.
+    - Mode entry: single-writer default vs multi-writer (config flag and/or auto-detect on a 2nd writer).
+
+    SPEC MUST DECIDE: the atomic primitive (per-task claim ref `refs/mtt/claims/<id>` via create-only push, vs field-CAS, vs natural main-push-rejection, vs claim-log+union); writer-id source (branch / MTT_BY / config) and namespaced-ID format; whether `assignee` is a base field or an optional capability; mode-entry trigger.
+
+    NON-GOALS (explicit): polyrepo (no shared git substrate — needs a state-branch t33 or an external store); a server/DB store (Variant B — see note; that path is an OPTIONAL adapter behind the port t9/t76, never core); fine-grained concurrent CO-EDIT of one task (the claim serializes; not our case → external adapter).
+
+    Realizes/relates: t74 (monotonic ids), t3 (assignee), and part of t10 (concurrency cluster) + t33 (state visibility). Governed by notes concurrency-behind-the-port, storage stays plain YAML.
