@@ -10,7 +10,7 @@ refs:
     - kind: note
       id: positioning-vs-beads
 created: "2026-07-30T04:33:13Z"
-updated: "2026-07-30T06:17:34Z"
+updated: "2026-07-30T08:46:22Z"
 ---
 CORRECTED 2026-07-30 against the INSTALLED binary — now **bd 1.1.2** (local updated from 1.0.2 and re-verified; the 1.0.2→1.1.2 changelog is entirely Dolt storage/migration hardening, no task-lifecycle change, so every conclusion below holds). This SUPERSEDES this note's original doc-based version, which was WRONG in several places — verifying against docs alone materially oversold mtt vs beads. (positioning-vs-beads was actually more accurate: "custom-but-global statuses; bd gate = async wait, not command-gated" — both confirmed against the binary.)
 
@@ -47,3 +47,19 @@ SECOND FACET OF THE WEDGE — post-actions / orchestration (added 2026-07-30):
 - GATE commands (pre) = enforcement / status-can't-lie — the order gate (covered above).
 - POST commands = orchestration — the transition ITSELF runs the infrastructure (git commit/push, gh pr create), so the agent drives the whole lifecycle through ONE typed verb per task (mtt approve -> push + PR; mtt deliver -> push main) instead of operating git by hand AND syncing the tracker separately. The flow also NARRATES the next verb ("next: submit -> ..."), so mtt is a process-scaffold; beads (fixed statuses, no flow) leaves the agent to invent process and thus work in INFRASTRUCTURE terms (git commit conventions, hooks, Dolt-rebuild). Arm B shows it: the beads agent was pushed straight into git (RED: commit convention, --no-verify escape, bd hooks/bootstrap/role management).
 CAVEAT (honest, keep it): this facet is a CAPABILITY the flow author wires, not automatic. The PILOT arm C did NOT wire git into post — its bootstrap dropped events:/post: auto-commit because it "fights the agent's staging" — so in the pilot the agents ran git by hand and this facet was UNDER-realized; the mtt REPO's own flow (approve/deliver) is what fully demonstrates it. And auto-git trades control for convenience: a failed post-action leaves a half-done state (mtt exits 5, finish by hand) — the exact staging-conflict the pilot bootstrap avoided. Frame it as "the transition edge is a scriptable hook (gate + finalize)", noting the wiring cost.
+
+
+==================================================================
+EMPIRICAL RESULT — arm B COMPLETE (2026-07-30). THE LEAD SHIFTS.
+==================================================================
+The beads control arm (same GAME.md, 4 fresh role sessions, no stress; protocol + journal in EXPERIMENT-contact-energy-beads*.md) is done, and it REFUTES the "only mtt can enforce/verify test-first" framing above. beads (fixed statuses, no transition gate) + a git commit-msg hook keyed on a "RED:" commit convention + a spec-bead/impl-bead split achieved the SAME test-first: 32 clean RED->add pairs, every impl bead test-first, verifiable in git log, and **0 --no-verify bypasses** across the whole arm (verified against the actual 71 git-commit invocations, not subjects). So enforcement + verifiability of ORDER is NOT unique to mtt — a beads world reconstructs it.
+
+WHAT SURVIVES IS INTEGRATION + COST, NOT CAPABILITY — this is the corrected LEAD:
+- Both tools can enforce test-first. mtt delivers it as ONE declarative, tracker-INTEGRATED mechanism driven by lifecycle verbs, at a fraction of the ceremony: the gate is ON the task transition (status cannot lie), one config authors it, one verb can run checks AND the git/PR plumbing, state is a single git substrate. Arm C: ~22 commits, mtt start/done.
+- beads makes you RECONSTRUCT the same guarantee as DECOUPLED machinery: a git commit-msg hook + a RED: naming convention + a spec/impl bead split + a 2x-finer backlog (75 beads vs 18 tasks) + manual two-store (git + Dolt) sync. It works, but arm B paid ~3x the mechanical load (~71 git commits + 141 bd mutations, ~221 git-verb ops) and did NOT finish the playability layer in-budget (73/81 closed; the shield/key-hints UX bead left open) — partly a downstream cost of the no-gate-forced 2x backlog.
+- The trace also decouples: mtt's test-first record lives IN the task (transition history); beads' lives in git (RED: commits), convention-linked to the bead, not machine-tied to its closed status.
+
+HONEST — where beads MATCHED or BEAT mtt (keep in the pitch's honesty coda): context recovery (bd ready/prime), knowledge memory (bd note/remember), ATTRIBUTION (first-class --actor/beads.role vs mtt's t84 authorless-by-default), epics/hierarchy, batch issue creation, maturity.
+
+PITCH LEAD (corrected, empirically grounded; final wording TBD by maintainer):
+"You can already enforce test-first with hooks and conventions if you work at it — a git commit-msg gate can even prove order. mtt's difference is not that it CAN; it is that it makes the same guarantee ONE declarative thing INSIDE the tracker, driven by a single lifecycle verb per task — so the status cannot lie, and you are not hand-syncing two stores or hand-rolling a commit convention. Same enforcement, a fraction of the machinery." This is humbler and more credible than "beads can't" — and it is what a real head-to-head actually showed.
