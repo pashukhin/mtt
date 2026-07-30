@@ -10,7 +10,7 @@ refs:
     - kind: note
       id: positioning-vs-beads
 created: "2026-07-30T04:33:13Z"
-updated: "2026-07-30T08:46:22Z"
+updated: "2026-07-30T09:34:18Z"
 ---
 CORRECTED 2026-07-30 against the INSTALLED binary — now **bd 1.1.2** (local updated from 1.0.2 and re-verified; the 1.0.2→1.1.2 changelog is entirely Dolt storage/migration hardening, no task-lifecycle change, so every conclusion below holds). This SUPERSEDES this note's original doc-based version, which was WRONG in several places — verifying against docs alone materially oversold mtt vs beads. (positioning-vs-beads was actually more accurate: "custom-but-global statuses; bd gate = async wait, not command-gated" — both confirmed against the binary.)
 
@@ -63,3 +63,11 @@ HONEST — where beads MATCHED or BEAT mtt (keep in the pitch's honesty coda): c
 
 PITCH LEAD (corrected, empirically grounded; final wording TBD by maintainer):
 "You can already enforce test-first with hooks and conventions if you work at it — a git commit-msg gate can even prove order. mtt's difference is not that it CAN; it is that it makes the same guarantee ONE declarative thing INSIDE the tracker, driven by a single lifecycle verb per task — so the status cannot lie, and you are not hand-syncing two stores or hand-rolling a commit convention. Same enforcement, a fraction of the machinery." This is humbler and more credible than "beads can't" — and it is what a real head-to-head actually showed.
+
+
+---
+PRECISION (2026-07-30, Q1) — "both tools enforce test-first" is imprecise, correct it in the article:
+- The INSTRUCTION ("fanatically TDD") + a compliant agent produced the test-first BEHAVIOUR. Neither tool created it (bootstrap's own retro: "an agent who was going to do TDD anyway would do the same").
+- ENFORCEMENT (non-bypassable + traced) came from a GATE. In arm C that gate is mtt's OWN (a check on the tbd->implementing transition). In arm B it is a GIT commit-msg hook — **beads-the-tool enforced NOTHING toward test-first** (it has no transition gate; the arm-B agents said so: "discipline was held not by beads but by the commit-msg hook").
+- So the precise claim: mtt turns test-first into an enforced, verifiable, non-bypassable invariant INSIDE THE TRACKER; the beads world must put that enforcement in git, OUTSIDE the tracker. And even the gate's marginal value over a compliant agent is guarantee + trace, not motivation.
+- Net: this SHARPENS the wedge — mtt provides the in-tracker PLACE for the gate; beads does not, so enforcement falls back to git.
