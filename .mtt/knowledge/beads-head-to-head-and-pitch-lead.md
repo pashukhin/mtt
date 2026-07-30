@@ -10,32 +10,31 @@ refs:
     - kind: note
       id: positioning-vs-beads
 created: "2026-07-30T04:33:13Z"
-updated: "2026-07-30T04:33:13Z"
+updated: "2026-07-30T04:54:29Z"
 ---
-Verified beads against its current docs (2026-07-30) to ground the pitch before t60/the article. Final article wording is TBD (deferred by the maintainer); this note records the reasoning in detail so it is not lost.
+CORRECTED 2026-07-30 against the INSTALLED binary (bd 1.0.2). This SUPERSEDES this note's earlier doc-based version, which was WRONG in several places — verifying against docs alone materially oversold mtt vs beads. (The positioning-vs-beads note was actually more accurate: "custom-but-global statuses; bd gate = async wait, not command-gated" — both confirmed.)
 
-BEADS MODEL (docs, 2026-07-30; sources: github.com/steveyegge/beads README + docs site + AGENT_INSTRUCTIONS.md):
-- FIXED GLOBAL statuses: open, in_progress, blocked, closed, deferred. No custom statuses, no per-issue-type lifecycles. (A couple of built-in types exist, e.g. a `message` type with an ephemeral lifecycle, but no user-authored per-type flow.)
-- Gates = special ISSUES that block dependent work (via the dependency graph) until an EXTERNAL async condition is met: human approval, `timer`, `gh:pr` (PR merge), `gh:run` (CI run), cross-rig `bead`. Enforced at `bd close`; checked by POLLING (`bd gate check` via cron/CI/hook); `--force` bypasses. There is NO synchronous local shell-command gate on a transition, and NO gate on the `start` edge.
-- Store: Dolt/SQLite + JSONL synced via git; hash IDs (bd-a1b2) + cell-level merge — engineered for multi-agent / multi-branch concurrency. Also has "semantic memory decay" (summarizes old closed tasks).
+WHAT bd 1.0.2 ACTUALLY IS (a rich, mature tool — not the minimal tracker the doc snapshot implied):
+- Statuses: 7 built-in (open, in_progress, blocked, deferred, closed, pinned, hooked) WITH categories (active/wip/done/frozen), AND CUSTOM statuses configurable for multi-step pipelines (`bd config set status.custom "awaiting_review,awaiting_testing,..."`). NOT a fixed 5-status set. Statuses are global (not per-type).
+- Types: 9 built-in (task/bug/feature/chore/epic/decision/spike/story/milestone) + custom types (`types.custom`).
+- Knowledge/memory: beads HAS remember/recall/memories/forget + `bd prime` (AI workflow context) + comment/comments + note. So "a KB/prime pairing a tracker lacks" was WRONG — beads has all of it.
+- Concurrency: hash IDs, Dolt cell-level merge, merge-slot (serialized-conflict gates), worktree, federation — beads is BUILT for parallel multi-agent; STRONGER than mtt here.
+- Also: epic/swarm (hierarchy), audit (append-only JSONL), preflight/onboard/quickstart, jira/linear/ado integrations, sql, export/import, gc/memory-decay.
 
-WHAT THIS CONFIRMS (our differentiator holds AND sharpens):
-- The mtt wedge is NOT "beads can't gate" (it can) but the FORM: synchronous local shell-command gate on ANY per-type edge, including `start`. Only that expresses ORDER (a failing test exists BEFORE code) and per-type work distinction (feature=red gate, chore=none, design=doc-only). beads' fixed-5-statuses + async-external-wait-gate-at-close cannot express either. Field-grounded: all four arm-C sessions independently named the order gate as the single irreducible value.
-- Corollary: even "green/done can't lie" is NOT unique — beads also enforces at bd close (gh:run/gh:pr). So the pitch must NOT lead on the green "done" gate; the arm-C sessions unanimously called that the weakest, most replicable part.
+WHAT SURVIVES AS THE mtt WEDGE (verified against the binary — and it is NARROW, ONE thing):
+- The only structural thing beads cannot do: **gate a status transition on a SYNCHRONOUS LOCAL SHELL COMMAND, per task type.** beads' enforcement is (a) async external-wait gates (human/timer/gh:pr/gh:run/bead) checked at close, and (b) git hooks at commit/push time. Neither runs a local command AT a task's transition. Config namespaces are export/jira/linear/github/custom/status/doctor — there is NO gate/transition/dod config.
+- So the two things beads cannot enforce:
+  1. ORDER — "a failing test exists BEFORE you take THIS task into work" (the red gate on tbd→implementing). A git pre-commit hook gates the COMMIT not the task's start; a gh:run gate is external + at-close. Neither expresses test-before-code.
+  2. Executable per-type Definition-of-Done AS A TRANSITION CONDITION — feature runs red+green, chore green-only, design doc-check — hard, local, synchronous gates on the edge.
+- This is EXACTLY the one irreducible value all four arm-C sessions independently named. Field evidence and the binary agree: the wedge is the command-gated per-type transition, nothing more.
 
-WHERE BEADS IS STRONGER (state honestly; do NOT claim these for mtt):
-- Multi-agent / parallel / concurrent writers: beads is BUILT for it (hash IDs, cell-level merge, native branching). mtt's one-file-per-task YAML is the known-weak axis (single-writer; t10/t33). This reverses the intuition that "mtt is better for multi-agent" — on true concurrency, beads leads.
-- Memory: beads is also in-repo (Dolt/JSONL) and survives context loss; it even has memory-decay. So "in-repo memory" is NOT a clean mtt win — it is a TRADE.
+WHAT DOES NOT SURVIVE (drop from the pitch — beads matches or beats):
+- "In-repo memory / KB / prime pairing" — beads has memory+prime+comments+notes and is also in-repo (Dolt + auto-exported .beads/issues.jsonl). NOT a differentiator.
+- "Plain-text legibility" — softer than claimed: beads auto-exports issues.jsonl on every write. mtt's only edge is that YAML-per-task IS the source (cat/grep/diff/edit directly) vs a Dolt DB with a JSONL mirror. A minor simplicity trade, not a headline.
+- Multi-agent / parallel concurrency — beads is STRONGER; never claim it for mtt.
 
-THE PITCH LEAD (verified; final wording TBD):
-- LEAD: mtt gates transitions with a synchronous shell command PER TYPE — including `start` — so it can enforce what a fixed-status async-wait model (beads) and result-only hooks (CI/pre-commit) cannot: ORDER (test-before-code) and the distinction between kinds of work.
-- SECOND (honest trade, not a headline): state is plain text in the working tree (cat/grep/diff, no tool, no export) plus a knowledge pairing (notes/refs/prime) a tracker lacks — traded against beads' DB robustness, memory-decay, and concurrency.
-- SILENT: parallel multi-agent concurrency — beads leads there; keep it out of the mtt pitch until our concurrency axis (t10/t33) is tested.
-- TARGETING refinement (from arm C, unanimous): mtt's ROI scales with the NUMBER OF CONTEXT-BREAKS (many fresh agent sessions), not team or project size. Sharper than "a developer working through coding agents".
+PITCH (corrected, verified; final wording TBD by maintainer):
+- The wedge is ONE thing: **mtt gates transitions with a synchronous local shell command, per type — enforcing what beads structurally cannot: test-before-code (ORDER) and an executable per-type Definition-of-Done as a hard transition condition.** Everything else beads matches or beats. Narrow is correct — it is the "sharp fuse", and it is exactly what real users independently found irreducible.
+- Targeting unchanged: ROI scales with the number of context-breaks.
 
-TWO SMALL CORRECTIONS TO FOLD INTO positioning-vs-beads later:
-1. beads statuses are FIXED (open/in_progress/blocked/closed/deferred), not "custom-but-global".
-2. beads gates enforce at `bd close` and are POLLED (bd gate check); add that they are external-wait/dependency-shaped.
-3. Add explicitly: concurrency is beads' STRENGTH and mtt's weak axis (the note frames it only as "our gap").
-
-NEXT: an empirical control arm (beads) on the same GAME.md, same 4-role structure, no stress condition — protocol in EXPERIMENT-contact-energy-beads.md. It tests the LEAD claim (does the order gate actually produce verifiable test-first that beads cannot) and honestly measures authoring-tax + (untested) concurrency.
+LESSON (process): verify competitor claims against the INSTALLED tool, never docs alone. The empirical beads arm (EXPERIMENT-contact-energy-beads.md) matters MORE now: beads is a serious, feature-matched competitor, so the head-to-head is a real test of the one surviving wedge — measure whether test-first is actually ENFORCED+VERIFIABLE in mtt and merely hoped-for in beads.
