@@ -5,7 +5,7 @@ tags:
     - release
 priority: high
 created: "2026-07-27T15:50:31Z"
-updated: "2026-07-27T15:50:31Z"
+updated: "2026-07-30T09:09:22Z"
 ---
 # Pitch 1.0 — why you need mtt
 
@@ -18,3 +18,11 @@ Working draft (2026-07-27). Two paragraphs, plus the honest coda. Source for the
 **Honest coda (do not hide it).**
 - The entry cost is higher than a simpler tracker's — and that is the price, not a flaw. mtt is useless until you author a flow. It is not a drop-in: author your definition of done once, and it is enforced from then on.
 - Who it is NOT for: if you just want a to-do list, use something lighter — moving to mtt would be a lateral step plus an authoring tax. mtt wins decisively only if you want the process itself enforced — especially under agents, who silently skip anything not mechanically gated.
+
+
+---
+REFINEMENT (post beads head-to-head, 2026-07-30) — fold in when finalizing for the article (t60). Two greenfield pilots + a 4-role beads control arm sharpened this:
+- CRISP irreducible = the ORDER gate: mtt gates a task's START on a local check (a failing test must exist BEFORE code). CI / pre-commit / hooks-on-result see only the OUTCOME ("green") and cannot see order — the one thing all eight pilot agents independently named as not reducible to other tooling.
+- Category reframe: for coding agents mtt is a CONSTRAINT on the agent ("it closes doors", "it refuses"), not a to-do list. A tracker suggests; mtt's gate refuses. That is the sell.
+- Targeting: ROI scales with the number of CONTEXT-BREAKS (many fresh agent sessions handing off), not team/project size. For a solo human on a small project it is overhead — say so; it is the correct signal.
+- Honest-coda addition: you CAN hand-roll test-first enforcement with git hooks + commit conventions — a competing agent-tracker (beads) makes you do exactly that. mtt's difference is that the same guarantee is ONE declarative thing INSIDE the tracker, driven by one lifecycle verb per task — status cannot lie, no two-store hand-sync. Same enforcement, a fraction of the machinery. (Evidence: note beads-head-to-head-and-pitch-lead.)
